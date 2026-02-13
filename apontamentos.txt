@@ -33,6 +33,49 @@ Apresentar soluçoes para as variaveis dos pagamentos
 exemplo:
 Um professor tem um pack de 20 euros para aulas individuais mas para 2 alunos ja é 15 euros, ou seja ele vai receber 30 euros
 e para 3 alunos 12 euros.
-Mas o queé que acontece quando um aluno falta? o professor recebe menos? o aluno paga que apareceu vai pagar o mesmo que
+Mas o que é que acontece quando um aluno falta? o professor recebe menos? o aluno que apareceu vai pagar o mesmo que
 estava acordado ou vai pagar o preço de uma aula individual? e se o aluno que apareceu nao conseguir pagar essa aula online
 de 20 euros mas conseguia a de 15?
+
+
+
+Para os Requisitos:
+RTO- é o tempo máximo tolerável que um sistema, serviço ou aplicação pode ficar inativo após uma falha, ou desastre.
+Regulamento Geral sobre a Proteção de Dados (RGPD) é a legislação da União Europeia (UE) que rege a proteção de dados pessoais e a privacidade
+PCI DSS (Payment Card Industry Data Security Standard) é um padrão global de segurança de dados que estabelece requisitos para proteger as informações de titulares de cartões de pagamento (crédito, débito, pré-pagos)
+Webhooks são gatilhos automáticos baseados em eventos que enviam dados em tempo real de uma aplicação para outra via HTTP
+18n (Internacionalização) é o processo de projetar softwares, sites ou aplicações para suportar múltiplos idiomas, moedas, formatos de data/hora e convenções culturais sem alterar a base de código
+
+
+
+
+Preply:
+A primeira aula: É paga de forma isolada (avulso).
+A assinatura: Se decidires continuar com esse professor, tens de escolher um plano de horas semanais (por exemplo, 1, 2, 3 ou 4 horas por semana).
+A faturação: O Preply vai cobrar-te no cartão a cada 28 dias o valor correspondente a esse pacote mensal de horas.
+Atenção aos prazos: As horas que compras devem ser usadas dentro desse ciclo de 28 dias. Se não as agendares, corres o risco de as perder (embora haja algumas regras de acumulação de horas de um mês para o outro, desde que a tua assinatura se mantenha ativa).
+
+Como funcionam os pagamentos nas Aulas em Grupo?
+As aulas em grupo têm uma lógica diferente para não se misturarem com a assinatura das aulas individuais. Funcionam assim:
+Pagamento por Pacote/Curso: Em vez da assinatura mensal obrigatória de "X horas por semana", as aulas em grupo costumam ser vendidas como um curso fechado. Por exemplo: um curso de conversação em Inglês B2 que dura 5 semanas.
+Custo mais baixo: Tu pagas um valor fixo por esse curso completo (ou um pacote de aulas) no momento da inscrição. O valor por hora acaba por ser consideravelmente mais barato do que ter um professor só para ti.
+Vagas limitadas: Como a turma tem um número máximo de participantes (geralmente turmas pequenas, de 4 a 6 pessoas), tu estás a pagar para reservar o teu lugar específico nesses dias e horas.
+
+O que acontece se um aluno faltar (mesmo sendo uma urgência)?
+Infelizmente, se um aluno faltar a uma aula em grupo, ele perde essa aula e o valor não é reembolsado.
+Nas aulas individuais, tu tens a flexibilidade de cancelar ou remarcar a aula gratuitamente (desde que o faças com pelo menos 12 horas de antecedência). Nas aulas em grupo, isso não é possível. Como o horário é fixo e partilhado com outras pessoas, o professor tem de dar a aula para quem estiver presente. Por isso, quer seja um esquecimento ou uma urgência médica, a aula é cobrada na mesma à pessoa que faltou.
+Exemplo do grupo de 2 alunos (em que 1 falta): quanto paga o que vai à aula?
+Nesse cenário, o aluno que comparece tem muita sorte! Ele acaba por ter, na prática, uma aula individual (1 para 1), mas continua a pagar apenas o valor da aula em grupo (que é substancialmente mais barato).
+E o professor? O professor também não sai prejudicado. Ele vai receber o pagamento correspondente àquela aula de grupo, independentemente de estarem presentes os dois alunos ou apenas um, pois o aluno que faltou pagou por aquele lugar.
+Resumindo: as aulas em grupo são ótimas pelo preço e pela interação, mas exigem muito mais compromisso com o horário, porque não há a flexibilidade de remarcar aquela sessão só para ti se tiveres um imprevisto!
+
+
+
+
+Possiveis soluçoes para AulaExtra:
+Os alunos tem de efetuar o pagamento apos o agendamento das aulas todas.
+quando sao por exemplo aulas de grupo para 2 alunos podia-se apenas reembolsar uma determinada percentagem ao aluno que faltou por alguma urgencia, este mesmo pode ter no maximo 2 advertencias, ou seja, na primeira paga uma percentagem do valor,
+na segunda tambem, mas na terceira paga o valor completo. Estas advertencias podiam ser revocadas 1 ano apos a 2 advertencia que o aluno teve. Mas ha outros problemas, neste caso o outro aluno que apareceu iria apenas pagar o mesmo que ja estava
+acordado (pois parece ser o mais justo), caso o aluno que faltou tenha mais aulas agendadas, ele tera um prazo de 72 horas para confirmar que ira conseguir aparecer as restantes aulas, caso ele nao o faça ele sera removido dessas marcaçoes.
+E quanto ao aluno que esta sempre presente e so tem capacidades financeiras para pagar aulas em grupo, esta de 2 alunos no caso, ira ser reagendado para se juntar a outro ou outros alunos que estejam dispostos para aulas em grupo e claro de acordo
+com a disponibilidade do professor.
