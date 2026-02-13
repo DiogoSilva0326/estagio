@@ -72,10 +72,46 @@ Resumindo: as aulas em grupo são ótimas pelo preço e pela interação, mas ex
 
 
 
-Possiveis soluçoes para AulaExtra:
+Possivel soluçãos para AulaExtra:
 Os alunos tem de efetuar o pagamento apos o agendamento das aulas todas.
 quando sao por exemplo aulas de grupo para 2 alunos podia-se apenas reembolsar uma determinada percentagem ao aluno que faltou por alguma urgencia, este mesmo pode ter no maximo 2 advertencias, ou seja, na primeira paga uma percentagem do valor,
 na segunda tambem, mas na terceira paga o valor completo. Estas advertencias podiam ser revocadas 1 ano apos a 2 advertencia que o aluno teve. Mas ha outros problemas, neste caso o outro aluno que apareceu iria apenas pagar o mesmo que ja estava
 acordado (pois parece ser o mais justo), caso o aluno que faltou tenha mais aulas agendadas, ele tera um prazo de 72 horas para confirmar que ira conseguir aparecer as restantes aulas, caso ele nao o faça ele sera removido dessas marcaçoes.
 E quanto ao aluno que esta sempre presente e so tem capacidades financeiras para pagar aulas em grupo, esta de 2 alunos no caso, ira ser reagendado para se juntar a outro ou outros alunos que estejam dispostos para aulas em grupo e claro de acordo
 com a disponibilidade do professor.
+
+O que falta no Diagrama (Ponto de Melhoria):
+Para suportar o teu sistema de "Advertências" (1ª e 2ª vez paga uma percentagem, 3ª vez paga tudo, e expira após 1 ano), o ideal seria criares uma pequena entidade nova, por exemplo, AbsenceWarning.
+
+Exemplo: AbsenceWarning(id, id_User, id_Lesson, created_at, is_active). Assim, antes de processar um reembolso de emergência, o sistema conta quantas advertências ativas o aluno tem no último ano para
+calcular a percentagem do reembolso (Refund).
+
+A) O que acontece ao aluno que apareceu?
+Nunca se deve cobrar mais ao aluno que compareceu ("pois parece ser o mais justo") e ("e se não conseguir pagar essa aula de 20€?") seria uma péssima experiência de utilizador exigir mais
+dinheiro no momento da aula por culpa de terceiros.
+Como o sistema resolve: O Enrollment do aluno presente já tem price_paid = 15. A transação já foi cativada (ReservationPayment). Ele tem a aula normalmente (acaba por ter uma aula individual pelo preço de grupo) e o sistema
+debita apenas os 15€ da sua Wallet.
+
+B) O professor recebe menos?
+Este é o grande dilema da proposta de negócio.
+Se o aluno que faltou por urgência receber um reembolso parcial (ex: 50% = 7.5€ devolvidos à Wallet dele), sobram apenas 7.5€ desse aluno. Somando aos 15€ do aluno presente, o professor vai receber 22.5€ (em vez dos 30€ esperados,
+ou dos 20€ que cobraria se fosse uma aula individual desde o início).
+O Problema: O professor reservou o seu tempo para ganhar 30€. Acaba a dar uma aula por 22.5€ (e gastou o mesmo tempo). Isto pode gerar frustração nos professores.
+
+Possíveis soluções:
+    Como a Preply e outras resolvem: Normalmente, cancelamentos com menos de 24h/12h não têm reembolso. O aluno que falta paga 100%, e o professor recebe os 30€ completos.
+
+    A nova Solução (Reembolso Parcial por Urgência): Se manter esta regra das "advertências" e reembolsos parciais, tem duas opções de negócio:
+    O Professor assume o risco: Nos Termos e Condições, o professor aceita que aulas de grupo têm este risco de quebra de receita em caso de emergência justificada do aluno. Apenas quando o aluno consegue justificar, caso não consiga irá ser
+    cobrado ao aluno na mesma. O valor descontado ao aluno que faltou (por exemplo, na 1ª falta perde 50%) vai na íntegra para o professor. Assim, o professor recebe sempre os 15€ do aluno A + 7.5€ do aluno B = 22.5€.
+    É um meio-termo aceitável!
+    A Plataforma assume o custo (Difícil): A plataforma abdica da sua comissão (CommissionRule) ou subsidia a diferença usando um fundo próprio para garantir que o professor não sai prejudicado. (Não recomendado para o início de um projeto).
+
+
+
+
+
+
+
+
+FAZER estes diagramas para as soluçoes que eu encontrar: diagramas de sequencia, fluxo, classes
