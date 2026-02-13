@@ -1,0 +1,38 @@
+um software para dar explicaçoes online, os professores podem fazer videochamadas com os explicandos
+e tambem ira ter um chat AI integrado para os explicandos usarem
+
+
+
+
+é uma plataforma de mercado educativo, ou seja, este software lida com transações financeiras, agendamentos e integrações
+com serviços externos de video/chat
+
+User tem como roles:
+Admin ou Prof ou Student
+
+
+O sistema gera o dinheiro internamente.
+O dinheiro não vai diretamente do aluno para o professor, o aluno carrega é a sua carteira digital através de um cartão
+ou transferencia e o saldo fica na "Wallet"
+Quando se marca uma aula o sistema cria um "ResservationPayment" e cobra uma "ComissionRule" automaticamente.
+Por ultimo o professor acumula o saldo e pede para levantar "WithdrawalRequest" existindo regras para isso, "WithdrawalPolicy"
+
+
+Existe também exceções para as aulas agendadas.
+
+
+Para a integração de video nas chamadas é feito a integração de APIs e é guardado também tokens para criar salas de vídeo e quadros interativos.
+O sistema pede avaliação tanto do professor em geral como da aula específica.
+
+
+
+
+
+
+Apresentar soluçoes para as variaveis dos pagamentos
+exemplo:
+Um professor tem um pack de 20 euros para aulas individuais mas para 2 alunos ja é 15 euros, ou seja ele vai receber 30 euros
+e para 3 alunos 12 euros.
+Mas o queé que acontece quando um aluno falta? o professor recebe menos? o aluno paga que apareceu vai pagar o mesmo que
+estava acordado ou vai pagar o preço de uma aula individual? e se o aluno que apareceu nao conseguir pagar essa aula online
+de 20 euros mas conseguia a de 15?

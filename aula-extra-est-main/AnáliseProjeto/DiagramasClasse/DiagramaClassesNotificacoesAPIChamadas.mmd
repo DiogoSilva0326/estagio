@@ -1,0 +1,152 @@
+---
+config:
+  layout: elk
+---
+classDiagram
+direction TB
+    class User {
+	    PK id_User INT NOT NULL
+	    VARCHAR name NOT NULL
+	    VARCHAR email
+	    TEXT password_hash
+	    VARCHAR cell_phone_number
+	    BOOLEAN email_verified
+	    DATETIME created_at
+	    DATETIME updated_at
+	    FK id_Role int NOT NULL
+    }
+
+    class Roles {
+	    PK id_Role INT NOT NULL
+	    VARCHAR name Admin | Prof | Student
+	    TEXT description
+	    DATETIME created_at
+	    DATETIME updated_at
+    }
+
+    class Professor {
+	    PK id_Professor INT NOT NULL
+	    FK id_User INT NOT NULL
+	    VARCHAR current_School
+	    INT years_Experience
+	    TEXT photo
+	    TEXT biography
+	    TEXT presentation_Video_URL
+	    INT number_of_Sessions
+	    VARCHAR VAT
+	    VARCHAR IBAN
+	    DATETIME created_at
+	    DATETIME updated_at
+    }
+
+    class Notification {
+	    PK id_Notification INT NOT NULL
+	    FK id_User INT NOT NULL
+	    VARCHAR type
+	    VARCHAR message
+	    BOOLEAN was_Read
+	    DATETIME created_at
+	    DATETIME updated_at
+    }
+
+    class Complaint {
+	    PK id_Complaint INT NOT NULL
+	    FK sender_User_Id INT NOT NULL
+	    FK receiver_User_Id INT NULL
+	    VARCHAR complaint_Type
+	    VARCHAR complaint_Message
+        VARCHAR status
+	    BOOLEAN is_Read
+	    DATETIME created_at
+	    DATETIME updated_at
+    }
+
+    class CallsAPIData {
+	    PK id_CallsAPIData INT NOT NULL
+	    VARCHAR channel_Name
+	    VARCHAR project_Name
+	    VARCHAR App_Id
+	    VARCHAR Primary_Certificate
+	    VARCHAR channel_Name
+	    TEXT channel_Token
+	    DATETIME created_at
+	    DATETIME updated_at
+    }
+
+    class WhiteboardAPIData {
+	    PK id_WhiteboardAPIData INT NOT NULL
+	    VARCHAR channel_Name
+	    VARCHAR project_Name
+	    VARCHAR App_Identifier
+	    TEXT SDK_Token
+	    DATETIME created_at
+	    DATETIME updated_at
+    }
+
+    class ChatAPIData {
+	    PK id_ChatAPIData INT NOT NULL
+	    FK id_User 
+	    VARCHAR chat_User_Temp_Token
+	    VARCHAR chat_App_Temp_Token
+	    VARCHAR AppKey
+	    VARCHAR OrgName
+	    VARCHAR AppName
+	    DATETIME created_at
+	    DATETIME updated_at
+    }
+
+    class APIData {
+	    PK id_APIData INT NOT NULL
+	    FK id_User INT NOT NULL
+	    FK id_CallsAPIData INT
+	    FK id_WhiteboardAPIData INT
+	    FK id_ChatAPIData INT
+	    VARCHAR management_Status
+	    DATETIME created_at
+	    DATETIME updated_at
+    }
+
+    class ManagementStatus {
+	    PK id_ManagementStatus INT NOT NULL
+	    VARCHAR status_Name
+	    TEXT description
+	    DATETIME created_at
+	    DATETIME updated_at
+    }
+
+    class ComplaintResolution {
+	    PK id_ComplaintResolution INT NOT NULL
+	    FK complaint_Id INT NOT NULL
+	    FK admin_User_Id INT NOT NULL
+	    VARCHAR resolution_Status
+	    TEXT resolution_Notes
+	    DATETIME resolved_At
+	    DATETIME created_at
+	    DATETIME updated_at
+    }
+
+    class Message {
+        PK id_Message INT NOT NULL
+        FK sender_User_Id INT NOT NULL
+        FK receiver_User_Id INT NOT NULL
+        TEXT message_Content
+        BOOLEAN is_Read
+        DATETIME sent_At
+        DATETIME read_At
+    }
+
+    User "1" --> "1" Roles : has role
+    User "1" --> "0..1" Professor : could be a
+    User "1" --> "*" Notification : receives
+    User "1" --> "*" Complaint : sends
+    User "1" --> "0..1" Complaint : could receive
+    Complaint "1" --> "0..1" ComplaintResolution : is resolved by
+    User "1" --> "*" ComplaintResolution : resolves
+    User "1" --> "1" APIData : User Admin manages
+    APIData "1" --> "0..1" CallsAPIData : includes
+    APIData "1" --> "0..1" WhiteboardAPIData : includes
+    User "1" --> "0..1" ChatAPIData : have a personal
+    APIData "1" --> "1" ManagementStatus : has status
+    Professor "1" <-- "1" APIData : belongs to a
+    Professor "1" -- "*" Message : sends and receives
+    User "1" -- "*" Message : sends (as student) and receives (as student)

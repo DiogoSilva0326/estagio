@@ -1,0 +1,253 @@
+import 'dart:convert';
+import 'dart:math';
+import 'dart:typed_data';
+
+import 'package:agora_rtc_engine/agora_rtc_engine.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await dotenv.load(fileName: '.env');
+  runApp(const MyApp());
+}
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const MaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: VideoPage(),
+    );
+  }
+}
+
+class VideoPage extends StatefulWidget {
+  const VideoPage({super.key});
+
+  @override
+  State<VideoPage> createState() => _VideoPageState();
+}
+
+class _VideoPageState extends State<VideoPage> {
+  RtcEngine? _engine;
+
+  final _channelController = TextEditingController(text: 'test');
+  final _nameController = TextEditingController(text: 'Guest');
+
+  final Set<int> _uids = {}; // local + remotos
+  final Map<int, String> _userNames = {};
+
+  int _localUid = 0;
+  int? _dataStreamId;
+  bool _joined = false;
+
+  @override
+  void dispose() {
+    _engine?.release();
+    super.dispose();
+  }
+
+  // ================== AGORA ==================
+
+  Future<void> _initAgora() async {
+    _engine = createAgoraRtcEngine();
+
+    await _engine!.initialize(
+      RtcEngineContext(
+        appId: dotenv.env['AGORA_APP_ID']!,
+      ),
+    );
+
+    await _engine!.enableVideo();
+    await _engine!.startPreview();
+
+    _engine!.registerEventHandler(
+      RtcEngineEventHandler(
+        onJoinChannelSuccess: (connection, elapsed) async {
+          setState(() {
+            _joined = true;
+            _uids.add(_localUid);
+            _userNames[_localUid] = _displayName;
+          });
+
+          await _createDataStream();
+          _broadcastName(times: 2);
+        },
+
+        onUserJoined: (connection, remoteUid, elapsed) {
+          setState(() {
+            _uids.add(remoteUid);
+          });
+
+          _broadcastName(times: 2);
+        },
+
+        onUserOffline: (connection, remoteUid, reason) {
+          setState(() {
+            _uids.remove(remoteUid);
+            _userNames.remove(remoteUid);
+          });
+        },
+
+        onStreamMessage:
+            (connection, remoteUid, streamId, data, length, sentTs) {
+          final decoded = jsonDecode(String.fromCharCodes(data));
+          if (decoded['type'] == 'name') {
+            setState(() {
+              _userNames[remoteUid] = decoded['name'];
+            });
+          }
+        },
+      ),
+    );
+  }
+
+  int _generateUid() {
+    return 100000 + Random().nextInt(900000);
+  }
+
+  String get _displayName =>
+      _nameController.text.trim().isEmpty
+          ? 'Guest'
+          : _nameController.text.trim();
+
+  Future<void> _join() async {
+    await _initAgora();
+
+    _localUid = _generateUid();
+
+    await _engine!.joinChannel(
+      token: '007eJxTYHhvbpTrsPngioItov+m3409MmGVbfFKmxecUp+ljvAsUuhVYDA3SLJIsTBNMzVPTTRJNjRKTDNNMUsxNk4yNjIzNTUz3hxYlNkQyMjws3AiAyMUgvgsDCWpxSUMDAB7zCAO',
+      channelId: _channelController.text,
+      uid: _localUid,
+      options: const ChannelMediaOptions(
+        publishCameraTrack: true,
+        publishMicrophoneTrack: true,
+        autoSubscribeVideo: true,
+        autoSubscribeAudio: true,
+        clientRoleType: ClientRoleType.clientRoleBroadcaster,
+      ),
+    );
+  }
+
+  Future<void> _createDataStream() async {
+    _dataStreamId ??= await _engine!.createDataStream(
+      const DataStreamConfig(
+        ordered: true,
+        syncWithAudio: false,
+      ),
+    );
+  }
+
+  Future<void> _broadcastName({int times = 1}) async {
+    if (_dataStreamId == null) return;
+
+    final payload = jsonEncode({
+      'type': 'name',
+      'name': _displayName,
+    });
+
+    final bytes = Uint8List.fromList(payload.codeUnits);
+
+    for (int i = 0; i < times; i++) {
+      await _engine!.sendStreamMessage(
+        streamId: _dataStreamId!,
+        data: bytes,
+        length: bytes.length,
+      );
+    }
+  }
+
+  // ================== UI ==================
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Agora Video + Names')),
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _channelController,
+                    decoration:
+                        const InputDecoration(labelText: 'Channel'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: TextField(
+                    controller: _nameController,
+                    decoration:
+                        const InputDecoration(labelText: 'Your name'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                ElevatedButton(
+                  onPressed: _joined ? null : _join,
+                  child: const Text('Join'),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+  child: _joined
+      ? GridView.count(
+          crossAxisCount: 2,
+          children: [
+            for (final uid in _uids) _videoTile(uid),
+          ],
+        )
+      : const Center(child: Text('Join a channel first')),
+),
+
+        ],
+      ),
+    );
+  }
+
+  Widget _videoTile(int uid) {
+  if (!_joined || _engine == null) {
+    return const Center(
+      child: CircularProgressIndicator(),
+    );
+  }
+
+  final isLocal = uid == _localUid;
+
+  return Stack(
+    children: [
+      AgoraVideoView(
+        controller: VideoViewController(
+          rtcEngine: _engine!,
+          canvas: VideoCanvas(
+            uid: isLocal ? 0 : uid,
+          ),
+        ),
+      ),
+      Positioned(
+        left: 8,
+        bottom: 8,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: Colors.black54,
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: Text(
+            _userNames[uid] ?? 'Guest',
+            style: const TextStyle(color: Colors.white),
+          ),
+        ),
+      ),
+    ],
+  );
+}
+
+}

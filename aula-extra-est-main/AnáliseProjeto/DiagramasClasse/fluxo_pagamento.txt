@@ -1,0 +1,37 @@
+
+Resumo do fluxo (reserva → pagamento → cancelamento → reembolso)
+
+1) Reserva criada
+- Ação: aluno cria `Reservation` (status = pending) para uma `Lesson`.
+- Registo: criar `ReservationPayment` (status = pending) ligado à `Reservation`.
+- Reserva de fundos (recomendado): marcar `Wallet.hold_amount += expected_amount` ou criar um `Transaction` do tipo `hold` para garantir disponibilidade sem debitar ainda.
+
+2) Pagamento
+- Verificações: se `Wallet.balance - hold_amount >= amount` → OK; caso contrário, pedir top-up (criar `TopUp`) ou processo de pagamento externo (card).
+- Consumo do valor:
+  - Debitar `Wallet` do aluno: criar `Transaction` tipo `payment` (debit), atualizar `balance_before/after`.
+  - Marcar `ReservationPayment.status = paid` e `Transaction` referenciado.
+- Comissões:
+  - Calcular pela `CommissionRule`; criar `Transaction` tipo `commission` (movimenta para wallet da plataforma).
+  - Saldo do professor fica com montante líquido (podendo manter em `Wallet` do professor até `WithdrawalRequest`).
+- Estado final: `Reservation` pode ir para `confirmed` (ou aguardar checagens).
+
+3) Cancelamento
+- Pedido: aluno solicita cancelamento.
+- Política: verificar `CancellationPolicy.hours_before_no_refund` para a `Lesson` (ou global).
+  - Se cancelado antes do prazo → elegível para reembolso parcial/total.
+  - Se dentro do prazo de não-reembolso → sem reembolso (ou política alternativa: crédito parcial).
+- Ações:
+  - Liberar hold (se havia hold).
+  - Se elegível, criar `Refund`; caso não elegível, registar `Transaction` que mantém o pagamento (possivelmente repassado ao professor, conforme política).
+
+4) Reembolso
+- Processo:
+  - Criar `Refund` (status pending), referenciar `Transaction` original.
+  - Criar `Transaction` tipo `refund` creditando a `Wallet` do aluno (ou emitir estorno externo ao cartão, se pago por cartão e não por wallet).
+  - Atualizar `ReservationPayment.status = refunded` e `Reservation.status = cancelled` conforme aplicável.
+- Situações especiais:
+  - Se a `Payout` ao professor já foi processada, é necessário reverter (negativo em `Payout`, debitar wallet do professor, ou plataforma assume custo).
+  - Para pagamentos externos, chamar API do provedor; lidar com atrasos/erros assíncronos.
+
+
