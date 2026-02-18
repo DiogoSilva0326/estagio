@@ -111,6 +111,26 @@ Possíveis soluções:
 
 
 
+EMPRESAS PARA ANALISAR:
+italki
+preply
+fiverr / upwork
+
+
+
+definir bem as regras de negocio
+
+mudar a minha soluçao para que seja o professor ele a determinar a penalidade e o tipo de penalidade
+ter em mente tambem que o aluno pode comprar um pack de aulas, aqui neste caso talvez nao seja reembolsavel de todo
+pois o problema é que o aluno apos comprar creditos no site ele nao pode retira-los, seja de todo ou na totalidade, pois isso
+so cria custos para a empresa 
+
+
+
+pensar em formas de como os professores sao avaliados inicialmente, para conseguirmos saber se a pessoa pode efetivamente 
+estar a dar explicaçoes
+
+
 
 
 
