@@ -135,3 +135,7 @@ estar a dar explicaçoes
 
 
 FAZER estes diagramas para as soluçoes que eu encontrar: diagramas de sequencia, fluxo, classes
+
+
+
+Ideia para uma nova soluçao: passar o aluno para um grupo mais pequeno ao que ele estava e ele paga 100% da aula que faltou mais o valor da diferença da nova aula que ira ter.
