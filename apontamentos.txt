@@ -139,3 +139,18 @@ FAZER estes diagramas para as soluçoes que eu encontrar: diagramas de sequencia
 
 
 Ideia para uma nova soluçao: passar o aluno para um grupo mais pequeno ao que ele estava e ele paga 100% da aula que faltou mais o valor da diferença da nova aula que ira ter.
+
+
+
+Para a soluçao 1 
+A Fricção com os Professores (O "Risco Crítico" que bem identificaste)
+Se a Preply paga 100% numa falta e vocês pagam 50%, os melhores professores podem não querer usar a AulaExtra.
+
+A tua carta na manga para a reunião: Quando te perguntarem como resolver isto sem a empresa perder dinheiro, a resposta é: "É por isso que a nossa plataforma cobra uma comissão menor que a Preply (que cobra até 33%). O professor aceita este risco progressivo porque, no volume geral, ganha mais por aula connosco."
+
+
+Alternativa 3: O Mercado "Last-Minute" (Vaga Flash)
+Esta é a abordagem mais típica de empresas como a Uber ou a Airbnb. Transforma um cancelamento numa oportunidade de marketing.
+Como funciona: O aluno A cancela a >24h. A aula não é cancelada. O sistema pega na vaga vazia e coloca-a na homepage da plataforma com uma etiqueta "Vaga Flash - 30% Desconto" para preencher nas próximas horas. Se alguém pegar na vaga, perfeito. Se ninguém pegar, aplica-se a Alternativa 1 (o professor dá a aula só para um).
+Prós: Dinamiza a plataforma, incentiva novos alunos a experimentar aulas mais baratas e maximiza o rendimento do professor.
+Contras: Exige mais desenvolvimento técnico para criar a lógica de "Flash Sales" no marketplace.
