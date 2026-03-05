@@ -1,4 +1,4 @@
-
+```mermaid
 sequenceDiagram
     autonumber
     actor Aluno
@@ -65,3 +65,4 @@ sequenceDiagram
         API->>BD: Liberar holds marcar `ReservationPayment` = completed `Dispute` = resolved
         API-->>Site: Notificar resultado (rejeitado)
     end
+```
