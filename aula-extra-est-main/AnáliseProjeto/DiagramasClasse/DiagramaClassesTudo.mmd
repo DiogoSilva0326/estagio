@@ -124,11 +124,25 @@ direction TB
     }
 
     class Disciplina {
-	    PK id_Disciplina INT NOT NULL
+	    PK id_Disciplina UUID NOT NULL
+	    FK id_Area UUID NULL
 	    VARCHAR nome NOT NULL
 	    VARCHAR descricao
 	    DATETIME created_at
 	    DATETIME updated_at
+    }
+
+    class Area {
+	    PK id_Area UUID NOT NULL
+	    VARCHAR nome NOT NULL
+	    VARCHAR descricao
+	    DATETIME created_at
+	    DATETIME updated_at
+    }
+    class User_Disciplina {
+	    PK user_id UUID NOT NULL
+	    PK id_disciplina UUID NOT NULL
+	    DATETIME created_at
     }
 
     class AnoEscolaridade {
@@ -569,6 +583,9 @@ direction TB
     Course "*" -- "1" Pricing_Model : uses
 		Course "1" -- "*" CoursePrice : pricing
 	Disciplina "1" -- "*" Course : classifies
+	User "1" -- "*" User_Disciplina : selects
+	Disciplina "1" -- "*" User_Disciplina : selected_in
+	Area "1" -- "*" Disciplina : contains
 	AnoEscolaridade "1" -- "*" Course : level
 	CicloEstudo "1" -- "*" Course : cycle
 	CicloEstudo "1" -- "*" CicloEstudo_AnoEscolaridade
@@ -652,6 +669,7 @@ direction TB
 	class CoursePrice:::Class_01
 	%%class CoursePrice_Tier:::Class_01
 	class Disciplina:::Ash
+	class User_Disciplina:::Ash
 	class AnoEscolaridade:::Ash
 	class CicloEstudo:::Ash
 	class CicloEstudo_AnoEscolaridade:::Ash

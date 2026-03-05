@@ -1,0 +1,6 @@
+@Synget.AgoraIntegrator.API_HostAddress = http://localhost:5038
+
+GET {{Synget.AgoraIntegrator.API_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
