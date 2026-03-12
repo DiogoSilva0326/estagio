@@ -1,9 +1,0 @@
-bin/
-obj/
-.vscode/
-.DS_Store
-
-# secrets
-.env
-.env.*
-!.env.example
