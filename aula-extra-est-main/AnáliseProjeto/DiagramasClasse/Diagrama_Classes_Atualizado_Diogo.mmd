@@ -1,0 +1,833 @@
+---
+config:
+  layout: elk
+---
+classDiagram
+direction TB
+class role {
+  PK id SERIAL
+  TEXT description UNIQUE NOT NULL
+}
+
+class users {
+  PK id_user UUID DEFAULT gen_random_uuid()
+  VARCHAR email UNIQUE NOT NULL
+  VARCHAR password
+  VARCHAR first_name
+  VARCHAR last_name
+  TEXT username UNIQUE NOT NULL
+  TEXT display_name
+  TEXT education_level
+  TEXT biography
+  VARCHAR birth_date
+  TEXT auth_message
+  VARCHAR mobile_number
+  VARCHAR phone_number
+  TEXT company_name
+  TEXT website
+  VARCHAR nif
+  BOOLEAN inactive NOT NULL DEFAULT false
+  TIMESTAMPTZ creation_date NOT NULL DEFAULT now()
+  TIMESTAMPTZ last_update NOT NULL DEFAULT now()
+  FK last_user_id UUID NULL
+}
+
+class user_role {
+  PK role_id INTEGER NOT NULL
+  PK user_id UUID NOT NULL
+}
+
+class user_profile {
+  PK user_id UUID
+  DECIMAL total_spent
+  TIMESTAMPTZ reset_password_token_expiry
+  VARCHAR reset_password_token
+  VARCHAR email_verification_token
+  VARCHAR prefered_language
+  VARCHAR status
+  VARCHAR phone
+  TIMESTAMPTZ email_verified_at
+  BOOLEAN inactive
+  TIMESTAMPTZ creation_date
+  TIMESTAMPTZ last_update
+  FK last_user_id UUID
+}
+
+class user_notification {
+  PK id UUID DEFAULT gen_random_uuid()
+  FK user_id UUID NOT NULL
+  VARCHAR title NOT NULL
+  VARCHAR message NOT NULL
+  BOOLEAN is_read NOT NULL DEFAULT false
+  BOOLEAN inactive
+  TIMESTAMPTZ creation_date
+  TIMESTAMPTZ last_update
+  FK last_user_id UUID
+}
+
+class user_consents {
+  PK id UUID DEFAULT gen_random_uuid()
+  FK user_id UUID NOT NULL
+  VARCHAR consent_type NOT NULL
+  BOOLEAN granted NOT NULL
+  TIMESTAMPTZ granted_at
+  TIMESTAMPTZ revoked_at
+  VARCHAR ip_address
+  BOOLEAN inactive
+  TIMESTAMPTZ creation_date
+  TIMESTAMPTZ last_update
+  FK last_user_id UUID
+}
+
+class professors {
+  PK id_professor UUID
+  FK id_user UUID UNIQUE
+  VARCHAR current_school
+  INTEGER years_experience
+  TEXT photo
+  TEXT biography
+  TEXT presentation_video_url
+  VARCHAR vat
+  VARCHAR iban
+  TEXT iban_document_url
+  BOOLEAN is_verified_iban DEFAULT false
+  BOOLEAN is_active DEFAULT true
+  BOOLEAN is_verified DEFAULT false
+  TIMESTAMP created_at DEFAULT now()
+  TIMESTAMP updated_at DEFAULT now()
+}
+
+class professor_feedback {
+  PK id_professor_feedback UUID
+  FK id_professor UUID
+  FK id_user UUID
+  BOOLEAN is_valid DEFAULT true
+  INTEGER rating
+  TEXT comments
+  TIMESTAMP created_at DEFAULT now()
+}
+
+class certificates {
+  PK id_certificate UUID
+  FK id_professor UUID
+  VARCHAR name
+  TEXT file_url
+  BOOLEAN verified DEFAULT false
+  FK verified_by_user_id UUID
+  TIMESTAMP created_at DEFAULT now()
+  TIMESTAMP updated_at DEFAULT now()
+}
+
+class professor_rooms {
+  PK id UUID
+  FK professor_id UUID UNIQUE
+  VARCHAR professor_name
+  VARCHAR room_name UNIQUE
+  TEXT description
+  BOOLEAN is_active DEFAULT true
+  TIMESTAMPTZ created_at DEFAULT now()
+  TIMESTAMPTZ updated_at DEFAULT now()
+}
+
+class areas {
+  PK id_area UUID
+  VARCHAR nome UNIQUE
+  TEXT descricao
+  TIMESTAMP created_at DEFAULT now()
+  TIMESTAMP updated_at DEFAULT now()
+}
+
+class disciplinas {
+  PK id_disciplina UUID
+  FK id_area UUID NULL
+  VARCHAR nome
+  TEXT descricao
+  TIMESTAMP created_at DEFAULT now()
+  TIMESTAMP updated_at DEFAULT now()
+}
+
+class user_disciplina {
+  PK user_id UUID
+  PK id_disciplina UUID
+  TIMESTAMP created_at DEFAULT now()
+}
+
+class anos_escolaridade {
+  PK id_ano_escolaridade UUID
+  VARCHAR nome
+  INTEGER ano_index
+  TIMESTAMP created_at DEFAULT now()
+  TIMESTAMP updated_at DEFAULT now()
+}
+
+class ciclos_estudo {
+  PK id_ciclo_estudo UUID
+  VARCHAR nome
+  TEXT descricao
+  TIMESTAMP created_at DEFAULT now()
+  TIMESTAMP updated_at DEFAULT now()
+}
+
+class ciclos_estudo_anos {
+  PK id_ciclo_estudo_ano_escolaridade UUID
+  FK id_ciclo_estudo UUID
+  FK id_ano_escolaridade UUID
+  TIMESTAMP created_at DEFAULT now()
+  UNIQUE (id_ciclo_estudo, id_ano_escolaridade)
+}
+
+class tutoring_types {
+  PK id_tutoring_type UUID
+  VARCHAR name
+  VARCHAR description
+  TIMESTAMP created_at DEFAULT now()
+  TIMESTAMP updated_at DEFAULT now()
+}
+
+class pricing_models {
+  PK id_pricing_model UUID
+  VARCHAR name
+  VARCHAR description
+  TIMESTAMP created_at DEFAULT now()
+  TIMESTAMP updated_at DEFAULT now()
+}
+
+class courses {
+  PK id_course UUID
+  FK id_professor UUID
+  FK id_pricing_model UUID
+  FK id_tutoring_type UUID
+  FK id_disciplina UUID
+  FK id_ano_escolaridade UUID
+  FK id_ciclo_estudo UUID
+  VARCHAR name
+  TEXT description
+  VARCHAR level_of_education
+  INTEGER num_max_students
+  INTEGER num_min_students
+  TIMESTAMP created_at DEFAULT now()
+  TIMESTAMP updated_at DEFAULT now()
+}
+
+class course_prices {
+  PK id_course_price UUID
+  FK id_course UUID
+  NUMERIC session_price
+  NUMERIC price_per_student
+  INTEGER number_students
+  BOOLEAN active DEFAULT true
+  TIMESTAMP created_at DEFAULT now()
+  TIMESTAMP updated_at DEFAULT now()
+}
+
+class lesson_packs {
+  PK id_lesson_pack UUID
+  FK id_course UUID
+  VARCHAR name
+  INTEGER number_of_lessons
+  NUMERIC total_price
+  BOOLEAN is_active DEFAULT true
+  TIMESTAMP created_at DEFAULT now()
+}
+
+class user_lesson_packs {
+  PK id_user_lesson_pack UUID
+  FK id_user UUID
+  FK id_lesson_pack UUID
+  INTEGER remaining_count
+  VARCHAR status
+  TIMESTAMP purchased_at DEFAULT now()
+  TIMESTAMPTZ expires_at
+}
+
+class pack_transactions {
+  PK id_pack_transaction UUID
+  FK id_user_lesson_pack UUID
+  FK id_reservation UUID NULL
+  VARCHAR transaction_type
+  INTEGER value_change
+  TIMESTAMPTZ created_at DEFAULT now()
+}
+
+class days {
+  PK id_day UUID
+  VARCHAR name
+  INTEGER day_index
+}
+
+class schedule_blocks {
+  PK id_schedule_block UUID
+  FK id_professor UUID
+  FK id_day UUID
+  TIMESTAMPTZ start_time
+  TIMESTAMPTZ end_time
+  INTEGER default_duration_minutes
+  BOOLEAN is_available
+  TEXT recurrence_rule
+  TIMESTAMP created_at DEFAULT now()
+  TIMESTAMP updated_at DEFAULT now()
+}
+
+class block_parts {
+  PK id_block_part UUID
+  FK id_schedule_block UUID
+  INTEGER start_offset_minutes
+  INTEGER end_offset_minutes
+  BOOLEAN is_available
+}
+
+class lessons {
+  PK id_lesson UUID
+  FK id_course UUID NULL
+  FK id_professor UUID NULL
+  VARCHAR title
+  INTEGER students
+  INTEGER duration_minutes
+  TIMESTAMPTZ scheduled_start
+  TIMESTAMPTZ scheduled_end
+  BOOLEAN uses_custom_blocks
+  INTEGER max_students
+  NUMERIC base_price
+  BOOLEAN has_priority_vacancy DEFAULT false
+  INTEGER actual_duration_minutes
+  VARCHAR telemetry_status
+}
+
+class lesson_feedback {
+  PK id_lesson_feedback UUID
+  FK id_lesson UUID
+  FK id_user UUID
+  BOOLEAN is_valid DEFAULT true
+  INTEGER rating
+  TEXT comments
+  TIMESTAMP created_at DEFAULT now()
+}
+
+class lesson_prices {
+  PK id_lesson_price UUID
+  FK id_lesson UUID UNIQUE
+  NUMERIC session_price
+  NUMERIC price_per_student
+  TIMESTAMP created_at DEFAULT now()
+  TIMESTAMP updated_at DEFAULT now()
+}
+
+class lesson_schedule_blocks {
+  PK id_lesson_schedule_block UUID
+  FK id_lesson UUID
+  FK id_schedule_block UUID
+  FK id_block_part UUID NULL
+  TIMESTAMPTZ start_time
+  TIMESTAMPTZ end_time
+}
+
+class enrollments {
+  PK id_enrollment UUID
+  FK id_lesson UUID
+  FK id_user UUID
+  VARCHAR status
+  NUMERIC price_paid
+  TIMESTAMP created_at DEFAULT now()
+}
+
+class reservations {
+  PK id_reservation UUID
+  FK id_user UUID
+  FK id_lesson UUID
+  FK id_lesson_schedule_block UUID NULL
+  FK id_schedule_block UUID NULL
+  FK id_block_part UUID NULL
+  FK id_user_lesson_pack UUID NULL
+  INTEGER min_students_at_booking DEFAULT 1
+  TIMESTAMPTZ start_time
+  TIMESTAMPTZ end_time
+  VARCHAR status
+  VARCHAR attendance_status
+  TIMESTAMPTZ forgiveness_window_ends_at
+  TIMESTAMPTZ canceled_at
+  BOOLEAN is_forgiven DEFAULT false
+  TIMESTAMP created_at DEFAULT now()
+}
+
+class exception_rules {
+  PK id_exception_rule UUID
+  FK id_professor UUID
+  FK id_schedule_block UUID NULL
+  VARCHAR rule_type
+  INTEGER custom_duration_minutes
+  INTEGER part_start_offset_minutes
+  INTEGER part_end_offset_minutes
+  INTEGER originating_request_id
+  TIMESTAMPTZ effective_from
+  TIMESTAMPTZ effective_to
+  TEXT note
+}
+
+class exception_requests {
+  PK id_exception_request UUID
+  FK id_user UUID NULL
+  FK id_reservation UUID NULL
+  FK id_professor UUID NULL
+  VARCHAR request_type
+  FK id_exception_rule UUID NULL
+  INTEGER requested_duration_minutes
+  TIMESTAMPTZ requested_start
+  TIMESTAMPTZ requested_end
+  VARCHAR status
+  TEXT reason
+  TIMESTAMP created_at DEFAULT now()
+}
+
+class wishlists {
+  PK id_wishlist UUID
+  FK id_user UUID UNIQUE
+  TIMESTAMP created_at DEFAULT now()
+}
+
+class wishlist_items {
+  PK id_wishlist_item UUID
+  FK id_wishlist UUID
+  FK course_id UUID NULL
+  TIMESTAMP added_at DEFAULT now()
+}
+
+class favorites {
+  PK id_favorite UUID
+  FK id_user UUID UNIQUE
+  TIMESTAMP created_at DEFAULT now()
+  TIMESTAMP updated_at DEFAULT now()
+}
+
+class favorite_items {
+  PK id_favorite_item UUID
+  FK id_favorite UUID
+  FK id_professor UUID
+  TIMESTAMP added_at DEFAULT now()
+  UNIQUE (id_favorite, id_professor)
+}
+
+class notifications {
+  PK id_notification UUID
+  FK id_user UUID
+  VARCHAR type
+  VARCHAR message
+  BOOLEAN was_read DEFAULT false
+  TIMESTAMP created_at DEFAULT now()
+  TIMESTAMP updated_at DEFAULT now()
+}
+
+class messages {
+  PK id_message UUID
+  FK sender_user_id UUID
+  FK receiver_user_id UUID
+  TEXT message_content
+  BOOLEAN is_read DEFAULT false
+  TIMESTAMP sent_at DEFAULT now()
+  TIMESTAMP read_at
+  FK group_room_id UUID NULL
+}
+
+class contacts {
+  PK id UUID
+  FK owner_user_id UUID
+  FK contact_user_id UUID
+  TEXT display_name_override
+  TEXT status DEFAULT 'pending'
+  TEXT notes
+  JSONB metadata
+  TIMESTAMPTZ created_at DEFAULT now()
+  TIMESTAMPTZ updated_at DEFAULT now()
+  UNIQUE (owner_user_id, contact_user_id)
+}
+
+class group_rooms {
+  PK id UUID
+  TEXT room_code UNIQUE
+  TEXT name
+  TEXT description
+  TEXT room_type DEFAULT 'group'
+  FK created_by_user_id UUID NULL
+  BOOLEAN is_active DEFAULT true
+  TEXT avatar_url
+  JSONB metadata
+  TIMESTAMPTZ created_at DEFAULT now()
+  TIMESTAMPTZ updated_at DEFAULT now()
+}
+
+class group_room_members {
+  PK id UUID
+  FK room_id UUID
+  FK user_id UUID
+  TEXT role DEFAULT 'member'
+  TEXT nickname
+  TEXT status DEFAULT 'active'
+  BOOLEAN notifications_enabled DEFAULT true
+  TIMESTAMPTZ joined_at DEFAULT now()
+  TIMESTAMPTZ left_at
+  TIMESTAMPTZ last_read_at
+  UNIQUE (room_id, user_id)
+}
+
+class video_calls {
+  PK id UUID
+  FK id_lesson UUID NULL
+  TEXT channel_name
+  TEXT call_name
+  TEXT call_type DEFAULT 'video'
+  FK group_room_id UUID NULL
+  FK initiated_by_user_id UUID NULL
+  TEXT status DEFAULT 'active'
+  TIMESTAMPTZ started_at DEFAULT now()
+  TIMESTAMPTZ ended_at
+  INTEGER duration_seconds
+  INTEGER max_participants DEFAULT 0
+  TEXT recording_url
+  BOOLEAN is_recorded DEFAULT false
+  JSONB metadata
+}
+
+class video_call_participants {
+  PK id UUID
+  FK call_id UUID
+  FK user_id UUID
+  TEXT role DEFAULT 'participant'
+  TIMESTAMPTZ joined_at DEFAULT now()
+  TIMESTAMPTZ left_at
+  INTEGER duration_seconds
+  TEXT avg_video_quality
+  TEXT avg_audio_quality
+  BOOLEAN had_video DEFAULT true
+  BOOLEAN had_audio DEFAULT true
+  BOOLEAN had_screen_share DEFAULT false
+  TEXT device_type
+  JSONB metadata
+}
+
+class complaints {
+  PK id_complaint UUID
+  FK sender_user_id UUID
+  FK receiver_user_id UUID NULL
+  VARCHAR complaint_type
+  VARCHAR complaint_message
+  VARCHAR status
+  BOOLEAN is_read DEFAULT false
+  TIMESTAMP created_at DEFAULT now()
+  TIMESTAMP updated_at DEFAULT now()
+}
+
+class complaint_resolutions {
+  PK id_complaint_resolution UUID
+  FK complaint_id UUID
+  FK admin_user_id UUID
+  VARCHAR resolution_status
+  TEXT resolution_notes
+  TIMESTAMP resolved_at
+  TIMESTAMP created_at DEFAULT now()
+  TIMESTAMP updated_at DEFAULT now()
+}
+
+class calls_api_data {
+  PK id_calls_api_data UUID
+  VARCHAR channel_name
+  VARCHAR project_name
+  VARCHAR app_id
+  VARCHAR primary_certificate
+  TEXT channel_token
+  TIMESTAMP created_at DEFAULT now()
+  TIMESTAMP updated_at DEFAULT now()
+}
+
+class whiteboard_api_data {
+  PK id_whiteboard_api_data UUID
+  VARCHAR channel_name
+  VARCHAR project_name
+  VARCHAR app_identifier
+  TEXT sdk_token
+  TIMESTAMP created_at DEFAULT now()
+  TIMESTAMP updated_at DEFAULT now()
+}
+
+class chat_api_data {
+  PK id_chat_api_data UUID
+  FK id_user UUID NULL
+  VARCHAR chat_user_temp_token
+  VARCHAR chat_app_temp_token
+  VARCHAR appkey
+  VARCHAR orgname
+  VARCHAR appname
+  TIMESTAMP created_at DEFAULT now()
+  TIMESTAMP updated_at DEFAULT now()
+}
+
+class management_statuses {
+  PK id_management_status UUID
+  VARCHAR status_name
+  TEXT description
+  TIMESTAMP created_at DEFAULT now()
+  TIMESTAMP updated_at DEFAULT now()
+}
+
+class api_data {
+  PK id_api_data UUID
+  FK managed_by_user_id UUID NULL
+  FK id_professor UUID
+  FK id_calls_api_data UUID NULL
+  FK id_whiteboard_api_data UUID NULL
+  FK id_chat_api_data UUID NULL
+  FK id_management_status UUID
+  TIMESTAMP created_at DEFAULT now()
+  TIMESTAMP updated_at DEFAULT now()
+}
+
+class wallets {
+  PK id_wallet UUID
+  VARCHAR owner_type
+  FK owner_user_id UUID
+  NUMERIC balance DEFAULT 0
+  NUMERIC hold_amount DEFAULT 0
+  VARCHAR currency DEFAULT 'EUR'
+  TIMESTAMP created_at DEFAULT now()
+  TIMESTAMP updated_at DEFAULT now()
+  UNIQUE (owner_type, owner_user_id)
+}
+
+class transactions {
+  PK id_transaction UUID
+  FK wallet_id UUID
+  VARCHAR transaction_type
+  NUMERIC amount
+  NUMERIC balance_before
+  NUMERIC balance_after
+  INTEGER related_entity_id UUID
+  VARCHAR status
+  TIMESTAMP created_at DEFAULT now()
+}
+
+class invoices {
+  PK id_invoice UUID
+  FK id_transaction UUID
+  FK id_user UUID
+  VARCHAR invoice_type
+  VARCHAR document_reference
+  TEXT pdf_url
+  NUMERIC total_amount
+  NUMERIC tax_amount
+  TIMESTAMP issued_at DEFAULT now()
+  UUID related_invoice_id
+  VARCHAR at_status
+}
+
+class payment_methods {
+  PK id_payment_method UUID
+  VARCHAR owner_type
+  FK owner_user_id UUID
+  VARCHAR method_type
+  VARCHAR masked_details
+  VARCHAR provider_token
+  TIMESTAMP created_at DEFAULT now()
+}
+
+class payment_providers {
+  PK id_payment_provider UUID
+  VARCHAR name
+  VARCHAR config_info
+}
+
+class withdrawal_policies {
+  PK id_withdrawal_policy UUID
+  FK payment_provider_id UUID NULL
+  NUMERIC min_amount
+  NUMERIC min_balance_after
+  NUMERIC fixed_fee
+  NUMERIC percent_fee
+  BOOLEAN active
+  TIMESTAMP effective_from
+  TIMESTAMP effective_to
+  VARCHAR note
+}
+
+class topups {
+  PK id_topup UUID
+  FK wallet_id UUID
+  FK payment_method_id UUID NULL
+  NUMERIC amount
+  VARCHAR provider_reference
+  VARCHAR topup_type
+  VARCHAR status
+  TIMESTAMP created_at DEFAULT now()
+}
+
+class refunds {
+  PK id_refund UUID
+  FK transaction_id UUID
+  FK to_wallet_id UUID
+  NUMERIC amount
+  VARCHAR status
+  TIMESTAMP created_at DEFAULT now()
+}
+
+class disputes {
+  PK id_dispute UUID
+  FK transaction_id UUID
+  FK id_reservation UUID NULL
+  FK raised_by_user_id UUID NULL
+  TEXT reason
+  VARCHAR status
+  TEXT resolution_note
+  TIMESTAMP created_at DEFAULT now()
+}
+
+class commission_rules {
+  PK id_commission_rule UUID
+  FK id_professor UUID NULL
+  NUMERIC percent
+  NUMERIC fixed_fee
+  VARCHAR applies_to
+  TIMESTAMP effective_from
+  TIMESTAMP effective_to
+}
+
+class reservation_payments {
+  PK id_reservation_payment UUID
+  FK reservation_id UUID
+  FK payer_wallet_id UUID
+  FK transaction_id UUID NULL
+  FK commission_rule_id UUID NULL
+  NUMERIC amount
+  VARCHAR status
+  TIMESTAMPTZ hold_release_at
+  TIMESTAMP created_at DEFAULT now()
+}
+
+class withdrawal_requests {
+  PK id_withdrawal_request UUID
+  FK wallet_id UUID
+  NUMERIC requested_amount
+  NUMERIC fee_amount
+  NUMERIC net_amount
+  FK payment_method_id UUID NULL
+  FK payment_provider_id UUID NULL
+  FK withdrawal_policy_id UUID NULL
+  VARCHAR status
+  TIMESTAMP requested_at DEFAULT now()
+  TIMESTAMP processed_at
+  FK processed_by_user_id UUID NULL
+}
+
+class payouts {
+  PK id_payout UUID
+  FK withdrawal_request_id UUID NULL
+  FK transaction_id UUID NULL
+  NUMERIC gross_amount
+  NUMERIC provider_fee_amount
+  NUMERIC platform_fee_amount
+  NUMERIC net_amount
+  VARCHAR status
+  TIMESTAMP processed_at
+}
+
+users "1" --> "0..*" user_role : has
+role "1" --> "0..*" user_role : assigned
+
+users "1" --> "0..1" user_profile : has
+users "1" --> "0..*" user_notification : receives
+users "1" --> "0..*" user_consents : consents
+
+users "1" --> "0..1" professors : is
+professors "1" --> "0..*" professor_feedback : receives
+users "1" --> "0..*" professor_feedback : writes
+professors "1" --> "0..*" certificates : owns
+users "1" --> "0..1" professor_rooms : ownsRoom
+
+areas "1" --> "0..*" disciplinas : contains
+users "1" --> "0..*" user_disciplina : selects
+disciplinas "1" --> "0..*" user_disciplina : selectedIn
+ciclos_estudo "1" --> "0..*" ciclos_estudo_anos : includes
+anos_escolaridade "1" --> "0..*" ciclos_estudo_anos : includes
+
+professors "1" --> "0..*" courses : offers
+disciplinas "1" --> "0..*" courses : classifies
+tutoring_types "1" --> "0..*" courses : type
+pricing_models "1" --> "0..*" courses : pricing
+courses "1" --> "0..*" course_prices : prices
+
+courses "1" --> "0..*" lesson_packs : offers_packs
+users "1" --> "0..*" user_lesson_packs : owns_packs
+lesson_packs "1" --> "0..*" user_lesson_packs : based_on
+user_lesson_packs "1" --> "0..*" reservations : pays_for
+user_lesson_packs "1" --> "0..*" pack_transactions : history
+reservations "1" --> "0..*" pack_transactions : related_to
+
+professors "1" --> "0..*" schedule_blocks : schedules
+days "1" --> "0..*" schedule_blocks : day
+schedule_blocks "1" --> "0..*" block_parts : parts
+
+courses "1" --> "0..*" lessons : has
+professors "1" --> "0..*" lessons : teaches
+lessons "1" --> "0..*" enrollments : enrolls
+users "1" --> "0..*" enrollments : enrolled
+lessons "1" --> "0..*" lesson_feedback : rated
+users "1" --> "0..*" lesson_feedback : rates
+lessons "1" --> "0..1" lesson_prices : price
+lessons "1" --> "0..*" lesson_schedule_blocks : blocks
+schedule_blocks "1" --> "0..*" lesson_schedule_blocks : used
+
+users "1" --> "0..*" reservations : books
+lessons "1" --> "0..*" reservations : booked
+reservations "1" --> "0..*" exception_requests : exceptions
+professors "1" --> "0..*" exception_rules : defines
+
+users "1" --> "0..1" wishlists : wishlist
+wishlists "1" --> "0..*" wishlist_items : items
+courses "1" --> "0..*" wishlist_items : wished
+users "1" --> "0..1" favorites : favorites
+favorites "1" --> "0..*" favorite_items : items
+professors "1" --> "0..*" favorite_items : favorited
+
+users "1" --> "0..*" notifications : notifications
+users "1" --> "0..*" messages : sends
+users "1" --> "0..*" messages : receives
+users "1" --> "0..*" contacts : owner
+users "1" --> "0..*" contacts : contact
+group_rooms "1" --> "0..*" group_room_members : members
+users "1" --> "0..*" group_room_members : member
+group_rooms "1" --> "0..*" messages : room
+
+lessons "1" --> "0..*" video_calls : has_calls
+video_calls "1" --> "0..*" video_call_participants : participants
+users "1" --> "0..*" video_call_participants : joins
+
+users "1" --> "0..*" complaints : sends
+users "1" --> "0..*" complaints : receives
+complaints "1" --> "0..*" complaint_resolutions : resolves
+users "1" --> "0..*" complaint_resolutions : admin
+
+professors "1" --> "0..*" api_data : api
+users "1" --> "0..*" api_data : manages
+management_statuses "1" --> "0..*" api_data : status
+
+users "1" --> "0..*" wallets : owns
+wallets "1" --> "0..*" transactions : has
+wallets "1" --> "0..*" topups : topups
+payment_methods "1" --> "0..*" topups : method
+transactions "1" --> "0..*" refunds : refund
+transactions "1" --> "0..*" invoices : generates
+transactions "1" --> "0..*" disputes : dispute
+reservations "1" --> "0..*" disputes : relates_to
+professors "1" --> "0..*" commission_rules : commission
+reservations "1" --> "0..*" reservation_payments : payments
+wallets "1" --> "0..*" reservation_payments : payer
+withdrawal_requests "1" --> "0..*" payouts : payout
+ciclos_estudo "1" --o "0..*" courses : categoriza
+anos_escolaridade "1" --o "0..*" courses : define_ano
+disciplinas "1" --o "0..*" courses : materia
+calls_api_data "1" --o "0..*" api_data : config
+whiteboard_api_data "1" --o "0..*" api_data : config
+chat_api_data "1" --o "0..*" api_data : config
+payment_providers "1" --o "0..*" withdrawal_policies : define
+payment_providers "1" --o "0..*" withdrawal_requests : processa
+withdrawal_policies "1" --o "0..*" withdrawal_requests : aplica_regra
+withdrawal_requests "1" --o "1" payouts : gera_pagamento
+payment_methods "1" --o "0..*" withdrawal_requests : destino_fundo
+lessons "1" --o "1" lesson_prices : tem_preço
+lesson_schedule_blocks "1" --o "1" block_parts : baseado_em

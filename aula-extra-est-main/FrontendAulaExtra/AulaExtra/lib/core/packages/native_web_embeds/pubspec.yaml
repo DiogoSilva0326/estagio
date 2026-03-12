@@ -1,0 +1,20 @@
+name: native_web_embeds
+description: >
+  A Flutter Web module that renders native HTML elements (videos, iframes/maps)
+  above the CanvasKit canvas. Works on Chrome, Safari, and Firefox by bypassing
+  HtmlElementView platform-view compositing.
+version: 1.0.0
+
+environment:
+  sdk: '>=3.4.0 <4.0.0'
+  flutter: '>=3.10.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  url_launcher: ^6.1.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0

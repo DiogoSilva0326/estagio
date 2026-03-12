@@ -1,0 +1,101 @@
+sequenceDiagram
+    autonumber
+    actor Aluno
+    participant Site as Site / App
+    participant API as API (Backend)
+    participant BD as Base de Dados
+    participant Video as API Vídeo (Telemetria)
+    actor Professor
+
+    %% ==========================================
+    %% FASE 1 e 2: PAGAMENTO E AGENDAMENTO (ESCROW / PACKS)
+    %% ==========================================
+    rect rgb(240, 248, 255)
+    Note over Aluno, Professor: FASE 1 e 2: Marcação e Cativação (Wallet ou Pack)
+    
+    Aluno->>Site: Escolhe professor, data e hora (Aula avulso ou Pack)
+    Site->>API: Submete pedido (idempotencyKey, detalhes)
+    API->>BD: Verifica método (Saldo Wallet ou UserLessonPack)
+    
+    alt Pagamento/Dedução com Sucesso
+        API->>BD: Cativar fundos (Escrow) OU reter 1 aula no Pack
+        Note right of API: Emissão apenas de Recibo Não-Fiscal (Créditos MPV)
+        API->>BD: Criar `Enrollment` e `Reservation` (status = pending)
+        API-->>Site: Confirmação de reserva
+        Site-->>Aluno: Mostrar sucesso e Recibo
+        API->>Professor: Notificação de aula marcada
+    else Pagamento Pendente / Sem Saldo ou Pack
+        API-->>Site: Redirecionar para Top-up, 3DS ou compra de Pack
+    end
+    end
+
+    %% ==========================================
+    %% FASE 3: OCORRÊNCIA, TELEMETRIA E FALTAS
+    %% ==========================================
+    rect rgb(245, 255, 250)
+    Note over Aluno, Professor: FASE 3: A Aula, Cancelamentos e Telemetria
+    
+    alt Cancelamento Prévio (> 24 Horas)
+        Aluno->>Site: Cancela a aula na plataforma
+        Site->>API: Processa cancelamento atempado
+        API->>BD: Devolve fundos à Wallet OU repõe aula no Pack
+        API->>BD: Atualiza `Reservation` = cancelled
+        API->>Site: Algoritmo: Vaga de grupo ganha "Prioridade Máxima"
+        API->>Professor: Notifica cancelamento e reabertura de vaga
+        
+    else Aula Ocorre ou Falta (< 24 Horas)
+        Note over API, Video: Chega a hora da aula (Tolerância de atraso: 15 min)
+        API->>Video: Inicia monitorização da sala virtual
+        Video-->>API: Envia Logs de Telemetria (Tempo Prof e Aluno)
+        
+        alt Falha Crítica do Professor (< 70% do tempo)
+            API->>BD: Atualiza status = failed_by_tutor
+            API->>BD: Estorno 100% para a Wallet OU repõe aula no Pack
+            API->>Professor: Notifica anulação por quebra técnica/ausência
+            
+        else Falta do Aluno / Atraso > 15min (< 24h)
+            API->>BD: Atualiza status = pending_completion
+            Note right of API: Valor/Aula retido para o Professor. Inicia Janela de 48h.
+            
+            opt O "Perdão de Falta" (Janela de 48h)
+                Aluno->>Professor: Envia justificação (Ex: "Imprevisto grave")
+                alt Professor clica em "Perdoar Falta"
+                    Professor->>Site: Aciona "Perdoar Falta"
+                    Site->>API: Confirma perdão (Automático)
+                    API->>BD: Devolve 100% à Wallet OU repõe aula no Pack
+                    API->>Aluno: Notifica devolução e incentiva remarcação
+                end
+            end
+            
+        else Aula Decorre Normalmente (Prof >= 70% do tempo)
+            API->>BD: Atualiza status = pending_completion
+            
+            opt Válvula de Segurança: Disputa ODR
+                Aluno->>Site: Abre disputa (Problema grave na aula)
+                Site->>API: Cria `Dispute` (status = pending)
+                API->>BD: Pausa as 48h de cativeiro até resolução do Admin
+            end
+        end
+    end
+    end
+
+    %% ==========================================
+    %% FASE 4: LIQUIDAÇÃO E FATURAÇÃO (IVA)
+    %% ==========================================
+    rect rgb(253, 245, 230)
+    Note over Aluno, Professor: FASE 4: Facto Gerador de IVA, Faturação e Levantamento
+    
+    Note over API: Passam as 48h (Sem perdão ativo e sem disputas)
+    API->>BD: Atualiza Reserva/Pagamento = completed
+    
+    Note right of API: FACTO GERADOR DO IVA
+    API->>BD: Cria Registo de Fatura (Self-billing: Prof -> Aluno)
+    API->>BD: Cria Registo de Fatura de Comissão (Plataforma -> Prof)
+    
+    API->>BD: Credita `Wallet` do Professor (Valor Líquido da aula/fração do pack)
+    
+    Professor->>Site: Solicita Levantamento (Cash-out) via Stripe
+    Site->>API: Processa pedido de levantamento
+    API->>BD: Regista `Withdrawal_request` e deduz saldo da Wallet do Prof
+    API->>Professor: API do Stripe transfere dinheiro para a conta bancária
+    end

@@ -1,0 +1,125 @@
+---
+config:
+  layout: elk
+---
+flowchart TB
+%% FASE 1: Aquisição
+    subgraph Fase1["Fase 1: Aquisição de Créditos MPV - Sem IVA"]
+        A["Alunos fazem Top-Up com Dinheiro Real"] --> B("Conversão para Créditos nas Wallets")
+        B --> C["Emissão de Recibo Não Fiscal"]
+        Z(("Reposição de<br>Créditos")) -. Atualiza Saldo .-> B
+    end
+
+%% FASE 2: Marcação
+    subgraph Fase2["Fase 2: Agendamento (Catividade)"]
+        D{{"Marcação de Aula?"}}
+        C --> D
+        D -- Sim --> E("Cativação de Fundos: Escrow (Hold Amount)")
+        E --> F["Aula (Individual ou Grupo) Agendada no Sistema"]
+    end
+
+%% FASE 3: Ocorrência, Telemetria e Distinção de Faltas
+    subgraph Fase3["Fase 3: Ocorrência, Telemetria e Faltas"]
+        G{{"Regra das 24 Horas<br>(Cancelamento Prévio?)"}}
+        F --> G
+
+    %% Caminho de antecedência
+        H_Ambos["Todos Cancelam >24h:<br>Reembolso de 100% à Wallet"]
+        H_Um["1 Aluno em Grupo Cancela >24h:<br>Reembolso ao Faltoso.<br>Vaga ganha 'Prioridade Máxima'."]
+
+        G -- "> 24 Horas (Todos/Indiv)" --> H_Ambos
+        G -- "> 24 Horas (Apenas 1 no Grupo)" --> H_Um
+
+    %% Chega a hora da aula
+        I{{"Telemetria Multicanal<br>(Vídeo + Atividade na Sala)"}}
+
+        G -- "Ninguém cancela<br>ou Cancela < 24h" --> I
+        H_Um -- "Chega a Hora da Aula<br>(Avança para o aluno presente)" --> I
+
+    %% Atrasos e Faltas do Aluno
+        FaltaNode{{"Falta do Aluno:<br>Atraso > 15 min ou Cancela < 24h"}}
+        I -- "Deteção de Falta" --> FaltaNode
+
+        L["Tolerância Progressiva<br>(Reset Anual ou Fim de Pack)"]
+        FaltaNode --> L
+
+        M["1ª Ocorrência:<br>Retém 50% Prof / Devolve 50% Aluno"]
+        N["2ª Ocorrência:<br>Retém 75% Prof / Devolve 25% Aluno"]
+        O["3ª+ Ocorrência (Limite Esgotado):<br>Retém 100% (Sem Reembolso)"]
+
+        L -- 1ª --> M
+        L -- 2ª --> N
+        L -- 3ª+ --> O
+
+    %% Prestação do Professor e Falhas
+        J["Falha Crítica do Prof (< 65% do Tempo):<br>Reembolso 100% Automático ao Aluno"]
+        J2["Falha Parcial (66% a 89% do Tempo):<br>Corte Limpo (Valor lecionado pago ao Prof,<br>o restante reposto ao Aluno)"]
+        K["Aula Concluída c/ Sucesso (≥ 90% do Tempo)"]
+
+        I -- "Prof < 65% (Cai e não volta)" --> J
+        I -- "Prof 66% a 89%" --> J2
+        I -- "Prof ≥ 90% & Aluno(s) Presente(s)" --> K
+    end
+
+%% FASE 4: Liquidação e IVA
+    subgraph Fase4["Fase 4: Resoluções, Comissão e Ciclo IVA"]
+        P{{"Existem queixas no<br>Centro ODR em 48h?"}}
+
+    %% Ligar as conclusões de aulas/faltas à faturação
+        K --> P
+        M --> P
+        N --> P
+        O --> P
+        J2 --> P
+
+        R["Centro de Resoluções (ODR)"]
+        P -- Sim --> R
+
+        RefundODR["Reembolso ao(s) Aluno(s) com Razão"]
+        R -- "Acordo a favor do Aluno" --> RefundODR
+
+        S["Auto-Confirmação de Execução<br>(Libertação de Fundos)"]
+        P -- Não / Passam 48h --> S
+        R -- "Acordo a favor do Prof" --> S
+
+        Q("O Facto Gerador do IVA ocorre neste momento")
+        S --> Q
+
+        T{{"Plataforma Retira a sua Comissão"}}
+        Q --> T
+
+        U["Self-Billing: Fatura(s) Prof -> Aluno (c/ IVA)"]
+        U2["Fatura Comissão: AulaExtra -> Prof"]
+        T --> U & U2
+
+        V("Transferência para a Wallet Líquida do Prof")
+        U --> V
+        U2 --> V
+
+        W["Prof pede Levantamento via Stripe Connect"]
+        V --> W
+        X(("Transferência Bancária Concluída"))
+        W --> X
+    end
+
+%% Ligações de Retorno (Reembolsos)
+    H_Ambos -.-> Z
+    H_Um -. "Reembolso (Cancelamento Limpo)" .-> Z
+    J -. "Reembolso 100%" .-> Z
+    J2 -. "Reposição da % não lecionada" .-> Z
+    RefundODR -.-> Z
+    M -. "Reembolso 50% na Wallet" .-> Z
+    N -. "Reembolso 25% na Wallet" .-> Z
+
+%% Declaração de estilos
+    Z:::retorno
+    I:::telemetria
+    Q:::fase4
+
+    classDef fase1 fill:#E2EBFF,stroke:#374D7C,stroke-width:2px
+    classDef fase2 fill:#FFF3E0,stroke:#E65100,stroke-width:2px
+    classDef fase3 fill:#E8F5E9,stroke:#1B5E20,stroke-width:2px
+    classDef fase4 fill:#F3E8FF,stroke:#4A148C,stroke-width:2px
+    classDef destaque fill:#FFF9C4,stroke:#FBC02D,stroke-width:2px,stroke-dasharray: 5 5
+    classDef telemetria fill:#ECEFF1,stroke:#455A64,stroke-width:2px
+    classDef retorno fill:#FFEBEE,stroke:#C62828,stroke-width:2px
