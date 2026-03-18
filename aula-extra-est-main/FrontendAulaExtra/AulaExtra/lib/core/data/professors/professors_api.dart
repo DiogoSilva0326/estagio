@@ -1,8 +1,9 @@
 import 'dart:convert';
+import 'package:http/http.dart' as http;
 
 import 'package:aula_extra/core/data/auth/dtos/auth_response_dto.dart';
 import 'package:aula_extra/core/data/http/api_config.dart';
-import 'package:http/http.dart' as http;
+import 'package:aula_extra/core/data/professors/dtos/professor_aluno_dto.dart'; // IMPORT FALTAVA AQUI
 
 class UpsertProfessorCertificateInput {
   UpsertProfessorCertificateInput({
@@ -87,7 +88,30 @@ class ProfessorsApi {
     final obj = jsonDecode(res.body) as Map<String, dynamic>;
     return AuthResponseDto.fromJson(obj);
   }
-}
+
+  // A FUNÇÃO AGORA ESTÁ AQUI DENTRO DA CLASSE!
+  Future<List<ProfessorAlunoDto>> getMeusAlunos({
+    required String token,
+  }) async {
+    final res = await http.get(
+      ApiConfig.uri('/api/Professors/me/alunos'), 
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    if (res.statusCode == 401) {
+      throw const ProfessorsException('Sessão expirada');
+    }
+    if (res.statusCode < 200 || res.statusCode >= 300) {
+      throw ProfessorsException('Falha ao carregar alunos (${res.statusCode})');
+    }
+
+    final List<dynamic> body = jsonDecode(res.body);
+    return body.map((json) => ProfessorAlunoDto.fromJson(json)).toList();
+  }
+} // FIM DA CLASSE ProfessorsApi
 
 class ProfessorsException implements Exception {
   const ProfessorsException(this.message);

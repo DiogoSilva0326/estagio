@@ -1,17 +1,31 @@
 import 'package:aula_extra/features/professor/meus_alunos/constants/meus_alunos_professor_colors.dart';
 import 'package:aula_extra/features/professor/meus_alunos/constants/meus_alunos_professor_layout.dart';
-import 'package:aula_extra/features/professor/meus_alunos/constants/meus_alunos_professor_mock_data.dart';
 import 'package:aula_extra/features/professor/meus_alunos/widgets/disciplina_badge.dart';
 import 'package:aula_extra/features/professor/meus_alunos/widgets/progresso_bar.dart';
 import 'package:flutter/material.dart';
 
 class AlunoCard extends StatelessWidget {
+  final String name;
+  final String avatarUrl;
+  final List<String> subjects;
+  final String lastLessonDate;
+  final double progress;
+
   const AlunoCard({
     super.key,
-    required this.data,
+    required this.name,
+    required this.avatarUrl,
+    required this.subjects,
+    required this.lastLessonDate,
+    required this.progress,
   });
 
-  final ProfessorAlunoCardData data;
+  Color subjectColor(String subject) {
+    final lower = subject.toLowerCase();
+    if (lower.contains('mat') || lower.contains('fís')) return Colors.blue;
+    if (lower.contains('ing') || lower.contains('port')) return Colors.red;
+    return Colors.orange;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -20,6 +34,9 @@ class AlunoCard extends StatelessWidget {
     final orange = MeusAlunosProfessorColors.orange;
     final blue = MeusAlunosProfessorColors.blue;
     final green = MeusAlunosProfessorColors.green;
+
+    // Calculamos o percentual para exibição (ex: 0.5 -> 50)
+    final int progressPercent = (progress * 100).toInt();
 
     return SizedBox(
       width: MeusAlunosProfessorLayout.cardWidth,
@@ -71,7 +88,7 @@ class AlunoCard extends StatelessWidget {
                       borderRadius: BorderRadius.circular(20653750),
                     ),
                   ),
-                  child: data.avatarUrl.trim().isEmpty
+                  child: avatarUrl.trim().isEmpty
                       ? const Center(
                           child: Icon(
                             Icons.person,
@@ -79,11 +96,10 @@ class AlunoCard extends StatelessWidget {
                           ),
                         )
                       : Image.network(
-                          data.avatarUrl,
+                          avatarUrl,
                           fit: BoxFit.cover,
                           errorBuilder: (context, error, stackTrace) {
-                            // Keep the gray background (container) as placeholder.
-                            return const SizedBox.shrink();
+                            return const Icon(Icons.person, color: Color(0xFF9CA3AF));
                           },
                         ),
                 ),
@@ -107,7 +123,7 @@ class AlunoCard extends StatelessWidget {
                         return tp.width;
                       }
 
-                      final badgeWidths = data.subjects.map((s) {
+                      final badgeWidths = subjects.map((s) {
                         final textW = measureTextWidth(s, badgeTextStyle);
                         return textW + 9.85 * 2;
                       }).toList(growable: false);
@@ -144,7 +160,7 @@ class AlunoCard extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              data.name,
+                              name,
                               strutStyle: const StrutStyle(
                                 fontSize: MeusAlunosProfessorLayout.headerNameFontSize,
                                 height: MeusAlunosProfessorLayout.headerNameLineHeight,
@@ -168,8 +184,8 @@ class AlunoCard extends StatelessWidget {
                                     for (var j = 0; j < rows[r].length; j++) ...[
                                       if (j != 0) const SizedBox(width: spacing),
                                       DisciplinaBadge(
-                                        label: data.subjects[rows[r][j]],
-                                        color: subjectColor(data.subjects[rows[r][j]]),
+                                        label: subjects[rows[r][j]],
+                                        color: subjectColor(subjects[rows[r][j]]),
                                       ),
                                     ],
                                   ],
@@ -191,35 +207,19 @@ class AlunoCard extends StatelessWidget {
                 children: [
                   Text(
                     'Última aula:',
-                    strutStyle: const StrutStyle(
-                      fontSize: MeusAlunosProfessorLayout.lastLessonFontSize,
-                      height: MeusAlunosProfessorLayout.lastLessonLineHeight,
-                      forceStrutHeight: true,
-                    ),
                     style: body?.copyWith(
                       color: const Color(0xFF697282),
                       fontSize: MeusAlunosProfessorLayout.lastLessonFontSize,
                       fontWeight: FontWeight.w400,
-                      height: MeusAlunosProfessorLayout.lastLessonLineHeight,
                     ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
                   ),
                   Text(
-                    data.lastLessonDate,
-                    strutStyle: const StrutStyle(
-                      fontSize: MeusAlunosProfessorLayout.lastLessonFontSize,
-                      height: MeusAlunosProfessorLayout.lastLessonLineHeight,
-                      forceStrutHeight: true,
-                    ),
+                    lastLessonDate,
                     style: body?.copyWith(
                       color: const Color(0xFF354152),
                       fontSize: MeusAlunosProfessorLayout.lastLessonFontSize,
                       fontWeight: FontWeight.w500,
-                      height: MeusAlunosProfessorLayout.lastLessonLineHeight,
                     ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
                   ),
                 ],
               ),
@@ -230,34 +230,29 @@ class AlunoCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  SizedBox(
-                    height: 24.62,
-                    child: Row(
-                      children: [
-                        Text(
-                          'Progresso',
-                          style: body?.copyWith(
-                            color: const Color(0xFF495565),
-                            fontSize: 17.23,
-                            fontWeight: FontWeight.w400,
-                            height: 1.43,
-                          ),
+                  Row(
+                    children: [
+                      Text(
+                        'Progresso',
+                        style: body?.copyWith(
+                          color: const Color(0xFF495565),
+                          fontSize: 17.23,
+                          fontWeight: FontWeight.w400,
                         ),
-                        const Spacer(),
-                        Text(
-                          '${data.progressPercent}%',
-                          style: body?.copyWith(
-                            color: const Color(0xFF1D2838),
-                            fontSize: 17.23,
-                            fontWeight: FontWeight.w500,
-                            height: 1.43,
-                          ),
+                      ),
+                      const Spacer(),
+                      Text(
+                        '$progressPercent%',
+                        style: body?.copyWith(
+                          color: const Color(0xFF1D2838),
+                          fontSize: 17.23,
+                          fontWeight: FontWeight.w500,
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 9.85),
-                  ProgressoBar(value: data.progress, color: orange),
+                  ProgressoBar(value: progress, color: orange),
                 ],
               ),
             ),
@@ -265,7 +260,6 @@ class AlunoCard extends StatelessWidget {
             SizedBox(
               height: MeusAlunosProfessorLayout.actionsRowHeight,
               child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Expanded(
                     child: SizedBox(
@@ -273,26 +267,13 @@ class AlunoCard extends StatelessWidget {
                       child: OutlinedButton.icon(
                         onPressed: () {},
                         style: OutlinedButton.styleFrom(
-                          padding: EdgeInsets.zero,
                           foregroundColor: orange,
-                          side: const BorderSide(
-                            width: MeusAlunosProfessorLayout.actionBorderWidth,
-                            color: MeusAlunosProfessorColors.orange,
-                          ),
+                          side: BorderSide(color: orange),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(MeusAlunosProfessorLayout.actionButtonRadius),
                           ),
-                          textStyle: const TextStyle(
-                            fontSize: 17.23,
-                            fontWeight: FontWeight.w500,
-                            height: 1.43,
-                          ),
                         ),
-                        icon: Icon(
-                          Icons.person_outline,
-                          size: MeusAlunosProfessorLayout.actionIconSize,
-                          color: orange,
-                        ),
+                        icon: const Icon(Icons.person_outline, size: 20),
                         label: const Text('Ver Perfil'),
                       ),
                     ),
@@ -338,20 +319,15 @@ class _SquareActionButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkResponse(
       onTap: onTap,
-      radius: 24,
       child: Container(
         width: MeusAlunosProfessorLayout.actionButtonSize,
         height: MeusAlunosProfessorLayout.actionButtonSize,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(MeusAlunosProfessorLayout.actionButtonRadius),
-          border: Border.all(
-            color: borderColor,
-            width: MeusAlunosProfessorLayout.actionBorderWidth,
-          ),
-          color: Colors.white,
+          border: Border.all(color: borderColor),
         ),
         alignment: Alignment.center,
-        child: Icon(icon, size: MeusAlunosProfessorLayout.actionIconSize, color: iconColor),
+        child: Icon(icon, size: 20, color: iconColor),
       ),
     );
   }

@@ -1,33 +1,36 @@
 import 'package:aula_extra/features/professor/meus_alunos/constants/meus_alunos_professor_layout.dart';
 import 'package:flutter/material.dart';
+import 'package:aula_extra/core/data/professors/dtos/professor_aluno_dto.dart';
+import 'package:aula_extra/features/professor/meus_alunos/widgets/aluno_card.dart';
 
 class AlunosGrid extends StatelessWidget {
-  const AlunosGrid({
-    super.key,
-    required this.cards,
-  });
+  final List<ProfessorAlunoDto> alunos; // <- Passar a receber o DTO
 
-  final List<Widget> cards;
+  const AlunosGrid({super.key, required this.alunos});
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final cardWidth = MeusAlunosProfessorLayout.cardWidth;
-        final spacing = MeusAlunosProfessorLayout.gridSpacing;
-
-        return Wrap(
-          spacing: spacing,
-          runSpacing: spacing,
-          children: [
-            for (final card in cards)
-              SizedBox(
-                width: cardWidth,
-                child: card,
-              ),
-          ],
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2, 
+        crossAxisSpacing: 16,
+        mainAxisSpacing: 16,
+        childAspectRatio: 0.8,
+      ),
+      itemCount: alunos.length,
+      itemBuilder: (context, index) {
+        final aluno = alunos[index];
+        return AlunoCard(
+          name: aluno.name,
+          avatarUrl: aluno.avatarUrl,
+          subjects: aluno.subjects,
+          lastLessonDate: aluno.lastLessonDate,
+          progress: aluno.progress,
         );
       },
     );
   }
 }
+

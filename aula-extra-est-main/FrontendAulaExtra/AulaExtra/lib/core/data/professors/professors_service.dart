@@ -2,6 +2,7 @@ import 'package:aula_extra/core/data/auth/auth_service.dart';
 import 'package:aula_extra/core/data/professors/professors_api.dart';
 import 'package:aula_extra/core/data/session/jwt_utils.dart';
 import 'package:aula_extra/core/data/session/token_storage.dart';
+import 'package:aula_extra/core/data/professors/dtos/professor_aluno_dto.dart';
 
 class ProfessorsService {
   ProfessorsService({
@@ -59,6 +60,15 @@ class ProfessorsService {
       username: res.user?.username,
       fullName: _deriveFullName(res.user),
     );
+  }
+
+  Future<List<ProfessorAlunoDto>> fetchMeusAlunos() async {
+    final existingToken = await _tokenStorage.loadToken();
+    if (existingToken == null || existingToken.trim().isEmpty) {
+      throw const ProfessorsException('Sessão expirada');
+    }
+
+    return await _api.getMeusAlunos(token: existingToken);
   }
 
   String? _deriveFullName(dynamic user) {
