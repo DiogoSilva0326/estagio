@@ -6,6 +6,7 @@ namespace ConfidantPostgreSQL.Modules.Payments.Models
     {
         public Guid IdDispute { get; set; }
         public Guid TransactionId { get; set; }
+        public Guid? IdReservation { get; set; }
         public Guid? RaisedByUserId { get; set; }
         public string? Reason { get; set; }
         public string? Status { get; set; }

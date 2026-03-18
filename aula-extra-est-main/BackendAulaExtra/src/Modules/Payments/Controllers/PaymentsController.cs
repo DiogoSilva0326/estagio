@@ -103,6 +103,55 @@ namespace ConfidantPostgreSQL.Modules.Payments.Controllers
             return rows == 0 ? NotFound() : NoContent();
         }
 
+        // INVOICES
+        [HttpGet("invoices")]
+        public async Task<IActionResult> GetInvoices()
+        {
+            RequestContext.ApplyCultureFromHeader(Request);
+            return Ok(await _service.GetInvoicesAllAsync());
+        }
+
+        [HttpGet("invoices/{idInvoice:guid}")]
+        public async Task<IActionResult> GetInvoice(Guid idInvoice)
+        {
+            RequestContext.ApplyCultureFromHeader(Request);
+            var item = await _service.GetInvoiceByIdAsync(idInvoice);
+            return item == null ? NotFound() : Ok(item);
+        }
+
+        [HttpGet("invoices/by-user/{idUser:guid}")]
+        public async Task<IActionResult> GetInvoicesByUser(Guid idUser)
+        {
+            RequestContext.ApplyCultureFromHeader(Request);
+            return Ok(await _service.GetInvoicesByUserIdAsync(idUser));
+        }
+
+        [HttpPost("invoices")]
+        public async Task<IActionResult> CreateInvoice([FromBody] Invoice invoice)
+        {
+            RequestContext.ApplyCultureFromHeader(Request);
+            var id = await _service.InsertInvoiceAsync(invoice);
+            invoice.IdInvoice = id;
+            return CreatedAtAction(nameof(GetInvoice), new { idInvoice = id }, invoice);
+        }
+
+        [HttpPut("invoices/{idInvoice:guid}")]
+        public async Task<IActionResult> UpdateInvoice(Guid idInvoice, [FromBody] Invoice invoice)
+        {
+            RequestContext.ApplyCultureFromHeader(Request);
+            if (idInvoice != invoice.IdInvoice) return BadRequest();
+            var rows = await _service.UpdateInvoiceAsync(invoice);
+            return rows == 0 ? NotFound() : NoContent();
+        }
+
+        [HttpDelete("invoices/{idInvoice:guid}")]
+        public async Task<IActionResult> DeleteInvoice(Guid idInvoice)
+        {
+            RequestContext.ApplyCultureFromHeader(Request);
+            var rows = await _service.DeleteInvoiceAsync(idInvoice);
+            return rows == 0 ? NotFound() : NoContent();
+        }
+
         // PAYMENT METHODS
         [HttpGet("payment-methods")]
         public async Task<IActionResult> GetPaymentMethods()

@@ -20,6 +20,7 @@ $$;
 
 CREATE OR REPLACE FUNCTION public.usp_disputes_insert(
     p_transaction_id uuid,
+    p_id_reservation uuid,
     p_raised_by_user_id uuid,
     p_reason text,
     p_status varchar,
@@ -29,9 +30,10 @@ CREATE OR REPLACE FUNCTION public.usp_disputes_insert(
 RETURNS uuid
 LANGUAGE sql
 AS $$
-    INSERT INTO public.disputes (transaction_id, raised_by_user_id, reason, status, resolution_note, created_at)
+    INSERT INTO public.disputes (transaction_id, id_reservation, raised_by_user_id, reason, status, resolution_note, created_at)
     VALUES (
         p_transaction_id,
+        p_id_reservation,
         p_raised_by_user_id,
         p_reason,
         p_status,
@@ -44,6 +46,7 @@ $$;
 CREATE OR REPLACE FUNCTION public.usp_disputes_update(
     p_id_dispute uuid,
     p_transaction_id uuid,
+    p_id_reservation uuid,
     p_raised_by_user_id uuid,
     p_reason text,
     p_status varchar,
@@ -56,6 +59,7 @@ AS $$
     WITH updated AS (
         UPDATE public.disputes
         SET transaction_id = p_transaction_id,
+            id_reservation = p_id_reservation,
             raised_by_user_id = p_raised_by_user_id,
             reason = p_reason,
             status = p_status,

@@ -114,13 +114,14 @@ namespace ConfidantPostgreSQL.Modules.Payments.Repository
             await using var conn = new NpgsqlConnection(_connectionString);
             await conn.OpenAsync();
             await using var cmd = conn.CreateCommand();
-                        cmd.CommandText = "SELECT public.usp_transactions_insert(@wallet_id, @transaction_type, @amount, @balance_before, @balance_after, @related_id, @status, @created_at);";
+                        cmd.CommandText = "SELECT public.usp_transactions_insert(@wallet_id, @transaction_type, @amount, @balance_before, @balance_after, @related_id, @related_entity_id, @status, @created_at);";
             cmd.Parameters.AddWithValue("wallet_id", tx.WalletId);
             cmd.Parameters.AddWithValue("transaction_type", (object?)tx.TransactionType ?? DBNull.Value);
             cmd.Parameters.AddWithValue("amount", tx.Amount);
             cmd.Parameters.AddWithValue("balance_before", (object?)tx.BalanceBefore ?? DBNull.Value);
             cmd.Parameters.AddWithValue("balance_after", (object?)tx.BalanceAfter ?? DBNull.Value);
             cmd.Parameters.AddWithValue("related_id", (object?)tx.RelatedId ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("related_entity_id", (object?)tx.RelatedEntityId ?? DBNull.Value);
             cmd.Parameters.AddWithValue("status", (object?)tx.Status ?? DBNull.Value);
             cmd.Parameters.AddWithValue("created_at", (object?)tx.CreatedAt ?? DBNull.Value);
             var res = await cmd.ExecuteScalarAsync();
@@ -132,7 +133,7 @@ namespace ConfidantPostgreSQL.Modules.Payments.Repository
             await using var conn = new NpgsqlConnection(_connectionString);
             await conn.OpenAsync();
             await using var cmd = conn.CreateCommand();
-            cmd.CommandText = "SELECT public.usp_transactions_update(@id_transaction, @wallet_id, @transaction_type, @amount, @balance_before, @balance_after, @related_id, @status, @created_at);";
+            cmd.CommandText = "SELECT public.usp_transactions_update(@id_transaction, @wallet_id, @transaction_type, @amount, @balance_before, @balance_after, @related_id, @related_entity_id, @status, @created_at);";
             cmd.Parameters.AddWithValue("id_transaction", tx.IdTransaction);
             cmd.Parameters.AddWithValue("wallet_id", tx.WalletId);
             cmd.Parameters.AddWithValue("transaction_type", (object?)tx.TransactionType ?? DBNull.Value);
@@ -140,6 +141,7 @@ namespace ConfidantPostgreSQL.Modules.Payments.Repository
             cmd.Parameters.AddWithValue("balance_before", (object?)tx.BalanceBefore ?? DBNull.Value);
             cmd.Parameters.AddWithValue("balance_after", (object?)tx.BalanceAfter ?? DBNull.Value);
             cmd.Parameters.AddWithValue("related_id", (object?)tx.RelatedId ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("related_entity_id", (object?)tx.RelatedEntityId ?? DBNull.Value);
             cmd.Parameters.AddWithValue("status", (object?)tx.Status ?? DBNull.Value);
             cmd.Parameters.AddWithValue("created_at", (object?)tx.CreatedAt ?? DBNull.Value);
             var res = await cmd.ExecuteScalarAsync();
@@ -153,6 +155,94 @@ namespace ConfidantPostgreSQL.Modules.Payments.Repository
             await using var cmd = conn.CreateCommand();
             cmd.CommandText = "SELECT public.usp_transactions_delete(@id_transaction);";
             cmd.Parameters.AddWithValue("id_transaction", idTransaction);
+            var res = await cmd.ExecuteScalarAsync();
+            return res == null || res == DBNull.Value ? 0 : Convert.ToInt32(res);
+        }
+
+        // INVOICES
+        public async Task<IEnumerable<Invoice>> GetInvoicesAllAsync()
+        {
+            var list = new List<Invoice>();
+            await using var conn = new NpgsqlConnection(_connectionString);
+            await conn.OpenAsync();
+            await using var cmd = conn.CreateCommand();
+            cmd.CommandText = "SELECT * FROM public.usp_invoices_select_all01();";
+            await using var reader = await cmd.ExecuteReaderAsync();
+            while (await reader.ReadAsync()) list.Add(MapInvoice(reader));
+            return list;
+        }
+
+        public async Task<Invoice?> GetInvoiceByIdAsync(Guid idInvoice)
+        {
+            await using var conn = new NpgsqlConnection(_connectionString);
+            await conn.OpenAsync();
+            await using var cmd = conn.CreateCommand();
+            cmd.CommandText = "SELECT * FROM public.usp_invoices_select_details01(@id_invoice);";
+            cmd.Parameters.AddWithValue("id_invoice", idInvoice);
+            await using var reader = await cmd.ExecuteReaderAsync();
+            if (!await reader.ReadAsync()) return null;
+            return MapInvoice(reader);
+        }
+
+        public async Task<IEnumerable<Invoice>> GetInvoicesByUserIdAsync(Guid idUser)
+        {
+            var list = new List<Invoice>();
+            await using var conn = new NpgsqlConnection(_connectionString);
+            await conn.OpenAsync();
+            await using var cmd = conn.CreateCommand();
+            cmd.CommandText = "SELECT * FROM public.usp_invoices_select_by_user01(@id_user);";
+            cmd.Parameters.AddWithValue("id_user", idUser);
+            await using var reader = await cmd.ExecuteReaderAsync();
+            while (await reader.ReadAsync()) list.Add(MapInvoice(reader));
+            return list;
+        }
+
+        public async Task<Guid> InsertInvoiceAsync(Invoice invoice)
+        {
+            await using var conn = new NpgsqlConnection(_connectionString);
+            await conn.OpenAsync();
+            await using var cmd = conn.CreateCommand();
+            cmd.CommandText = "SELECT public.usp_invoices_insert(@id_transaction, @id_user, @invoice_type, @document_reference, @pdf_url, @total_amount, @tax_amount, @issued_at, @related_invoice_id, @at_status);";
+            cmd.Parameters.AddWithValue("id_transaction", invoice.IdTransaction);
+            cmd.Parameters.AddWithValue("id_user", invoice.IdUser);
+            cmd.Parameters.AddWithValue("invoice_type", (object?)invoice.InvoiceType ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("document_reference", (object?)invoice.DocumentReference ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("pdf_url", (object?)invoice.PdfUrl ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("total_amount", (object?)invoice.TotalAmount ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("tax_amount", (object?)invoice.TaxAmount ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("issued_at", (object?)invoice.IssuedAt ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("related_invoice_id", (object?)invoice.RelatedInvoiceId ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("at_status", (object?)invoice.AtStatus ?? DBNull.Value);
+            var res = await cmd.ExecuteScalarAsync();
+            return res == null || res == DBNull.Value ? Guid.Empty : (Guid)res;
+        }
+
+        public async Task<int> UpdateInvoiceAsync(Invoice invoice)
+        {
+            await using var conn = new NpgsqlConnection(_connectionString);
+            await conn.OpenAsync();
+            await using var cmd = conn.CreateCommand();
+            cmd.CommandText = "SELECT public.usp_invoices_update(@id_invoice, @invoice_type, @document_reference, @pdf_url, @total_amount, @tax_amount, @issued_at, @related_invoice_id, @at_status);";
+            cmd.Parameters.AddWithValue("id_invoice", invoice.IdInvoice);
+            cmd.Parameters.AddWithValue("invoice_type", (object?)invoice.InvoiceType ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("document_reference", (object?)invoice.DocumentReference ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("pdf_url", (object?)invoice.PdfUrl ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("total_amount", (object?)invoice.TotalAmount ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("tax_amount", (object?)invoice.TaxAmount ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("issued_at", (object?)invoice.IssuedAt ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("related_invoice_id", (object?)invoice.RelatedInvoiceId ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("at_status", (object?)invoice.AtStatus ?? DBNull.Value);
+            var res = await cmd.ExecuteScalarAsync();
+            return res == null || res == DBNull.Value ? 0 : Convert.ToInt32(res);
+        }
+
+        public async Task<int> DeleteInvoiceAsync(Guid idInvoice)
+        {
+            await using var conn = new NpgsqlConnection(_connectionString);
+            await conn.OpenAsync();
+            await using var cmd = conn.CreateCommand();
+            cmd.CommandText = "SELECT public.usp_invoices_delete(@id_invoice);";
+            cmd.Parameters.AddWithValue("id_invoice", idInvoice);
             var res = await cmd.ExecuteScalarAsync();
             return res == null || res == DBNull.Value ? 0 : Convert.ToInt32(res);
         }
@@ -530,8 +620,9 @@ namespace ConfidantPostgreSQL.Modules.Payments.Repository
             await using var conn = new NpgsqlConnection(_connectionString);
             await conn.OpenAsync();
             await using var cmd = conn.CreateCommand();
-                        cmd.CommandText = "SELECT public.usp_disputes_insert(@transaction_id, @raised_by_user_id, @reason, @status, @resolution_note, @created_at);";
+                        cmd.CommandText = "SELECT public.usp_disputes_insert(@transaction_id, @id_reservation, @raised_by_user_id, @reason, @status, @resolution_note, @created_at);";
             cmd.Parameters.AddWithValue("transaction_id", dispute.TransactionId);
+            cmd.Parameters.AddWithValue("id_reservation", (object?)dispute.IdReservation ?? DBNull.Value);
             cmd.Parameters.AddWithValue("raised_by_user_id", (object?)dispute.RaisedByUserId ?? DBNull.Value);
             cmd.Parameters.AddWithValue("reason", (object?)dispute.Reason ?? DBNull.Value);
             cmd.Parameters.AddWithValue("status", (object?)dispute.Status ?? DBNull.Value);
@@ -546,9 +637,10 @@ namespace ConfidantPostgreSQL.Modules.Payments.Repository
             await using var conn = new NpgsqlConnection(_connectionString);
             await conn.OpenAsync();
             await using var cmd = conn.CreateCommand();
-            cmd.CommandText = "SELECT public.usp_disputes_update(@id_dispute, @transaction_id, @raised_by_user_id, @reason, @status, @resolution_note, @created_at);";
+            cmd.CommandText = "SELECT public.usp_disputes_update(@id_dispute, @transaction_id, @id_reservation, @raised_by_user_id, @reason, @status, @resolution_note, @created_at);";
             cmd.Parameters.AddWithValue("id_dispute", dispute.IdDispute);
             cmd.Parameters.AddWithValue("transaction_id", dispute.TransactionId);
+            cmd.Parameters.AddWithValue("id_reservation", (object?)dispute.IdReservation ?? DBNull.Value);
             cmd.Parameters.AddWithValue("raised_by_user_id", (object?)dispute.RaisedByUserId ?? DBNull.Value);
             cmd.Parameters.AddWithValue("reason", (object?)dispute.Reason ?? DBNull.Value);
             cmd.Parameters.AddWithValue("status", (object?)dispute.Status ?? DBNull.Value);
@@ -668,13 +760,17 @@ namespace ConfidantPostgreSQL.Modules.Payments.Repository
             await using var conn = new NpgsqlConnection(_connectionString);
             await conn.OpenAsync();
             await using var cmd = conn.CreateCommand();
-                        cmd.CommandText = "SELECT public.usp_reservation_payments_insert(@reservation_id, @payer_wallet_id, @transaction_id, @commission_rule_id, @amount, @status, @created_at);";
+                        cmd.CommandText = "SELECT public.usp_reservation_payments_insert(@reservation_id, @payer_wallet_id, @transaction_id, @commission_rule_id, @amount, @gross_amount, @platform_fee_amount, @teacher_net_amount, @status, @hold_release_at, @created_at);";
             cmd.Parameters.AddWithValue("reservation_id", rp.ReservationId);
             cmd.Parameters.AddWithValue("payer_wallet_id", rp.PayerWalletId);
             cmd.Parameters.AddWithValue("transaction_id", (object?)rp.TransactionId ?? DBNull.Value);
             cmd.Parameters.AddWithValue("commission_rule_id", (object?)rp.CommissionRuleId ?? DBNull.Value);
             cmd.Parameters.AddWithValue("amount", (object?)rp.Amount ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("gross_amount", (object?)rp.GrossAmount ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("platform_fee_amount", (object?)rp.PlatformFeeAmount ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("teacher_net_amount", (object?)rp.TeacherNetAmount ?? DBNull.Value);
             cmd.Parameters.AddWithValue("status", (object?)rp.Status ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("hold_release_at", (object?)rp.HoldReleaseAt ?? DBNull.Value);
             cmd.Parameters.AddWithValue("created_at", (object?)rp.CreatedAt ?? DBNull.Value);
             var res = await cmd.ExecuteScalarAsync();
             return res == null || res == DBNull.Value ? Guid.Empty : (Guid)res;
@@ -685,14 +781,18 @@ namespace ConfidantPostgreSQL.Modules.Payments.Repository
             await using var conn = new NpgsqlConnection(_connectionString);
             await conn.OpenAsync();
             await using var cmd = conn.CreateCommand();
-            cmd.CommandText = "SELECT public.usp_reservation_payments_update(@id_reservation_payment, @reservation_id, @payer_wallet_id, @transaction_id, @commission_rule_id, @amount, @status, @created_at);";
+            cmd.CommandText = "SELECT public.usp_reservation_payments_update(@id_reservation_payment, @reservation_id, @payer_wallet_id, @transaction_id, @commission_rule_id, @amount, @gross_amount, @platform_fee_amount, @teacher_net_amount, @status, @hold_release_at, @created_at);";
             cmd.Parameters.AddWithValue("id_reservation_payment", rp.IdReservationPayment);
             cmd.Parameters.AddWithValue("reservation_id", rp.ReservationId);
             cmd.Parameters.AddWithValue("payer_wallet_id", rp.PayerWalletId);
             cmd.Parameters.AddWithValue("transaction_id", (object?)rp.TransactionId ?? DBNull.Value);
             cmd.Parameters.AddWithValue("commission_rule_id", (object?)rp.CommissionRuleId ?? DBNull.Value);
             cmd.Parameters.AddWithValue("amount", (object?)rp.Amount ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("gross_amount", (object?)rp.GrossAmount ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("platform_fee_amount", (object?)rp.PlatformFeeAmount ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("teacher_net_amount", (object?)rp.TeacherNetAmount ?? DBNull.Value);
             cmd.Parameters.AddWithValue("status", (object?)rp.Status ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("hold_release_at", (object?)rp.HoldReleaseAt ?? DBNull.Value);
             cmd.Parameters.AddWithValue("created_at", (object?)rp.CreatedAt ?? DBNull.Value);
             var res = await cmd.ExecuteScalarAsync();
             return res == null || res == DBNull.Value ? 0 : Convert.ToInt32(res);
@@ -888,8 +988,27 @@ namespace ConfidantPostgreSQL.Modules.Payments.Repository
                 BalanceBefore = GetNullableDecimal(reader, "balance_before"),
                 BalanceAfter = GetNullableDecimal(reader, "balance_after"),
                 RelatedId = GetNullableInt(reader, "related_id"),
+                RelatedEntityId = GetNullableGuid(reader, "related_entity_id"),
                 Status = GetNullableString(reader, "status"),
                 CreatedAt = GetNullableDateTime(reader, "created_at")
+            };
+        }
+
+        private static Invoice MapInvoice(NpgsqlDataReader reader)
+        {
+            return new Invoice
+            {
+                IdInvoice = reader.GetGuid(reader.GetOrdinal("id_invoice")),
+                IdTransaction = reader.GetGuid(reader.GetOrdinal("id_transaction")),
+                IdUser = reader.GetGuid(reader.GetOrdinal("id_user")),
+                InvoiceType = GetNullableString(reader, "invoice_type"),
+                DocumentReference = GetNullableString(reader, "document_reference"),
+                PdfUrl = GetNullableString(reader, "pdf_url"),
+                TotalAmount = GetNullableDecimal(reader, "total_amount"),
+                TaxAmount = GetNullableDecimal(reader, "tax_amount"),
+                IssuedAt = GetNullableDateTime(reader, "issued_at"),
+                RelatedInvoiceId = GetNullableGuid(reader, "related_invoice_id"),
+                AtStatus = GetNullableString(reader, "at_status")
             };
         }
 
@@ -968,6 +1087,7 @@ namespace ConfidantPostgreSQL.Modules.Payments.Repository
             {
                 IdDispute = reader.GetGuid(reader.GetOrdinal("id_dispute")),
                 TransactionId = reader.GetGuid(reader.GetOrdinal("transaction_id")),
+                IdReservation = GetNullableGuid(reader, "id_reservation"),
                 RaisedByUserId = GetNullableGuid(reader, "raised_by_user_id"),
                 Reason = GetNullableString(reader, "reason"),
                 Status = GetNullableString(reader, "status"),
@@ -1000,7 +1120,11 @@ namespace ConfidantPostgreSQL.Modules.Payments.Repository
                 TransactionId = GetNullableGuid(reader, "transaction_id"),
                 CommissionRuleId = GetNullableGuid(reader, "commission_rule_id"),
                 Amount = GetNullableDecimal(reader, "amount"),
+                GrossAmount = GetNullableDecimal(reader, "gross_amount"),
+                PlatformFeeAmount = GetNullableDecimal(reader, "platform_fee_amount"),
+                TeacherNetAmount = GetNullableDecimal(reader, "teacher_net_amount"),
                 Status = GetNullableString(reader, "status"),
+                HoldReleaseAt = GetNullableDateTime(reader, "hold_release_at"),
                 CreatedAt = GetNullableDateTime(reader, "created_at")
             };
         }

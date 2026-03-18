@@ -18,9 +18,12 @@ CREATE TABLE IF NOT EXISTS transactions (
   balance_before NUMERIC(12,2),
   balance_after NUMERIC(12,2),
   related_id INTEGER,
+  related_entity_id UUID,
   status VARCHAR(20),
   created_at TIMESTAMP DEFAULT now()
 );
+
+ALTER TABLE public.transactions ADD COLUMN IF NOT EXISTS related_entity_id UUID;
 
 CREATE TABLE IF NOT EXISTS payment_methods (
   id_payment_method UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -74,12 +77,15 @@ CREATE TABLE IF NOT EXISTS refunds (
 CREATE TABLE IF NOT EXISTS disputes (
   id_dispute UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   transaction_id UUID NOT NULL REFERENCES transactions(id_transaction) ON DELETE CASCADE,
+  id_reservation UUID,
   raised_by_user_id UUID REFERENCES users(id_user),
   reason TEXT,
   status VARCHAR(20),
   resolution_note TEXT,
   created_at TIMESTAMP DEFAULT now()
 );
+
+ALTER TABLE public.disputes ADD COLUMN IF NOT EXISTS id_reservation UUID;
 
 CREATE TABLE IF NOT EXISTS commission_rules (
   id_commission_rule UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -98,9 +104,38 @@ CREATE TABLE IF NOT EXISTS reservation_payments (
   transaction_id UUID REFERENCES transactions(id_transaction),
   commission_rule_id UUID REFERENCES commission_rules(id_commission_rule) ON DELETE SET NULL,
   amount NUMERIC(12,2),
+  gross_amount NUMERIC(12,2),
+  platform_fee_amount NUMERIC(12,2),
+  teacher_net_amount NUMERIC(12,2),
   status VARCHAR(20),
+  hold_release_at TIMESTAMPTZ,
   created_at TIMESTAMP DEFAULT now()
 );
+
+ALTER TABLE public.reservation_payments ADD COLUMN IF NOT EXISTS gross_amount NUMERIC(12,2);
+ALTER TABLE public.reservation_payments ADD COLUMN IF NOT EXISTS platform_fee_amount NUMERIC(12,2);
+ALTER TABLE public.reservation_payments ADD COLUMN IF NOT EXISTS teacher_net_amount NUMERIC(12,2);
+ALTER TABLE public.reservation_payments ADD COLUMN IF NOT EXISTS hold_release_at TIMESTAMPTZ;
+
+CREATE TABLE IF NOT EXISTS invoices (
+  id_invoice UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  id_transaction UUID NOT NULL REFERENCES transactions(id_transaction) ON DELETE CASCADE,
+  id_user UUID NOT NULL REFERENCES users(id_user) ON DELETE CASCADE,
+  invoice_type VARCHAR(50),
+  document_reference VARCHAR(255),
+  pdf_url TEXT,
+  total_amount NUMERIC(12,2),
+  tax_amount NUMERIC(12,2),
+  issued_at TIMESTAMP DEFAULT now(),
+  related_invoice_id UUID,
+  at_status VARCHAR(50)
+);
+
+CREATE INDEX IF NOT EXISTS ix_invoices_transaction
+  ON public.invoices (id_transaction);
+
+CREATE INDEX IF NOT EXISTS ix_invoices_user
+  ON public.invoices (id_user);
 
 CREATE TABLE IF NOT EXISTS withdrawal_requests (
   id_withdrawal_request UUID PRIMARY KEY DEFAULT gen_random_uuid(),

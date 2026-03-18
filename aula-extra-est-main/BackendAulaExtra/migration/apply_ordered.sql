@@ -8,6 +8,7 @@
 
 -- 3) Tabelas auxiliares usadas por módulos (public.*)
 \ir '../src/Modules/Users/Sql/ddl/create_users_table.sql'
+\ir '../src/Modules/Users/Sql/ddl/create_role.sql'
 \ir '../src/Modules/Users/Sql/ddl/create_userole.sql'
 \ir '../src/Modules/Users/Sql/ddl/create_userprofile.sql'
 \ir '../src/Modules/Users/Sql/ddl/create_usernotification.sql'
@@ -30,6 +31,7 @@
 \ir '../src/Modules/Education/Sql/ddl/user_disciplinas.sql'
 \ir '../src/Modules/Professors/Sql/ddl/professor.sql'
 \ir '../src/Modules/Reservations/Sql/ddl/reservation.sql'
+\ir '../src/Modules/Courses/Sql/ddl/lesson_packs.sql'
 \ir '../src/Modules/Schedule/Sql/ddl/schedule.sql'
 
 -- 4) Procedures / Functions (usp_*)
@@ -86,6 +88,7 @@
 
 -- AgoraAPI
 \ir '../src/Modules/AgoraAPI/Sql/ddl/videocall.sql'
+\ir '../src/Modules/AgoraAPI/Sql/ddl/api_data.sql'
 \ir '../src/Modules/AgoraAPI/Sql/procs/usp_video_calls.sql'
 \ir '../src/Modules/AgoraAPI/Sql/procs/usp_video_call_participants.sql'
 
@@ -113,6 +116,9 @@
 \ir '../src/Modules/Courses/Sql/procs/usp_pricing_models.sql'
 \ir '../src/Modules/Courses/Sql/procs/usp_courses.sql'
 \ir '../src/Modules/Courses/Sql/procs/usp_course_prices.sql'
+\ir '../src/Modules/Courses/Sql/procs/usp_lesson_packs.sql'
+\ir '../src/Modules/Courses/Sql/procs/usp_user_lesson_packs.sql'
+\ir '../src/Modules/Courses/Sql/procs/usp_pack_transactions.sql'
 
 -- Professors
 \ir '../src/Modules/Professors/Sql/procs/usp_professors.sql'
@@ -146,6 +152,7 @@
 \ir '../src/Modules/Payments/Sql/procs/usp_payment_methods.sql'
 \ir '../src/Modules/Payments/Sql/procs/usp_wallets.sql'
 \ir '../src/Modules/Payments/Sql/procs/usp_transactions.sql'
+\ir '../src/Modules/Payments/Sql/procs/usp_invoices.sql'
 \ir '../src/Modules/Payments/Sql/procs/usp_topups.sql'
 \ir '../src/Modules/Payments/Sql/procs/usp_refunds.sql'
 \ir '../src/Modules/Payments/Sql/procs/usp_payouts.sql'

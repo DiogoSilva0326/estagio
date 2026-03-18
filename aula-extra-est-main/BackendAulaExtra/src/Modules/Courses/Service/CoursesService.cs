@@ -38,5 +38,25 @@ namespace ConfidantPostgreSQL.Modules.Courses.Service
         public Task<Guid> InsertCoursePriceAsync(CoursePrice coursePrice) => _repo.InsertCoursePriceAsync(coursePrice);
         public Task<int> UpdateCoursePriceAsync(CoursePrice coursePrice) => _repo.UpdateCoursePriceAsync(coursePrice);
         public Task<int> DeleteCoursePriceAsync(Guid idCoursePrice) => _repo.DeleteCoursePriceAsync(idCoursePrice);
+
+        public Task<IEnumerable<LessonPack>> GetLessonPacksAllAsync() => _repo.GetLessonPacksAllAsync();
+        public Task<LessonPack?> GetLessonPackByIdAsync(Guid idLessonPack) => _repo.GetLessonPackByIdAsync(idLessonPack);
+        public Task<IEnumerable<LessonPack>> GetLessonPacksByCourseIdAsync(Guid idCourse) => _repo.GetLessonPacksByCourseIdAsync(idCourse);
+        public Task<Guid> InsertLessonPackAsync(LessonPack lessonPack) => _repo.InsertLessonPackAsync(lessonPack);
+        public Task<int> UpdateLessonPackAsync(LessonPack lessonPack) => _repo.UpdateLessonPackAsync(lessonPack);
+        public Task<int> DeleteLessonPackAsync(Guid idLessonPack) => _repo.DeleteLessonPackAsync(idLessonPack);
+
+        public Task<IEnumerable<UserLessonPack>> GetUserLessonPacksAllAsync() => _repo.GetUserLessonPacksAllAsync();
+        public Task<UserLessonPack?> GetUserLessonPackByIdAsync(Guid idUserLessonPack) => _repo.GetUserLessonPackByIdAsync(idUserLessonPack);
+        public Task<IEnumerable<UserLessonPack>> GetUserLessonPacksByUserIdAsync(Guid idUser) => _repo.GetUserLessonPacksByUserIdAsync(idUser);
+        public Task<Guid> InsertUserLessonPackAsync(UserLessonPack userLessonPack) => _repo.InsertUserLessonPackAsync(userLessonPack);
+        public Task<int> UpdateUserLessonPackAsync(UserLessonPack userLessonPack) => _repo.UpdateUserLessonPackAsync(userLessonPack);
+        public Task<int> DeleteUserLessonPackAsync(Guid idUserLessonPack) => _repo.DeleteUserLessonPackAsync(idUserLessonPack);
+
+        public Task<IEnumerable<PackTransaction>> GetPackTransactionsAllAsync() => _repo.GetPackTransactionsAllAsync();
+        public Task<PackTransaction?> GetPackTransactionByIdAsync(Guid idPackTransaction) => _repo.GetPackTransactionByIdAsync(idPackTransaction);
+        public Task<IEnumerable<PackTransaction>> GetPackTransactionsByUserLessonPackIdAsync(Guid idUserLessonPack) => _repo.GetPackTransactionsByUserLessonPackIdAsync(idUserLessonPack);
+        public Task<Guid> InsertPackTransactionAsync(PackTransaction packTransaction) => _repo.InsertPackTransactionAsync(packTransaction);
+        public Task<int> DeletePackTransactionAsync(Guid idPackTransaction) => _repo.DeletePackTransactionAsync(idPackTransaction);
     }
 }

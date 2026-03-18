@@ -212,6 +212,7 @@ class courses {
 class course_prices {
   PK id_course_price UUID
   FK id_course UUID
+  NUMERIC hourly_base_rate
   NUMERIC session_price
   NUMERIC price_per_student
   INTEGER number_students
@@ -225,6 +226,7 @@ class lesson_packs {
   FK id_course UUID
   VARCHAR name
   INTEGER number_of_lessons
+  INTEGER session_duration_minutes
   NUMERIC total_price
   BOOLEAN is_active DEFAULT true
   TIMESTAMP created_at DEFAULT now()
@@ -281,6 +283,7 @@ class lessons {
   FK id_course UUID NULL
   FK id_professor UUID NULL
   VARCHAR title
+  VARCHAR status
   INTEGER students
   INTEGER duration_minutes
   TIMESTAMPTZ scheduled_start
@@ -342,6 +345,8 @@ class reservations {
   TIMESTAMPTZ start_time
   TIMESTAMPTZ end_time
   VARCHAR status
+  NUMERIC locked_price
+  TIMESTAMPTZ student_confirmed_at
   VARCHAR attendance_status
   TIMESTAMPTZ forgiveness_window_ends_at
   TIMESTAMPTZ canceled_at
@@ -693,7 +698,9 @@ class reservation_payments {
   FK payer_wallet_id UUID
   FK transaction_id UUID NULL
   FK commission_rule_id UUID NULL
-  NUMERIC amount
+  NUMERIC gross_amount
+  NUMERIC platform_fee_amount
+  NUMERIC teacher_net_amount
   VARCHAR status
   TIMESTAMPTZ hold_release_at
   TIMESTAMP created_at DEFAULT now()

@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
+export MSYS_NO_PATHCONV=1
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}" )" && pwd)"
-PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}" )" && pwd -W 2>/dev/null || pwd)"
+PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd -W 2>/dev/null || pwd)"
 ORDERED_FILE="$SCRIPT_DIR/apply_ordered.sql"
 
 ENV_FILE="$PROJECT_ROOT/.env"
@@ -78,7 +79,7 @@ done
 
 if [[ -f "$ORDERED_FILE" ]]; then
   echo "== Applying module DDL/PROCs in ordered way from $ORDERED_FILE =="
-  BASE_DIR="$(cd "$(dirname "$ORDERED_FILE")" && pwd)"
+  BASE_DIR="$(cd "$(dirname "$ORDERED_FILE")" && pwd -W 2>/dev/null || pwd)"
   while IFS= read -r line; do
     case "$line" in
       \\i*|\\ir*)

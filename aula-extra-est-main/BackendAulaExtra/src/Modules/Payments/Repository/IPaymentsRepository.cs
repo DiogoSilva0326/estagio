@@ -19,6 +19,13 @@ namespace ConfidantPostgreSQL.Modules.Payments.Repository
         Task<int> UpdateTransactionAsync(Transaction tx);
         Task<int> DeleteTransactionAsync(Guid idTransaction);
 
+        Task<IEnumerable<Invoice>> GetInvoicesAllAsync();
+        Task<Invoice?> GetInvoiceByIdAsync(Guid idInvoice);
+        Task<IEnumerable<Invoice>> GetInvoicesByUserIdAsync(Guid idUser);
+        Task<Guid> InsertInvoiceAsync(Invoice invoice);
+        Task<int> UpdateInvoiceAsync(Invoice invoice);
+        Task<int> DeleteInvoiceAsync(Guid idInvoice);
+
         Task<IEnumerable<PaymentMethod>> GetPaymentMethodsAllAsync();
         Task<PaymentMethod?> GetPaymentMethodByIdAsync(Guid idPaymentMethod);
         Task<Guid> InsertPaymentMethodAsync(PaymentMethod method);

@@ -193,5 +193,126 @@ namespace ConfidantPostgreSQL.Modules.Courses.Controllers
             var rows = await _service.DeleteCoursePriceAsync(idCoursePrice);
             return rows == 0 ? NotFound() : NoContent();
         }
+
+        // LESSON PACKS
+        [HttpGet("lesson-packs")]
+        public async Task<IActionResult> GetLessonPacks()
+        {
+            return Ok(await _service.GetLessonPacksAllAsync());
+        }
+
+        [HttpGet("lesson-packs/{idLessonPack:guid}")]
+        public async Task<IActionResult> GetLessonPack(Guid idLessonPack)
+        {
+            var item = await _service.GetLessonPackByIdAsync(idLessonPack);
+            return item == null ? NotFound() : Ok(item);
+        }
+
+        [HttpGet("lesson-packs/by-course/{idCourse:guid}")]
+        public async Task<IActionResult> GetLessonPacksByCourse(Guid idCourse)
+        {
+            return Ok(await _service.GetLessonPacksByCourseIdAsync(idCourse));
+        }
+
+        [HttpPost("lesson-packs")]
+        public async Task<IActionResult> CreateLessonPack([FromBody] LessonPack lessonPack)
+        {
+            var id = await _service.InsertLessonPackAsync(lessonPack);
+            lessonPack.IdLessonPack = id;
+            return CreatedAtAction(nameof(GetLessonPack), new { idLessonPack = id }, lessonPack);
+        }
+
+        [HttpPut("lesson-packs/{idLessonPack:guid}")]
+        public async Task<IActionResult> UpdateLessonPack(Guid idLessonPack, [FromBody] LessonPack lessonPack)
+        {
+            if (idLessonPack != lessonPack.IdLessonPack) return BadRequest();
+            var rows = await _service.UpdateLessonPackAsync(lessonPack);
+            return rows == 0 ? NotFound() : NoContent();
+        }
+
+        [HttpDelete("lesson-packs/{idLessonPack:guid}")]
+        public async Task<IActionResult> DeleteLessonPack(Guid idLessonPack)
+        {
+            var rows = await _service.DeleteLessonPackAsync(idLessonPack);
+            return rows == 0 ? NotFound() : NoContent();
+        }
+
+        // USER LESSON PACKS
+        [HttpGet("user-lesson-packs")]
+        public async Task<IActionResult> GetUserLessonPacks()
+        {
+            return Ok(await _service.GetUserLessonPacksAllAsync());
+        }
+
+        [HttpGet("user-lesson-packs/{idUserLessonPack:guid}")]
+        public async Task<IActionResult> GetUserLessonPack(Guid idUserLessonPack)
+        {
+            var item = await _service.GetUserLessonPackByIdAsync(idUserLessonPack);
+            return item == null ? NotFound() : Ok(item);
+        }
+
+        [HttpGet("user-lesson-packs/by-user/{idUser:guid}")]
+        public async Task<IActionResult> GetUserLessonPacksByUser(Guid idUser)
+        {
+            return Ok(await _service.GetUserLessonPacksByUserIdAsync(idUser));
+        }
+
+        [HttpPost("user-lesson-packs")]
+        public async Task<IActionResult> CreateUserLessonPack([FromBody] UserLessonPack userLessonPack)
+        {
+            var id = await _service.InsertUserLessonPackAsync(userLessonPack);
+            userLessonPack.IdUserLessonPack = id;
+            return CreatedAtAction(nameof(GetUserLessonPack), new { idUserLessonPack = id }, userLessonPack);
+        }
+
+        [HttpPut("user-lesson-packs/{idUserLessonPack:guid}")]
+        public async Task<IActionResult> UpdateUserLessonPack(Guid idUserLessonPack, [FromBody] UserLessonPack userLessonPack)
+        {
+            if (idUserLessonPack != userLessonPack.IdUserLessonPack) return BadRequest();
+            var rows = await _service.UpdateUserLessonPackAsync(userLessonPack);
+            return rows == 0 ? NotFound() : NoContent();
+        }
+
+        [HttpDelete("user-lesson-packs/{idUserLessonPack:guid}")]
+        public async Task<IActionResult> DeleteUserLessonPack(Guid idUserLessonPack)
+        {
+            var rows = await _service.DeleteUserLessonPackAsync(idUserLessonPack);
+            return rows == 0 ? NotFound() : NoContent();
+        }
+
+        // PACK TRANSACTIONS
+        [HttpGet("pack-transactions")]
+        public async Task<IActionResult> GetPackTransactions()
+        {
+            return Ok(await _service.GetPackTransactionsAllAsync());
+        }
+
+        [HttpGet("pack-transactions/{idPackTransaction:guid}")]
+        public async Task<IActionResult> GetPackTransaction(Guid idPackTransaction)
+        {
+            var item = await _service.GetPackTransactionByIdAsync(idPackTransaction);
+            return item == null ? NotFound() : Ok(item);
+        }
+
+        [HttpGet("pack-transactions/by-user-lesson-pack/{idUserLessonPack:guid}")]
+        public async Task<IActionResult> GetPackTransactionsByUserLessonPack(Guid idUserLessonPack)
+        {
+            return Ok(await _service.GetPackTransactionsByUserLessonPackIdAsync(idUserLessonPack));
+        }
+
+        [HttpPost("pack-transactions")]
+        public async Task<IActionResult> CreatePackTransaction([FromBody] PackTransaction packTransaction)
+        {
+            var id = await _service.InsertPackTransactionAsync(packTransaction);
+            packTransaction.IdPackTransaction = id;
+            return CreatedAtAction(nameof(GetPackTransaction), new { idPackTransaction = id }, packTransaction);
+        }
+
+        [HttpDelete("pack-transactions/{idPackTransaction:guid}")]
+        public async Task<IActionResult> DeletePackTransaction(Guid idPackTransaction)
+        {
+            var rows = await _service.DeletePackTransactionAsync(idPackTransaction);
+            return rows == 0 ? NotFound() : NoContent();
+        }
     }
 }

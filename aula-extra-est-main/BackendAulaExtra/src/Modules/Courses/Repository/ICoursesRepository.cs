@@ -30,5 +30,25 @@ namespace ConfidantPostgreSQL.Modules.Courses.Repository
         Task<Guid> InsertCoursePriceAsync(CoursePrice coursePrice);
         Task<int> UpdateCoursePriceAsync(CoursePrice coursePrice);
         Task<int> DeleteCoursePriceAsync(Guid idCoursePrice);
+
+        Task<IEnumerable<LessonPack>> GetLessonPacksAllAsync();
+        Task<LessonPack?> GetLessonPackByIdAsync(Guid idLessonPack);
+        Task<IEnumerable<LessonPack>> GetLessonPacksByCourseIdAsync(Guid idCourse);
+        Task<Guid> InsertLessonPackAsync(LessonPack lessonPack);
+        Task<int> UpdateLessonPackAsync(LessonPack lessonPack);
+        Task<int> DeleteLessonPackAsync(Guid idLessonPack);
+
+        Task<IEnumerable<UserLessonPack>> GetUserLessonPacksAllAsync();
+        Task<UserLessonPack?> GetUserLessonPackByIdAsync(Guid idUserLessonPack);
+        Task<IEnumerable<UserLessonPack>> GetUserLessonPacksByUserIdAsync(Guid idUser);
+        Task<Guid> InsertUserLessonPackAsync(UserLessonPack userLessonPack);
+        Task<int> UpdateUserLessonPackAsync(UserLessonPack userLessonPack);
+        Task<int> DeleteUserLessonPackAsync(Guid idUserLessonPack);
+
+        Task<IEnumerable<PackTransaction>> GetPackTransactionsAllAsync();
+        Task<PackTransaction?> GetPackTransactionByIdAsync(Guid idPackTransaction);
+        Task<IEnumerable<PackTransaction>> GetPackTransactionsByUserLessonPackIdAsync(Guid idUserLessonPack);
+        Task<Guid> InsertPackTransactionAsync(PackTransaction packTransaction);
+        Task<int> DeletePackTransactionAsync(Guid idPackTransaction);
     }
 }

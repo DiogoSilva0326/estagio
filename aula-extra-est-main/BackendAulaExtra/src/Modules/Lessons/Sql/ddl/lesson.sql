@@ -3,14 +3,24 @@ CREATE TABLE IF NOT EXISTS lessons (
   id_course UUID REFERENCES courses(id_course) ON DELETE SET NULL,
   id_professor UUID REFERENCES professors(id_professor) ON DELETE SET NULL,
   title VARCHAR(200),
+  status VARCHAR(50),
   students INTEGER,
   duration_minutes INTEGER,
   scheduled_start TIMESTAMP,
   scheduled_end TIMESTAMP,
   uses_custom_blocks BOOLEAN,
   max_students INTEGER,
-  base_price NUMERIC(10,2)
+  base_price NUMERIC(10,2),
+  has_priority_vacancy BOOLEAN DEFAULT false,
+  actual_duration_minutes INTEGER,
+  telemetry_status VARCHAR(50)
 );
+
+-- Keep migrations idempotent for existing DBs (CREATE TABLE IF NOT EXISTS does not add columns).
+ALTER TABLE public.lessons ADD COLUMN IF NOT EXISTS status VARCHAR(50);
+ALTER TABLE public.lessons ADD COLUMN IF NOT EXISTS has_priority_vacancy BOOLEAN DEFAULT false;
+ALTER TABLE public.lessons ADD COLUMN IF NOT EXISTS actual_duration_minutes INTEGER;
+ALTER TABLE public.lessons ADD COLUMN IF NOT EXISTS telemetry_status VARCHAR(50);
 
 CREATE TABLE IF NOT EXISTS lesson_feedback (
   id_lesson_feedback UUID PRIMARY KEY DEFAULT gen_random_uuid(),

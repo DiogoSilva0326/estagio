@@ -11,6 +11,7 @@ namespace ConfidantPostgreSQL.Modules.Payments.Models
         public decimal? BalanceBefore { get; set; }
         public decimal? BalanceAfter { get; set; }
         public int? RelatedId { get; set; }
+        public Guid? RelatedEntityId { get; set; }
         public string? Status { get; set; }
         public DateTime? CreatedAt { get; set; }
     }

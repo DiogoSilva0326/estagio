@@ -426,6 +426,328 @@ namespace ConfidantPostgreSQL.Modules.Courses.Repository
             return Convert.ToInt32(res);
         }
 
+        public async Task<IEnumerable<LessonPack>> GetLessonPacksAllAsync()
+        {
+            var list = new List<LessonPack>();
+            await using var conn = new NpgsqlConnection(_connectionString);
+            await conn.OpenAsync();
+            await using var cmd = conn.CreateCommand();
+            cmd.CommandText = "SELECT * FROM public.usp_lesson_packs_select_all01();";
+            await using var reader = await cmd.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+            {
+                list.Add(new LessonPack
+                {
+                    IdLessonPack = reader.GetGuid(reader.GetOrdinal("id_lesson_pack")),
+                    IdCourse = reader.GetGuid(reader.GetOrdinal("id_course")),
+                    Name = GetNullableString(reader, "name"),
+                    NumberOfLessons = reader.GetInt32(reader.GetOrdinal("number_of_lessons")),
+                    SessionDurationMinutes = GetNullableInt(reader, "session_duration_minutes"),
+                    TotalPrice = GetNullableDecimal(reader, "total_price"),
+                    IsActive = GetBoolDefaultFalse(reader, "is_active"),
+                    CreatedAt = GetNullableDateTime(reader, "created_at")
+                });
+            }
+            return list;
+        }
+
+        public async Task<LessonPack?> GetLessonPackByIdAsync(Guid idLessonPack)
+        {
+            await using var conn = new NpgsqlConnection(_connectionString);
+            await conn.OpenAsync();
+            await using var cmd = conn.CreateCommand();
+            cmd.CommandText = "SELECT * FROM public.usp_lesson_packs_select_details01(@id_lesson_pack);";
+            cmd.Parameters.AddWithValue("id_lesson_pack", idLessonPack);
+            await using var reader = await cmd.ExecuteReaderAsync();
+            if (!await reader.ReadAsync()) return null;
+            return new LessonPack
+            {
+                IdLessonPack = reader.GetGuid(reader.GetOrdinal("id_lesson_pack")),
+                IdCourse = reader.GetGuid(reader.GetOrdinal("id_course")),
+                Name = GetNullableString(reader, "name"),
+                NumberOfLessons = reader.GetInt32(reader.GetOrdinal("number_of_lessons")),
+                SessionDurationMinutes = GetNullableInt(reader, "session_duration_minutes"),
+                TotalPrice = GetNullableDecimal(reader, "total_price"),
+                IsActive = GetBoolDefaultFalse(reader, "is_active"),
+                CreatedAt = GetNullableDateTime(reader, "created_at")
+            };
+        }
+
+        public async Task<IEnumerable<LessonPack>> GetLessonPacksByCourseIdAsync(Guid idCourse)
+        {
+            var list = new List<LessonPack>();
+            await using var conn = new NpgsqlConnection(_connectionString);
+            await conn.OpenAsync();
+            await using var cmd = conn.CreateCommand();
+            cmd.CommandText = "SELECT * FROM public.usp_lesson_packs_select_by_course01(@id_course);";
+            cmd.Parameters.AddWithValue("id_course", idCourse);
+            await using var reader = await cmd.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+            {
+                list.Add(new LessonPack
+                {
+                    IdLessonPack = reader.GetGuid(reader.GetOrdinal("id_lesson_pack")),
+                    IdCourse = reader.GetGuid(reader.GetOrdinal("id_course")),
+                    Name = GetNullableString(reader, "name"),
+                    NumberOfLessons = reader.GetInt32(reader.GetOrdinal("number_of_lessons")),
+                    SessionDurationMinutes = GetNullableInt(reader, "session_duration_minutes"),
+                    TotalPrice = GetNullableDecimal(reader, "total_price"),
+                    IsActive = GetBoolDefaultFalse(reader, "is_active"),
+                    CreatedAt = GetNullableDateTime(reader, "created_at")
+                });
+            }
+            return list;
+        }
+
+        public async Task<Guid> InsertLessonPackAsync(LessonPack lessonPack)
+        {
+            await using var conn = new NpgsqlConnection(_connectionString);
+            await conn.OpenAsync();
+            await using var cmd = conn.CreateCommand();
+            cmd.CommandText = "SELECT public.usp_lesson_packs_insert(@id_course, @name, @number_of_lessons, @session_duration_minutes, @total_price, @is_active, @created_at);";
+            cmd.Parameters.AddWithValue("id_course", lessonPack.IdCourse);
+            cmd.Parameters.AddWithValue("name", (object?)lessonPack.Name ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("number_of_lessons", lessonPack.NumberOfLessons);
+            cmd.Parameters.AddWithValue("session_duration_minutes", (object?)lessonPack.SessionDurationMinutes ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("total_price", (object?)lessonPack.TotalPrice ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("is_active", (object?)lessonPack.IsActive ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("created_at", (object?)lessonPack.CreatedAt ?? DBNull.Value);
+            var res = await cmd.ExecuteScalarAsync();
+            return res == null || res == DBNull.Value ? Guid.Empty : (Guid)res;
+        }
+
+        public async Task<int> UpdateLessonPackAsync(LessonPack lessonPack)
+        {
+            await using var conn = new NpgsqlConnection(_connectionString);
+            await conn.OpenAsync();
+            await using var cmd = conn.CreateCommand();
+            cmd.CommandText = "SELECT public.usp_lesson_packs_update(@id_lesson_pack, @id_course, @name, @number_of_lessons, @session_duration_minutes, @total_price, @is_active);";
+            cmd.Parameters.AddWithValue("id_lesson_pack", lessonPack.IdLessonPack);
+            cmd.Parameters.AddWithValue("id_course", lessonPack.IdCourse);
+            cmd.Parameters.AddWithValue("name", (object?)lessonPack.Name ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("number_of_lessons", lessonPack.NumberOfLessons);
+            cmd.Parameters.AddWithValue("session_duration_minutes", (object?)lessonPack.SessionDurationMinutes ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("total_price", (object?)lessonPack.TotalPrice ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("is_active", (object?)lessonPack.IsActive ?? DBNull.Value);
+            var res = await cmd.ExecuteScalarAsync();
+            return Convert.ToInt32(res);
+        }
+
+        public async Task<int> DeleteLessonPackAsync(Guid idLessonPack)
+        {
+            await using var conn = new NpgsqlConnection(_connectionString);
+            await conn.OpenAsync();
+            await using var cmd = conn.CreateCommand();
+            cmd.CommandText = "SELECT public.usp_lesson_packs_delete(@id_lesson_pack);";
+            cmd.Parameters.AddWithValue("id_lesson_pack", idLessonPack);
+            var res = await cmd.ExecuteScalarAsync();
+            return Convert.ToInt32(res);
+        }
+
+        public async Task<IEnumerable<UserLessonPack>> GetUserLessonPacksAllAsync()
+        {
+            var list = new List<UserLessonPack>();
+            await using var conn = new NpgsqlConnection(_connectionString);
+            await conn.OpenAsync();
+            await using var cmd = conn.CreateCommand();
+            cmd.CommandText = "SELECT * FROM public.usp_user_lesson_packs_select_all01();";
+            await using var reader = await cmd.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+            {
+                list.Add(new UserLessonPack
+                {
+                    IdUserLessonPack = reader.GetGuid(reader.GetOrdinal("id_user_lesson_pack")),
+                    IdUser = reader.GetGuid(reader.GetOrdinal("id_user")),
+                    IdLessonPack = reader.GetGuid(reader.GetOrdinal("id_lesson_pack")),
+                    RemainingCount = GetNullableInt(reader, "remaining_count"),
+                    Status = GetNullableString(reader, "status"),
+                    PurchasedAt = GetNullableDateTime(reader, "purchased_at"),
+                    ExpiresAt = GetNullableDateTime(reader, "expires_at")
+                });
+            }
+            return list;
+        }
+
+        public async Task<UserLessonPack?> GetUserLessonPackByIdAsync(Guid idUserLessonPack)
+        {
+            await using var conn = new NpgsqlConnection(_connectionString);
+            await conn.OpenAsync();
+            await using var cmd = conn.CreateCommand();
+            cmd.CommandText = "SELECT * FROM public.usp_user_lesson_packs_select_details01(@id_user_lesson_pack);";
+            cmd.Parameters.AddWithValue("id_user_lesson_pack", idUserLessonPack);
+            await using var reader = await cmd.ExecuteReaderAsync();
+            if (!await reader.ReadAsync()) return null;
+            return new UserLessonPack
+            {
+                IdUserLessonPack = reader.GetGuid(reader.GetOrdinal("id_user_lesson_pack")),
+                IdUser = reader.GetGuid(reader.GetOrdinal("id_user")),
+                IdLessonPack = reader.GetGuid(reader.GetOrdinal("id_lesson_pack")),
+                RemainingCount = GetNullableInt(reader, "remaining_count"),
+                Status = GetNullableString(reader, "status"),
+                PurchasedAt = GetNullableDateTime(reader, "purchased_at"),
+                ExpiresAt = GetNullableDateTime(reader, "expires_at")
+            };
+        }
+
+        public async Task<IEnumerable<UserLessonPack>> GetUserLessonPacksByUserIdAsync(Guid idUser)
+        {
+            var list = new List<UserLessonPack>();
+            await using var conn = new NpgsqlConnection(_connectionString);
+            await conn.OpenAsync();
+            await using var cmd = conn.CreateCommand();
+            cmd.CommandText = "SELECT * FROM public.usp_user_lesson_packs_select_by_user01(@id_user);";
+            cmd.Parameters.AddWithValue("id_user", idUser);
+            await using var reader = await cmd.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+            {
+                list.Add(new UserLessonPack
+                {
+                    IdUserLessonPack = reader.GetGuid(reader.GetOrdinal("id_user_lesson_pack")),
+                    IdUser = reader.GetGuid(reader.GetOrdinal("id_user")),
+                    IdLessonPack = reader.GetGuid(reader.GetOrdinal("id_lesson_pack")),
+                    RemainingCount = GetNullableInt(reader, "remaining_count"),
+                    Status = GetNullableString(reader, "status"),
+                    PurchasedAt = GetNullableDateTime(reader, "purchased_at"),
+                    ExpiresAt = GetNullableDateTime(reader, "expires_at")
+                });
+            }
+            return list;
+        }
+
+        public async Task<Guid> InsertUserLessonPackAsync(UserLessonPack userLessonPack)
+        {
+            await using var conn = new NpgsqlConnection(_connectionString);
+            await conn.OpenAsync();
+            await using var cmd = conn.CreateCommand();
+            cmd.CommandText = "SELECT public.usp_user_lesson_packs_insert(@id_user, @id_lesson_pack, @remaining_count, @status, @purchased_at, @expires_at);";
+            cmd.Parameters.AddWithValue("id_user", userLessonPack.IdUser);
+            cmd.Parameters.AddWithValue("id_lesson_pack", userLessonPack.IdLessonPack);
+            cmd.Parameters.AddWithValue("remaining_count", (object?)userLessonPack.RemainingCount ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("status", (object?)userLessonPack.Status ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("purchased_at", (object?)userLessonPack.PurchasedAt ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("expires_at", (object?)userLessonPack.ExpiresAt ?? DBNull.Value);
+            var res = await cmd.ExecuteScalarAsync();
+            return res == null || res == DBNull.Value ? Guid.Empty : (Guid)res;
+        }
+
+        public async Task<int> UpdateUserLessonPackAsync(UserLessonPack userLessonPack)
+        {
+            await using var conn = new NpgsqlConnection(_connectionString);
+            await conn.OpenAsync();
+            await using var cmd = conn.CreateCommand();
+            cmd.CommandText = "SELECT public.usp_user_lesson_packs_update(@id_user_lesson_pack, @remaining_count, @status, @expires_at);";
+            cmd.Parameters.AddWithValue("id_user_lesson_pack", userLessonPack.IdUserLessonPack);
+            cmd.Parameters.AddWithValue("remaining_count", (object?)userLessonPack.RemainingCount ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("status", (object?)userLessonPack.Status ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("expires_at", (object?)userLessonPack.ExpiresAt ?? DBNull.Value);
+            var res = await cmd.ExecuteScalarAsync();
+            return Convert.ToInt32(res);
+        }
+
+        public async Task<int> DeleteUserLessonPackAsync(Guid idUserLessonPack)
+        {
+            await using var conn = new NpgsqlConnection(_connectionString);
+            await conn.OpenAsync();
+            await using var cmd = conn.CreateCommand();
+            cmd.CommandText = "SELECT public.usp_user_lesson_packs_delete(@id_user_lesson_pack);";
+            cmd.Parameters.AddWithValue("id_user_lesson_pack", idUserLessonPack);
+            var res = await cmd.ExecuteScalarAsync();
+            return Convert.ToInt32(res);
+        }
+
+        public async Task<IEnumerable<PackTransaction>> GetPackTransactionsAllAsync()
+        {
+            var list = new List<PackTransaction>();
+            await using var conn = new NpgsqlConnection(_connectionString);
+            await conn.OpenAsync();
+            await using var cmd = conn.CreateCommand();
+            cmd.CommandText = "SELECT * FROM public.usp_pack_transactions_select_all01();";
+            await using var reader = await cmd.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+            {
+                list.Add(new PackTransaction
+                {
+                    IdPackTransaction = reader.GetGuid(reader.GetOrdinal("id_pack_transaction")),
+                    IdUserLessonPack = reader.GetGuid(reader.GetOrdinal("id_user_lesson_pack")),
+                    IdReservation = GetNullableGuid(reader, "id_reservation"),
+                    TransactionType = GetNullableString(reader, "transaction_type"),
+                    ValueChange = GetNullableInt(reader, "value_change"),
+                    CreatedAt = GetNullableDateTime(reader, "created_at")
+                });
+            }
+            return list;
+        }
+
+        public async Task<PackTransaction?> GetPackTransactionByIdAsync(Guid idPackTransaction)
+        {
+            await using var conn = new NpgsqlConnection(_connectionString);
+            await conn.OpenAsync();
+            await using var cmd = conn.CreateCommand();
+            cmd.CommandText = "SELECT * FROM public.usp_pack_transactions_select_details01(@id_pack_transaction);";
+            cmd.Parameters.AddWithValue("id_pack_transaction", idPackTransaction);
+            await using var reader = await cmd.ExecuteReaderAsync();
+            if (!await reader.ReadAsync()) return null;
+            return new PackTransaction
+            {
+                IdPackTransaction = reader.GetGuid(reader.GetOrdinal("id_pack_transaction")),
+                IdUserLessonPack = reader.GetGuid(reader.GetOrdinal("id_user_lesson_pack")),
+                IdReservation = GetNullableGuid(reader, "id_reservation"),
+                TransactionType = GetNullableString(reader, "transaction_type"),
+                ValueChange = GetNullableInt(reader, "value_change"),
+                CreatedAt = GetNullableDateTime(reader, "created_at")
+            };
+        }
+
+        public async Task<IEnumerable<PackTransaction>> GetPackTransactionsByUserLessonPackIdAsync(Guid idUserLessonPack)
+        {
+            var list = new List<PackTransaction>();
+            await using var conn = new NpgsqlConnection(_connectionString);
+            await conn.OpenAsync();
+            await using var cmd = conn.CreateCommand();
+            cmd.CommandText = "SELECT * FROM public.usp_pack_transactions_select_by_user_lesson_pack01(@id_user_lesson_pack);";
+            cmd.Parameters.AddWithValue("id_user_lesson_pack", idUserLessonPack);
+            await using var reader = await cmd.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+            {
+                list.Add(new PackTransaction
+                {
+                    IdPackTransaction = reader.GetGuid(reader.GetOrdinal("id_pack_transaction")),
+                    IdUserLessonPack = reader.GetGuid(reader.GetOrdinal("id_user_lesson_pack")),
+                    IdReservation = GetNullableGuid(reader, "id_reservation"),
+                    TransactionType = GetNullableString(reader, "transaction_type"),
+                    ValueChange = GetNullableInt(reader, "value_change"),
+                    CreatedAt = GetNullableDateTime(reader, "created_at")
+                });
+            }
+            return list;
+        }
+
+        public async Task<Guid> InsertPackTransactionAsync(PackTransaction packTransaction)
+        {
+            await using var conn = new NpgsqlConnection(_connectionString);
+            await conn.OpenAsync();
+            await using var cmd = conn.CreateCommand();
+            cmd.CommandText = "SELECT public.usp_pack_transactions_insert(@id_user_lesson_pack, @id_reservation, @transaction_type, @value_change, @created_at);";
+            cmd.Parameters.AddWithValue("id_user_lesson_pack", packTransaction.IdUserLessonPack);
+            cmd.Parameters.AddWithValue("id_reservation", (object?)packTransaction.IdReservation ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("transaction_type", (object?)packTransaction.TransactionType ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("value_change", (object?)packTransaction.ValueChange ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("created_at", (object?)packTransaction.CreatedAt ?? DBNull.Value);
+            var res = await cmd.ExecuteScalarAsync();
+            return res == null || res == DBNull.Value ? Guid.Empty : (Guid)res;
+        }
+
+        public async Task<int> DeletePackTransactionAsync(Guid idPackTransaction)
+        {
+            await using var conn = new NpgsqlConnection(_connectionString);
+            await conn.OpenAsync();
+            await using var cmd = conn.CreateCommand();
+            cmd.CommandText = "SELECT public.usp_pack_transactions_delete(@id_pack_transaction);";
+            cmd.Parameters.AddWithValue("id_pack_transaction", idPackTransaction);
+            var res = await cmd.ExecuteScalarAsync();
+            return Convert.ToInt32(res);
+        }
+
         private static string? GetNullableString(NpgsqlDataReader reader, string column)
         {
             var idx = reader.GetOrdinal(column);

@@ -10,7 +10,11 @@ namespace ConfidantPostgreSQL.Modules.Payments.Models
         public Guid? TransactionId { get; set; }
         public Guid? CommissionRuleId { get; set; }
         public decimal? Amount { get; set; }
+        public decimal? GrossAmount { get; set; }
+        public decimal? PlatformFeeAmount { get; set; }
+        public decimal? TeacherNetAmount { get; set; }
         public string? Status { get; set; }
+        public DateTime? HoldReleaseAt { get; set; }
         public DateTime? CreatedAt { get; set; }
     }
 }

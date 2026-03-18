@@ -25,13 +25,14 @@ CREATE OR REPLACE FUNCTION public.usp_transactions_insert(
     p_balance_before numeric,
     p_balance_after numeric,
     p_related_id integer,
+    p_related_entity_id uuid,
     p_status varchar,
     p_created_at timestamp
 )
 RETURNS uuid
 LANGUAGE sql
 AS $$
-    INSERT INTO public.transactions (wallet_id, transaction_type, amount, balance_before, balance_after, related_id, status, created_at)
+    INSERT INTO public.transactions (wallet_id, transaction_type, amount, balance_before, balance_after, related_id, related_entity_id, status, created_at)
     VALUES (
         p_wallet_id,
         p_transaction_type,
@@ -39,6 +40,7 @@ AS $$
         p_balance_before,
         p_balance_after,
         p_related_id,
+        p_related_entity_id,
         p_status,
         COALESCE(p_created_at, now())
     )
@@ -53,6 +55,7 @@ CREATE OR REPLACE FUNCTION public.usp_transactions_update(
     p_balance_before numeric,
     p_balance_after numeric,
     p_related_id integer,
+    p_related_entity_id uuid,
     p_status varchar,
     p_created_at timestamp
 )
@@ -67,6 +70,7 @@ AS $$
             balance_before = p_balance_before,
             balance_after = p_balance_after,
             related_id = p_related_id,
+            related_entity_id = p_related_entity_id,
             status = p_status,
             created_at = p_created_at
         WHERE id_transaction = p_id_transaction

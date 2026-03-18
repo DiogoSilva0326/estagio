@@ -1,2 +1,14 @@
-namespace ConfidantPostgreSQL.Modules.Complaints.Repository;
+using System;
+
+namespace ConfidantPostgreSQL.Modules.Complaints.Repository
+{
+    public interface IComplaintsRepository2
+    {
+        
+    }
+
+
+
+}
+
 
