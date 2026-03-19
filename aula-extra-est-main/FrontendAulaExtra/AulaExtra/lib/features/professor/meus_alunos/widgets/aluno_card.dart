@@ -3,6 +3,7 @@ import 'package:aula_extra/features/professor/meus_alunos/constants/meus_alunos_
 import 'package:aula_extra/features/professor/meus_alunos/widgets/disciplina_badge.dart';
 import 'package:aula_extra/features/professor/meus_alunos/widgets/progresso_bar.dart';
 import 'package:flutter/material.dart';
+import 'package:aula_extra/routes/routes.dart';
 
 class AlunoCard extends StatelessWidget {
   final String id;
@@ -37,7 +38,7 @@ class AlunoCard extends StatelessWidget {
     final blue = MeusAlunosProfessorColors.blue;
     final green = MeusAlunosProfessorColors.green;
 
-    // Calculamos o percentual para exibição (ex: 0.5 -> 50)
+
     final int progressPercent = (progress * 100).toInt();
 
     return SizedBox(
