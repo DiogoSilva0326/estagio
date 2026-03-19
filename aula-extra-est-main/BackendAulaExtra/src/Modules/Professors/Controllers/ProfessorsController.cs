@@ -189,21 +189,15 @@ namespace ConfidantPostgreSQL.Modules.Professors.Controllers
             });
         }
 
-        [HttpGet("me/alunos")]
-        public async Task<IActionResult> GetMeusAlunos()
+        [HttpGet("me/students")]
+        [AuthorizeJwt]
+        public async Task<IActionResult> GetStudents()
         {
-            // 1. Obtém o ID do utilizador usando o teu método já existente
-            if (!TryGetAuthenticatedUserId(out var userId)) return Unauthorized();
-
-            // 2. Verifica se este utilizador é realmente um professor
-            var professor = await _service.GetProfessorByUserIdAsync(userId);
-            if (professor == null) return NotFound("Perfil de professor não encontrado.");
-
-            // 3. Pede ao teu SERVIÇO para ir buscar os alunos deste professor
-            // (Esta é a forma correta na tua arquitetura em vez de usar _context direto)
-            var alunos = await _service.GetAlunosByProfessorIdAsync(professor.IdProfessor);
-
-            return Ok(alunos);
+            if (!TryGetAuthenticatedUserId(out var userId)) 
+                return Unauthorized();
+                
+            var students = await _service.GetAlunosByProfessorIdAsync(userId);
+            return Ok(students);
         }
 
         [HttpGet("professors/{idProfessor:guid}")]

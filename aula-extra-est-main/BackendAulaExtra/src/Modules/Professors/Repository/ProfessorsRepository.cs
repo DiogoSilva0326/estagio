@@ -399,6 +399,62 @@ namespace ConfidantPostgreSQL.Modules.Professors.Repository
             };
         }
 
+        public async Task<IEnumerable<ProfessorStudentDto>> GetAlunosByProfessorIdAsync(Guid professorUserId)
+        {
+            var list = new List<ProfessorStudentDto>();
+            await using var conn = new NpgsqlConnection(_connectionString);
+            await conn.OpenAsync();
+            await using var cmd = conn.CreateCommand();
+            
+            cmd.CommandText = @"
+                SELECT 
+                    u.id_user AS Id,
+                    u.username AS Name,
+                    '' AS AvatarUrl, 
+                    (
+                        SELECT STRING_AGG(d.nome, ',') 
+                        FROM public.enrollments e2
+                        INNER JOIN public.lessons l2 ON e2.id_lesson = l2.id_lesson
+                        INNER JOIN public.courses c ON l2.id_course = c.id_course
+                        INNER JOIN public.disciplinas d ON c.id_disciplina = d.id_disciplina
+                        WHERE e2.id_user = u.id_user AND l2.id_professor = p.id_professor
+                    ) AS SubjectsJoined,
+                    (
+                        SELECT MAX(l3.scheduled_start)
+                        FROM public.lessons l3
+                        INNER JOIN public.enrollments e3 ON l3.id_lesson = e3.id_lesson
+                        WHERE e3.id_user = u.id_user AND l3.id_professor = p.id_professor
+                    ) AS LastLessonDate,
+                    0.5 AS Progress
+                FROM public.users u
+                INNER JOIN public.enrollments e ON u.id_user = e.id_user
+                INNER JOIN public.lessons l ON e.id_lesson = l.id_lesson
+                INNER JOIN public.professors p ON l.id_professor = p.id_professor
+                WHERE p.id_user = @ProfessorUserId
+                GROUP BY u.id_user, u.username, p.id_professor";
+
+            cmd.Parameters.AddWithValue("ProfessorUserId", professorUserId);
+
+            await using var reader = await cmd.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+            {
+                var subjectsStr = GetNullableString(reader, "SubjectsJoined");
+                var lastLesson = GetNullableDateTime(reader, "LastLessonDate");
+
+                list.Add(new ProfessorStudentDto
+                {
+                    Id = reader.GetGuid(reader.GetOrdinal("Id")),
+                    Name = GetNullableString(reader, "Name") ?? "Sem Nome",
+                    AvatarUrl = GetNullableString(reader, "AvatarUrl") ?? string.Empty,
+                    Subjects = string.IsNullOrEmpty(subjectsStr) ? new List<string>() : new List<string>(subjectsStr.Split(',')),
+                    LastLessonDate = lastLesson?.ToString("dd/MM/yyyy") ?? "-",
+                    Progress = 0.5
+                });
+            }
+
+            return list;
+        }
+
         private static string? GetNullableString(NpgsqlDataReader reader, string column)
         {
             var idx = reader.GetOrdinal(column);

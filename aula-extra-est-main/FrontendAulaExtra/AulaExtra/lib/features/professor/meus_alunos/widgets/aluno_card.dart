@@ -5,6 +5,7 @@ import 'package:aula_extra/features/professor/meus_alunos/widgets/progresso_bar.
 import 'package:flutter/material.dart';
 
 class AlunoCard extends StatelessWidget {
+  final String id;
   final String name;
   final String avatarUrl;
   final List<String> subjects;
@@ -13,6 +14,7 @@ class AlunoCard extends StatelessWidget {
 
   const AlunoCard({
     super.key,
+    required this.id,
     required this.name,
     required this.avatarUrl,
     required this.subjects,
@@ -265,7 +267,13 @@ class AlunoCard extends StatelessWidget {
                     child: SizedBox(
                       height: 39.39,
                       child: OutlinedButton.icon(
-                        onPressed: () {},
+                        onPressed: () {
+                          Navigator.pushNamed(
+                          context,
+                          Routes.professorStudentProfile,
+                          arguments: id,
+                          );
+                        },
                         style: OutlinedButton.styleFrom(
                           foregroundColor: orange,
                           side: BorderSide(color: orange),

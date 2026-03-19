@@ -23,6 +23,7 @@ class AlunosGrid extends StatelessWidget {
       itemBuilder: (context, index) {
         final aluno = alunos[index];
         return AlunoCard(
+          id: aluno.id,
           name: aluno.name,
           avatarUrl: aluno.avatarUrl,
           subjects: aluno.subjects,

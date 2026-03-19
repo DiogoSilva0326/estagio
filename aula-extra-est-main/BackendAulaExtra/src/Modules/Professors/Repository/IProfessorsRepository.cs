@@ -33,6 +33,6 @@ namespace ConfidantPostgreSQL.Modules.Professors.Repository
         Task<int> UpdateProfessorRoomAsync(ProfessorRoom room);
         Task<int> DeleteProfessorRoomAsync(Guid id);
 
-        Task<IEnumerable<object>> GetAlunosByProfessorIdAsync(Guid idProfessor);
+        Task<IEnumerable<ProfessorStudentDto>> GetAlunosByProfessorIdAsync(Guid professorUserId);
     }
 }

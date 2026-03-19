@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:aula_extra/core/data/professors/professors_service.dart';
 import 'package:aula_extra/core/data/professors/dtos/professor_aluno_dto.dart';
+import 'package:aula_extra/core/data/professors/professors_api.dart';
+import 'package:aula_extra/core/data/session/token_storage.dart'; 
 import 'package:aula_extra/features/professor/core/widgets/professor_menu_nav.dart';
-import 'package:aula_extra/features/professor/meus_alunos/constants/meus_alunos_professor_colors.dart';
-import 'package:aula_extra/features/professor/meus_alunos/constants/meus_alunos_professor_layout.dart';
-import 'package:aula_extra/features/professor/meus_alunos/widgets/alunos_grid.dart';
-import 'package:aula_extra/features/professor/meus_alunos/widgets/full_bleed_scaled_section.dart';
+import 'package:aula_extra/features/professor/calendario/widgets/full_bleed_scaled_section.dart';
+
+import '../widgets/alunos_grid.dart';
 
 class MeusAlunosProfessorContentSection extends StatefulWidget {
   const MeusAlunosProfessorContentSection({super.key});
@@ -15,71 +15,86 @@ class MeusAlunosProfessorContentSection extends StatefulWidget {
 }
 
 class _MeusAlunosProfessorContentSectionState extends State<MeusAlunosProfessorContentSection> {
-  final ProfessorsService _service = ProfessorsService(); // Alterado para Service
-  List<ProfessorAlunoDto> _alunos = [];
-  bool _isLoading = true;
-  String? _errorMessage;
+  late Future<List<ProfessorAlunoDto>> _studentsFuture;
+  final ProfessorsApi _professorsApi = ProfessorsApi();
 
   @override
   void initState() {
     super.initState();
-    _fetchAlunos();
+    _studentsFuture = _carregarAlunos();
   }
 
-  Future<void> _fetchAlunos() async {
-    try {
-      final alunos = await _service.fetchMeusAlunos();
-      setState(() {
-        _alunos = alunos;
-        _isLoading = false;
-      });
-    } catch (e) {
-      setState(() {
-        _errorMessage = "Erro ao carregar alunos: $e";
-        _isLoading = false;
-      });
-    }
+  Future<List<ProfessorAlunoDto>> _carregarAlunos() async {
+    final tokenStorage = TokenStorage();
+    final token = await tokenStorage.loadToken() ?? '';
+    return await _professorsApi.getMeusAlunos(token: token);
   }
 
   @override
   Widget build(BuildContext context) {
-    final titleStyle = TextStyle(
-      color: MeusAlunosProfessorColors.title,
-      fontWeight: FontWeight.w800,
-      fontSize: MeusAlunosProfessorLayout.titleFontSize,
-      height: MeusAlunosProfessorLayout.titleLineHeight / MeusAlunosProfessorLayout.titleFontSize,
-    );
-
     return Container(
-      color: MeusAlunosProfessorColors.background,
+      color: const Color(0xFFF9FAFB),
       child: FullBleedScaledSection(
         child: Padding(
           padding: const EdgeInsets.only(
-            left: MeusAlunosProfessorLayout.pageLeftPadding,
-            right: MeusAlunosProfessorLayout.pageRightPadding,
-            top: MeusAlunosProfessorLayout.pageTopPadding,
-            bottom: 90,
+            left: 30.0, 
+            right: 30.0,
+            top: 40.0,
+            bottom: 90.0,
           ),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const ProfessorMenuNav(),
-              const SizedBox(width: 40),
+              const ProfessorMenuNav(selectedIndex: 0), 
+              
+              const SizedBox(width: 30), 
+
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Meus Alunos', style: titleStyle),
-                    const SizedBox(height: 30),
-                    
-                    if (_isLoading)
-                      const Center(child: CircularProgressIndicator(color: Colors.orange))
-                    else if (_errorMessage != null)
-                      Center(child: Text(_errorMessage!, style: const TextStyle(color: Colors.red)))
-                    else if (_alunos.isEmpty)
-                      const Center(child: Text("Ainda não tem alunos atribuídos.", style: TextStyle(fontSize: 18)))
-                    else
-                      AlunosGrid(alunos: _alunos),
+                    const Text(
+                      'Meus Alunos',
+                      style: TextStyle(
+                        color: Color(0xFF1D2838),
+                        fontWeight: FontWeight.w700,
+                        fontSize: 32,
+                      ),
+                    ),
+                    const SizedBox(height: 40),
+
+                    FutureBuilder<List<ProfessorAlunoDto>>(
+                      future: _studentsFuture,
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState == ConnectionState.waiting) {
+                          return const Padding(
+                            padding: EdgeInsets.all(40.0),
+                            child: Center(child: CircularProgressIndicator()),
+                          );
+                        }
+
+                        if (snapshot.hasError) {
+                          return Center(
+                            child: Text(
+                              'Erro: ${snapshot.error}',
+                              style: const TextStyle(color: Colors.red),
+                            ),
+                          );
+                        }
+
+                        final alunos = snapshot.data ?? [];
+
+                        if (alunos.isEmpty) {
+                          return const Center(
+                            child: Text('Ainda não tens alunos associados.'),
+                          );
+                        }
+
+                        return AlunosGrid(
+                          alunos: alunos,
+                        );
+                      },
+                    ),
                   ],
                 ),
               ),

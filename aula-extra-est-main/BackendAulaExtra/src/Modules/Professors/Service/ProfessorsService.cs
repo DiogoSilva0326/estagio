@@ -40,5 +40,10 @@ namespace ConfidantPostgreSQL.Modules.Professors.Service
         public Task<Guid> InsertProfessorRoomAsync(ProfessorRoom room) => _repo.InsertProfessorRoomAsync(room);
         public Task<int> UpdateProfessorRoomAsync(ProfessorRoom room) => _repo.UpdateProfessorRoomAsync(room);
         public Task<int> DeleteProfessorRoomAsync(Guid id) => _repo.DeleteProfessorRoomAsync(id);
+
+        public async Task<IEnumerable<ProfessorStudentDto>> GetAlunosByProfessorIdAsync(Guid professorUserId)
+        {
+            return await _repo.GetAlunosByProfessorIdAsync(professorUserId);
+        }
     }
 }

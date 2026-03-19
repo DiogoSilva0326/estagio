@@ -128,6 +128,7 @@ class Routes {
   static const String perfilAluno = '/aluno/perfil';
   static const String notificacoes = '/aluno/notificacoes';
   static const String areasAluno = '/aluno/areas';
+  static const String professorStudentProfile = '/professor/meus-alunos/perfil';
 
   static const String professorMeusAlunos = '/professor/meus-alunos';
   static const String professorCalendario = '/professor/calendario';
@@ -169,5 +170,9 @@ class Routes {
         professorAvaliacoes: (context) => const _TeacherOnly(child: AvaliacoesProfessorScreen()),
         professorPerfil: (context) => const _TeacherOnly(child: PerfilProfessorScreen()),
         professorNotificacoes: (context) => const _TeacherOnly(child: NotificacoesProfessorScreen()),
+        professorStudentProfile: (context) {
+        final studentId = ModalRoute.of(context)!.settings.arguments as String;
+        return _TeacherOnly(child: ProfessorStudentProfileScreen(studentId: studentId));
+        },
       };
 }

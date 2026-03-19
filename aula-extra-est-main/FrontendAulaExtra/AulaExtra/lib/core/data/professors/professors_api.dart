@@ -3,7 +3,7 @@ import 'package:http/http.dart' as http;
 
 import 'package:aula_extra/core/data/auth/dtos/auth_response_dto.dart';
 import 'package:aula_extra/core/data/http/api_config.dart';
-import 'package:aula_extra/core/data/professors/dtos/professor_aluno_dto.dart'; // IMPORT FALTAVA AQUI
+import 'package:aula_extra/core/data/professors/dtos/professor_aluno_dto.dart';
 
 class UpsertProfessorCertificateInput {
   UpsertProfessorCertificateInput({
@@ -18,6 +18,14 @@ class UpsertProfessorCertificateInput {
         'name': name,
         'fileUrl': fileUrl,
       };
+}
+
+class ProfessorsException implements Exception {
+  const ProfessorsException(this.message);
+  final String message;
+
+  @override
+  String toString() => message;
 }
 
 class ProfessorsApi {
@@ -89,12 +97,11 @@ class ProfessorsApi {
     return AuthResponseDto.fromJson(obj);
   }
 
-  // A FUNÇÃO AGORA ESTÁ AQUI DENTRO DA CLASSE!
   Future<List<ProfessorAlunoDto>> getMeusAlunos({
     required String token,
   }) async {
     final res = await http.get(
-      ApiConfig.uri('/api/Professors/me/alunos'), 
+      ApiConfig.uri('/api/Professors/me/students'),
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',
@@ -111,12 +118,4 @@ class ProfessorsApi {
     final List<dynamic> body = jsonDecode(res.body);
     return body.map((json) => ProfessorAlunoDto.fromJson(json)).toList();
   }
-} // FIM DA CLASSE ProfessorsApi
-
-class ProfessorsException implements Exception {
-  const ProfessorsException(this.message);
-  final String message;
-
-  @override
-  String toString() => message;
 }
