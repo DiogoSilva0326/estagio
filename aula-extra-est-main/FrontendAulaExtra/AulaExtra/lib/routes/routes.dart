@@ -166,7 +166,15 @@ class Routes {
         professorMeusAlunos: (context) => const _TeacherOnly(child: MeusAlunosProfessorScreen()),
         professorCalendario: (context) => const _TeacherOnly(child: CalendarioProfessorScreen()),
         professorArquivos: (context) => const _TeacherOnly(child: ArquivosProfessorScreen()),
-        professorChats: (context) => const _TeacherOnly(child: ChatsProfessorScreen()),
+        professorChats: (context) {
+        final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+          return _TeacherOnly(
+            child: ChatsProfessorScreen(
+              initialStudentId: args?['studentId'] as String?,
+              initialStudentName: args?['studentName'] as String?,
+            )
+          );
+        },
         professorDisponibilidade: (context) => const _TeacherOnly(child: DisponibilidadeProfessorScreen()),
         professorPagamentos: (context) => const _TeacherOnly(child: PagamentosProfessorScreen()),
         professorAvaliacoes: (context) => const _TeacherOnly(child: AvaliacoesProfessorScreen()),

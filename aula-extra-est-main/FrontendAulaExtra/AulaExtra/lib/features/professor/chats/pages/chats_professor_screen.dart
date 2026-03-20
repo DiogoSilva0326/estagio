@@ -8,8 +8,13 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 class ChatsProfessorScreen extends StatelessWidget {
+  final String? initialStudentId; 
+  final String? initialStudentName;
+
   const ChatsProfessorScreen({
     super.key,
+    this.initialStudentId, 
+    this.initialStudentName,
   });
 
   @override
@@ -31,10 +36,15 @@ class ChatsProfessorScreen extends StatelessWidget {
             pinned: true,
             delegate: PinnedHeaderDelegate(
               height: 90,
-                  child: const AppHeader(),
+              child: const AppHeader(),
             ),
           ),
-          const SliverToBoxAdapter(child: ChatsProfessorContentSection()),
+          SliverToBoxAdapter(
+            child: ChatsProfessorContentSection(
+              initialStudentId: initialStudentId,
+              initialStudentName: initialStudentName,
+            ), 
+          ),
           const SliverToBoxAdapter(child: FooterSection()),
         ],
       ),

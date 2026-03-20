@@ -22,9 +22,17 @@ class AlunosGrid extends StatelessWidget {
       itemCount: alunos.length,
       itemBuilder: (context, index) {
         final aluno = alunos[index];
+        final String primeiro = aluno.firstName ?? '';
+        final String ultimo = aluno.lastName ?? '';
+        String nomeCompleto = '$primeiro $ultimo'.trim();
+
+        if (nomeCompleto.isEmpty) {
+          nomeCompleto = aluno.name;
+        }
+
         return AlunoCard(
           id: aluno.id,
-          name: aluno.name,
+          name: nomeCompleto,
           avatarUrl: aluno.avatarUrl,
           subjects: aluno.subjects,
           lastLessonDate: aluno.lastLessonDate,

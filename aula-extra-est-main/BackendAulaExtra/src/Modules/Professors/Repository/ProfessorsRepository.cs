@@ -410,6 +410,8 @@ namespace ConfidantPostgreSQL.Modules.Professors.Repository
                 SELECT 
                     u.id_user AS Id,
                     u.username AS Name,
+                    u.first_name AS FirstName, 
+                    u.last_name AS LastName,
                     '' AS AvatarUrl, 
                     (
                         SELECT STRING_AGG(d.nome, ',') 
@@ -431,7 +433,7 @@ namespace ConfidantPostgreSQL.Modules.Professors.Repository
                 INNER JOIN public.lessons l ON e.id_lesson = l.id_lesson
                 INNER JOIN public.professors p ON l.id_professor = p.id_professor
                 WHERE p.id_user = @ProfessorUserId
-                GROUP BY u.id_user, u.username, p.id_professor";
+                GROUP BY u.id_user, u.username, u.first_name, u.last_name, p.id_professor";
 
             cmd.Parameters.AddWithValue("ProfessorUserId", professorUserId);
 
@@ -445,6 +447,8 @@ namespace ConfidantPostgreSQL.Modules.Professors.Repository
                 {
                     Id = reader.GetGuid(reader.GetOrdinal("Id")),
                     Name = GetNullableString(reader, "Name") ?? "Sem Nome",
+                    FirstName = GetNullableString(reader, "FirstName"),
+                    LastName = GetNullableString(reader, "LastName"),  
                     AvatarUrl = GetNullableString(reader, "AvatarUrl") ?? string.Empty,
                     Subjects = string.IsNullOrEmpty(subjectsStr) ? new List<string>() : new List<string>(subjectsStr.Split(',')),
                     LastLessonDate = lastLesson?.ToString("dd/MM/yyyy") ?? "-",

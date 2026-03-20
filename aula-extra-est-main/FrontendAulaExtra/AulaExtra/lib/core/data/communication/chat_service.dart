@@ -11,7 +11,13 @@ class ChatFileAttachment {
   final int fileSize;
   final String downloadUrl;
 
-  ChatFileAttachment({required this.fileId, required this.fileName, required this.fileType, required this.fileSize, required this.downloadUrl});
+  ChatFileAttachment({
+    required this.fileId,
+    required this.fileName,
+    required this.fileType,
+    required this.fileSize,
+    required this.downloadUrl,
+  });
 
   factory ChatFileAttachment.fromJson(Map<String, dynamic> json) {
     return ChatFileAttachment(
@@ -33,7 +39,15 @@ class ChatMessage {
   final String type;
   final ChatFileAttachment? fileAttachment;
 
-  ChatMessage({required this.messageId, required this.senderId, required this.senderName, required this.content, required this.timestamp, required this.type, this.fileAttachment});
+  ChatMessage({
+    required this.messageId,
+    required this.senderId,
+    required this.senderName,
+    required this.content,
+    required this.timestamp,
+    required this.type,
+    this.fileAttachment,
+  });
 
   factory ChatMessage.fromJson(Map<String, dynamic> json) {
     return ChatMessage(
@@ -41,12 +55,15 @@ class ChatMessage {
       senderId: json['senderId'] as String? ?? '',
       senderName: json['senderName'] as String? ?? '',
       content: json['content'] as String? ?? '',
-      timestamp: json['timestamp'] != null ? DateTime.parse(json['timestamp'] as String) : DateTime.now(),
+      timestamp: json['timestamp'] != null
+          ? DateTime.parse(json['timestamp'] as String)
+          : DateTime.now(),
       type: json['type'] as String? ?? 'text',
-      fileAttachment: json['attachment'] != null ? ChatFileAttachment.fromJson(json['attachment'] as Map<String, dynamic>) : null,
+      fileAttachment: json['attachment'] != null
+          ? ChatFileAttachment.fromJson(json['attachment'] as Map<String, dynamic>)
+          : null,
     );
   }
-  bool get isSystem => type == 'system';
 }
 
 class ChatParticipant {
@@ -54,7 +71,11 @@ class ChatParticipant {
   final String displayName;
   final bool isConnected;
 
-  ChatParticipant({required this.userId, required this.displayName, required this.isConnected});
+  ChatParticipant({
+    required this.userId,
+    required this.displayName,
+    required this.isConnected,
+  });
 
   factory ChatParticipant.fromJson(Map<String, dynamic> json) {
     return ChatParticipant(
@@ -79,7 +100,6 @@ class ChatService extends ChangeNotifier {
   
   final List<ChatMessage> _messages = [];
   final List<ChatParticipant> _participants = [];
-  final Map<String, bool> _typingUsers = {};
 
   bool get isConnected => _isConnected;
   bool get isConnecting => _isConnecting;
@@ -87,15 +107,24 @@ class ChatService extends ChangeNotifier {
   List<ChatMessage> get messages => List.unmodifiable(_messages);
 
   void _safeNotifyListeners() {
-    if (!_disposed) notifyListeners();
+    if (!_disposed) {
+      notifyListeners();
+    }
   }
 
   String get _hubUrl {
-    final cleanBase = ApiConfig.baseUrl.replaceAll('/api', ''); 
-    return '$cleanBase/chathub'; 
+    final baseUrl = ApiConfig.baseUrl; 
+    final cleanBase = baseUrl.endsWith('/api') 
+        ? baseUrl.substring(0, baseUrl.length - 4) 
+        : baseUrl;
+    return '$cleanBase/chathub';
   }
 
-  Future<bool> connect({required String channelName, required String userId, required String displayName}) async {
+  Future<bool> connect({
+    required String channelName,
+    required String userId,
+    required String displayName,
+  }) async {
     if (_isConnecting || _isConnected) {
       if (_channelName == channelName) return true;
       await disconnect();
@@ -105,29 +134,39 @@ class ChatService extends ChangeNotifier {
     _error = null;
     _safeNotifyListeners();
 
+    print('🟢 TENTATIVA DE LIGAÇÃO SIGNALR: $_hubUrl'); // <-- VAI IMPRIMIR O URL
+
     try {
       _channelName = channelName;
       _userId = userId;
       _displayName = displayName;
 
+      final token = await TokenStorage().loadToken();
+      print('🟢 TOKEN OBTIDO: ${token != null ? "Sim" : "Não"}');
+
       _hubConnection = HubConnectionBuilder()
           .withUrl(_hubUrl, options: HttpConnectionOptions(
-            accessTokenFactory: () async => await TokenStorage().loadToken() ?? '',
+             accessTokenFactory: () async => token ?? '',
           ))
           .withAutomaticReconnect()
           .build();
 
       _hubConnection!.on('RoomJoined', _onRoomJoined);
       _hubConnection!.on('MessageReceived', _onMessageReceived);
-      _hubConnection!.onclose(({Exception? error}) { _isConnected = false; _safeNotifyListeners(); });
-      _hubConnection!.onreconnected(({String? connectionId}) {
-        _isConnected = true;
-        _hubConnection!.invoke('JoinRoom', args: [_channelName, _userId, _displayName]);
+
+      _hubConnection!.onclose(({Exception? error}) {
+        _isConnected = false;
+        _error = error?.toString();
+        print('🔴 LIGAÇÃO SIGNALR FECHADA/CAIU: $_error');
         _safeNotifyListeners();
       });
 
+      print('🟢 A INICIAR HUB...');
       await _hubConnection!.start();
+      print('🟢 HUB INICIADO COM SUCESSO! A ENTRAR NA SALA...');
+      
       await _hubConnection!.invoke('JoinRoom', args: [channelName, userId, displayName]);
+      print('🟢 ENTROU NA SALA!');
 
       _isConnected = true;
       _isConnecting = false;
@@ -138,27 +177,42 @@ class ChatService extends ChangeNotifier {
       _isConnecting = false;
       _isConnected = false;
       _safeNotifyListeners();
+      
+      print('🔴 ERRO GRAVE AO LIGAR SIGNALR: $e'); // <-- VAI IMPRIMIR O MOTIVO DA FALHA
       return false;
     }
   }
 
   Future<void> disconnect() async {
     if (_hubConnection != null) {
-      try { if (_isConnected) await _hubConnection!.invoke('LeaveRoom', args: [_channelName]); } catch (_) {}
-      try { await _hubConnection!.stop(); } catch (_) {}
+      try {
+        if (_isConnected && _channelName.isNotEmpty) {
+          await _hubConnection!.invoke('LeaveRoom', args: [_channelName]);
+        }
+      } catch (_) {}
+      try {
+        await _hubConnection!.stop();
+      } catch (_) {}
       _hubConnection = null;
     }
+
     _isConnected = false;
+    _isConnecting = false;
     _messages.clear();
-    if (!_disposed) _safeNotifyListeners();
+    if (!_disposed) {
+      _safeNotifyListeners();
+    }
   }
 
   Future<bool> sendMessage(String content) async {
     if (!_isConnected || content.trim().isEmpty) return false;
+
     try {
-      await _hubConnection!.invoke('SendMessage', args: [_channelName, content.trim()]);
+      await _hubConnection!.invoke('SendMessage', args: [_channelName, _userId, content.trim()]);
       return true;
     } catch (e) {
+      _error = e.toString();
+      _safeNotifyListeners();
       return false;
     }
   }
@@ -171,7 +225,9 @@ class ChatService extends ChangeNotifier {
     final messagesData = data['messages'] as List<dynamic>? ?? [];
     _messages.clear();
     for (final m in messagesData) {
-      if (m is Map<String, dynamic>) _messages.add(ChatMessage.fromJson(m));
+      if (m is Map<String, dynamic>) {
+        _messages.add(ChatMessage.fromJson(m));
+      }
     }
     _safeNotifyListeners();
   }

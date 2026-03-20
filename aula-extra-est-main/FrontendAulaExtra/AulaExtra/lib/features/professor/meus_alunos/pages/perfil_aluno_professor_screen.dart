@@ -104,6 +104,7 @@ class _ProfessorStudentProfileScreenState extends State<ProfessorStudentProfileS
 
                           final String firstName = user['firstName'] ?? 'Sem';
                           final String lastName = user['lastName'] ?? 'Nome';
+                          final String username = user['userName'] ?? user['username'] ?? 'sem.user'; 
                           final String email = user['email'] ?? 'Sem email';
                           final String? mobileNumber = user['mobileNumber'];
                           final String? biography = user['biography'];
@@ -125,7 +126,7 @@ class _ProfessorStudentProfileScreenState extends State<ProfessorStudentProfileS
                               ),
                               const SizedBox(height: 40),
 
-                              _buildInfoCard(firstName, lastName, email, mobileNumber, avatarUrl),
+                              _buildInfoCard(firstName, lastName, username, email, mobileNumber, avatarUrl),
 
                               const SizedBox(height: 30),
 
@@ -147,7 +148,7 @@ class _ProfessorStudentProfileScreenState extends State<ProfessorStudentProfileS
     );
   }
 
-  Widget _buildInfoCard(String firstName, String lastName, String email, String? mobileNumber, String? avatarUrl) {
+  Widget _buildInfoCard(String firstName, String lastName, String username, String email, String? mobileNumber, String? avatarUrl) {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
@@ -176,6 +177,11 @@ class _ProfessorStudentProfileScreenState extends State<ProfessorStudentProfileS
                 Text(
                   '$firstName $lastName',
                   style: const TextStyle(color: Color(0xFF1D2838), fontWeight: FontWeight.w600, fontSize: 24),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '@$username',
+                  style: const TextStyle(color: Color(0xFF697282), fontWeight: FontWeight.w500, fontSize: 16),
                 ),
                 const SizedBox(height: 8),
                 Text(

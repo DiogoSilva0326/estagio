@@ -37,6 +37,7 @@ using ConfidantPostgreSQL.Modules.UserProfile.Repository;
 using ConfidantPostgreSQL.Modules.UserProfile.Service;
 using ConfidantPostgreSQL.Modules.Users.Repository;
 using ConfidantPostgreSQL.Modules.Users.Service;
+using ConfidantPostgreSQL.Modules.Communication.Hubs;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -64,7 +65,7 @@ builder.Services.AddCors(options =>
 });
 
 builder.Services.AddScoped<JwtFilter>();
-
+builder.Services.AddSignalR();
 builder.Services.AddControllers().AddJsonOptions(options =>
 {
     options.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
@@ -150,4 +151,5 @@ else
 app.UseRouting();
 app.UseCors("corsapp");
 app.MapControllers();
+app.MapHub<ChatHub>("/chathub");
 app.Run();

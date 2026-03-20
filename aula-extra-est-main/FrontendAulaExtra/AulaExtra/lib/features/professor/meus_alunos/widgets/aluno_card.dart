@@ -289,10 +289,20 @@ class AlunoCard extends StatelessWidget {
                   ),
                   const SizedBox(width: 9.85),
                   _SquareActionButton(
-                    icon: Icons.chat_bubble_outline,
-                    borderColor: blue,
-                    iconColor: blue,
-                    onTap: () {},
+                  icon: Icons.chat_bubble_outline,
+                  borderColor: blue,
+                  iconColor: blue,
+                    onTap: () {
+                      Navigator.pushNamed(
+                      context,
+                      Routes.professorChats,
+                        arguments: {
+                          'studentId': id,
+                          'studentName': name,
+                          'avatarUrl': avatarUrl, 
+                        },
+                      );
+                    },
                   ),
                   const SizedBox(width: 9.85),
                   _SquareActionButton(
