@@ -73,8 +73,8 @@ public class VideoCallsController : ControllerBase
     /// <summary>
     /// Join an existing call.
     /// </summary>
-    [HttpPost("{callId:long}/join")]
-    public async Task<IActionResult> JoinCall(long callId, [FromBody] JoinCallDto request)
+    [HttpPost("{callId:guid}/join")]
+    public async Task<IActionResult> JoinCall(Guid callId, [FromBody] JoinCallDto request)
     {
         try
         {
@@ -98,8 +98,8 @@ public class VideoCallsController : ControllerBase
     /// <summary>
     /// Leave a call.
     /// </summary>
-    [HttpPost("{callId:long}/leave")]
-    public async Task<IActionResult> LeaveCall(long callId, [FromBody] LeaveCallDto request)
+    [HttpPost("{callId:guid}/leave")]
+    public async Task<IActionResult> LeaveCall(Guid callId, [FromBody] LeaveCallDto request)
     {
         try
         {
@@ -128,8 +128,8 @@ public class VideoCallsController : ControllerBase
     /// <summary>
     /// End a call.
     /// </summary>
-    [HttpPost("{callId:long}/end")]
-    public async Task<IActionResult> EndCall(long callId)
+    [HttpPost("{callId:guid}/end")]
+    public async Task<IActionResult> EndCall(Guid callId)
     {
         try
         {
@@ -151,8 +151,8 @@ public class VideoCallsController : ControllerBase
     /// <summary>
     /// Get call by ID.
     /// </summary>
-    [HttpGet("{callId:long}")]
-    public async Task<IActionResult> GetCall(long callId)
+    [HttpGet("{callId:guid}")]
+    public async Task<IActionResult> GetCall(Guid callId)
     {
         var call = await _callRepo.GetByIdAsync(callId, includeParticipants: true);
         if (call == null)
@@ -207,8 +207,8 @@ public class VideoCallsController : ControllerBase
     /// <summary>
     /// Get call history for a user.
     /// </summary>
-    [HttpGet("user/{userId:long}/history")]
-    public async Task<IActionResult> GetUserHistory(long userId, [FromQuery] int limit = 50, [FromQuery] DateTime? before = null)
+    [HttpGet("user/{userId:guid}/history")]
+    public async Task<IActionResult> GetUserHistory(Guid userId, [FromQuery] int limit = 50, [FromQuery] DateTime? before = null)
     {
         try
         {
@@ -225,8 +225,8 @@ public class VideoCallsController : ControllerBase
     /// <summary>
     /// Get call participants.
     /// </summary>
-    [HttpGet("{callId:long}/participants")]
-    public async Task<IActionResult> GetParticipants(long callId, [FromQuery] bool activeOnly = true)
+    [HttpGet("{callId:guid}/participants")]
+    public async Task<IActionResult> GetParticipants(Guid callId, [FromQuery] bool activeOnly = true)
     {
         var participants = await _callRepo.GetParticipantsAsync(callId, activeOnly);
         return Ok(participants.Select(p => new
@@ -533,20 +533,20 @@ public class StartCallDto
     public string ChannelName { get; set; } = string.Empty;
     public string? CallName { get; set; }
     public string? CallType { get; set; }
-    public long InitiatedByUserId { get; set; }
-    public long? GroupRoomId { get; set; }
+    public Guid InitiatedByUserId { get; set; }
+    public Guid? GroupRoomId { get; set; }
 }
 
 public class JoinCallDto
 {
-    public long UserId { get; set; }
+    public Guid UserId { get; set; }
     public string? Role { get; set; }
     public string? DeviceType { get; set; }
 }
 
 public class LeaveCallDto
 {
-    public long UserId { get; set; }
+    public Guid UserId { get; set; }
 }
 
 // Username-based DTOs

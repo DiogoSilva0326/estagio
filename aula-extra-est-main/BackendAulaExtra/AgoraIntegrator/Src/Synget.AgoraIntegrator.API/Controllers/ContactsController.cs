@@ -36,9 +36,9 @@ public class ContactsController : ControllerBase
     {
         _logger.LogInformation("Getting contacts for user: {UserId}", userId);
 
-        // Try to parse as long first, otherwise lookup by username
-        long ownerUserId;
-        if (!long.TryParse(userId, out ownerUserId))
+        // Try to parse as Guid first, otherwise lookup by username
+        Guid ownerUserId;
+        if (!Guid.TryParse(userId, out ownerUserId))
         {
             var user = await _userRepository.GetByUsernameAsync(userId);
             if (user == null)
@@ -74,8 +74,8 @@ public class ContactsController : ControllerBase
     {
         _logger.LogInformation("Getting pending contact requests for user: {UserId}", userId);
 
-        long ownerUserId;
-        if (!long.TryParse(userId, out ownerUserId))
+        Guid ownerUserId;
+        if (!Guid.TryParse(userId, out ownerUserId))
         {
             var user = await _userRepository.GetByUsernameAsync(userId);
             if (user == null)
@@ -109,8 +109,8 @@ public class ContactsController : ControllerBase
     {
         _logger.LogInformation("Getting sent contact requests for user: {UserId}", userId);
 
-        long ownerUserId;
-        if (!long.TryParse(userId, out ownerUserId))
+        Guid ownerUserId;
+        if (!Guid.TryParse(userId, out ownerUserId))
         {
             var user = await _userRepository.GetByUsernameAsync(userId);
             if (user == null)
@@ -148,9 +148,9 @@ public class ContactsController : ControllerBase
             request.FromUserId, request.ToUserId);
 
         // Resolve user IDs from usernames
-        long fromUserId, toUserId;
+        Guid fromUserId, toUserId;
         
-        if (!long.TryParse(request.FromUserId, out fromUserId))
+        if (!Guid.TryParse(request.FromUserId, out fromUserId))
         {
             var fromUser = await _userRepository.GetByUsernameAsync(request.FromUserId);
             if (fromUser == null)
@@ -160,7 +160,7 @@ public class ContactsController : ControllerBase
             fromUserId = fromUser.Id;
         }
 
-        if (!long.TryParse(request.ToUserId, out toUserId))
+        if (!Guid.TryParse(request.ToUserId, out toUserId))
         {
             var toUser = await _userRepository.GetByUsernameAsync(request.ToUserId);
             if (toUser == null)
@@ -209,7 +209,7 @@ public class ContactsController : ControllerBase
     {
         _logger.LogInformation("Accepting contact request {RequestId}", requestId);
 
-        if (!long.TryParse(requestId, out var contactId))
+        if (!Guid.TryParse(requestId, out var contactId))
         {
             return BadRequest(new ErrorResponse { Message = "Invalid request ID" });
         }
@@ -258,9 +258,9 @@ public class ContactsController : ControllerBase
     [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
     public async Task<ActionResult> CanSendMessage(string fromUserId, string toUserId)
     {
-        long fromId, toId;
+        Guid fromId, toId;
         
-        if (!long.TryParse(fromUserId, out fromId))
+        if (!Guid.TryParse(fromUserId, out fromId))
         {
             var fromUser = await _userRepository.GetByUsernameAsync(fromUserId);
             if (fromUser == null)
@@ -270,7 +270,7 @@ public class ContactsController : ControllerBase
             fromId = fromUser.Id;
         }
 
-        if (!long.TryParse(toUserId, out toId))
+        if (!Guid.TryParse(toUserId, out toId))
         {
             var toUser = await _userRepository.GetByUsernameAsync(toUserId);
             if (toUser == null)
@@ -309,10 +309,26 @@ public class ContactsController : ControllerBase
         _logger.LogInformation("User {OwnerId} adding contact {ContactId}", 
             request.OwnerId, request.ContactUserId);
 
-        if (!long.TryParse(request.OwnerId, out var ownerId) || 
-            !long.TryParse(request.ContactUserId, out var contactUserId))
+        Guid ownerId;
+        if (!Guid.TryParse(request.OwnerId, out ownerId))
         {
-            return BadRequest(new ErrorResponse { Message = "Invalid user IDs" });
+            var ownerUser = await _userRepository.GetByUsernameAsync(request.OwnerId);
+            if (ownerUser == null)
+            {
+                return BadRequest(new ErrorResponse { Message = "Owner user not found" });
+            }
+            ownerId = ownerUser.Id;
+        }
+
+        Guid contactUserId;
+        if (!Guid.TryParse(request.ContactUserId, out contactUserId))
+        {
+            var contactUser = await _userRepository.GetByUsernameAsync(request.ContactUserId);
+            if (contactUser == null)
+            {
+                return BadRequest(new ErrorResponse { Message = "Contact user not found" });
+            }
+            contactUserId = contactUser.Id;
         }
 
         // Check if contact already exists
@@ -325,14 +341,14 @@ public class ContactsController : ControllerBase
         var savedContact = await _contactRepository.AddAsync(ownerId, contactUserId, request.DisplayName);
         
         // Get the contact user to return username
-        var contactUser = await _userRepository.GetByIdAsync(contactUserId);
+        var contactUserEntity = await _userRepository.GetByIdAsync(contactUserId);
 
         return Ok(new ContactResponse
         {
             Id = savedContact.Id,
             // Use username for consistent channel naming
-            ContactUserId = contactUser?.Username ?? savedContact.ContactUserId.ToString(),
-            DisplayName = request.DisplayName ?? contactUser?.DisplayName ?? "",
+            ContactUserId = contactUserEntity?.Username ?? savedContact.ContactUserId.ToString(),
+            DisplayName = request.DisplayName ?? contactUserEntity?.DisplayName ?? "",
             Nickname = savedContact.DisplayNameOverride,
             AddedAt = savedContact.CreatedAt,
             IsBlocked = false,
@@ -344,11 +360,11 @@ public class ContactsController : ControllerBase
     /// <summary>
     /// Update contact status
     /// </summary>
-    [HttpPut("{ownerUserId:long}/{contactUserId:long}/status")]
+    [HttpPut("{ownerUserId:guid}/{contactUserId:guid}/status")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
-    public async Task<ActionResult> UpdateContactStatus(long ownerUserId, long contactUserId, [FromBody] UpdateContactStatusRequest request)
+    public async Task<ActionResult> UpdateContactStatus(Guid ownerUserId, Guid contactUserId, [FromBody] UpdateContactStatusRequest request)
     {
         _logger.LogInformation("Updating contact {OwnerUserId}->{ContactUserId} status to {Status}", 
             ownerUserId, contactUserId, request.Status);
@@ -372,10 +388,10 @@ public class ContactsController : ControllerBase
     /// <summary>
     /// Accept a contact request
     /// </summary>
-    [HttpPost("{ownerUserId:long}/{contactUserId:long}/accept")]
+    [HttpPost("{ownerUserId:guid}/{contactUserId:guid}/accept")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
-    public async Task<ActionResult> AcceptContact(long ownerUserId, long contactUserId, [FromQuery] string? displayName = null)
+    public async Task<ActionResult> AcceptContact(Guid ownerUserId, Guid contactUserId, [FromQuery] string? displayName = null)
     {
         _logger.LogInformation("User {OwnerUserId} accepting contact from {ContactUserId}", ownerUserId, contactUserId);
 
@@ -392,10 +408,10 @@ public class ContactsController : ControllerBase
     /// <summary>
     /// Block a contact
     /// </summary>
-    [HttpPost("{ownerUserId:long}/{contactUserId:long}/block")]
+    [HttpPost("{ownerUserId:guid}/{contactUserId:guid}/block")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
-    public async Task<ActionResult> BlockContact(long ownerUserId, long contactUserId)
+    public async Task<ActionResult> BlockContact(Guid ownerUserId, Guid contactUserId)
     {
         _logger.LogInformation("User {OwnerUserId} blocking contact {ContactUserId}", ownerUserId, contactUserId);
 
@@ -412,10 +428,10 @@ public class ContactsController : ControllerBase
     /// <summary>
     /// Remove a contact
     /// </summary>
-    [HttpDelete("{ownerUserId:long}/{contactUserId:long}")]
+    [HttpDelete("{ownerUserId:guid}/{contactUserId:guid}")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
-    public async Task<ActionResult> RemoveContact(long ownerUserId, long contactUserId)
+    public async Task<ActionResult> RemoveContact(Guid ownerUserId, Guid contactUserId)
     {
         _logger.LogInformation("User {OwnerUserId} removing contact {ContactUserId}", ownerUserId, contactUserId);
 
@@ -432,9 +448,9 @@ public class ContactsController : ControllerBase
     /// <summary>
     /// Check if two users are contacts
     /// </summary>
-    [HttpGet("check/{ownerUserId:long}/{contactUserId:long}")]
+    [HttpGet("check/{ownerUserId:guid}/{contactUserId:guid}")]
     [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
-    public async Task<ActionResult> CheckContact(long ownerUserId, long contactUserId)
+    public async Task<ActionResult> CheckContact(Guid ownerUserId, Guid contactUserId)
     {
         var contact = await _contactRepository.GetAsync(ownerUserId, contactUserId);
         var isContact = contact != null && contact.Status == "accepted";
@@ -465,7 +481,7 @@ public class UpdateContactStatusRequest
 
 public class ContactResponse
 {
-    public long Id { get; set; }
+    public Guid Id { get; set; }
     public string ContactUserId { get; set; } = string.Empty;
     public string DisplayName { get; set; } = string.Empty;
     public string? Nickname { get; set; }

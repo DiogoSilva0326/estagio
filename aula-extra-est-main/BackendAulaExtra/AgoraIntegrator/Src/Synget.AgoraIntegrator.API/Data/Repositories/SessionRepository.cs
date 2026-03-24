@@ -15,7 +15,7 @@ public class SessionRepository : ISessionRepository
         _db = db;
     }
 
-    public async Task<SessionEntity> CreateAsync(long userId, string token, DateTime expiresAt, string? ipAddress = null, string? userAgent = null)
+    public async Task<SessionEntity> CreateAsync(Guid userId, string token, DateTime expiresAt, string? ipAddress = null, string? userAgent = null)
     {
         var session = new SessionEntity
         {
@@ -49,7 +49,7 @@ public class SessionRepository : ISessionRepository
         return true;
     }
 
-    public async Task<int> DeleteAllByUserAsync(long userId)
+    public async Task<int> DeleteAllByUserAsync(Guid userId)
     {
         var sessions = await _db.Sessions.Where(s => s.UserId == userId).ToListAsync();
         _db.Sessions.RemoveRange(sessions);

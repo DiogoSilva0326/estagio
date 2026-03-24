@@ -15,7 +15,7 @@ public class GroupRoomRepository : IGroupRoomRepository
         _db = db;
     }
 
-    public async Task<GroupRoomEntity> CreateAsync(string name, long createdByUserId, string roomType = "group", string? description = null)
+    public async Task<GroupRoomEntity> CreateAsync(string name, Guid createdByUserId, string roomType = "group", string? description = null)
     {
         var room = new GroupRoomEntity
         {
@@ -38,7 +38,7 @@ public class GroupRoomRepository : IGroupRoomRepository
         return room;
     }
 
-    public async Task<GroupRoomEntity?> GetByIdAsync(long id, bool includeMembers = false)
+    public async Task<GroupRoomEntity?> GetByIdAsync(Guid id, bool includeMembers = false)
     {
         var query = _db.GroupRooms.AsQueryable();
 
@@ -62,10 +62,10 @@ public class GroupRoomRepository : IGroupRoomRepository
         return await query.FirstOrDefaultAsync(r => r.RoomCode == roomCode);
     }
 
-    public async Task<GroupRoomEntity> GetOrCreateDirectRoomAsync(long userId1, long userId2)
+    public async Task<GroupRoomEntity> GetOrCreateDirectRoomAsync(Guid userId1, Guid userId2)
     {
         // Ensure consistent ordering
-        var (user1, user2) = userId1 < userId2 ? (userId1, userId2) : (userId2, userId1);
+        var (user1, user2) = userId1.CompareTo(userId2) < 0 ? (userId1, userId2) : (userId2, userId1);
 
         // Look for existing direct room with these two users
         var existingRoom = await _db.GroupRooms
@@ -102,7 +102,7 @@ public class GroupRoomRepository : IGroupRoomRepository
         return room;
     }
 
-    public async Task<List<GroupRoomEntity>> GetByUserAsync(long userId, bool includeInactive = false)
+    public async Task<List<GroupRoomEntity>> GetByUserAsync(Guid userId, bool includeInactive = false)
     {
         var query = _db.GroupRooms
             .Include(r => r.Members.Where(m => m.Status == MemberStatus.Active))
@@ -117,7 +117,7 @@ public class GroupRoomRepository : IGroupRoomRepository
         return await query.OrderByDescending(r => r.UpdatedAt).ToListAsync();
     }
 
-    public async Task<GroupRoomMemberEntity> AddMemberAsync(long roomId, long userId, string role = "member")
+    public async Task<GroupRoomMemberEntity> AddMemberAsync(Guid roomId, Guid userId, string role = "member")
     {
         var existing = await _db.GroupRoomMembers
             .FirstOrDefaultAsync(m => m.RoomId == roomId && m.UserId == userId);
@@ -148,7 +148,7 @@ public class GroupRoomRepository : IGroupRoomRepository
         return member;
     }
 
-    public async Task<bool> RemoveMemberAsync(long roomId, long userId)
+    public async Task<bool> RemoveMemberAsync(Guid roomId, Guid userId)
     {
         var member = await _db.GroupRoomMembers
             .FirstOrDefaultAsync(m => m.RoomId == roomId && m.UserId == userId);
@@ -161,7 +161,7 @@ public class GroupRoomRepository : IGroupRoomRepository
         return true;
     }
 
-    public async Task<GroupRoomMemberEntity?> UpdateMemberRoleAsync(long roomId, long userId, string role)
+    public async Task<GroupRoomMemberEntity?> UpdateMemberRoleAsync(Guid roomId, Guid userId, string role)
     {
         var member = await _db.GroupRoomMembers
             .FirstOrDefaultAsync(m => m.RoomId == roomId && m.UserId == userId);
@@ -173,7 +173,7 @@ public class GroupRoomRepository : IGroupRoomRepository
         return member;
     }
 
-    public async Task<List<GroupRoomMemberEntity>> GetMembersAsync(long roomId)
+    public async Task<List<GroupRoomMemberEntity>> GetMembersAsync(Guid roomId)
     {
         return await _db.GroupRoomMembers
             .Include(m => m.User)
@@ -182,7 +182,7 @@ public class GroupRoomRepository : IGroupRoomRepository
             .ToListAsync();
     }
 
-    public async Task<GroupRoomEntity?> UpdateAsync(long roomId, string? name = null, string? description = null, string? avatarUrl = null)
+    public async Task<GroupRoomEntity?> UpdateAsync(Guid roomId, string? name = null, string? description = null, string? avatarUrl = null)
     {
         var room = await _db.GroupRooms.FindAsync(roomId);
         if (room == null) return null;
@@ -196,7 +196,7 @@ public class GroupRoomRepository : IGroupRoomRepository
         return room;
     }
 
-    public async Task<bool> DeactivateAsync(long roomId)
+    public async Task<bool> DeactivateAsync(Guid roomId)
     {
         var room = await _db.GroupRooms.FindAsync(roomId);
         if (room == null) return false;

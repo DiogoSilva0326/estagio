@@ -85,7 +85,7 @@ public class AuthResponse
 /// </summary>
 public class UserInfo
 {
-    public long Id { get; set; }
+    public Guid Id { get; set; }
     public string Username { get; set; } = string.Empty;
     public string? DisplayName { get; set; }
     public string? Email { get; set; }
@@ -134,10 +134,10 @@ public class CreateVideoRoomRequest
 /// </summary>
 public class VideoRoomResponse
 {
-    public long Id { get; set; }
+    public Guid Id { get; set; }
     public string ChannelName { get; set; } = string.Empty;
     public string? Title { get; set; }
-    public long HostUserId { get; set; }
+    public Guid HostUserId { get; set; }
     public string? HostUsername { get; set; }
     public string? HostDisplayName { get; set; }
     public bool IsActive { get; set; }

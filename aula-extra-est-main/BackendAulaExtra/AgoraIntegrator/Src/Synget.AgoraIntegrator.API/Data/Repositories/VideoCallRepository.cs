@@ -15,7 +15,7 @@ public class VideoCallRepository : IVideoCallRepository
         _db = db;
     }
 
-    public async Task<VideoCallEntity> StartCallAsync(string channelName, long initiatedByUserId, string callType = "video", long? groupRoomId = null, string? callName = null)
+    public async Task<VideoCallEntity> StartCallAsync(string channelName, Guid initiatedByUserId, string callType = "video", Guid? groupRoomId = null, string? callName = null)
     {
         var call = new VideoCallEntity
         {
@@ -38,7 +38,7 @@ public class VideoCallRepository : IVideoCallRepository
         return call;
     }
 
-    public async Task<VideoCallEntity?> GetByIdAsync(long id, bool includeParticipants = false)
+    public async Task<VideoCallEntity?> GetByIdAsync(Guid id, bool includeParticipants = false)
     {
         var query = _db.VideoCalls.AsQueryable();
 
@@ -72,7 +72,7 @@ public class VideoCallRepository : IVideoCallRepository
             .FirstOrDefaultAsync(c => c.ChannelName == channelName && c.Status == CallStatus.Active);
     }
 
-    public async Task<VideoCallEntity?> EndCallAsync(long callId)
+    public async Task<VideoCallEntity?> EndCallAsync(Guid callId)
     {
         var call = await _db.VideoCalls
             .Include(c => c.Participants)
@@ -95,7 +95,7 @@ public class VideoCallRepository : IVideoCallRepository
         return call;
     }
 
-    public async Task<VideoCallParticipantEntity> JoinCallAsync(long callId, long userId, string role = "participant", string? deviceType = null)
+    public async Task<VideoCallParticipantEntity> JoinCallAsync(Guid callId, Guid userId, string role = "participant", string? deviceType = null)
     {
         // Check if user already has an active participation
         var existing = await _db.VideoCallParticipants
@@ -126,7 +126,7 @@ public class VideoCallRepository : IVideoCallRepository
         return participant;
     }
 
-    public async Task<VideoCallParticipantEntity?> LeaveCallAsync(long callId, long userId)
+    public async Task<VideoCallParticipantEntity?> LeaveCallAsync(Guid callId, Guid userId)
     {
         var participant = await _db.VideoCallParticipants
             .FirstOrDefaultAsync(p => p.CallId == callId && p.UserId == userId && p.LeftAt == null);
@@ -150,7 +150,7 @@ public class VideoCallRepository : IVideoCallRepository
         return participant;
     }
 
-    public async Task<List<VideoCallParticipantEntity>> GetParticipantsAsync(long callId, bool activeOnly = true)
+    public async Task<List<VideoCallParticipantEntity>> GetParticipantsAsync(Guid callId, bool activeOnly = true)
     {
         var query = _db.VideoCallParticipants
             .Include(p => p.User)
@@ -164,7 +164,7 @@ public class VideoCallRepository : IVideoCallRepository
         return await query.OrderBy(p => p.JoinedAt).ToListAsync();
     }
 
-    public async Task<List<VideoCallEntity>> GetUserCallHistoryAsync(long userId, int limit = 50, DateTime? before = null)
+    public async Task<List<VideoCallEntity>> GetUserCallHistoryAsync(Guid userId, int limit = 50, DateTime? before = null)
     {
         var query = _db.VideoCallParticipants
             .Include(p => p.Call)
@@ -195,7 +195,7 @@ public class VideoCallRepository : IVideoCallRepository
             .ToListAsync();
     }
 
-    public async Task UpdateMaxParticipantsAsync(long callId)
+    public async Task UpdateMaxParticipantsAsync(Guid callId)
     {
         var call = await _db.VideoCalls.FindAsync(callId);
         if (call == null) return;

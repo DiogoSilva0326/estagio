@@ -176,7 +176,7 @@ public class VideoRoomController : ControllerBase
         await _videoRoomRepository.AddParticipantAsync(room.Id, user.Id, "host");
 
         // Generate RTC token
-        var uid = (uint)user.Id;
+        var uid = ToAgoraUid(user.Id);
         var rtcToken = _agora.RtcTokenGenerate(room.ChannelName, uid);
         var token = rtcToken?.Token ?? "";
 
@@ -269,7 +269,7 @@ public class VideoRoomController : ControllerBase
         await _videoRoomRepository.AddParticipantAsync(room.Id, user.Id, participantRole);
 
         // Generate RTC token
-        var uid = (uint)user.Id;
+        var uid = ToAgoraUid(user.Id);
         var rtcToken = _agora.RtcTokenGenerate(room.ChannelName, uid);
         var token = rtcToken?.Token ?? "";
 
@@ -470,6 +470,14 @@ public class VideoRoomController : ControllerBase
 
         var session = await _sessionRepository.GetByTokenAsync(token);
         return session?.User;
+    }
+
+    private static uint ToAgoraUid(Guid userId)
+    {
+        // Agora RTC UID must be a 32-bit unsigned int. Derive a stable, non-zero value from the user's UUID.
+        var bytes = userId.ToByteArray();
+        var uid = BitConverter.ToUInt32(bytes, 0);
+        return uid == 0 ? 1u : uid;
     }
 
     private static VideoRoomResponse MapToResponse(Data.Entities.VideoRoomEntity room)

@@ -17,7 +17,10 @@ public class MessageRepository : IMessageRepository
 
     public async Task<MessageEntity> CreateAsync(MessageEntity message)
     {
-        message.CreatedAt = DateTime.UtcNow;
+        if (message.CreatedAt == default)
+        {
+            message.CreatedAt = DateTime.UtcNow;
+        }
         _db.Messages.Add(message);
         await _db.SaveChangesAsync();
         return message;
@@ -25,27 +28,54 @@ public class MessageRepository : IMessageRepository
 
     public async Task<List<MessageEntity>> GetByRoomAsync(string roomId, int limit = 50, DateTime? before = null)
     {
-        var query = _db.Messages
-            .Include(m => m.SenderUser)
-            .Where(m => m.RoomId == roomId);
-
-        if (before.HasValue)
+        if (roomId.StartsWith("dm_", StringComparison.OrdinalIgnoreCase))
         {
-            query = query.Where(m => m.CreatedAt < before.Value);
+            var (u1, u2) = ParseDmRoom(roomId);
+            var users = await _db.Users
+                .Where(u => u.Username == u1 || u.Username == u2)
+                .ToListAsync();
+
+            var user1 = users.FirstOrDefault(u => u.Username == u1);
+            var user2 = users.FirstOrDefault(u => u.Username == u2);
+            if (user1 == null || user2 == null)
+            {
+                return new List<MessageEntity>();
+            }
+
+            return await GetDirectMessagesAsync(user1.Id, user2.Id, limit, before);
         }
 
-        // Get most recent messages first, then reverse for chronological order in UI
-        var messages = await query
-            .OrderByDescending(m => m.CreatedAt)
-            .Take(limit)
-            .ToListAsync();
+        if (roomId.StartsWith("group_", StringComparison.OrdinalIgnoreCase))
+        {
+            var groupCode = roomId.Substring("group_".Length);
+            var group = await _db.GroupRooms.FirstOrDefaultAsync(g => g.RoomCode == groupCode);
+            if (group == null)
+            {
+                return new List<MessageEntity>();
+            }
 
-        // Return in chronological order (oldest first)
-        messages.Reverse();
-        return messages;
+            var query = _db.Messages
+                .Include(m => m.SenderUser)
+                .Where(m => m.GroupRoomId == group.Id);
+
+            if (before.HasValue)
+            {
+                query = query.Where(m => m.CreatedAt < before.Value);
+            }
+
+            var messages = await query
+                .OrderByDescending(m => m.CreatedAt)
+                .Take(limit)
+                .ToListAsync();
+
+            messages.Reverse();
+            return messages;
+        }
+
+        return new List<MessageEntity>();
     }
 
-    public async Task<List<MessageEntity>> GetDirectMessagesAsync(long userId1, long userId2, int limit = 50, DateTime? before = null)
+    public async Task<List<MessageEntity>> GetDirectMessagesAsync(Guid userId1, Guid userId2, int limit = 50, DateTime? before = null)
     {
         var query = _db.Messages
             .Include(m => m.SenderUser)
@@ -67,7 +97,7 @@ public class MessageRepository : IMessageRepository
         return messages;
     }
 
-    public async Task<MessageEntity?> GetByIdAsync(long id)
+    public async Task<MessageEntity?> GetByIdAsync(Guid id)
     {
         return await _db.Messages
             .Include(m => m.SenderUser)
@@ -76,23 +106,57 @@ public class MessageRepository : IMessageRepository
 
     public async Task<DateTime?> GetLastMessageTimeAsync(string roomId)
     {
-        return await _db.Messages
-            .Where(m => m.RoomId == roomId)
-            .OrderByDescending(m => m.CreatedAt)
-            .Select(m => (DateTime?)m.CreatedAt)
-            .FirstOrDefaultAsync();
+        var messages = await GetByRoomAsync(roomId, limit: 1);
+        return messages.LastOrDefault()?.CreatedAt;
     }
 
     public async Task<Dictionary<string, DateTime>> GetLastMessageTimesAsync(IEnumerable<string> roomIds)
     {
-        var roomIdList = roomIds.ToList();
-        
-        var lastMessages = await _db.Messages
-            .Where(m => m.RoomId != null && roomIdList.Contains(m.RoomId))
-            .GroupBy(m => m.RoomId!)
-            .Select(g => new { RoomId = g.Key, LastMessageAt = g.Max(m => m.CreatedAt) })
+        var result = new Dictionary<string, DateTime>();
+        foreach (var roomId in roomIds)
+        {
+            var last = await GetLastMessageTimeAsync(roomId);
+            if (last.HasValue)
+            {
+                result[roomId] = last.Value;
+            }
+        }
+        return result;
+    }
+
+    public async Task<List<Guid>> MarkDirectMessagesReadAsync(Guid readerUserId, Guid otherUserId, DateTime readAtUtc)
+    {
+        var unread = await _db.Messages
+            .Where(m =>
+                m.SenderUserId == otherUserId &&
+                m.ReceiverUserId == readerUserId &&
+                !m.IsRead)
             .ToListAsync();
 
-        return lastMessages.ToDictionary(x => x.RoomId, x => x.LastMessageAt);
+        if (unread.Count == 0)
+        {
+            return new List<Guid>();
+        }
+
+        foreach (var message in unread)
+        {
+            message.IsRead = true;
+            message.ReadAt = readAtUtc;
+        }
+
+        await _db.SaveChangesAsync();
+        return unread.Select(m => m.Id).ToList();
+    }
+
+    private static (string user1, string user2) ParseDmRoom(string roomId)
+    {
+        // Expected format: dm_user1_user2 where usernames are already normalized (lowercase)
+        var parts = roomId.Split('_', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length < 3)
+        {
+            return (string.Empty, string.Empty);
+        }
+
+        return (parts[1].Trim().ToLowerInvariant(), parts[2].Trim().ToLowerInvariant());
     }
 }

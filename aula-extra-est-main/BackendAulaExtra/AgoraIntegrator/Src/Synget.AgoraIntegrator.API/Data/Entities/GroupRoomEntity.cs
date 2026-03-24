@@ -11,7 +11,7 @@ public class GroupRoomEntity
 {
     [Key]
     [Column("id")]
-    public long Id { get; set; }
+    public Guid Id { get; set; }
 
     /// <summary>
     /// Unique room identifier (used in SignalR/channel name).
@@ -47,7 +47,7 @@ public class GroupRoomEntity
     /// Creator/owner of the room.
     /// </summary>
     [Column("created_by_user_id")]
-    public long? CreatedByUserId { get; set; }
+    public Guid? CreatedByUserId { get; set; }
 
     /// <summary>
     /// Whether the room is active.

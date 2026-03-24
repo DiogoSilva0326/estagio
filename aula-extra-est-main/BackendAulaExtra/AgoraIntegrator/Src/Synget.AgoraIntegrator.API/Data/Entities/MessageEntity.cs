@@ -10,66 +10,50 @@ namespace Synget.AgoraIntegrator.API.Data.Entities;
 public class MessageEntity
 {
     [Key]
-    [Column("id")]
-    public long Id { get; set; }
-
-    /// <summary>
-    /// The room/channel name this message belongs to.
-    /// </summary>
-    [Column("room_id")]
-    [MaxLength(255)]
-    public string? RoomId { get; set; }
-
-    /// <summary>
-    /// Legacy textual sender identifier (for backward compat).
-    /// </summary>
-    [Column("sender_id")]
-    [MaxLength(255)]
-    public string? SenderId { get; set; }
-
-    /// <summary>
-    /// Legacy textual receiver identifier (for broadcast messages can be null).
-    /// </summary>
-    [Column("receiver_id")]
-    [MaxLength(255)]
-    public string? ReceiverId { get; set; }
+    [Column("id_message")]
+    public Guid Id { get; set; }
 
     /// <summary>
     /// FK to users table for sender.
     /// </summary>
     [Column("sender_user_id")]
-    public long? SenderUserId { get; set; }
+    public Guid SenderUserId { get; set; }
 
     /// <summary>
     /// FK to users table for receiver (null for room/broadcast messages).
     /// </summary>
     [Column("receiver_user_id")]
-    public long? ReceiverUserId { get; set; }
+    public Guid ReceiverUserId { get; set; }
 
     /// <summary>
     /// FK to group room (for group chat messages).
     /// </summary>
     [Column("group_room_id")]
-    public long? GroupRoomId { get; set; }
+    public Guid? GroupRoomId { get; set; }
 
     /// <summary>
     /// The message content.
     /// </summary>
-    [Required]
-    [Column("content")]
-    public string Content { get; set; } = string.Empty;
+    [Column("message_content")]
+    public string? Content { get; set; }
+
+    [Column("is_read")]
+    public bool IsRead { get; set; } = false;
 
     /// <summary>
     /// JSON metadata (e.g., message type, file attachment info).
     /// </summary>
-    [Column("metadata", TypeName = "jsonb")]
+    [NotMapped]
     public string? Metadata { get; set; }
 
     /// <summary>
     /// When the message was created.
     /// </summary>
-    [Column("created_at")]
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    [Column("sent_at")]
+    public DateTime CreatedAt { get; set; }
+
+    [Column("read_at")]
+    public DateTime? ReadAt { get; set; }
 
     // Navigation properties
     [ForeignKey(nameof(SenderUserId))]

@@ -10,12 +10,12 @@ public interface IVideoCallRepository
     /// <summary>
     /// Start a new video call.
     /// </summary>
-    Task<VideoCallEntity> StartCallAsync(string channelName, long initiatedByUserId, string callType = "video", long? groupRoomId = null, string? callName = null);
+    Task<VideoCallEntity> StartCallAsync(string channelName, Guid initiatedByUserId, string callType = "video", Guid? groupRoomId = null, string? callName = null);
 
     /// <summary>
     /// Get call by ID.
     /// </summary>
-    Task<VideoCallEntity?> GetByIdAsync(long id, bool includeParticipants = false);
+    Task<VideoCallEntity?> GetByIdAsync(Guid id, bool includeParticipants = false);
 
     /// <summary>
     /// Get call by channel name.
@@ -30,27 +30,27 @@ public interface IVideoCallRepository
     /// <summary>
     /// End a call.
     /// </summary>
-    Task<VideoCallEntity?> EndCallAsync(long callId);
+    Task<VideoCallEntity?> EndCallAsync(Guid callId);
 
     /// <summary>
     /// Add a participant to a call.
     /// </summary>
-    Task<VideoCallParticipantEntity> JoinCallAsync(long callId, long userId, string role = "participant", string? deviceType = null);
+    Task<VideoCallParticipantEntity> JoinCallAsync(Guid callId, Guid userId, string role = "participant", string? deviceType = null);
 
     /// <summary>
     /// Remove a participant from a call.
     /// </summary>
-    Task<VideoCallParticipantEntity?> LeaveCallAsync(long callId, long userId);
+    Task<VideoCallParticipantEntity?> LeaveCallAsync(Guid callId, Guid userId);
 
     /// <summary>
     /// Get call participants.
     /// </summary>
-    Task<List<VideoCallParticipantEntity>> GetParticipantsAsync(long callId, bool activeOnly = true);
+    Task<List<VideoCallParticipantEntity>> GetParticipantsAsync(Guid callId, bool activeOnly = true);
 
     /// <summary>
     /// Get call history for a user.
     /// </summary>
-    Task<List<VideoCallEntity>> GetUserCallHistoryAsync(long userId, int limit = 50, DateTime? before = null);
+    Task<List<VideoCallEntity>> GetUserCallHistoryAsync(Guid userId, int limit = 50, DateTime? before = null);
 
     /// <summary>
     /// Get active calls.
@@ -60,5 +60,5 @@ public interface IVideoCallRepository
     /// <summary>
     /// Update call max participants count.
     /// </summary>
-    Task UpdateMaxParticipantsAsync(long callId);
+    Task UpdateMaxParticipantsAsync(Guid callId);
 }

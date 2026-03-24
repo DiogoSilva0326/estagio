@@ -10,7 +10,7 @@ public interface ISessionRepository
     /// <summary>
     /// Create a new session for a user.
     /// </summary>
-    Task<SessionEntity> CreateAsync(long userId, string token, DateTime expiresAt, string? ipAddress = null, string? userAgent = null);
+    Task<SessionEntity> CreateAsync(Guid userId, string token, DateTime expiresAt, string? ipAddress = null, string? userAgent = null);
 
     /// <summary>
     /// Get session by token.
@@ -25,7 +25,7 @@ public interface ISessionRepository
     /// <summary>
     /// Delete all sessions for a user.
     /// </summary>
-    Task<int> DeleteAllByUserAsync(long userId);
+    Task<int> DeleteAllByUserAsync(Guid userId);
 
     /// <summary>
     /// Delete expired sessions.

@@ -286,7 +286,7 @@ public class AuthController : ControllerBase
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<ActionResult> UpdateUserRole(long userId, [FromBody] UpdateRoleRequest request)
+    public async Task<ActionResult> UpdateUserRole(Guid userId, [FromBody] UpdateRoleRequest request)
     {
         // Verify caller is admin
         var currentUser = await GetAuthenticatedUser();

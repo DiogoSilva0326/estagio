@@ -12,13 +12,13 @@ public class ProfessorRoomEntity
 {
     [Key]
     [Column("id")]
-    public long Id { get; set; }
+    public Guid Id { get; set; }
 
     /// <summary>
     /// The professor user who owns this room.
     /// </summary>
     [Column("professor_id")]
-    public long ProfessorId { get; set; }
+    public Guid ProfessorId { get; set; }
 
     /// <summary>
     /// The professor's display name (denormalized for quick access).

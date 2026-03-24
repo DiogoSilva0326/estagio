@@ -42,16 +42,15 @@ public class StandaloneChatController : ControllerBase
     {
         _logger.LogInformation("Getting chat rooms for user: {UserId}", userId);
 
-        // Get numeric user ID
-        var numericUserId = await GetNumericUserId(userId);
-        if (numericUserId == null)
+        var resolvedUserId = await ResolveUserIdAsync(userId);
+        if (resolvedUserId == null)
         {
             _logger.LogWarning("User not found: {UserId}", userId);
             return Ok(new List<ChatRoomResponse>());
         }
 
         // Get rooms from database
-        var rooms = await _groupRoomRepository.GetByUserAsync(numericUserId.Value);
+        var rooms = await _groupRoomRepository.GetByUserAsync(resolvedUserId.Value);
         
         // Get last message times for all rooms
         // Messages are stored with channelName which includes the "group_" prefix for group rooms
@@ -77,10 +76,10 @@ public class StandaloneChatController : ControllerBase
     {
         _logger.LogInformation("Getting chat room: {RoomId}", roomId);
 
-        // Try to get by ID first (if numeric)
-        if (long.TryParse(roomId, out var numericId))
+        // Try to get by ID first (if GUID)
+        if (Guid.TryParse(roomId, out var parsedRoomId))
         {
-            var roomById = await _groupRoomRepository.GetByIdAsync(numericId, includeMembers: true);
+            var roomById = await _groupRoomRepository.GetByIdAsync(parsedRoomId, includeMembers: true);
             if (roomById != null)
             {
                 return Ok(MapEntityToResponse(roomById));
@@ -109,9 +108,8 @@ public class StandaloneChatController : ControllerBase
         _logger.LogInformation("Creating DM between {User1} and {User2}", 
             request.UserId1, request.UserId2);
 
-        // Get numeric user IDs
-        var userId1 = await GetNumericUserId(request.UserId1);
-        var userId2 = await GetNumericUserId(request.UserId2);
+        var userId1 = await ResolveUserIdAsync(request.UserId1);
+        var userId2 = await ResolveUserIdAsync(request.UserId2);
 
         if (userId1 == null || userId2 == null)
         {
@@ -147,8 +145,7 @@ public class StandaloneChatController : ControllerBase
         _logger.LogInformation("User {Creator} creating group {Name}", 
             request.CreatorUserId, request.GroupName);
 
-        // Get numeric creator ID
-        var creatorId = await GetNumericUserId(request.CreatorUserId);
+        var creatorId = await ResolveUserIdAsync(request.CreatorUserId);
         if (creatorId == null)
         {
             return BadRequest(new ErrorResponse { Message = $"Creator user not found: {request.CreatorUserId}" });
@@ -163,10 +160,10 @@ public class StandaloneChatController : ControllerBase
         // Add all members to the group
         foreach (var memberId in request.MemberUserIds)
         {
-            var numericMemberId = await GetNumericUserId(memberId);
-            if (numericMemberId != null && numericMemberId != creatorId)
+            var resolvedMemberId = await ResolveUserIdAsync(memberId);
+            if (resolvedMemberId != null && resolvedMemberId != creatorId)
             {
-                await _groupRoomRepository.AddMemberAsync(roomEntity.Id, numericMemberId.Value, MemberRole.Member);
+                await _groupRoomRepository.AddMemberAsync(roomEntity.Id, resolvedMemberId.Value, MemberRole.Member);
             }
         }
 
@@ -195,8 +192,8 @@ public class StandaloneChatController : ControllerBase
     {
         _logger.LogInformation("Adding user {UserId} to group {RoomId}", request.UserId, roomId);
 
-        // Get numeric room ID
-        if (!long.TryParse(roomId, out var numericRoomId))
+        Guid resolvedRoomId;
+        if (!Guid.TryParse(roomId, out resolvedRoomId))
         {
             // Try to find by room code
             var roomByCode = await _groupRoomRepository.GetByRoomCodeAsync(roomId);
@@ -204,18 +201,17 @@ public class StandaloneChatController : ControllerBase
             {
                 return BadRequest(new ErrorResponse { Message = "Room not found." });
             }
-            numericRoomId = roomByCode.Id;
+            resolvedRoomId = roomByCode.Id;
         }
 
-        // Get numeric user ID
-        var numericUserId = await GetNumericUserId(request.UserId);
-        if (numericUserId == null)
+        var resolvedUserId = await ResolveUserIdAsync(request.UserId);
+        if (resolvedUserId == null)
         {
             return BadRequest(new ErrorResponse { Message = $"User not found: {request.UserId}" });
         }
 
         // Add to database
-        await _groupRoomRepository.AddMemberAsync(numericRoomId, numericUserId.Value, MemberRole.Member);
+        await _groupRoomRepository.AddMemberAsync(resolvedRoomId, resolvedUserId.Value, MemberRole.Member);
 
         // Also add to in-memory for SignalR
         var normalizedUserId = await NormalizeToUsername(request.UserId);
@@ -234,8 +230,8 @@ public class StandaloneChatController : ControllerBase
     {
         _logger.LogInformation("Removing user {UserId} from group {RoomId}", userId, roomId);
 
-        // Get numeric room ID
-        if (!long.TryParse(roomId, out var numericRoomId))
+        Guid resolvedRoomId;
+        if (!Guid.TryParse(roomId, out resolvedRoomId))
         {
             // Try to find by room code
             var roomByCode = await _groupRoomRepository.GetByRoomCodeAsync(roomId);
@@ -243,18 +239,17 @@ public class StandaloneChatController : ControllerBase
             {
                 return BadRequest(new ErrorResponse { Message = "Room not found." });
             }
-            numericRoomId = roomByCode.Id;
+            resolvedRoomId = roomByCode.Id;
         }
 
-        // Get numeric user ID
-        var numericUserId = await GetNumericUserId(userId);
-        if (numericUserId == null)
+        var resolvedUserId = await ResolveUserIdAsync(userId);
+        if (resolvedUserId == null)
         {
             return BadRequest(new ErrorResponse { Message = $"User not found: {userId}" });
         }
 
         // Remove from database
-        var success = await _groupRoomRepository.RemoveMemberAsync(numericRoomId, numericUserId.Value);
+        var success = await _groupRoomRepository.RemoveMemberAsync(resolvedRoomId, resolvedUserId.Value);
         
         if (!success)
         {
@@ -300,19 +295,14 @@ public class StandaloneChatController : ControllerBase
         return Ok(response);
     }
 
-    /// <summary>
-    /// Gets a numeric user ID from a string (which could be numeric ID or username)
-    /// </summary>
-    private async Task<long?> GetNumericUserId(string userId)
+    private async Task<Guid?> ResolveUserIdAsync(string userIdOrUsername)
     {
-        // If it's already a numeric ID
-        if (long.TryParse(userId, out var numericId))
+        if (Guid.TryParse(userIdOrUsername, out var parsed))
         {
-            return numericId;
+            return parsed;
         }
-        
-        // Look up by username
-        var user = await _userRepository.GetByUsernameAsync(userId);
+
+        var user = await _userRepository.GetByUsernameAsync(userIdOrUsername);
         return user?.Id;
     }
 
@@ -321,10 +311,10 @@ public class StandaloneChatController : ControllerBase
     /// </summary>
     private async Task<string> NormalizeToUsername(string userId)
     {
-        // If it's a numeric ID, look up the username
-        if (long.TryParse(userId, out var numericId))
+        // If it's a GUID, look up the username
+        if (Guid.TryParse(userId, out var parsedId))
         {
-            var user = await _userRepository.GetByIdAsync(numericId);
+            var user = await _userRepository.GetByIdAsync(parsedId);
             return user?.Username ?? userId;
         }
         // Already a username

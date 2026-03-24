@@ -40,10 +40,10 @@ public class MessagesController : ControllerBase
             var result = messages.Select(m => new MessageDto
             {
                 Id = m.Id,
-                RoomId = m.RoomId,
-                SenderId = m.SenderUserId?.ToString() ?? m.SenderId ?? "",
+                RoomId = roomId,
+                SenderId = m.SenderUser?.Username ?? m.SenderUserId.ToString(),
                 SenderName = m.SenderUser?.DisplayName ?? m.SenderUser?.Username ?? "Unknown",
-                Content = m.Content,
+                Content = m.Content ?? string.Empty,
                 Metadata = m.Metadata,
                 CreatedAt = m.CreatedAt
             }).ToList();
@@ -60,24 +60,32 @@ public class MessagesController : ControllerBase
     /// <summary>
     /// Get direct message history between two users.
     /// </summary>
-    [HttpGet("dm/{userId1:long}/{userId2:long}")]
+    [HttpGet("dm/{userId1}/{userId2}")]
     public async Task<IActionResult> GetDmHistory(
-        long userId1,
-        long userId2,
+        string userId1,
+        string userId2,
         [FromQuery] int limit = 50,
         [FromQuery] DateTime? before = null)
     {
         try
         {
-            var messages = await _messageRepo.GetDirectMessagesAsync(userId1, userId2, limit, before);
+            var resolved1 = await ResolveUserIdAsync(userId1);
+            var resolved2 = await ResolveUserIdAsync(userId2);
+
+            if (!resolved1.HasValue || !resolved2.HasValue)
+            {
+                return Ok(new List<MessageDto>());
+            }
+
+            var messages = await _messageRepo.GetDirectMessagesAsync(resolved1.Value, resolved2.Value, limit, before);
 
             var result = messages.Select(m => new MessageDto
             {
                 Id = m.Id,
-                RoomId = m.RoomId,
-                SenderId = m.SenderUserId?.ToString() ?? m.SenderId ?? "",
+                RoomId = null,
+                SenderId = m.SenderUser?.Username ?? m.SenderUserId.ToString(),
                 SenderName = m.SenderUser?.DisplayName ?? m.SenderUser?.Username ?? "Unknown",
-                Content = m.Content,
+                Content = m.Content ?? string.Empty,
                 Metadata = m.Metadata,
                 CreatedAt = m.CreatedAt
             }).ToList();
@@ -90,12 +98,23 @@ public class MessagesController : ControllerBase
             return StatusCode(500, new { error = "Failed to fetch message history." });
         }
     }
+
+    private async Task<Guid?> ResolveUserIdAsync(string userIdOrUsername)
+    {
+        if (Guid.TryParse(userIdOrUsername, out var guid))
+        {
+            return guid;
+        }
+
+        var user = await _userRepo.GetByUsernameAsync(userIdOrUsername);
+        return user?.Id;
+    }
 }
 
 // DTOs
 public class MessageDto
 {
-    public long Id { get; set; }
+    public Guid Id { get; set; }
     public string? RoomId { get; set; }
     public string SenderId { get; set; } = string.Empty;
     public string SenderName { get; set; } = string.Empty;

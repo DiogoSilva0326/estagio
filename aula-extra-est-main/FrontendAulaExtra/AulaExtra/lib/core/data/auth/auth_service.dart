@@ -42,7 +42,6 @@ class AuthService {
       token: res.token,
       backendRoles: roles,
       appRole: mapBackendRolesToAppRole(roles),
-      id: res.user?.id?.toString(), // <-- 1. GUARDAR O ID AQUI
       email: res.user?.email ?? email,
       username: res.user?.username,
       fullName: _deriveFullName(res.user),
@@ -74,7 +73,6 @@ class AuthService {
       token: res.token,
       backendRoles: roles,
       appRole: mapBackendRolesToAppRole(roles),
-      id: res.user?.id?.toString(), // <-- 1. GUARDAR O ID AQUI
       email: res.user?.email ?? email,
       username: res.user?.username,
       fullName: _deriveFullName(res.user) ?? _nonEmpty(fullName) ?? fullName,
@@ -100,7 +98,6 @@ class AuthService {
       token: res.token,
       backendRoles: roles,
       appRole: mapBackendRolesToAppRole(roles),
-      id: res.user?.id?.toString(), // <-- 1. GUARDAR O ID AQUI
       email: res.user?.email,
       username: res.user?.username,
       fullName: _deriveFullName(res.user),
@@ -124,7 +121,6 @@ class AuthService {
   static void applySessionToProvider(UserProvider user, AuthSession session) {
     user.setAccount(
       UserAccount(
-        id: session.id, // <-- 2. PASSAR O ID PARA A CONTA DO PROVIDER
         fullName: session.fullName,
         email: session.email,
         username: session.username,
@@ -139,7 +135,6 @@ class AuthSession {
     required this.token,
     required this.backendRoles,
     required this.appRole,
-    this.id, // <-- 3. ADICIONAR O CAMPO ID À SESSÃO
     this.email,
     this.username,
     this.fullName,
@@ -148,7 +143,6 @@ class AuthSession {
   final String token;
   final List<String> backendRoles;
   final Role appRole;
-  final String? id; // <-- 3. ADICIONAR O CAMPO ID À SESSÃO
   final String? email;
   final String? username;
   final String? fullName;

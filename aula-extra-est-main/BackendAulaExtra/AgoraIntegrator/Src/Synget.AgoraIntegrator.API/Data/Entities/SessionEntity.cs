@@ -11,13 +11,13 @@ public class SessionEntity
 {
     [Key]
     [Column("id")]
-    public long Id { get; set; }
+    public Guid Id { get; set; }
 
     /// <summary>
     /// The user this session belongs to.
     /// </summary>
     [Column("user_id")]
-    public long UserId { get; set; }
+    public Guid UserId { get; set; }
 
     /// <summary>
     /// Unique session token.

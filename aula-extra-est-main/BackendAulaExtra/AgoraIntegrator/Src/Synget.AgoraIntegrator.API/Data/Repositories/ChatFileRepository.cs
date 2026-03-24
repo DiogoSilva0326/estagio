@@ -30,14 +30,14 @@ public class ChatFileRepository : IChatFileRepository
             .FirstOrDefaultAsync(f => f.FileId == fileId && f.IsActive);
     }
 
-    public async Task<ChatFileEntity?> GetByIdAsync(long id)
+    public async Task<ChatFileEntity?> GetByIdAsync(Guid id)
     {
         return await _db.ChatFiles
             .Include(f => f.UploadedByUser)
             .FirstOrDefaultAsync(f => f.Id == id && f.IsActive);
     }
 
-    public async Task<List<ChatFileEntity>> GetByUserAsync(long userId, int limit = 50)
+    public async Task<List<ChatFileEntity>> GetByUserAsync(Guid userId, int limit = 50)
     {
         return await _db.ChatFiles
             .Include(f => f.UploadedByUser)

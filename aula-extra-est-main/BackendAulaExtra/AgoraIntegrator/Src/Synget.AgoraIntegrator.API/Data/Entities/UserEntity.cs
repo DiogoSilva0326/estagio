@@ -10,8 +10,8 @@ namespace Synget.AgoraIntegrator.API.Data.Entities;
 public class UserEntity
 {
     [Key]
-    [Column("id")]
-    public long Id { get; set; }
+    [Column("id_user")]
+    public Guid Id { get; set; }
 
     /// <summary>
     /// Unique username for the user (login name).
@@ -31,55 +31,71 @@ public class UserEntity
     /// <summary>
     /// Optional email address.
     /// </summary>
+    [Required]
     [Column("email")]
     [MaxLength(255)]
-    public string? Email { get; set; }
+    public string Email { get; set; } = string.Empty;
 
     /// <summary>
     /// External provider ID (Agora user ID, OAuth subject, etc).
     /// </summary>
-    [Column("external_id")]
-    [MaxLength(255)]
+    [NotMapped]
     public string? ExternalId { get; set; }
 
     /// <summary>
     /// Optional JSON metadata.
     /// </summary>
-    [Column("metadata", TypeName = "jsonb")]
+    [NotMapped]
     public string? Metadata { get; set; }
 
     /// <summary>
     /// BCrypt password hash for authentication.
     /// </summary>
-    [Column("password_hash")]
+    [Column("password")]
     [MaxLength(255)]
     public string? PasswordHash { get; set; }
 
     /// <summary>
     /// User role: 'admin', 'professor', 'aluno'.
     /// </summary>
-    [Required]
-    [Column("role")]
-    [MaxLength(50)]
+    [NotMapped]
     public string Role { get; set; } = "aluno";
 
     /// <summary>
     /// Whether the user account is active.
     /// </summary>
-    [Column("is_active")]
-    public bool IsActive { get; set; } = true;
+    [Column("inactive")]
+    public bool Inactive { get; set; } = false;
+
+    [NotMapped]
+    public bool IsActive
+    {
+        get => !Inactive;
+        set => Inactive = !value;
+    }
 
     /// <summary>
     /// Last login timestamp.
     /// </summary>
-    [Column("last_login_at")]
+    [NotMapped]
     public DateTime? LastLoginAt { get; set; }
 
     /// <summary>
     /// When the user was created.
     /// </summary>
-    [Column("created_at")]
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    [Column("creation_date")]
+    public DateTime CreatedAt { get; set; }
+
+    [Column("last_update")]
+    public DateTime UpdatedAt { get; set; }
+
+    [Column("first_name")]
+    [MaxLength(200)]
+    public string? FirstName { get; set; }
+
+    [Column("last_name")]
+    [MaxLength(200)]
+    public string? LastName { get; set; }
 
     // Navigation properties
     public ICollection<MessageEntity> SentMessages { get; set; } = new List<MessageEntity>();

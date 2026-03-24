@@ -32,8 +32,8 @@ public class ProfessorRoomsController : ControllerBase
     /// <summary>
     /// Gets a professor room by ID.
     /// </summary>
-    [HttpGet("{id:long}")]
-    public async Task<IActionResult> GetById(long id)
+    [HttpGet("{id:guid}")]
+    public async Task<IActionResult> GetById(Guid id)
     {
         var room = await _roomRepo.GetByIdAsync(id);
         if (room == null)
@@ -47,8 +47,8 @@ public class ProfessorRoomsController : ControllerBase
     /// <summary>
     /// Gets a professor room by professor ID.
     /// </summary>
-    [HttpGet("professor/{professorId:long}")]
-    public async Task<IActionResult> GetByProfessorId(long professorId)
+    [HttpGet("professor/{professorId:guid}")]
+    public async Task<IActionResult> GetByProfessorId(Guid professorId)
     {
         var room = await _roomRepo.GetByProfessorIdAsync(professorId);
         if (room == null)
@@ -93,7 +93,7 @@ public class ProfessorRoomsController : ControllerBase
     /// Checks if a room name is available.
     /// </summary>
     [HttpGet("check-name/{roomName}")]
-    public async Task<IActionResult> CheckRoomName(string roomName, [FromQuery] long? excludeProfessorId = null)
+    public async Task<IActionResult> CheckRoomName(string roomName, [FromQuery] Guid? excludeProfessorId = null)
     {
         var isAvailable = await _roomRepo.IsRoomNameAvailableAsync(roomName, excludeProfessorId);
         return Ok(new { roomName, isAvailable });
@@ -102,8 +102,8 @@ public class ProfessorRoomsController : ControllerBase
     /// <summary>
     /// Updates the room name for a professor.
     /// </summary>
-    [HttpPut("professor/{professorId:long}/room-name")]
-    public async Task<IActionResult> UpdateRoomName(long professorId, [FromBody] UpdateRoomNameRequest request)
+    [HttpPut("professor/{professorId:guid}/room-name")]
+    public async Task<IActionResult> UpdateRoomName(Guid professorId, [FromBody] UpdateRoomNameRequest request)
     {
         if (string.IsNullOrWhiteSpace(request.NewRoomName))
         {
@@ -136,8 +136,8 @@ public class ProfessorRoomsController : ControllerBase
     /// <summary>
     /// Updates a professor room.
     /// </summary>
-    [HttpPut("{id:long}")]
-    public async Task<IActionResult> Update(long id, [FromBody] UpdateProfessorRoomRequest request)
+    [HttpPut("{id:guid}")]
+    public async Task<IActionResult> Update(Guid id, [FromBody] UpdateProfessorRoomRequest request)
     {
         // Validate room name format if provided
         if (!string.IsNullOrWhiteSpace(request.RoomName) && 
@@ -194,8 +194,8 @@ public record UpdateProfessorRoomRequest
 
 public record ProfessorRoomResponse
 {
-    public long Id { get; init; }
-    public long ProfessorId { get; init; }
+    public Guid Id { get; init; }
+    public Guid ProfessorId { get; init; }
     public string ProfessorName { get; init; } = string.Empty;
     public string? ProfessorUsername { get; init; }
     public string RoomName { get; init; } = string.Empty;

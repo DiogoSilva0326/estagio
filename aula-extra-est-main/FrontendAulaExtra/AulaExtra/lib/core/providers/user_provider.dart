@@ -8,7 +8,6 @@ enum Role {
 
 class UserAccount {
   const UserAccount({
-    this.id,
     this.fullName,
     this.email,
     this.username,
@@ -16,7 +15,6 @@ class UserAccount {
     this.nif,
   });
 
-  final String? id;
   final String? fullName;
   final String? email;
   final String? username;
@@ -24,7 +22,6 @@ class UserAccount {
   final String? nif;
 
   UserAccount copyWith({
-    String? id,
     String? fullName,
     String? email,
     String? username,
@@ -32,7 +29,6 @@ class UserAccount {
     String? nif,
   }) {
     return UserAccount(
-      id: id ?? this.id,
       fullName: fullName ?? this.fullName,
       email: email ?? this.email,
       username: username ?? this.username,

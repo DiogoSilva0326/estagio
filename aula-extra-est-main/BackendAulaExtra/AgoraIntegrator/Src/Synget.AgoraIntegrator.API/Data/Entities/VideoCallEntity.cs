@@ -11,7 +11,7 @@ public class VideoCallEntity
 {
     [Key]
     [Column("id")]
-    public long Id { get; set; }
+    public Guid Id { get; set; }
 
     /// <summary>
     /// Unique call identifier (Agora channel name).
@@ -40,13 +40,13 @@ public class VideoCallEntity
     /// Associated group room (if any).
     /// </summary>
     [Column("group_room_id")]
-    public long? GroupRoomId { get; set; }
+    public Guid? GroupRoomId { get; set; }
 
     /// <summary>
     /// User who initiated the call.
     /// </summary>
     [Column("initiated_by_user_id")]
-    public long? InitiatedByUserId { get; set; }
+    public Guid? InitiatedByUserId { get; set; }
 
     /// <summary>
     /// Call status: 'active', 'ended', 'missed', 'declined'.

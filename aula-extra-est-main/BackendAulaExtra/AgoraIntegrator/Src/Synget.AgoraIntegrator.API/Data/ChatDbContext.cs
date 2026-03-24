@@ -34,14 +34,12 @@ public class ChatDbContext : DbContext
         {
             entity.HasIndex(e => e.Username).IsUnique();
             entity.HasIndex(e => e.Email).IsUnique();
-            entity.HasIndex(e => e.ExternalId);
         });
 
         // Messages configuration
         modelBuilder.Entity<MessageEntity>(entity =>
         {
-            entity.HasIndex(e => e.RoomId);
-            entity.HasIndex(e => e.CreatedAt);
+                  entity.HasIndex(e => e.CreatedAt);
             entity.HasIndex(e => e.SenderUserId);
             entity.HasIndex(e => e.ReceiverUserId);
             entity.HasIndex(e => e.GroupRoomId);
@@ -49,12 +47,12 @@ public class ChatDbContext : DbContext
             entity.HasOne(m => m.SenderUser)
                   .WithMany(u => u.SentMessages)
                   .HasForeignKey(m => m.SenderUserId)
-                  .OnDelete(DeleteBehavior.SetNull);
+                  .OnDelete(DeleteBehavior.Cascade);
 
             entity.HasOne(m => m.ReceiverUser)
                   .WithMany(u => u.ReceivedMessages)
                   .HasForeignKey(m => m.ReceiverUserId)
-                  .OnDelete(DeleteBehavior.SetNull);
+                  .OnDelete(DeleteBehavior.Cascade);
 
             entity.HasOne(m => m.GroupRoom)
                   .WithMany(r => r.Messages)

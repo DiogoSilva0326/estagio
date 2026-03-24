@@ -10,7 +10,7 @@ public interface IVideoRoomRepository
     /// <summary>
     /// Create a new video room.
     /// </summary>
-    Task<VideoRoomEntity> CreateAsync(string channelName, long hostUserId, string hostUsername, string? title = null, int maxParticipants = 50);
+    Task<VideoRoomEntity> CreateAsync(string channelName, Guid hostUserId, string hostUsername, string? title = null, int maxParticipants = 50);
 
     /// <summary>
     /// Get video room by channel name.
@@ -20,7 +20,7 @@ public interface IVideoRoomRepository
     /// <summary>
     /// Get video room by ID.
     /// </summary>
-    Task<VideoRoomEntity?> GetByIdAsync(long id);
+    Task<VideoRoomEntity?> GetByIdAsync(Guid id);
 
     /// <summary>
     /// Get all active video rooms.
@@ -50,17 +50,17 @@ public interface IVideoRoomRepository
     /// <summary>
     /// Add a participant to a video room.
     /// </summary>
-    Task<VideoRoomParticipantEntity?> AddParticipantAsync(long roomId, long userId, string role = "participant");
+    Task<VideoRoomParticipantEntity?> AddParticipantAsync(Guid roomId, Guid userId, string role = "participant");
 
     /// <summary>
     /// Remove a participant from a video room.
     /// </summary>
-    Task<bool> RemoveParticipantAsync(long roomId, long userId);
+    Task<bool> RemoveParticipantAsync(Guid roomId, Guid userId);
 
     /// <summary>
     /// Get participant count for a room.
     /// </summary>
-    Task<int> GetParticipantCountAsync(long roomId);
+    Task<int> GetParticipantCountAsync(Guid roomId);
 
     /// <summary>
     /// Check if a channel name exists and is active.
@@ -70,5 +70,5 @@ public interface IVideoRoomRepository
     /// <summary>
     /// Get all participants for a room.
     /// </summary>
-    Task<List<VideoRoomParticipantEntity>> GetParticipantsAsync(long roomId);
+    Task<List<VideoRoomParticipantEntity>> GetParticipantsAsync(Guid roomId);
 }

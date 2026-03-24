@@ -10,12 +10,12 @@ public interface IGroupRoomRepository
     /// <summary>
     /// Create a new group room.
     /// </summary>
-    Task<GroupRoomEntity> CreateAsync(string name, long createdByUserId, string roomType = "group", string? description = null);
+    Task<GroupRoomEntity> CreateAsync(string name, Guid createdByUserId, string roomType = "group", string? description = null);
 
     /// <summary>
     /// Get room by ID.
     /// </summary>
-    Task<GroupRoomEntity?> GetByIdAsync(long id, bool includeMembers = false);
+    Task<GroupRoomEntity?> GetByIdAsync(Guid id, bool includeMembers = false);
 
     /// <summary>
     /// Get room by room code.
@@ -25,40 +25,40 @@ public interface IGroupRoomRepository
     /// <summary>
     /// Get or create a direct message room between two users.
     /// </summary>
-    Task<GroupRoomEntity> GetOrCreateDirectRoomAsync(long userId1, long userId2);
+    Task<GroupRoomEntity> GetOrCreateDirectRoomAsync(Guid userId1, Guid userId2);
 
     /// <summary>
     /// Get all rooms for a user.
     /// </summary>
-    Task<List<GroupRoomEntity>> GetByUserAsync(long userId, bool includeInactive = false);
+    Task<List<GroupRoomEntity>> GetByUserAsync(Guid userId, bool includeInactive = false);
 
     /// <summary>
     /// Add a member to a room.
     /// </summary>
-    Task<GroupRoomMemberEntity> AddMemberAsync(long roomId, long userId, string role = "member");
+    Task<GroupRoomMemberEntity> AddMemberAsync(Guid roomId, Guid userId, string role = "member");
 
     /// <summary>
     /// Remove a member from a room.
     /// </summary>
-    Task<bool> RemoveMemberAsync(long roomId, long userId);
+    Task<bool> RemoveMemberAsync(Guid roomId, Guid userId);
 
     /// <summary>
     /// Update member role.
     /// </summary>
-    Task<GroupRoomMemberEntity?> UpdateMemberRoleAsync(long roomId, long userId, string role);
+    Task<GroupRoomMemberEntity?> UpdateMemberRoleAsync(Guid roomId, Guid userId, string role);
 
     /// <summary>
     /// Get room members.
     /// </summary>
-    Task<List<GroupRoomMemberEntity>> GetMembersAsync(long roomId);
+    Task<List<GroupRoomMemberEntity>> GetMembersAsync(Guid roomId);
 
     /// <summary>
     /// Update room details.
     /// </summary>
-    Task<GroupRoomEntity?> UpdateAsync(long roomId, string? name = null, string? description = null, string? avatarUrl = null);
+    Task<GroupRoomEntity?> UpdateAsync(Guid roomId, string? name = null, string? description = null, string? avatarUrl = null);
 
     /// <summary>
     /// Deactivate a room.
     /// </summary>
-    Task<bool> DeactivateAsync(long roomId);
+    Task<bool> DeactivateAsync(Guid roomId);
 }

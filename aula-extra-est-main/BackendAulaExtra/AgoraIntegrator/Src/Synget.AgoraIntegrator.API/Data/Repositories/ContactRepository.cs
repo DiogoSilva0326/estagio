@@ -15,7 +15,7 @@ public class ContactRepository : IContactRepository
         _db = db;
     }
 
-    public async Task<ContactEntity> AddAsync(long ownerUserId, long contactUserId, string? displayNameOverride = null)
+    public async Task<ContactEntity> AddAsync(Guid ownerUserId, Guid contactUserId, string? displayNameOverride = null)
     {
         var existing = await GetAsync(ownerUserId, contactUserId);
         if (existing != null)
@@ -38,14 +38,14 @@ public class ContactRepository : IContactRepository
         return contact;
     }
 
-    public async Task<ContactEntity?> GetAsync(long ownerUserId, long contactUserId)
+    public async Task<ContactEntity?> GetAsync(Guid ownerUserId, Guid contactUserId)
     {
         return await _db.Contacts
             .Include(c => c.ContactUser)
             .FirstOrDefaultAsync(c => c.OwnerUserId == ownerUserId && c.ContactUserId == contactUserId);
     }
 
-    public async Task<List<ContactEntity>> GetByOwnerAsync(long ownerUserId, string? status = null)
+    public async Task<List<ContactEntity>> GetByOwnerAsync(Guid ownerUserId, string? status = null)
     {
         var query = _db.Contacts
             .Include(c => c.ContactUser)
@@ -59,7 +59,7 @@ public class ContactRepository : IContactRepository
         return await query.OrderBy(c => c.ContactUser!.DisplayName ?? c.ContactUser.Username).ToListAsync();
     }
 
-    public async Task<List<ContactEntity>> GetPendingRequestsAsync(long userId)
+    public async Task<List<ContactEntity>> GetPendingRequestsAsync(Guid userId)
     {
         // Get contacts where this user is the contact (i.e., requests TO this user)
         return await _db.Contacts
@@ -69,7 +69,7 @@ public class ContactRepository : IContactRepository
             .ToListAsync();
     }
 
-    public async Task<ContactEntity?> UpdateStatusAsync(long ownerUserId, long contactUserId, string status)
+    public async Task<ContactEntity?> UpdateStatusAsync(Guid ownerUserId, Guid contactUserId, string status)
     {
         var contact = await _db.Contacts.FirstOrDefaultAsync(
             c => c.OwnerUserId == ownerUserId && c.ContactUserId == contactUserId);
@@ -82,7 +82,7 @@ public class ContactRepository : IContactRepository
         return contact;
     }
 
-    public async Task<bool> AcceptRequestAsync(long ownerUserId, long contactUserId, string? displayNameOverride = null)
+    public async Task<bool> AcceptRequestAsync(Guid ownerUserId, Guid contactUserId, string? displayNameOverride = null)
     {
         // Find the original request (where contactUserId sent request to ownerUserId)
         var request = await _db.Contacts.FirstOrDefaultAsync(
@@ -121,7 +121,7 @@ public class ContactRepository : IContactRepository
         return true;
     }
 
-    public async Task<bool> RemoveAsync(long ownerUserId, long contactUserId)
+    public async Task<bool> RemoveAsync(Guid ownerUserId, Guid contactUserId)
     {
         var contact = await _db.Contacts.FirstOrDefaultAsync(
             c => c.OwnerUserId == ownerUserId && c.ContactUserId == contactUserId);
@@ -133,7 +133,7 @@ public class ContactRepository : IContactRepository
         return true;
     }
 
-    public async Task<ContactEntity?> BlockAsync(long ownerUserId, long contactUserId)
+    public async Task<ContactEntity?> BlockAsync(Guid ownerUserId, Guid contactUserId)
     {
         var contact = await _db.Contacts.FirstOrDefaultAsync(
             c => c.OwnerUserId == ownerUserId && c.ContactUserId == contactUserId);
@@ -161,7 +161,7 @@ public class ContactRepository : IContactRepository
         return contact;
     }
 
-    public async Task<bool> AcceptByRequestIdAsync(long requestId, string? displayNameOverride = null)
+    public async Task<bool> AcceptByRequestIdAsync(Guid requestId, string? displayNameOverride = null)
     {
         // Find the pending contact request by its ID
         var request = await _db.Contacts.FirstOrDefaultAsync(

@@ -108,7 +108,7 @@ public class FilesController : ControllerBase
             }
 
             // Get user ID if provided - always lookup by username first
-            long? uploadedByUserId = null;
+            Guid? uploadedByUserId = null;
             if (!string.IsNullOrEmpty(userId))
             {
                 // Try to find user by username first

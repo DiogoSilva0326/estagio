@@ -15,7 +15,7 @@ public class ProfessorRoomRepository : IProfessorRoomRepository
         _db = db;
     }
 
-    public async Task<ProfessorRoomEntity> CreateAsync(long professorId, string professorName, string? roomName = null)
+    public async Task<ProfessorRoomEntity> CreateAsync(Guid professorId, string professorName, string? roomName = null)
     {
         // Get the professor's username for default room name
         var professor = await _db.Users.FindAsync(professorId);
@@ -45,14 +45,14 @@ public class ProfessorRoomRepository : IProfessorRoomRepository
         return room;
     }
 
-    public async Task<ProfessorRoomEntity?> GetByIdAsync(long id)
+    public async Task<ProfessorRoomEntity?> GetByIdAsync(Guid id)
     {
         return await _db.ProfessorRooms
             .Include(r => r.Professor)
             .FirstOrDefaultAsync(r => r.Id == id);
     }
 
-    public async Task<ProfessorRoomEntity?> GetByProfessorIdAsync(long professorId)
+    public async Task<ProfessorRoomEntity?> GetByProfessorIdAsync(Guid professorId)
     {
         return await _db.ProfessorRooms
             .Include(r => r.Professor)
@@ -85,7 +85,7 @@ public class ProfessorRoomRepository : IProfessorRoomRepository
         return await query.OrderBy(r => r.ProfessorName).ToListAsync();
     }
 
-    public async Task<ProfessorRoomEntity?> UpdateRoomNameAsync(long professorId, string newRoomName)
+    public async Task<ProfessorRoomEntity?> UpdateRoomNameAsync(Guid professorId, string newRoomName)
     {
         // Check if the name is available
         if (!await IsRoomNameAvailableAsync(newRoomName, professorId))
@@ -103,7 +103,7 @@ public class ProfessorRoomRepository : IProfessorRoomRepository
         return room;
     }
 
-    public async Task<ProfessorRoomEntity?> UpdateAsync(long id, string? roomName = null, string? description = null, bool? isActive = null)
+    public async Task<ProfessorRoomEntity?> UpdateAsync(Guid id, string? roomName = null, string? description = null, bool? isActive = null)
     {
         var room = await _db.ProfessorRooms.FindAsync(id);
         if (room == null) return null;
@@ -134,7 +134,7 @@ public class ProfessorRoomRepository : IProfessorRoomRepository
         return room;
     }
 
-    public async Task<bool> IsRoomNameAvailableAsync(string roomName, long? excludeProfessorId = null)
+    public async Task<bool> IsRoomNameAvailableAsync(string roomName, Guid? excludeProfessorId = null)
     {
         var query = _db.ProfessorRooms.Where(r => r.RoomName == roomName);
 
@@ -146,7 +146,7 @@ public class ProfessorRoomRepository : IProfessorRoomRepository
         return !await query.AnyAsync();
     }
 
-    public async Task<bool> DeleteAsync(long id)
+    public async Task<bool> DeleteAsync(Guid id)
     {
         var room = await _db.ProfessorRooms.FindAsync(id);
         if (room == null) return false;

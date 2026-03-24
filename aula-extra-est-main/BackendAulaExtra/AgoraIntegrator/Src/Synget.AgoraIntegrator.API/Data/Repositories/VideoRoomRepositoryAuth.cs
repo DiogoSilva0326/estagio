@@ -15,7 +15,7 @@ public class VideoRoomRepository : IVideoRoomRepository
         _db = db;
     }
 
-    public async Task<VideoRoomEntity> CreateAsync(string channelName, long hostUserId, string hostUsername, string? title = null, int maxParticipants = 50)
+    public async Task<VideoRoomEntity> CreateAsync(string channelName, Guid hostUserId, string hostUsername, string? title = null, int maxParticipants = 50)
     {
         var room = new VideoRoomEntity
         {
@@ -45,7 +45,7 @@ public class VideoRoomRepository : IVideoRoomRepository
             .FirstOrDefaultAsync(r => r.ChannelName == channelName);
     }
 
-    public async Task<VideoRoomEntity?> GetByIdAsync(long id)
+    public async Task<VideoRoomEntity?> GetByIdAsync(Guid id)
     {
         return await _db.VideoRooms
             .Include(r => r.Host)
@@ -127,7 +127,7 @@ public class VideoRoomRepository : IVideoRoomRepository
         return true;
     }
 
-    public async Task<VideoRoomParticipantEntity?> AddParticipantAsync(long roomId, long userId, string role = "participant")
+    public async Task<VideoRoomParticipantEntity?> AddParticipantAsync(Guid roomId, Guid userId, string role = "participant")
     {
         // Check if already a participant
         var existing = await _db.VideoRoomParticipants
@@ -151,7 +151,7 @@ public class VideoRoomRepository : IVideoRoomRepository
         return participant;
     }
 
-    public async Task<bool> RemoveParticipantAsync(long roomId, long userId)
+    public async Task<bool> RemoveParticipantAsync(Guid roomId, Guid userId)
     {
         var participant = await _db.VideoRoomParticipants
             .FirstOrDefaultAsync(p => p.VideoRoomId == roomId && p.UserId == userId && p.LeftAt == null);
@@ -163,7 +163,7 @@ public class VideoRoomRepository : IVideoRoomRepository
         return true;
     }
 
-    public async Task<int> GetParticipantCountAsync(long roomId)
+    public async Task<int> GetParticipantCountAsync(Guid roomId)
     {
         return await _db.VideoRoomParticipants
             .CountAsync(p => p.VideoRoomId == roomId && p.LeftAt == null);
@@ -174,7 +174,7 @@ public class VideoRoomRepository : IVideoRoomRepository
         return await _db.VideoRooms.AnyAsync(r => r.ChannelName == channelName && r.IsActive);
     }
 
-    public async Task<List<VideoRoomParticipantEntity>> GetParticipantsAsync(long roomId)
+    public async Task<List<VideoRoomParticipantEntity>> GetParticipantsAsync(Guid roomId)
     {
         return await _db.VideoRoomParticipants
             .Include(p => p.User)

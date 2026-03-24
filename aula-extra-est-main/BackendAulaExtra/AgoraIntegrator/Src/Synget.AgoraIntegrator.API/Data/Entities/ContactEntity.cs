@@ -11,19 +11,19 @@ public class ContactEntity
 {
     [Key]
     [Column("id")]
-    public long Id { get; set; }
+    public Guid Id { get; set; }
 
     /// <summary>
     /// The user who owns this contact.
     /// </summary>
     [Column("owner_user_id")]
-    public long OwnerUserId { get; set; }
+    public Guid OwnerUserId { get; set; }
 
     /// <summary>
     /// The contact user.
     /// </summary>
     [Column("contact_user_id")]
-    public long ContactUserId { get; set; }
+    public Guid ContactUserId { get; set; }
 
     /// <summary>
     /// Optional display name override for this contact.

@@ -15,7 +15,7 @@ public interface IUserRepository
     /// <summary>
     /// Get user by ID.
     /// </summary>
-    Task<UserEntity?> GetByIdAsync(long id);
+    Task<UserEntity?> GetByIdAsync(Guid id);
 
     /// <summary>
     /// Get user by username.
@@ -30,7 +30,7 @@ public interface IUserRepository
     /// <summary>
     /// Update user display name.
     /// </summary>
-    Task<UserEntity?> UpdateDisplayNameAsync(long id, string displayName);
+    Task<UserEntity?> UpdateDisplayNameAsync(Guid id, string displayName);
 
     /// <summary>
     /// Get all users (for admin/debug).
@@ -52,17 +52,17 @@ public interface IUserRepository
     /// <summary>
     /// Update user's last login timestamp.
     /// </summary>
-    Task UpdateLastLoginAsync(long userId);
+    Task UpdateLastLoginAsync(Guid userId);
 
     /// <summary>
     /// Update user's role (admin only).
     /// </summary>
-    Task<bool> UpdateRoleAsync(long userId, string newRole);
+    Task<bool> UpdateRoleAsync(Guid userId, string newRole);
 
     /// <summary>
     /// Deactivate a user account.
     /// </summary>
-    Task<bool> DeactivateAsync(long userId);
+    Task<bool> DeactivateAsync(Guid userId);
 
     /// <summary>
     /// Get users by role.

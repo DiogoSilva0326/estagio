@@ -20,12 +20,12 @@ public interface IMessageRepository
     /// <summary>
     /// Get messages between two users (DM history).
     /// </summary>
-    Task<List<MessageEntity>> GetDirectMessagesAsync(long userId1, long userId2, int limit = 50, DateTime? before = null);
+    Task<List<MessageEntity>> GetDirectMessagesAsync(Guid userId1, Guid userId2, int limit = 50, DateTime? before = null);
 
     /// <summary>
     /// Get message by ID.
     /// </summary>
-    Task<MessageEntity?> GetByIdAsync(long id);
+    Task<MessageEntity?> GetByIdAsync(Guid id);
 
     /// <summary>
     /// Get the last message timestamp for a room.
@@ -36,4 +36,10 @@ public interface IMessageRepository
     /// Get the last message timestamps for multiple rooms.
     /// </summary>
     Task<Dictionary<string, DateTime>> GetLastMessageTimesAsync(IEnumerable<string> roomIds);
+
+    /// <summary>
+    /// Mark DM messages as read for a reader, returning affected message IDs.
+    /// Updates messages where SenderUserId == otherUserId and ReceiverUserId == readerUserId.
+    /// </summary>
+    Task<List<Guid>> MarkDirectMessagesReadAsync(Guid readerUserId, Guid otherUserId, DateTime readAtUtc);
 }

@@ -11,7 +11,7 @@ public class ChatFileEntity
 {
     [Key]
     [Column("id")]
-    public long Id { get; set; }
+    public Guid Id { get; set; }
 
     /// <summary>
     /// Unique file identifier (GUID).
@@ -55,7 +55,7 @@ public class ChatFileEntity
     /// User who uploaded the file.
     /// </summary>
     [Column("uploaded_by_user_id")]
-    public long? UploadedByUserId { get; set; }
+    public Guid? UploadedByUserId { get; set; }
 
     /// <summary>
     /// Room/channel where the file was shared (optional).
@@ -68,7 +68,7 @@ public class ChatFileEntity
     /// Associated message ID (if sent in a message).
     /// </summary>
     [Column("message_id")]
-    public long? MessageId { get; set; }
+    public Guid? MessageId { get; set; }
 
     /// <summary>
     /// Thumbnail URL for images/videos.

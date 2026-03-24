@@ -12,7 +12,7 @@ public class VideoRoomEntity
 {
     [Key]
     [Column("id")]
-    public long Id { get; set; }
+    public Guid Id { get; set; }
 
     /// <summary>
     /// Unique channel name for the video room (Agora channel).
@@ -26,7 +26,7 @@ public class VideoRoomEntity
     /// The user who created/hosts this room.
     /// </summary>
     [Column("host_user_id")]
-    public long HostUserId { get; set; }
+    public Guid HostUserId { get; set; }
 
     /// <summary>
     /// Username of the host (for quick reference).
@@ -100,13 +100,13 @@ public class VideoRoomParticipantEntity
 {
     [Key]
     [Column("id")]
-    public long Id { get; set; }
+    public Guid Id { get; set; }
 
     [Column("video_room_id")]
-    public long VideoRoomId { get; set; }
+    public Guid VideoRoomId { get; set; }
 
     [Column("user_id")]
-    public long UserId { get; set; }
+    public Guid UserId { get; set; }
 
     [Column("joined_at")]
     public DateTime JoinedAt { get; set; } = DateTime.UtcNow;

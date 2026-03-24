@@ -71,7 +71,17 @@ namespace Synget.AgoraIntegrator.API.Hubs
             var userRepo = scope.ServiceProvider.GetRequiredService<IUserRepository>();
             var messageRepo = scope.ServiceProvider.GetRequiredService<IMessageRepository>();
 
-            var dbUser = await userRepo.GetOrCreateAsync(userId, displayName);
+            UserEntity dbUser;
+            try
+            {
+                dbUser = await userRepo.GetOrCreateAsync(userId, displayName);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "JoinRoom failed to resolve DB user for username {UserId}", userId);
+                await Clients.Caller.SendAsync("Error", "Não foi possível validar o utilizador na base de dados. Confirma que estás autenticado e que o username existe.");
+                return;
+            }
 
             // Process join in the integrator (in-memory)
             var result = _chat.ProcessJoinRoom(channelName, userId, displayName, Context.ConnectionId);
@@ -92,11 +102,13 @@ namespace Synget.AgoraIntegrator.API.Hubs
                 var dbMessages = await messageRepo.GetByRoomAsync(channelName, 50);
                 historyMessages = dbMessages.Select(m => new
                 {
-                    messageId = m.Id.ToString(),
-                    senderId = m.SenderUser?.Username ?? m.SenderId ?? "",
+                    messageId = m.Id.ToString("N"),
+                    senderId = m.SenderUser?.Username ?? "",
                     senderName = m.SenderUser?.DisplayName ?? m.SenderUser?.Username ?? "Unknown",
-                    content = m.Content,
+                    content = m.Content ?? "",
                     timestamp = m.CreatedAt.ToString("o"),
+                    isRead = m.IsRead,
+                    readAt = m.ReadAt.HasValue ? m.ReadAt.Value.ToString("o") : null,
                     type = m.Metadata?.Contains("\"type\":\"file\"") == true ? "file" : "text",
                     metadata = m.Metadata,
                     attachment = m.Metadata?.Contains("\"type\":\"file\"") == true 
@@ -179,24 +191,62 @@ namespace Synget.AgoraIntegrator.API.Hubs
 
                     // Get sender user from DB
                     var participant = _chat.ParticipantGetByConnection(Context.ConnectionId);
-                    long? senderUserId = null;
-                    if (participant != null)
+                    if (participant == null)
                     {
-                        var dbUser = await userRepo.GetByUsernameAsync(participant.UserId);
-                        senderUserId = dbUser?.Id;
+                        throw new InvalidOperationException("Sender participant not found for connection.");
                     }
 
-                    var messageEntity = new MessageEntity
+                    var senderUser = await userRepo.GetByUsernameAsync(participant.UserId);
+                    if (senderUser == null)
                     {
-                        RoomId = channelName,
-                        SenderId = participant?.UserId,
-                        SenderUserId = senderUserId,
-                        Content = content,
-                        CreatedAt = DateTime.UtcNow
-                    };
+                        throw new InvalidOperationException($"Sender user '{participant.UserId}' not found in DB.");
+                    }
 
-                    await messageRepo.CreateAsync(messageEntity);
-                    _logger.LogDebug("Message persisted to DB with ID {MessageId}", messageEntity.Id);
+                    if (channelName.StartsWith("dm_", StringComparison.OrdinalIgnoreCase))
+                    {
+                        // Determine receiver from DM room name
+                        var parts = channelName.Split('_', StringSplitOptions.RemoveEmptyEntries);
+                        if (parts.Length < 3)
+                        {
+                            throw new InvalidOperationException("Invalid DM channel name.");
+                        }
+
+                        var u1 = parts[1].Trim().ToLowerInvariant();
+                        var u2 = parts[2].Trim().ToLowerInvariant();
+                        var receiverUsername = senderUser.Username == u1 ? u2 : u1;
+                        var receiverUser = await userRepo.GetByUsernameAsync(receiverUsername);
+                        if (receiverUser == null)
+                        {
+                            throw new InvalidOperationException($"Receiver user '{receiverUsername}' not found in DB.");
+                        }
+
+                        Guid persistedId;
+                        if (result.Message?.MessageId is { Length: > 0 } rawId && Guid.TryParseExact(rawId, "N", out var parsed))
+                        {
+                            persistedId = parsed;
+                        }
+                        else
+                        {
+                            persistedId = Guid.NewGuid();
+                            if (result.Message != null)
+                            {
+                                result.Message.MessageId = persistedId.ToString("N");
+                            }
+                        }
+
+                        var messageEntity = new MessageEntity
+                        {
+                            Id = persistedId,
+                            SenderUserId = senderUser.Id,
+                            ReceiverUserId = receiverUser.Id,
+                            Content = content,
+                            CreatedAt = DateTime.UtcNow,
+                            IsRead = false
+                        };
+
+                        await messageRepo.CreateAsync(messageEntity);
+                        _logger.LogDebug("DM message persisted to DB with ID {MessageId}", messageEntity.Id);
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -223,6 +273,7 @@ namespace Synget.AgoraIntegrator.API.Hubs
                 {
                     var sender = _chat.ParticipantGetByConnection(Context.ConnectionId);
                     var memberIds = new[] { parts[1], parts[2] };
+                    var room = _chat.RoomGet(channelName);
                     
                     _logger.LogInformation("DM room detected, sending DirectMessageReceived to users: {Members}", 
                         string.Join(", ", memberIds));
@@ -231,14 +282,40 @@ namespace Synget.AgoraIntegrator.API.Hubs
                     {
                         // Don't send notification to sender (they already got it from the room group)
                         if (sender != null && memberId == sender.UserId) continue;
-                        
-                        // Send to user's notification group
-                        _logger.LogInformation("Sending DirectMessageReceived to user_{MemberId}", memberId);
-                        await Clients.Group($"user_{memberId}").SendAsync("DirectMessageReceived", new
+
+                        var userGroup = $"user_{memberId}";
+
+                        // Avoid duplicates when the receiver is currently in the DM room on the same connection.
+                        // Send the notification to the user's group, but exclude any of their connections
+                        // that are already participating in this DM channel (they'll receive MessageReceived).
+                        var excludedConnectionIds = room?.Participants
+                            .Where(p => string.Equals(p.UserId, memberId, StringComparison.OrdinalIgnoreCase))
+                            .Select(p => p.ConnectionId)
+                            .Where(id => !string.IsNullOrWhiteSpace(id))
+                            .Distinct()
+                            .ToList();
+
+                        _logger.LogInformation(
+                            "Sending DirectMessageReceived to {UserGroup} (excluded connections: {ExcludedCount})",
+                            userGroup,
+                            excludedConnectionIds?.Count ?? 0);
+
+                        if (excludedConnectionIds is { Count: > 0 })
                         {
-                            channelName = channelName,
-                            message = result.Message
-                        });
+                            await Clients.GroupExcept(userGroup, excludedConnectionIds).SendAsync("DirectMessageReceived", new
+                            {
+                                channelName = channelName,
+                                message = result.Message
+                            });
+                        }
+                        else
+                        {
+                            await Clients.Group(userGroup).SendAsync("DirectMessageReceived", new
+                            {
+                                channelName = channelName,
+                                message = result.Message
+                            });
+                        }
                     }
                 }
             }
@@ -272,11 +349,13 @@ namespace Synget.AgoraIntegrator.API.Hubs
                 var dbMessages = await messageRepo.GetByRoomAsync(channelName, limit, before);
                 var historyMessages = dbMessages.Select(m => new
                 {
-                    messageId = m.Id.ToString(),
-                    senderId = m.SenderUser?.Username ?? m.SenderId ?? "",
+                    messageId = m.Id.ToString("N"),
+                    senderId = m.SenderUser?.Username ?? "",
                     senderName = m.SenderUser?.DisplayName ?? m.SenderUser?.Username ?? "Unknown",
-                    content = m.Content,
+                    content = m.Content ?? "",
                     timestamp = m.CreatedAt.ToString("o"),
+                    isRead = m.IsRead,
+                    readAt = m.ReadAt.HasValue ? m.ReadAt.Value.ToString("o") : null,
                     type = "text",
                     metadata = m.Metadata
                 }).ToList();
@@ -301,6 +380,72 @@ namespace Synget.AgoraIntegrator.API.Hubs
             if (userEvent != null)
             {
                 await Clients.OthersInGroup(channelName).SendAsync("UserTyping", userEvent);
+            }
+        }
+
+        /// <summary>
+        /// Mark direct messages in a DM room as read by the current connection's user.
+        /// Emits a MessagesRead event to the other participant.
+        /// </summary>
+        public async Task MarkDirectMessagesRead(string channelName)
+        {
+            if (string.IsNullOrWhiteSpace(channelName) || !channelName.StartsWith("dm_", StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+
+            var participant = _chat.ParticipantGetByConnection(Context.ConnectionId);
+            if (participant == null)
+            {
+                return;
+            }
+
+            if (!TryParseDmUsernames(channelName, out var dmUserA, out var dmUserB))
+            {
+                return;
+            }
+
+            var readerUsername = participant.UserId.Trim().ToLowerInvariant();
+            var otherUsername = string.Equals(readerUsername, dmUserA.Trim().ToLowerInvariant(), StringComparison.OrdinalIgnoreCase)
+                ? dmUserB.Trim().ToLowerInvariant()
+                : dmUserA.Trim().ToLowerInvariant();
+
+            try
+            {
+                using var scope = _scopeFactory.CreateScope();
+                var userRepo = scope.ServiceProvider.GetRequiredService<IUserRepository>();
+                var messageRepo = scope.ServiceProvider.GetRequiredService<IMessageRepository>();
+
+                var readerUser = await userRepo.GetByUsernameAsync(readerUsername);
+                var otherUser = await userRepo.GetByUsernameAsync(otherUsername);
+                if (readerUser == null || otherUser == null)
+                {
+                    return;
+                }
+
+                var readAtUtc = DateTime.UtcNow;
+                var updatedIds = await messageRepo.MarkDirectMessagesReadAsync(readerUser.Id, otherUser.Id, readAtUtc);
+                if (updatedIds.Count == 0)
+                {
+                    return;
+                }
+
+                var payload = new
+                {
+                    channelName = channelName,
+                    readerId = readerUsername,
+                    readAt = readAtUtc.ToString("o"),
+                    messageIds = updatedIds.Select(id => id.ToString("N")).ToList()
+                };
+
+                // Notify the other user (even if not currently in the DM room)
+                await Clients.Group($"user_{otherUsername}").SendAsync("MessagesRead", payload);
+                // Also notify any sender connections currently in the room
+                await Clients.OthersInGroup(channelName).SendAsync("MessagesRead", payload);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to mark messages read for {Channel}", channelName);
             }
         }
 
@@ -524,40 +669,44 @@ namespace Synget.AgoraIntegrator.API.Hubs
             _logger.LogInformation("SendFileMessage: Sender is {UserId} ({DisplayName})", 
                 participant.UserId, participant.DisplayName);
 
-            // Get database user ID
-            long? senderUserId = null;
-            var dbUser = await userRepo.GetByUsernameAsync(participant.UserId);
-            if (dbUser != null)
-            {
-                senderUserId = dbUser.Id;
-            }
+            // Only persist file messages for direct messages.
+            // Group/video-call chat persistence depends on DB tables that may not exist in this deployment.
+            bool isDmRoom = channelName.StartsWith("dm_");
+            Guid? messageId = null;
 
-            // Only persist messages to database for persistent rooms (DM or group chats)
-            // Video call chat messages are ephemeral and should not be stored
-            bool isPersistentRoom = channelName.StartsWith("dm_") || channelName.StartsWith("group_");
-            long? messageId = null;
-
-            if (isPersistentRoom)
+            if (isDmRoom)
             {
-                // Persist message to database with file metadata
-                var fileMetadata = System.Text.Json.JsonSerializer.Serialize(new
+                var senderDbUser = await userRepo.GetByUsernameAsync(participant.UserId);
+                if (senderDbUser == null)
                 {
-                    type = "file",
-                    fileId = fileEntity.FileId,
-                    fileName = fileEntity.FileName,
-                    contentType = fileEntity.ContentType,
-                    fileSize = fileEntity.FileSize,
-                    downloadUrl = $"/api/files/{fileEntity.FileId}"
-                });
+                    await Clients.Caller.SendAsync("Error", "User not found.");
+                    return;
+                }
+
+                if (!TryParseDmUsernames(channelName, out var dmUserA, out var dmUserB))
+                {
+                    await Clients.Caller.SendAsync("Error", "Invalid DM channel name.");
+                    return;
+                }
+
+                var otherUsername = string.Equals(senderDbUser.Username, dmUserA, StringComparison.OrdinalIgnoreCase)
+                    ? dmUserB
+                    : dmUserA;
+
+                var receiverDbUser = await userRepo.GetByUsernameAsync(otherUsername);
+                if (receiverDbUser == null)
+                {
+                    await Clients.Caller.SendAsync("Error", "Receiver not found.");
+                    return;
+                }
 
                 var messageEntity = new MessageEntity
                 {
-                    RoomId = channelName,
-                    SenderId = participant?.UserId,
-                    SenderUserId = senderUserId,
+                    SenderUserId = senderDbUser.Id,
+                    ReceiverUserId = receiverDbUser.Id,
                     Content = caption ?? $"[Ficheiro: {fileEntity.FileName}]",
-                    Metadata = fileMetadata,
-                    CreatedAt = DateTime.UtcNow
+                    CreatedAt = DateTime.UtcNow,
+                    IsRead = false
                 };
 
                 await messageRepo.CreateAsync(messageEntity);
@@ -568,30 +717,17 @@ namespace Synget.AgoraIntegrator.API.Hubs
                 fileEntity.RoomId = channelName;
                 await fileRepo.UpdateAsync(fileEntity);
 
-                // Also create a text message that announces the file (this will persist even if file is deleted)
-                var textMessageContent = $"📎 Ficheiro enviado: {fileEntity.FileName}";
-                var textMessageEntity = new MessageEntity
-                {
-                    RoomId = channelName,
-                    SenderId = participant?.UserId,
-                    SenderUserId = senderUserId,
-                    Content = textMessageContent,
-                    Metadata = null, // No file metadata for the text message
-                    CreatedAt = DateTime.UtcNow
-                };
-                await messageRepo.CreateAsync(textMessageEntity);
-
-                _logger.LogDebug("File message persisted in {Channel}: {FileId}", channelName, fileId);
+                _logger.LogDebug("File message persisted in DM {Channel}: {FileId}", channelName, fileId);
             }
             else
             {
-                _logger.LogDebug("Video call channel {Channel} - file message not persisted to DB", channelName);
+                _logger.LogDebug("Channel {Channel} - file message not persisted to DB", channelName);
             }
 
             // Create text notification message
             var textNotificationMessage = new
             {
-                messageId = Guid.NewGuid().ToString(),
+                messageId = Guid.NewGuid().ToString("N"),
                 senderId = participant?.UserId ?? "",
                 senderName = participant?.DisplayName ?? "Unknown",
                 content = $"📎 Ficheiro enviado: {fileEntity.FileName}",
@@ -606,7 +742,7 @@ namespace Synget.AgoraIntegrator.API.Hubs
             // Create enriched file message for broadcast
             var enrichedMessage = new
             {
-                messageId = messageId?.ToString() ?? Guid.NewGuid().ToString(),
+                messageId = messageId?.ToString("N") ?? Guid.NewGuid().ToString("N"),
                 senderId = participant?.UserId ?? "",
                 senderName = participant?.DisplayName ?? "Unknown",
                 content = caption ?? $"[Ficheiro: {fileEntity.FileName}]",
@@ -634,31 +770,83 @@ namespace Synget.AgoraIntegrator.API.Hubs
                 if (parts.Length >= 3)
                 {
                     var memberIds = new[] { parts[1], parts[2] };
+                    var room = _chat.RoomGet(channelName);
                     _logger.LogInformation("DM file message - notifying users: {Members}", string.Join(", ", memberIds));
                     
                     foreach (var memberId in memberIds)
                     {
                         // Don't send notification to sender (they already got it from the room group)
                         if (participant != null && memberId == participant.UserId) continue;
-                        
-                        _logger.LogInformation("Sending file notification to user_{MemberId}", memberId);
-                        await Clients.Group($"user_{memberId}").SendAsync("DirectMessageReceived", new
+
+                        var userGroup = $"user_{memberId}";
+
+                        var excludedConnectionIds = room?.Participants
+                            .Where(p => string.Equals(p.UserId, memberId, StringComparison.OrdinalIgnoreCase))
+                            .Select(p => p.ConnectionId)
+                            .Where(id => !string.IsNullOrWhiteSpace(id))
+                            .Distinct()
+                            .ToList();
+
+                        _logger.LogInformation(
+                            "Sending file DirectMessageReceived to {UserGroup} (excluded connections: {ExcludedCount})",
+                            userGroup,
+                            excludedConnectionIds?.Count ?? 0);
+
+                        if (excludedConnectionIds is { Count: > 0 })
                         {
-                            channelName = channelName,
-                            message = enrichedMessage
-                        });
+                            await Clients.GroupExcept(userGroup, excludedConnectionIds).SendAsync("DirectMessageReceived", new
+                            {
+                                channelName = channelName,
+                                message = enrichedMessage
+                            });
+                        }
+                        else
+                        {
+                            await Clients.Group(userGroup).SendAsync("DirectMessageReceived", new
+                            {
+                                channelName = channelName,
+                                message = enrichedMessage
+                            });
+                        }
                     }
                 }
             }
 
             // For video call chats, send a general notification to all participants
-            if (!isPersistentRoom)
+            if (!isDmRoom)
             {
                 _logger.LogInformation("Video call file message broadcast to channel {Channel}", channelName);
             }
         }
 
         #endregion
+
+        private static bool TryParseDmUsernames(string channelName, out string userA, out string userB)
+        {
+            userA = string.Empty;
+            userB = string.Empty;
+
+            if (string.IsNullOrWhiteSpace(channelName))
+            {
+                return false;
+            }
+
+            if (!channelName.StartsWith("dm_", StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            // Expected format: dm_{userA}_{userB}
+            var parts = channelName.Split('_', 3, StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length != 3)
+            {
+                return false;
+            }
+
+            userA = parts[1].Trim();
+            userB = parts[2].Trim();
+            return !(string.IsNullOrWhiteSpace(userA) || string.IsNullOrWhiteSpace(userB));
+        }
 
         #region Professor Room Status
 

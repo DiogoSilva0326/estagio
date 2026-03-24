@@ -20,12 +20,12 @@ public interface IChatFileRepository
     /// <summary>
     /// Get file by database ID.
     /// </summary>
-    Task<ChatFileEntity?> GetByIdAsync(long id);
+    Task<ChatFileEntity?> GetByIdAsync(Guid id);
 
     /// <summary>
     /// Get files uploaded by a user.
     /// </summary>
-    Task<List<ChatFileEntity>> GetByUserAsync(long userId, int limit = 50);
+    Task<List<ChatFileEntity>> GetByUserAsync(Guid userId, int limit = 50);
 
     /// <summary>
     /// Get files in a room.

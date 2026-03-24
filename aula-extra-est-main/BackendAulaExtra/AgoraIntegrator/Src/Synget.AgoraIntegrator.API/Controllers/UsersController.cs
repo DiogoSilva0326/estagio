@@ -57,8 +57,8 @@ public class UsersController : ControllerBase
     /// <summary>
     /// Get user by ID.
     /// </summary>
-    [HttpGet("{id:long}")]
-    public async Task<IActionResult> GetById(long id)
+    [HttpGet("{id:guid}")]
+    public async Task<IActionResult> GetById(Guid id)
     {
         var user = await _userRepo.GetByIdAsync(id);
         if (user == null)
@@ -101,8 +101,8 @@ public class UsersController : ControllerBase
     /// <summary>
     /// Update user display name.
     /// </summary>
-    [HttpPut("{id:long}/display-name")]
-    public async Task<IActionResult> UpdateDisplayName(long id, [FromBody] UpdateDisplayNameRequest request)
+    [HttpPut("{id:guid}/display-name")]
+    public async Task<IActionResult> UpdateDisplayName(Guid id, [FromBody] UpdateDisplayNameRequest request)
     {
         if (string.IsNullOrWhiteSpace(request.DisplayName))
         {
@@ -158,7 +158,7 @@ public class UpdateDisplayNameRequest
 
 public class UserDto
 {
-    public long Id { get; set; }
+    public Guid Id { get; set; }
     public string Username { get; set; } = string.Empty;
     public string DisplayName { get; set; } = string.Empty;
     public string? ExternalId { get; set; }

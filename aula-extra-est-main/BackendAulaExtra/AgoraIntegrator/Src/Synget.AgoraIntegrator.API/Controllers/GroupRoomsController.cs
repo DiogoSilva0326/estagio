@@ -84,8 +84,8 @@ public class GroupRoomsController : ControllerBase
     /// <summary>
     /// Get room by ID.
     /// </summary>
-    [HttpGet("{id:long}")]
-    public async Task<IActionResult> GetById(long id)
+    [HttpGet("{id:guid}")]
+    public async Task<IActionResult> GetById(Guid id)
     {
         var room = await _roomRepo.GetByIdAsync(id, includeMembers: true);
         if (room == null)
@@ -114,8 +114,8 @@ public class GroupRoomsController : ControllerBase
     /// <summary>
     /// Get rooms for a user.
     /// </summary>
-    [HttpGet("user/{userId:long}")]
-    public async Task<IActionResult> GetUserRooms(long userId)
+    [HttpGet("user/{userId:guid}")]
+    public async Task<IActionResult> GetUserRooms(Guid userId)
     {
         try
         {
@@ -137,8 +137,8 @@ public class GroupRoomsController : ControllerBase
     /// <summary>
     /// Add a member to a room.
     /// </summary>
-    [HttpPost("{roomId:long}/members")]
-    public async Task<IActionResult> AddMember(long roomId, [FromBody] AddMemberDto request)
+    [HttpPost("{roomId:guid}/members")]
+    public async Task<IActionResult> AddMember(Guid roomId, [FromBody] AddMemberDto request)
     {
         try
         {
@@ -163,8 +163,8 @@ public class GroupRoomsController : ControllerBase
     /// <summary>
     /// Remove a member from a room.
     /// </summary>
-    [HttpDelete("{roomId:long}/members/{userId:long}")]
-    public async Task<IActionResult> RemoveMember(long roomId, long userId)
+    [HttpDelete("{roomId:guid}/members/{userId:guid}")]
+    public async Task<IActionResult> RemoveMember(Guid roomId, Guid userId)
     {
         var success = await _roomRepo.RemoveMemberAsync(roomId, userId);
         if (!success)
@@ -178,8 +178,8 @@ public class GroupRoomsController : ControllerBase
     /// <summary>
     /// Get room members.
     /// </summary>
-    [HttpGet("{roomId:long}/members")]
-    public async Task<IActionResult> GetMembers(long roomId)
+    [HttpGet("{roomId:guid}/members")]
+    public async Task<IActionResult> GetMembers(Guid roomId)
     {
         var members = await _roomRepo.GetMembersAsync(roomId);
         return Ok(members.Select(m => new
@@ -197,8 +197,8 @@ public class GroupRoomsController : ControllerBase
     /// <summary>
     /// Get message history for a room.
     /// </summary>
-    [HttpGet("{roomId:long}/messages")]
-    public async Task<IActionResult> GetMessages(long roomId, [FromQuery] int limit = 50, [FromQuery] DateTime? before = null)
+    [HttpGet("{roomId:guid}/messages")]
+    public async Task<IActionResult> GetMessages(Guid roomId, [FromQuery] int limit = 50, [FromQuery] DateTime? before = null)
     {
         var room = await _roomRepo.GetByIdAsync(roomId);
         if (room == null)
@@ -206,14 +206,15 @@ public class GroupRoomsController : ControllerBase
             return NotFound(new { error = "Room not found." });
         }
 
-        var messages = await _messageRepo.GetByRoomAsync(room.RoomCode, limit, before);
+        var roomChannel = $"group_{room.RoomCode}";
+        var messages = await _messageRepo.GetByRoomAsync(roomChannel, limit, before);
         return Ok(messages.Select(m => new
         {
             m.Id,
-            m.RoomId,
-            SenderId = m.SenderUserId?.ToString() ?? m.SenderId,
+            RoomId = roomChannel,
+            SenderId = m.SenderUser?.Username ?? m.SenderUserId.ToString(),
             SenderName = m.SenderUser?.DisplayName ?? m.SenderUser?.Username ?? "Unknown",
-            m.Content,
+            Content = m.Content ?? string.Empty,
             m.Metadata,
             m.CreatedAt
         }));
@@ -222,8 +223,8 @@ public class GroupRoomsController : ControllerBase
     /// <summary>
     /// Update room details.
     /// </summary>
-    [HttpPut("{roomId:long}")]
-    public async Task<IActionResult> UpdateRoom(long roomId, [FromBody] UpdateRoomDto request)
+    [HttpPut("{roomId:guid}")]
+    public async Task<IActionResult> UpdateRoom(Guid roomId, [FromBody] UpdateRoomDto request)
     {
         var room = await _roomRepo.UpdateAsync(roomId, request.Name, request.Description, request.AvatarUrl);
         if (room == null)
@@ -237,8 +238,8 @@ public class GroupRoomsController : ControllerBase
     /// <summary>
     /// Deactivate a room.
     /// </summary>
-    [HttpDelete("{roomId:long}")]
-    public async Task<IActionResult> DeactivateRoom(long roomId)
+    [HttpDelete("{roomId:guid}")]
+    public async Task<IActionResult> DeactivateRoom(Guid roomId)
     {
         var success = await _roomRepo.DeactivateAsync(roomId);
         if (!success)
@@ -282,19 +283,19 @@ public class CreateRoomDto
     public string Name { get; set; } = string.Empty;
     public string? Description { get; set; }
     public string? RoomType { get; set; }
-    public long CreatedByUserId { get; set; }
-    public List<long>? MemberUserIds { get; set; }
+    public Guid CreatedByUserId { get; set; }
+    public List<Guid>? MemberUserIds { get; set; }
 }
 
 public class DirectRoomDto
 {
-    public long UserId1 { get; set; }
-    public long UserId2 { get; set; }
+    public Guid UserId1 { get; set; }
+    public Guid UserId2 { get; set; }
 }
 
 public class AddMemberDto
 {
-    public long UserId { get; set; }
+    public Guid UserId { get; set; }
     public string? Role { get; set; }
 }
 
