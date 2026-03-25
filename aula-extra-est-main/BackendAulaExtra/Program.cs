@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
+
 using ConfidantPostgreSQL.Auth;
 using ConfidantPostgreSQL.Integrations.CloudflareImages;
 using ConfidantPostgreSQL.Integrations.Email;
@@ -38,6 +39,8 @@ using ConfidantPostgreSQL.Modules.UserProfile.Service;
 using ConfidantPostgreSQL.Modules.Users.Repository;
 using ConfidantPostgreSQL.Modules.Users.Service;
 
+AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
+
 var builder = WebApplication.CreateBuilder(args);
 
 var connString = Environment.GetEnvironmentVariable("DB_CONNECTION_STRING");
@@ -69,6 +72,8 @@ builder.Services.AddControllers().AddJsonOptions(options =>
 {
     options.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
 });
+
+builder.Services.AddSignalR();
 
 // Repositories
 builder.Services.AddScoped<IUserRepository>(_ => new UserRepository(connString));
@@ -150,4 +155,5 @@ else
 app.UseRouting();
 app.UseCors("corsapp");
 app.MapControllers();
+app.MapHub<ConfidantPostgreSQL.Modules.Communication.Hubs.ChatHub>("/chathub");
 app.Run();

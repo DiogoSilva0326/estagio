@@ -117,7 +117,19 @@ namespace ConfidantPostgreSQL.Modules.Communication.Repository
             await using var conn = new NpgsqlConnection(_connectionString);
             await conn.OpenAsync();
             await using var cmd = conn.CreateCommand();
-            cmd.CommandText = "SELECT * FROM public.usp_messages_select_all01();";
+            
+            cmd.CommandText = @"
+                SELECT 
+                    id_message, 
+                    sender_user_id, 
+                    receiver_user_id, 
+                    message_content, 
+                    is_read, 
+                    sent_at, 
+                    read_at, 
+                    group_room_id 
+                FROM public.messages 
+                ORDER BY sent_at ASC;";
 
             await using var reader = await cmd.ExecuteReaderAsync();
             while (await reader.ReadAsync())
@@ -162,20 +174,35 @@ namespace ConfidantPostgreSQL.Modules.Communication.Repository
             };
         }
 
+        private static DateTime? RemoveTimeZone(DateTime? dt)
+        {
+            if (!dt.HasValue) return null;
+            return new DateTime(dt.Value.Year, dt.Value.Month, dt.Value.Day, 
+                                dt.Value.Hour, dt.Value.Minute, dt.Value.Second, 
+                                dt.Value.Millisecond, DateTimeKind.Unspecified);
+        }
+
         public async Task<Guid> InsertMessageAsync(Message message)
         {
             await using var conn = new NpgsqlConnection(_connectionString);
             await conn.OpenAsync();
             await using var cmd = conn.CreateCommand();
-                        cmd.CommandText = "SELECT public.usp_messages_insert(@sender_user_id, @receiver_user_id, @message_content, @is_read, @sent_at, @read_at, @group_room_id);";
 
-            cmd.Parameters.AddWithValue("sender_user_id", message.SenderUserId);
-            cmd.Parameters.AddWithValue("receiver_user_id", message.ReceiverUserId);
-            cmd.Parameters.AddWithValue("message_content", (object?)message.MessageContent ?? DBNull.Value);
-            cmd.Parameters.AddWithValue("is_read", message.IsRead);
-            cmd.Parameters.AddWithValue("sent_at", (object?)message.SentAt ?? DBNull.Value);
-            cmd.Parameters.AddWithValue("read_at", (object?)message.ReadAt ?? DBNull.Value);
-            cmd.Parameters.AddWithValue("group_room_id", (object?)message.GroupRoomId ?? DBNull.Value);
+ 
+            cmd.CommandText = "SELECT public.usp_messages_insert(@sender_user_id, @receiver_user_id, @message_content, @is_read, @sent_at, @read_at, @group_room_id);";
+
+            cmd.Parameters.Add(new NpgsqlParameter("sender_user_id", NpgsqlTypes.NpgsqlDbType.Uuid) { Value = message.SenderUserId });
+            cmd.Parameters.Add(new NpgsqlParameter("receiver_user_id", NpgsqlTypes.NpgsqlDbType.Uuid) { Value = message.ReceiverUserId });
+            cmd.Parameters.Add(new NpgsqlParameter("message_content", NpgsqlTypes.NpgsqlDbType.Text) { Value = (object?)message.MessageContent ?? DBNull.Value });
+            cmd.Parameters.Add(new NpgsqlParameter("is_read", NpgsqlTypes.NpgsqlDbType.Boolean) { Value = message.IsRead });
+            
+            var dataEnvio = RemoveTimeZone(message.SentAt ?? DateTime.UtcNow);
+            cmd.Parameters.Add(new NpgsqlParameter("sent_at", NpgsqlTypes.NpgsqlDbType.Timestamp) { Value = dataEnvio });
+            
+            var dataLeitura = RemoveTimeZone(message.ReadAt);
+            cmd.Parameters.Add(new NpgsqlParameter("read_at", NpgsqlTypes.NpgsqlDbType.Timestamp) { Value = (object?)dataLeitura ?? DBNull.Value });
+            
+            cmd.Parameters.Add(new NpgsqlParameter("group_room_id", NpgsqlTypes.NpgsqlDbType.Uuid) { Value = (object?)message.GroupRoomId ?? DBNull.Value });
 
             var res = await cmd.ExecuteScalarAsync();
             return res == null || res == DBNull.Value ? Guid.Empty : (Guid)res;
@@ -186,16 +213,22 @@ namespace ConfidantPostgreSQL.Modules.Communication.Repository
             await using var conn = new NpgsqlConnection(_connectionString);
             await conn.OpenAsync();
             await using var cmd = conn.CreateCommand();
-            cmd.CommandText = "SELECT public.usp_messages_update(@id_message, @sender_user_id, @receiver_user_id, @message_content, @is_read, @sent_at, @read_at, @group_room_id);";
+            
+            // Chamamos a função de update corretamente
+            cmd.CommandText = "SELECT public.usp_messages_update(@id, @sender, @receiver, @content, @is_read, @sent, @read, @group);";
 
-            cmd.Parameters.AddWithValue("id_message", message.IdMessage);
-            cmd.Parameters.AddWithValue("sender_user_id", message.SenderUserId);
-            cmd.Parameters.AddWithValue("receiver_user_id", message.ReceiverUserId);
-            cmd.Parameters.AddWithValue("message_content", (object?)message.MessageContent ?? DBNull.Value);
-            cmd.Parameters.AddWithValue("is_read", message.IsRead);
-            cmd.Parameters.AddWithValue("sent_at", (object?)message.SentAt ?? DBNull.Value);
-            cmd.Parameters.AddWithValue("read_at", (object?)message.ReadAt ?? DBNull.Value);
-            cmd.Parameters.AddWithValue("group_room_id", (object?)message.GroupRoomId ?? DBNull.Value);
+            // Forçamos os tipos para alinhar com o PostgreSQL
+            cmd.Parameters.Add(new NpgsqlParameter("id", NpgsqlTypes.NpgsqlDbType.Uuid) { Value = message.IdMessage });
+            cmd.Parameters.Add(new NpgsqlParameter("sender", NpgsqlTypes.NpgsqlDbType.Uuid) { Value = message.SenderUserId });
+            cmd.Parameters.Add(new NpgsqlParameter("receiver", NpgsqlTypes.NpgsqlDbType.Uuid) { Value = message.ReceiverUserId });
+            cmd.Parameters.Add(new NpgsqlParameter("content", NpgsqlTypes.NpgsqlDbType.Text) { Value = (object?)message.MessageContent ?? DBNull.Value });
+            cmd.Parameters.Add(new NpgsqlParameter("is_read", NpgsqlTypes.NpgsqlDbType.Boolean) { Value = message.IsRead });
+            
+            // NpgsqlDbType.Timestamp resolve a questão do Time Zone
+            cmd.Parameters.Add(new NpgsqlParameter("sent", NpgsqlTypes.NpgsqlDbType.Timestamp) { Value = (object?)message.SentAt ?? DBNull.Value });
+            cmd.Parameters.Add(new NpgsqlParameter("read", NpgsqlTypes.NpgsqlDbType.Timestamp) { Value = (object?)message.ReadAt ?? DBNull.Value });
+            
+            cmd.Parameters.Add(new NpgsqlParameter("group", NpgsqlTypes.NpgsqlDbType.Uuid) { Value = (object?)message.GroupRoomId ?? DBNull.Value });
 
             var res = await cmd.ExecuteScalarAsync();
             return res == null || res == DBNull.Value ? 0 : Convert.ToInt32(res);

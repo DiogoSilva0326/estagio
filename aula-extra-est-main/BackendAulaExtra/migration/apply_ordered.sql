@@ -120,6 +120,13 @@
 \ir '../src/Modules/Courses/Sql/procs/usp_user_lesson_packs.sql'
 \ir '../src/Modules/Courses/Sql/procs/usp_pack_transactions.sql'
 
+-- Communication
+\ir '../src/Modules/Communication/Sql/procs/usp_messages.sql'
+\ir '../src/Modules/Communication/Sql/procs/usp_contacts.sql'
+\ir '../src/Modules/Communication/Sql/procs/usp_group_rooms.sql'
+\ir '../src/Modules/Communication/Sql/procs/usp_group_room_members.sql'
+\ir '../src/Modules/Communication/Sql/procs/usp_notifications.sql'
+
 -- Professors
 \ir '../src/Modules/Professors/Sql/procs/usp_professors.sql'
 \ir '../src/Modules/Professors/Sql/procs/usp_professor_feedback.sql'
