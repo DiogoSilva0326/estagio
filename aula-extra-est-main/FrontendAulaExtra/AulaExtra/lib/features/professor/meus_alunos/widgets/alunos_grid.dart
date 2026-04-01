@@ -1,7 +1,6 @@
-import 'package:aula_extra/features/professor/meus_alunos/constants/meus_alunos_professor_layout.dart';
-import 'package:flutter/material.dart';
 import 'package:aula_extra/core/data/professors/dtos/professor_aluno_dto.dart';
 import 'package:aula_extra/features/professor/meus_alunos/widgets/aluno_card.dart';
+import 'package:flutter/material.dart';
 
 class AlunosGrid extends StatelessWidget {
   final List<ProfessorAlunoDto> alunos; // <- Passar a receber o DTO

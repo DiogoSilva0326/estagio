@@ -9,8 +9,8 @@ class ChatProvider extends ChangeNotifier {
   String _password = 'Pass_user_2026'; // Default password
   String _peerId = '';
   bool _isChatLoggedIn = false;
-  List<String> _logs = [];
-  List<ChatMessage> _messages = [];
+  final List<String> _logs = [];
+  final List<ChatMessage> _messages = [];
 
   ChatProvider() {
     _initializeListeners();

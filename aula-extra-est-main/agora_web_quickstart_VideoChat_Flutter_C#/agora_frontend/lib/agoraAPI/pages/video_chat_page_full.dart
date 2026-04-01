@@ -43,23 +43,18 @@ class _FileMessage extends _ChatMessage {
   final int? size;
   
   _FileMessage({
-    required int fromUid,
-    required String fromName,
-    required DateTime timestamp,
+    required super.fromUid,
+    required super.fromName,
+    required super.timestamp,
     required this.fileName,
     required this.mimeType,
     required this.bytes,
     this.url,
     this.size,
-    int? toUid,
-    String? toName,
+    super.toUid,
+    super.toName,
   }) : super(
-    fromUid: fromUid,
-    fromName: fromName,
     text: '[Arquivo: $fileName]',
-    timestamp: timestamp,
-    toUid: toUid,
-    toName: toName,
   );
 }
 

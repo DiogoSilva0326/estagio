@@ -5,7 +5,7 @@ import '../providers/chat_provider.dart';
 import 'dart:async';
 
 class ChatPage extends StatefulWidget {
-  const ChatPage({Key? key}) : super(key: key);
+  const ChatPage({super.key});
 
   @override
   State<ChatPage> createState() => _ChatPageState();

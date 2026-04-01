@@ -1,12 +1,9 @@
 import 'package:aula_extra/features/professor/calendario/constants/calendario_professor_colors.dart';
 import 'package:flutter/material.dart';
 
-/// Modelo de card de aula apresentado no calendário do professor.
-///
-/// Onde é usado:
-/// - Em `lib/features/professor/calendario/` para renderizar a lista de próximas aulas.
 class ProfessorAulaCardData {
   const ProfessorAulaCardData({
+    this.idLesson = '', // 💡 NOVO: Guardar o ID da aula para podermos apagar!
     required this.initials,
     required this.color,
     required this.studentName,
@@ -15,6 +12,7 @@ class ProfessorAulaCardData {
     required this.timeRange,
   });
 
+  final String idLesson;
   final String initials;
   final Color color;
   final String studentName;
@@ -23,16 +21,12 @@ class ProfessorAulaCardData {
   final String timeRange;
 }
 
-/// Dados fake do calendário do professor (protótipo/dev).
-///
-/// Onde é usado:
-/// - Em `lib/features/professor/calendario/` enquanto não há dados reais via API.
 class CalendarioProfessorMockData {
   const CalendarioProfessorMockData._();
 
-  /// Lista de próximas aulas de exemplo.
   static const List<ProfessorAulaCardData> proximasAulas = [
     ProfessorAulaCardData(
+      idLesson: 'mock-1',
       initials: 'JS',
       color: CalendarioProfessorColors.badgeBlue,
       studentName: 'João Silva',
@@ -41,6 +35,7 @@ class CalendarioProfessorMockData {
       timeRange: '14:30 - 15:30',
     ),
     ProfessorAulaCardData(
+      idLesson: 'mock-2',
       initials: 'MS',
       color: CalendarioProfessorColors.badgeGreen,
       studentName: 'Maria Santos',
@@ -49,6 +44,7 @@ class CalendarioProfessorMockData {
       timeRange: '16:00 - 17:00',
     ),
     ProfessorAulaCardData(
+      idLesson: 'mock-3',
       initials: 'PC',
       color: CalendarioProfessorColors.badgeOrange,
       studentName: 'Pedro Costa',
@@ -57,6 +53,7 @@ class CalendarioProfessorMockData {
       timeRange: '10:00 - 11:00',
     ),
     ProfessorAulaCardData(
+      idLesson: 'mock-4',
       initials: 'AR',
       color: CalendarioProfessorColors.badgeBlue,
       studentName: 'Ana Rodrigues',

@@ -32,7 +32,6 @@ import 'package:aula_extra/core/providers/user_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:aula_extra/core/data/session/token_storage.dart';
 import 'package:aula_extra/core/data/auth/auth_service.dart';
-import 'package:aula_extra/features/professor/meus_alunos/pages/meus_alunos_professor_screen.dart';
 import 'package:aula_extra/features/professor/meus_alunos/pages/perfil_aluno_professor_screen.dart';
 
 class _TeacherOnly extends StatefulWidget {
