@@ -26,7 +26,6 @@ class _CalendarioProfessorContentSectionState extends State<CalendarioProfessorC
   int _selectedTab = 0;
   final GlobalKey<AgendaRealProfessorState> _agendaKey = GlobalKey<AgendaRealProfessorState>();
 
-  // 💡 NOVO: Controlar a atualização do FutureBuilder
   Key _listaAulasKey = UniqueKey(); 
 
   @override
@@ -59,7 +58,6 @@ class _CalendarioProfessorContentSectionState extends State<CalendarioProfessorC
                       IndexedStack(
                         index: _selectedTab,
                         children: [
-                          // 💡 Passamos a Key aqui para forçar refresh quando marcamos aula
                           _buildProximasAulasReais(key: _listaAulasKey),
                           AgendaRealProfessor(key: _agendaKey),
                         ],
@@ -89,11 +87,13 @@ class _CalendarioProfessorContentSectionState extends State<CalendarioProfessorC
             onPressed: () async {
               final result = await showDialog(
                 context: context,
-                builder: (context) => const MarcarAulaDialog(),
+                builder: (context) => MarcarAulaDialog(
+                  initialDate: DateTime.now(),
+                  initialTime: TimeOfDay.now(),
+                ),
               );
               
               if (result == true) {
-                // Atualiza a Agenda e a Lista de Próximas Aulas!
                 _agendaKey.currentState?.recarregarDados();
                 setState(() {
                   _listaAulasKey = UniqueKey();
@@ -117,8 +117,7 @@ class _CalendarioProfessorContentSectionState extends State<CalendarioProfessorC
   Future<List<ProfessorAulaCardData>> _fetchAulasDaBD() async {
     try {
       final token = await TokenStorage().loadToken() ?? '';
-      
-      // 1. Descobrir o ID do Professor Logado
+
       String? myProfId;
       final respProf = await http.get(ApiConfig.uri('/api/Professors/me'), headers: {'Authorization': 'Bearer $token'});
       if (respProf.statusCode == 200) {
@@ -127,7 +126,6 @@ class _CalendarioProfessorContentSectionState extends State<CalendarioProfessorC
       }
       if (myProfId == null) return [];
 
-      // 2. Carregar TODOS os dados necessários para cruzar informações
       final respLessons = await http.get(ApiConfig.uri('/api/Lessons/lessons'), headers: {'Authorization': 'Bearer $token'});
       final respCourses = await http.get(ApiConfig.uri('/api/Courses/courses'), headers: {'Authorization': 'Bearer $token'});
       final respEnrolls = await http.get(ApiConfig.uri('/api/Lessons/enrollments'), headers: {'Authorization': 'Bearer $token'});
@@ -135,7 +133,6 @@ class _CalendarioProfessorContentSectionState extends State<CalendarioProfessorC
 
       if (respLessons.statusCode != 200) return [];
 
-      // Função auxiliar para extrair Listas dos JSONs com segurança
       List<dynamic> extractList(http.Response res) {
         if (res.statusCode != 200) return [];
         final body = jsonDecode(res.body);
@@ -157,15 +154,12 @@ class _CalendarioProfessorContentSectionState extends State<CalendarioProfessorC
         final idLesson = (l['idLesson'] ?? l['IdLesson'] ?? l['id_lesson'])?.toString() ?? '';
         final idCourse = (l['idCourse'] ?? l['IdCourse'] ?? l['id_course'])?.toString();
 
-        // Só processamos as aulas DESTE professor que tenham data válida
         if (apiProfId == myProfId && schedStart != null && schedEnd != null) {
           final dtStart = DateTime.parse(schedStart.toString()).toLocal();
           final dtEnd = DateTime.parse(schedEnd.toString()).toLocal();
 
-          // Ignorar aulas do passado (Apenas "Próximas")
           if (dtStart.isBefore(agora.subtract(const Duration(days: 1)))) continue;
 
-          // --- 🔍 A) DESCOBRIR A DISCIPLINA ---
           String disciplina = "Aula";
           if (idCourse != null) {
             final courseMatch = courses.where((c) => (c['idCourse'] ?? c['IdCourse'] ?? c['id_course']).toString() == idCourse).toList();
@@ -174,11 +168,24 @@ class _CalendarioProfessorContentSectionState extends State<CalendarioProfessorC
             }
           }
 
-          // --- 🔍 B) DESCOBRIR O ALUNO (Através do Enrollment) ---
           String studentName = "Aluno Desconhecido";
+          String statusAtual = "scheduled";
+
           final enrollMatch = enrollments.where((e) => (e['idLesson'] ?? e['IdLesson'] ?? e['id_lesson']).toString() == idLesson).toList();
           
+          if (enrollMatch.isEmpty) {
+            continue; 
+          }
+
+          statusAtual = (enrollMatch.first['status'] ?? enrollMatch.first['Status'] ?? '').toString().toLowerCase();
+
+          if (statusAtual == 'pending') continue;
+
           if (enrollMatch.isNotEmpty) {
+            statusAtual = (enrollMatch.first['status'] ?? enrollMatch.first['Status'] ?? '').toString().toLowerCase();
+            
+            if (statusAtual == 'pending') continue; 
+
             final idUser = (enrollMatch.first['idUser'] ?? enrollMatch.first['IdUser'] ?? enrollMatch.first['id_user']).toString();
             final userMatch = users.where((u) => (u['idUser'] ?? u['IdUser'] ?? u['id_user'] ?? u['id']).toString() == idUser).toList();
             
@@ -188,7 +195,6 @@ class _CalendarioProfessorContentSectionState extends State<CalendarioProfessorC
               final lastName = u['lastName'] ?? u['LastName'];
               final username = u['username'] ?? u['UserName'];
 
-              // Se tiver primeiro e último nome, junta. Senão usa o username.
               if (firstName != null && lastName != null) {
                 studentName = "$firstName $lastName";
               } else if (username != null) {
@@ -197,17 +203,18 @@ class _CalendarioProfessorContentSectionState extends State<CalendarioProfessorC
             }
           }
 
-          // --- 🎨 C) GERAR INICIAIS ---
+          if (statusAtual == 'canceled') {
+            studentName = "$studentName (Aula Recusada)";
+          }
+
           String iniciais = "A";
-          final words = studentName.trim().split(' ');
+          final words = studentName.replaceAll('(Aula Recusada)', '').trim().split(' ');
           if (words.length > 1) {
-            // Pega na primeira letra da primeira palavra e da última palavra
             iniciais = '${words.first[0]}${words.last[0]}'.toUpperCase();
           } else if (words.isNotEmpty && words[0].isNotEmpty) {
             iniciais = words.first[0].toUpperCase();
           }
 
-          // --- 🎨 D) ATRIBUIR CORES IGUAIS AO MOCK DATA ---
           Color badgeColor = CalendarioProfessorColors.badgeBlue;
           final dLower = disciplina.toLowerCase();
           
@@ -219,7 +226,6 @@ class _CalendarioProfessorContentSectionState extends State<CalendarioProfessorC
             badgeColor = CalendarioProfessorColors.badgeBlue;
           }
 
-          // --- 📅 E) FORMATAR DATAS E HORAS ---
           final diaSemana = _traduzirDiaSemana(dtStart.weekday);
           final mes = _traduzirMes(dtStart.month);
           final dataFormatada = '$diaSemana, ${dtStart.day} $mes';
@@ -233,13 +239,12 @@ class _CalendarioProfessorContentSectionState extends State<CalendarioProfessorC
               studentName: studentName,
               subject: disciplina,
               weekdayAndDate: dataFormatada,
-              timeRange: horaFormatada,
+              timeRange: horaFormatada, // 💡 Hora volta a ficar normal e bonita
             )
           );
         }
       }
 
-      // 3. Ordenar cronologicamente (da mais próxima para a mais distante)
       aulasConvertidas.sort((a, b) => a.timeRange.compareTo(b.timeRange));
       return aulasConvertidas;
     } catch (e) {
@@ -262,16 +267,14 @@ class _CalendarioProfessorContentSectionState extends State<CalendarioProfessorC
     return meses[month - 1];
   }
 
-  // ========================================================
-  // LÓGICA DE CANCELAMENTO
-  // ========================================================
-  Future<void> _cancelarAula(String idLesson) async {
-    // 1. Mostrar um aviso para evitar cliques acidentais
+  Future<void> _cancelarAula(String idLesson, bool isAlreadyCanceled) async {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Cancelar Aula', style: TextStyle(fontWeight: FontWeight.bold)),
-        content: const Text('Tens a certeza que pretendes cancelar esta aula? Esta ação não pode ser revertida.'),
+        title: Text(isAlreadyCanceled ? 'Limpar Registo' : 'Cancelar Aula', style: const TextStyle(fontWeight: FontWeight.bold)),
+        content: Text(isAlreadyCanceled 
+            ? 'Queres apagar este registo de aula cancelada do teu histórico?' 
+            : 'Tens a certeza que pretendes cancelar esta aula? Esta ação não pode ser revertida.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -280,7 +283,7 @@ class _CalendarioProfessorContentSectionState extends State<CalendarioProfessorC
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Sim, Cancelar', style: TextStyle(color: Colors.white)),
+            child: Text(isAlreadyCanceled ? 'Sim, Limpar' : 'Sim, Cancelar', style: const TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -288,7 +291,6 @@ class _CalendarioProfessorContentSectionState extends State<CalendarioProfessorC
 
     if (confirm != true) return;
 
-    // 2. Chamar a API para apagar
     try {
       final token = await TokenStorage().loadToken() ?? '';
       
@@ -299,25 +301,23 @@ class _CalendarioProfessorContentSectionState extends State<CalendarioProfessorC
 
       if (response.statusCode == 200 || response.statusCode == 204) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Aula cancelada com sucesso!'), backgroundColor: Colors.green));
-          
-          // 3. Atualizar as Listas e a Agenda!
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(isAlreadyCanceled ? 'Registo limpo com sucesso!' : 'Aula cancelada com sucesso!'), 
+            backgroundColor: Colors.green
+          ));
           setState(() {
             _listaAulasKey = UniqueKey();
           });
           _agendaKey.currentState?.recarregarDados();
         }
       } else {
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro ao cancelar: ${response.body}'), backgroundColor: Colors.red));
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro ao executar: ${response.body}'), backgroundColor: Colors.red));
       }
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro: $e'), backgroundColor: Colors.red));
     }
   }
 
-  // ========================================================
-  // WIDGET FUTUREBUILDER
-  // ========================================================
   Widget _buildProximasAulasReais({required Key key}) {
     return FutureBuilder<List<ProfessorAulaCardData>>(
       key: key,
@@ -351,13 +351,13 @@ class _CalendarioProfessorContentSectionState extends State<CalendarioProfessorC
           separatorBuilder: (context, index) => const SizedBox(height: CalendarioProfessorLayout.listGap),
           itemBuilder: (context, index) {
             final aula = aulas[index];
+            // 💡 A VERIFICAÇÃO AGORA É FEITA NO NOME DO ALUNO
+            final isCanceled = aula.studentName.contains('(Recusada)');
+            
             return AulaCard(
               data: aula, 
-              onEnterTap: () {
-                // Lógica de entrar na aula no futuro
-              }, 
-              // 💡 LIGAMOS O BOTÃO À FUNÇÃO!
-              onCancelTap: () => _cancelarAula(aula.idLesson),
+              onEnterTap: () {}, 
+              onCancelTap: () => _cancelarAula(aula.idLesson, isCanceled),
             );
           },
         );

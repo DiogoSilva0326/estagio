@@ -1,10 +1,177 @@
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'package:aula_extra/core/data/http/api_config.dart';
+import 'package:aula_extra/core/data/session/token_storage.dart';
+import 'package:intl/intl.dart';
+
 import 'package:aula_extra/features/aluno/core/widgets/aluno_menu_nav.dart';
 import 'package:aula_extra/features/aluno/calendario/constants/calendario_constants.dart';
 import 'package:aula_extra/routes/routes.dart';
 import 'package:flutter/material.dart';
 
-class CalendarioContentSection extends StatelessWidget {
+class AlunoAulaCardData {
+  final String idLesson;
+  final String subject;
+  final String teacherName;
+  final Color badgeColor;
+  final String dateLabel;
+  final String timeLabel;
+
+  AlunoAulaCardData({
+    required this.idLesson,
+    required this.subject,
+    required this.teacherName,
+    required this.badgeColor,
+    required this.dateLabel,
+    required this.timeLabel,
+  });
+}
+
+class CalendarioContentSection extends StatefulWidget {
   const CalendarioContentSection({super.key});
+
+  @override
+  State<CalendarioContentSection> createState() => _CalendarioContentSectionState();
+}
+
+class _CalendarioContentSectionState extends State<CalendarioContentSection> {
+  final Key _listaAulasKey = UniqueKey();
+
+  Future<List<AlunoAulaCardData>> _fetchAulasDoAlunoDaBD() async {
+    try {
+      final token = await TokenStorage().loadToken() ?? '';
+
+      String? myUserId;
+      final respUser = await http.get(ApiConfig.uri('/api/Users/me'), headers: {'Authorization': 'Bearer $token'});
+      if (respUser.statusCode == 200) {
+        final userData = jsonDecode(respUser.body);
+        myUserId = (userData['idUser'] ?? userData['id_user'] ?? userData['id'])?.toString();
+      }
+      if (myUserId == null) return [];
+
+      final respEnrolls = await http.get(ApiConfig.uri('/api/Lessons/enrollments'), headers: {'Authorization': 'Bearer $token'});
+      final respLessons = await http.get(ApiConfig.uri('/api/Lessons/lessons'), headers: {'Authorization': 'Bearer $token'});
+      final respCourses = await http.get(ApiConfig.uri('/api/Courses/courses'), headers: {'Authorization': 'Bearer $token'});
+      final respUsers = await http.get(ApiConfig.uri('/api/Users'), headers: {'Authorization': 'Bearer $token'});
+      final respProfessors = await http.get(ApiConfig.uri('/api/Professors'), headers: {'Authorization': 'Bearer $token'});
+
+      List<dynamic> extractList(http.Response res) {
+        if (res.statusCode != 200) return [];
+        final body = jsonDecode(res.body);
+        return body is List ? body : (body['data'] ?? body['items'] ?? []);
+      }
+
+      final enrollments = extractList(respEnrolls);
+      final lessons = extractList(respLessons);
+      final courses = extractList(respCourses);
+      final users = extractList(respUsers);
+      final professors = extractList(respProfessors);
+
+      List<AlunoAulaCardData> aulasConvertidas = [];
+      final agora = DateTime.now();
+
+      final myEnrollments = enrollments.where((e) => 
+        (e['idUser'] ?? e['IdUser'] ?? e['id_user']).toString() == myUserId
+      ).toList();
+
+      for (var enroll in myEnrollments) {
+        final status = (enroll['status'] ?? enroll['Status'] ?? '').toString().toLowerCase();
+        
+        if (status == 'pending' || status == 'canceled') continue;
+        
+        final idLessonEnroll = (enroll['idLesson'] ?? enroll['IdLesson'] ?? enroll['id_lesson'])?.toString();
+
+        final lessonMatch = lessons.where((l) => 
+          (l['idLesson'] ?? l['IdLesson'] ?? l['id_lesson']).toString() == idLessonEnroll
+        ).toList();
+
+        if (lessonMatch.isNotEmpty) {
+          final l = lessonMatch.first;
+          final schedStart = l['scheduledStart'] ?? l['ScheduledStart'];
+          final schedEnd = l['scheduledEnd'] ?? l['ScheduledEnd'];
+          final idCourse = (l['idCourse'] ?? l['IdCourse'] ?? l['id_course'])?.toString();
+          final idProfessor = (l['idProfessor'] ?? l['IdProfessor'] ?? l['id_professor'])?.toString();
+
+          if (schedStart != null && schedEnd != null) {
+            final dtStart = DateTime.parse(schedStart.toString()).toLocal();
+            final dtEnd = DateTime.parse(schedEnd.toString()).toLocal();
+
+            if (dtStart.isBefore(agora.subtract(const Duration(days: 1)))) continue;
+
+            String disciplina = "Aula";
+            if (idCourse != null) {
+              final courseMatch = courses.where((c) => (c['idCourse'] ?? c['IdCourse'] ?? c['id_course']).toString() == idCourse).toList();
+              if (courseMatch.isNotEmpty) {
+                disciplina = (courseMatch.first['name'] ?? courseMatch.first['Name']).toString();
+              }
+            }
+
+            String professorName = "Professor Desconhecido";
+            if (idProfessor != null) {
+              final profMatch = professors.where((p) => (p['idProfessor'] ?? p['IdProfessor'] ?? p['id_professor']).toString() == idProfessor).toList();
+              if (profMatch.isNotEmpty) {
+                final profUserId = (profMatch.first['idUser'] ?? profMatch.first['IdUser'] ?? profMatch.first['id_user']).toString();
+                final userMatch = users.where((u) => (u['idUser'] ?? u['IdUser'] ?? u['id_user'] ?? u['id']).toString() == profUserId).toList();
+                if (userMatch.isNotEmpty) {
+                  final u = userMatch.first;
+                  final firstName = u['firstName'] ?? u['FirstName'];
+                  final lastName = u['lastName'] ?? u['LastName'];
+                  final username = u['username'] ?? u['UserName'];
+
+                  if (firstName != null && lastName != null) {
+                    professorName = "$firstName $lastName";
+                  } else if (username != null) {
+                    professorName = username.toString();
+                  }
+                }
+              }
+            }
+
+            Color badgeColor = const Color(0xFF2B7FFF);
+            final dLower = disciplina.toLowerCase();
+            if (dLower.contains('física') || dLower.contains('biologia')) {
+              badgeColor = const Color(0xFF00C950);
+            } else if (dLower.contains('inglês') || dLower.contains('química')) {
+              badgeColor = const Color(0xFFFF6900);
+            }
+
+            final mes = _traduzirMes(dtStart.month);
+            String dateLabel = '📅 ${dtStart.day} $mes';
+            
+            if (dtStart.year == agora.year && dtStart.month == agora.month && dtStart.day == agora.day) {
+              dateLabel = '📅 Hoje';
+            } else if (dtStart.year == agora.year && dtStart.month == agora.month && dtStart.day == agora.day + 1) {
+              dateLabel = '📅 Amanhã';
+            }
+
+            final timeLabel = '🕐 ${DateFormat('HH:mm').format(dtStart)} - ${DateFormat('HH:mm').format(dtEnd)}';
+
+            aulasConvertidas.add(
+              AlunoAulaCardData(
+                idLesson: idLessonEnroll!,
+                subject: disciplina,
+                teacherName: professorName,
+                badgeColor: badgeColor,
+                dateLabel: dateLabel,
+                timeLabel: timeLabel,
+              )
+            );
+          }
+        }
+      }
+
+      aulasConvertidas.sort((a, b) => a.dateLabel.compareTo(b.dateLabel));
+      return aulasConvertidas;
+    } catch (e) {
+      debugPrint('Erro ao carregar próximas aulas do aluno: $e');
+      return [];
+    }
+  }
+
+  String _traduzirMes(int month) {
+    const meses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+    return meses[month - 1];
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -37,50 +204,54 @@ class CalendarioContentSection extends StatelessWidget {
                   onWeeklyTap: () => Navigator.of(context).pushNamed(Routes.calendarioSemanal),
                 ),
                 const SizedBox(height: 22.404),
-                const _UpcomingLessonCard(
-                  accentColor: Color(0xFF2B7FFF),
-                  subject: 'Matemática',
-                  teacherName: 'João Silva',
-                  statusLabel: 'Em 5 minutos',
-                  statusBackgroundColor: Color(0xFFDCFCE7),
-                  statusTextColor: Color(0xFF008236),
-                  dateLabel: '📅 Hoje',
-                  timeLabel: '🕐 14:30 - 15:30',
-                  primaryActionStyle: _PrimaryActionStyle.enterClass,
-                  primaryActionLabel: 'Entrar na Aula',
+                
+                FutureBuilder<List<AlunoAulaCardData>>(
+                  key: _listaAulasKey,
+                  future: _fetchAulasDoAlunoDaBD(),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Padding(
+                        padding: EdgeInsets.only(top: 50.0, bottom: 50.0),
+                        child: Center(child: CircularProgressIndicator()),
+                      );
+                    }
+
+                    final aulas = snapshot.data ?? [];
+
+                    if (aulas.isEmpty) {
+                      return const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 40.0),
+                        child: Center(
+                          child: Text(
+                            "Ainda não tens aulas marcadas. Começa agora!",
+                            style: TextStyle(color: Colors.grey, fontSize: 18),
+                          ),
+                        ),
+                      );
+                    }
+
+                    return Column(
+                      children: aulas.map((aula) {
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 22.404),
+                          child: _UpcomingLessonCard(
+                            accentColor: aula.badgeColor,
+                            subject: aula.subject,
+                            teacherName: aula.teacherName,
+                            dateLabel: aula.dateLabel,
+                            timeLabel: aula.timeLabel,
+                            primaryActionStyle: aula.dateLabel.contains('Hoje') 
+                                ? _PrimaryActionStyle.enterClass 
+                                : _PrimaryActionStyle.viewDetails,
+                            primaryActionLabel: aula.dateLabel.contains('Hoje') 
+                                ? 'Entrar na Aula' 
+                                : 'Ver Detalhes',
+                          ),
+                        );
+                      }).toList(),
+                    );
+                  },
                 ),
-                const SizedBox(height: 22.404),
-                const _UpcomingLessonCard(
-                  accentColor: Color(0xFF00C950),
-                  subject: 'Física',
-                  teacherName: 'Maria Santos',
-                  dateLabel: '📅 Amanhã',
-                  timeLabel: '🕐 10:00 - 11:00',
-                  primaryActionStyle: _PrimaryActionStyle.viewDetails,
-                  primaryActionLabel: 'Ver Detalhes',
-                ),
-                const SizedBox(height: 22.404),
-                const _UpcomingLessonCard(
-                  accentColor: Color(0xFFFF6900),
-                  subject: 'Inglês',
-                  teacherName: 'Pedro Costa',
-                  dateLabel: '📅 29 Jan',
-                  timeLabel: '🕐 16:00 - 17:00',
-                  primaryActionStyle: _PrimaryActionStyle.viewDetails,
-                  primaryActionLabel: 'Ver Detalhes',
-                ),
-                const SizedBox(height: 22.404),
-                const _UpcomingLessonCard(
-                  accentColor: Color(0xFF2B7FFF),
-                  subject: 'Matemática',
-                  teacherName: 'Ana Rodrigues',
-                  dateLabel: '📅 30 Jan',
-                  timeLabel: '🕐 15:00 - 16:00',
-                  primaryActionStyle: _PrimaryActionStyle.viewDetails,
-                  primaryActionLabel: 'Ver Detalhes',
-                ),
-                const SizedBox(height: 22.404),
-                const _NewLessonButton(),
               ],
             ),
           ),
@@ -187,9 +358,6 @@ class _UpcomingLessonCard extends StatelessWidget {
     required this.accentColor,
     required this.subject,
     required this.teacherName,
-    this.statusLabel,
-    this.statusBackgroundColor,
-    this.statusTextColor,
     required this.dateLabel,
     required this.timeLabel,
     required this.primaryActionStyle,
@@ -199,14 +367,8 @@ class _UpcomingLessonCard extends StatelessWidget {
   final Color accentColor;
   final String subject;
   final String teacherName;
-
-  final String? statusLabel;
-  final Color? statusBackgroundColor;
-  final Color? statusTextColor;
-
   final String dateLabel;
   final String timeLabel;
-
   final _PrimaryActionStyle primaryActionStyle;
   final String primaryActionLabel;
 
@@ -266,25 +428,6 @@ class _UpcomingLessonCard extends StatelessWidget {
                           ],
                         ),
                       ),
-                      if (statusLabel != null && statusBackgroundColor != null && statusTextColor != null)
-                        Container(
-                          height: 33.607,
-                          padding: const EdgeInsets.symmetric(horizontal: 16.803),
-                          alignment: Alignment.center,
-                          decoration: BoxDecoration(
-                            color: statusBackgroundColor,
-                            borderRadius: BorderRadius.circular(23492794),
-                          ),
-                          child: Text(
-                            statusLabel!,
-                            style: TextStyle(
-                              fontSize: 16.803,
-                              fontWeight: FontWeight.w500,
-                              color: statusTextColor,
-                              height: 22.404 / 16.803,
-                            ),
-                          ),
-                        ),
                     ],
                   ),
                   const SizedBox(height: 11.202),
@@ -462,37 +605,6 @@ class _SecondaryIconButton extends StatelessWidget {
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(19.604)),
         ),
         child: const Icon(Icons.close_rounded, size: 22.404, color: Color(0xFFFB2C36)),
-      ),
-    );
-  }
-}
-
-class _NewLessonButton extends StatelessWidget {
-  const _NewLessonButton();
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      height: 84.017,
-      child: OutlinedButton.icon(
-        onPressed: () {},
-        icon: const Icon(Icons.add_circle_outline_rounded, size: 28.006, color: Color(0xFF4A5565)),
-        label: const Text(
-          'Marcar Nova Aula',
-          style: TextStyle(
-            fontSize: 22.404,
-            fontWeight: FontWeight.w400,
-            color: Color(0xFF4A5565),
-            height: 33.607 / 22.404,
-          ),
-        ),
-        style: OutlinedButton.styleFrom(
-          padding: const EdgeInsets.all(2.801),
-          side: const BorderSide(color: Color(0xFFD1D5DC), width: 2.801),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22.404)),
-          backgroundColor: Colors.white,
-        ),
       ),
     );
   }

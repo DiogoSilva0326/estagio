@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 
 class ProfessorAulaCardData {
   const ProfessorAulaCardData({
-    this.idLesson = '', // 💡 NOVO: Guardar o ID da aula para podermos apagar!
+    this.idLesson = '', 
     required this.initials,
     required this.color,
     required this.studentName,
