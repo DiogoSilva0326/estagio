@@ -1,11 +1,17 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Threading.Tasks;
 using System.Linq;
 using System.Security.Cryptography;
+using System.Net;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using ConfidantPostgreSQL.Auth;
+using ConfidantPostgreSQL.Integrations.CloudflareImages;
 using ConfidantPostgreSQL.Modules.Users.Models;
 using ConfidantPostgreSQL.Modules.Users.DTOs;
 using ConfidantPostgreSQL.Modules.Student.Service;
@@ -26,18 +32,24 @@ namespace ConfidantPostgreSQL.Modules.Users.Controller
         private readonly IMyTutorsService _myTutors;
         private readonly IUserProfileService _userProfileService;
         private readonly IEmailTemplateService _emailService;
+        private readonly IServiceProvider _services;
+        private readonly IOptions<CloudflareImagesOptions> _cloudflareOptions;
         private readonly string _connStr;
 
         public UsersController(
             IUserService service, 
             IMyTutorsService myTutors,
             IUserProfileService userProfileService,
-            IEmailTemplateService emailService)
+            IEmailTemplateService emailService,
+            IServiceProvider services,
+            IOptions<CloudflareImagesOptions> cloudflareOptions)
         {
             _service = service;
             _myTutors = myTutors;
             _userProfileService = userProfileService;
             _emailService = emailService;
+            _services = services;
+            _cloudflareOptions = cloudflareOptions;
             var host = Environment.GetEnvironmentVariable("DB_HOST") ?? "localhost";
             var port = Environment.GetEnvironmentVariable("DB_PORT") ?? "5432";
             var user = Environment.GetEnvironmentVariable("DB_USER") ?? "sa";
@@ -50,12 +62,12 @@ namespace ConfidantPostgreSQL.Modules.Users.Controller
         // Returns the authenticated student's tutors with last lesson + optional rating.
         [AuthorizeJwt]
         [HttpGet("me/tutors")]
-        public async Task<IActionResult> GetMyTutors()
+        public async Task<IActionResult> GetMyTutors([FromQuery] Guid? areaId = null)
         {
             if (!TryGetAuthenticatedUserId(out var userId))
                 return Unauthorized();
 
-            var items = await _myTutors.GetMyTutorsAsync(userId);
+            var items = await _myTutors.GetMyTutorsAsync(userId, areaId);
             return Ok(items);
         }
 
@@ -77,11 +89,32 @@ namespace ConfidantPostgreSQL.Modules.Users.Controller
 
         public class UpdateMyProfileRequest
         {
+            public string? Username { get; set; }
             public string? DisplayName { get; set; }
             public string? EducationLevel { get; set; }
             public string? Biography { get; set; }
             public string? MobileNumber { get; set; }
             public string? PhoneNumber { get; set; }
+            public string? Website { get; set; }
+        }
+
+        public class SetProfileImageFromUrlRequest
+        {
+            public string? ImageUrl { get; set; }
+        }
+
+        public class ProfileImageResponse
+        {
+            public string? ProfileImageUrl { get; set; }
+            public string? ProfileImageThumbnailUrl { get; set; }
+            public string? ProfileImageCloudflareId { get; set; }
+            public string? ProfileImageProvider { get; set; }
+            public string? ProfileImageSource { get; set; }
+        }
+
+        public class MarkNotificationReadRequest
+        {
+            public bool IsRead { get; set; } = true;
         }
 
         // Compat update payload (similar to legacy API body for PUT /api/Users)
@@ -124,9 +157,45 @@ namespace ConfidantPostgreSQL.Modules.Users.Controller
             if (!TryGetAuthenticatedUserId(out var userId))
                 return Unauthorized();
 
-            var user = await _service.GetByIdAsync(userId);
-            if (user == null) return NotFound();
-            return Ok(user);
+            var response = await BuildMeResponseAsync(userId);
+            return response == null ? NotFound() : Ok(response);
+        }
+
+        [AuthorizeJwt]
+        [HttpGet("me/notifications")]
+        public async Task<IActionResult> GetMyNotifications()
+        {
+            if (!TryGetAuthenticatedUserId(out var userId))
+                return Unauthorized();
+
+            var items = await _service.GetNotificationsByUserIdAsync(userId);
+            return Ok(items);
+        }
+
+        [AuthorizeJwt]
+        [HttpPut("me/notifications/read-all")]
+        public async Task<IActionResult> MarkAllMyNotificationsAsRead()
+        {
+            if (!TryGetAuthenticatedUserId(out var userId))
+                return Unauthorized();
+
+            var rows = await _service.MarkAllNotificationsAsReadAsync(userId);
+            return Ok(new { updated = rows });
+        }
+
+        [AuthorizeJwt]
+        [HttpPut("me/notifications/{notificationId:guid}/read")]
+        public async Task<IActionResult> MarkMyNotificationAsRead(Guid notificationId, [FromBody] MarkNotificationReadRequest? request = null)
+        {
+            if (!TryGetAuthenticatedUserId(out var userId))
+                return Unauthorized();
+
+            if (request?.IsRead == false)
+                return BadRequest(new { message = "Only mark-as-read is supported." });
+
+            var updated = await _service.MarkNotificationAsReadAsync(userId, notificationId);
+            if (!updated) return NotFound();
+            return NoContent();
         }
 
         // PUT /api/Users/me
@@ -138,38 +207,318 @@ namespace ConfidantPostgreSQL.Modules.Users.Controller
             if (!TryGetAuthenticatedUserId(out var userId))
                 return Unauthorized();
 
+            var normalizedUsername = request?.Username?.Trim();
+            if (request?.Username != null && string.IsNullOrWhiteSpace(normalizedUsername))
+            {
+                return BadRequest(new { message = "Username is required" });
+            }
+
+            if (!string.IsNullOrWhiteSpace(normalizedUsername))
+            {
+                var existing = await _service.GetByUsernameAsync(normalizedUsername);
+                if (existing != null && existing.Id.HasValue && existing.Id.Value != userId)
+                {
+                    return Conflict(new { message = "Username already exists" });
+                }
+            }
+
             await using var conn = new NpgsqlConnection(_connStr);
             await conn.OpenAsync();
 
-            await using (var cmd = conn.CreateCommand())
+            try
             {
+                await using var cmd = conn.CreateCommand();
                 cmd.CommandText = @"
                     UPDATE public.users
                     SET
+                        username = COALESCE(@p_username, username),
                         display_name = @p_display_name,
                         education_level = @p_education_level,
                         biography = @p_biography,
                         mobile_number = @p_mobile_number,
                         phone_number = @p_phone_number,
+                        website = @p_website,
                         last_update = now(),
                         last_user_id = @p_last_user_id
                     WHERE id_user = @p_id;";
 
                 cmd.Parameters.AddWithValue("p_id", userId);
+                cmd.Parameters.AddWithValue("p_username", string.IsNullOrWhiteSpace(normalizedUsername) ? DBNull.Value : normalizedUsername);
                 cmd.Parameters.AddWithValue("p_display_name", (object?)request?.DisplayName ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("p_education_level", (object?)request?.EducationLevel ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("p_biography", (object?)request?.Biography ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("p_mobile_number", (object?)request?.MobileNumber ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("p_phone_number", (object?)request?.PhoneNumber ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("p_website", (object?)request?.Website ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("p_last_user_id", userId);
 
                 var rows = await cmd.ExecuteNonQueryAsync();
                 if (rows == 0) return NotFound();
+
+                var response = await BuildMeResponseAsync(userId);
+                return response == null ? NotFound() : Ok(response);
+            }
+            catch (PostgresException ex) when (
+                ex.SqlState == "23505" &&
+                (string.Equals(ex.ConstraintName, "idx_users_username", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(ex.ConstraintName, "users_username_key", StringComparison.OrdinalIgnoreCase) ||
+                 (ex.MessageText?.Contains("username", StringComparison.OrdinalIgnoreCase) ?? false)))
+            {
+                return Conflict(new { message = "Username already exists" });
+            }
+        }
+
+        [AuthorizeJwt]
+        [HttpPost("me/profile-image/upload")]
+        [RequestSizeLimit(8 * 1024 * 1024)]
+        public async Task<IActionResult> UploadMyProfileImage([FromForm] IFormFile? file, CancellationToken cancellationToken)
+        {
+            if (!TryGetAuthenticatedUserId(out var userId))
+                return Unauthorized();
+
+            if (!_cloudflareOptions.Value.IsConfigured)
+            {
+                return StatusCode(StatusCodes.Status503ServiceUnavailable, new { message = "Cloudflare Images não está configurado." });
             }
 
+            if (file == null || file.Length <= 0)
+            {
+                return BadRequest(new { message = "Imagem é obrigatória." });
+            }
+
+            if (!IsSupportedImageUpload(file))
+            {
+                return BadRequest(new { message = "Apenas ficheiros de imagem são suportados." });
+            }
+
+            await using var stream = file.OpenReadStream();
+            return await SaveProfileImageAsync(
+                userId,
+                source: "upload",
+                uploader: (client, ct) => client.UploadFileAsync(
+                    stream,
+                    string.IsNullOrWhiteSpace(file.FileName) ? $"profile-{userId:N}.bin" : file.FileName,
+                    id: null,
+                    metadata: new Dictionary<string, string>
+                    {
+                        ["userId"] = userId.ToString(),
+                        ["source"] = "upload"
+                    },
+                    ct),
+                cancellationToken);
+        }
+
+        private static bool IsSupportedImageUpload(IFormFile file)
+        {
+            var contentType = file.ContentType?.Trim();
+            if (!string.IsNullOrWhiteSpace(contentType) &&
+                contentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            var extension = Path.GetExtension(file.FileName)?.Trim().ToLowerInvariant();
+            return extension is ".png" or ".jpg" or ".jpeg" or ".gif" or ".webp" or ".svg" or ".heic";
+        }
+
+        [AuthorizeJwt]
+        [HttpPost("me/profile-image/from-url")]
+        public async Task<IActionResult> SetMyProfileImageFromUrl([FromBody] SetProfileImageFromUrlRequest request, CancellationToken cancellationToken)
+        {
+            if (!TryGetAuthenticatedUserId(out var userId))
+                return Unauthorized();
+
+            if (!_cloudflareOptions.Value.IsConfigured)
+            {
+                return StatusCode(StatusCodes.Status503ServiceUnavailable, new { message = "Cloudflare Images não está configurado." });
+            }
+
+            var imageUrl = request?.ImageUrl?.Trim();
+            if (string.IsNullOrWhiteSpace(imageUrl))
+            {
+                return BadRequest(new { message = "URL da imagem é obrigatória." });
+            }
+
+            if (!Uri.TryCreate(imageUrl, UriKind.Absolute, out var uri) ||
+                (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
+            {
+                return BadRequest(new { message = "URL de imagem inválida." });
+            }
+
+            return await SaveProfileImageAsync(
+                userId,
+                source: "external_url",
+                uploader: (client, ct) => client.UploadViaUrlAsync(
+                    imageUrl,
+                    id: null,
+                    metadata: new Dictionary<string, string>
+                    {
+                        ["userId"] = userId.ToString(),
+                        ["source"] = "external_url"
+                    },
+                    ct),
+                cancellationToken);
+        }
+
+        [AuthorizeJwt]
+        [HttpDelete("me/profile-image")]
+        public async Task<IActionResult> DeleteMyProfileImage(CancellationToken cancellationToken)
+        {
+            if (!TryGetAuthenticatedUserId(out var userId))
+                return Unauthorized();
+
+            var profile = await _userProfileService.GetOrCreateAsync(userId);
+            await DeleteCloudflareImageIfNeededAsync(profile, cancellationToken);
+
+            await _userProfileService.UpdateAsync(new UpdateUserProfileRequest
+            {
+                UserId = userId,
+                ClearProfileImage = true,
+            });
+
+            return NoContent();
+        }
+
+        private async Task<object?> BuildMeResponseAsync(Guid userId)
+        {
             var user = await _service.GetByIdAsync(userId);
-            if (user == null) return NotFound();
-            return Ok(user);
+            if (user == null) return null;
+
+            var profile = await _userProfileService.GetOrCreateAsync(userId);
+
+            return new
+            {
+                id = user.Id,
+                email = user.Email,
+                username = user.Username,
+                displayName = user.DisplayName,
+                educationLevel = user.EducationLevel,
+                mobileNumber = user.MobileNumber,
+                phoneNumber = user.PhoneNumber,
+                nif = user.Nif,
+                website = user.Website,
+                biography = user.Biography,
+                creationDate = user.CreationDate,
+                profileImageUrl = profile.ProfileImageUrl,
+                profileImageThumbnailUrl = profile.ProfileImageThumbnailUrl,
+                profileImageCloudflareId = profile.ProfileImageCloudflareId,
+                profileImageProvider = profile.ProfileImageProvider,
+                profileImageSource = profile.ProfileImageSource,
+            };
+        }
+
+        private async Task<IActionResult> SaveProfileImageAsync(
+            Guid userId,
+            string source,
+            Func<ICloudflareImagesClient, CancellationToken, Task<CloudflareImagesClient.UploadResponse>> uploader,
+            CancellationToken cancellationToken)
+        {
+            var profile = await _userProfileService.GetOrCreateAsync(userId);
+            var previousCloudflareId = profile.ProfileImageCloudflareId;
+            var previousProvider = profile.ProfileImageProvider;
+
+            var client = _services.GetRequiredService<ICloudflareImagesClient>();
+            CloudflareImagesClient.UploadResponse upload;
+            CloudflareImagesClient.ImageDetails details;
+
+            try
+            {
+                upload = await uploader(client, cancellationToken);
+                details = await client.GetAsync(upload.Id, cancellationToken);
+            }
+            catch (CloudflareImagesApiException ex)
+            {
+                var statusCode = ex.StatusCode switch
+                {
+                    HttpStatusCode.BadRequest => StatusCodes.Status400BadRequest,
+                    HttpStatusCode.Unauthorized => StatusCodes.Status502BadGateway,
+                    HttpStatusCode.Forbidden => StatusCodes.Status502BadGateway,
+                    HttpStatusCode.UnprocessableEntity => StatusCodes.Status422UnprocessableEntity,
+                    _ => StatusCodes.Status502BadGateway,
+                };
+
+                return StatusCode(statusCode, new
+                {
+                    message = "Falha ao guardar imagem no Cloudflare.",
+                    providerStatus = (int)ex.StatusCode,
+                    providerError = ex.ResponseBody,
+                });
+            }
+
+            var imageUrl = ResolveCloudflareImageUrl(upload.Id, details.Variants);
+
+            await _userProfileService.UpdateAsync(new UpdateUserProfileRequest
+            {
+                UserId = userId,
+                ProfileImageUrl = imageUrl,
+                ProfileImageThumbnailUrl = imageUrl,
+                ProfileImageCloudflareId = upload.Id,
+                ProfileImageProvider = "cloudflare",
+                ProfileImageSource = source,
+            });
+
+            if (string.Equals(previousProvider, "cloudflare", StringComparison.OrdinalIgnoreCase) &&
+                !string.IsNullOrWhiteSpace(previousCloudflareId) &&
+                !string.Equals(previousCloudflareId, upload.Id, StringComparison.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    await client.DeleteAsync(previousCloudflareId, cancellationToken);
+                }
+                catch
+                {
+                }
+            }
+
+            return Ok(new ProfileImageResponse
+            {
+                ProfileImageUrl = imageUrl,
+                ProfileImageThumbnailUrl = imageUrl,
+                ProfileImageCloudflareId = upload.Id,
+                ProfileImageProvider = "cloudflare",
+                ProfileImageSource = source,
+            });
+        }
+
+        private string ResolveCloudflareImageUrl(string imageId, List<string>? variants)
+        {
+            var variantUrl = variants?.FirstOrDefault(v => !string.IsNullOrWhiteSpace(v));
+            if (!string.IsNullOrWhiteSpace(variantUrl))
+            {
+                return variantUrl!;
+            }
+
+            var deliveryBase = _cloudflareOptions.Value.DeliveryBase?.Trim();
+            var variant = string.IsNullOrWhiteSpace(_cloudflareOptions.Value.DefaultVariant)
+                ? "public"
+                : _cloudflareOptions.Value.DefaultVariant.Trim();
+
+            if (!string.IsNullOrWhiteSpace(deliveryBase))
+            {
+                return $"{deliveryBase.TrimEnd('/')}/{imageId}/{variant}";
+            }
+
+            return imageId;
+        }
+
+        private async Task DeleteCloudflareImageIfNeededAsync(Modules.UserProfile.Models.UserProfile? profile, CancellationToken cancellationToken)
+        {
+            if (profile == null ||
+                !string.Equals(profile.ProfileImageProvider, "cloudflare", StringComparison.OrdinalIgnoreCase) ||
+                string.IsNullOrWhiteSpace(profile.ProfileImageCloudflareId) ||
+                !_cloudflareOptions.Value.IsConfigured)
+            {
+                return;
+            }
+
+            try
+            {
+                var client = _services.GetRequiredService<ICloudflareImagesClient>();
+                await client.DeleteAsync(profile.ProfileImageCloudflareId, cancellationToken);
+            }
+            catch
+            {
+            }
         }
 
         // GET /api/Users

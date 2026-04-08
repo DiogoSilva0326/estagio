@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using ConfidantPostgreSQL.Modules.Education.Models;
 using ConfidantPostgreSQL.Modules.Professors.Models;
 
 namespace ConfidantPostgreSQL.Modules.Professors.Repository
@@ -8,6 +9,7 @@ namespace ConfidantPostgreSQL.Modules.Professors.Repository
     public interface IProfessorsRepository
     {
         Task<IEnumerable<Professor>> GetProfessorsAllAsync();
+        Task<TutorBrowseResponse> BrowseTutorsAsync(TutorBrowseQuery query);
         Task<Professor?> GetProfessorByIdAsync(Guid idProfessor);
         Task<Professor?> GetProfessorByUserIdAsync(Guid idUser);
         Task<Guid> InsertProfessorAsync(Professor professor);
@@ -22,6 +24,7 @@ namespace ConfidantPostgreSQL.Modules.Professors.Repository
 
         Task<IEnumerable<Certificate>> GetCertificatesAllAsync();
         Task<Certificate?> GetCertificateByIdAsync(Guid idCertificate);
+        Task<IEnumerable<Certificate>> GetCertificatesByProfessorIdAsync(Guid idProfessor);
         Task<Guid> InsertCertificateAsync(Certificate cert);
         Task<int> UpdateCertificateAsync(Certificate cert);
         Task<int> DeleteCertificateAsync(Guid idCertificate);
@@ -29,10 +32,23 @@ namespace ConfidantPostgreSQL.Modules.Professors.Repository
 
         Task<IEnumerable<ProfessorRoom>> GetProfessorRoomsAllAsync();
         Task<ProfessorRoom?> GetProfessorRoomByIdAsync(Guid id);
+        Task<ProfessorRoom?> GetProfessorRoomByProfessorIdAsync(Guid professorId);
         Task<Guid> InsertProfessorRoomAsync(ProfessorRoom room);
         Task<int> UpdateProfessorRoomAsync(ProfessorRoom room);
         Task<int> DeleteProfessorRoomAsync(Guid id);
 
         Task<IEnumerable<ProfessorStudentDto>> GetAlunosByProfessorIdAsync(Guid professorUserId);
+
+        Task<IEnumerable<Disciplina>> GetDisciplinasByProfessorIdAsync(Guid idProfessor);
+        Task<int> UpsertDisciplinaForProfessorAsync(Guid idProfessor, ProfessorDisciplinaUpsert input, Guid? currentIdDisciplina = null);
+        Task<int> SetDisciplinasForProfessorAsync(Guid idProfessor, Guid[] ids);
+        Task<int> RemoveDisciplinaForProfessorAsync(Guid idProfessor, Guid idDisciplina);
+
+        Task<IEnumerable<ProfessorLanguage>> GetLanguagesCatalogAsync();
+        Task<IEnumerable<ProfessorLanguage>> GetLanguagesByProfessorIdAsync(Guid idProfessor);
+        Task<int> SetLanguagesForProfessorAsync(Guid idProfessor, ProfessorLanguage[] items);
+        Task<int> RemoveLanguageForProfessorAsync(Guid idProfessor, Guid idLanguage);
+
+        Task<ProfessorStats> GetProfessorStatsAsync(Guid idProfessor);
     }
 }

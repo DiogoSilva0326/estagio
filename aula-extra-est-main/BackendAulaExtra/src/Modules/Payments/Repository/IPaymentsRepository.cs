@@ -9,12 +9,14 @@ namespace ConfidantPostgreSQL.Modules.Payments.Repository
     {
         Task<IEnumerable<Wallet>> GetWalletsAllAsync();
         Task<Wallet?> GetWalletByIdAsync(Guid idWallet);
+        Task<Wallet?> GetWalletByOwnerUserIdAsync(Guid ownerUserId);
         Task<Guid> InsertWalletAsync(Wallet wallet);
         Task<int> UpdateWalletAsync(Wallet wallet);
         Task<int> DeleteWalletAsync(Guid idWallet);
 
         Task<IEnumerable<Transaction>> GetTransactionsAllAsync();
         Task<Transaction?> GetTransactionByIdAsync(Guid idTransaction);
+        Task<IEnumerable<Transaction>> GetTransactionsByWalletIdAsync(Guid walletId);
         Task<Guid> InsertTransactionAsync(Transaction tx);
         Task<int> UpdateTransactionAsync(Transaction tx);
         Task<int> DeleteTransactionAsync(Guid idTransaction);
@@ -22,6 +24,9 @@ namespace ConfidantPostgreSQL.Modules.Payments.Repository
         Task<IEnumerable<Invoice>> GetInvoicesAllAsync();
         Task<Invoice?> GetInvoiceByIdAsync(Guid idInvoice);
         Task<IEnumerable<Invoice>> GetInvoicesByUserIdAsync(Guid idUser);
+        Task<IEnumerable<StudentPaymentHistoryItemDto>> GetStudentPaymentHistoryAsync(Guid idUser);
+        Task<IEnumerable<ProfessorPaymentHistoryItemDto>> GetProfessorPaymentHistoryAsync(Guid idUser);
+        Task<ProfessorPaymentDetailsDto?> GetProfessorPaymentDetailsAsync(Guid idUser, Guid idReservationPayment);
         Task<Guid> InsertInvoiceAsync(Invoice invoice);
         Task<int> UpdateInvoiceAsync(Invoice invoice);
         Task<int> DeleteInvoiceAsync(Guid idInvoice);

@@ -64,6 +64,13 @@ external void _jsHideAll();
 @JS('window._nativeEmbeds.showAll')
 external void _jsShowAll();
 
+@JS('window._nativeEmbeds.setBottomLeftCutout')
+external void _jsSetBottomLeftCutout(
+  JSString id,
+  JSNumber width,
+  JSNumber height,
+);
+
 // ─── Typed Dart API ─────────────────────────────────────────────────
 
 /// Whether the native embeds JS is loaded. Returns false on non-web or if
@@ -133,3 +140,11 @@ void destroyAll() => _jsDestroyAll();
 void hideAll() => _jsHideAll();
 
 void showAll() => _jsShowAll();
+
+void setBottomLeftCutout({
+  required String id,
+  required double width,
+  required double height,
+}) {
+  _jsSetBottomLeftCutout(id.toJS, width.toJS, height.toJS);
+}

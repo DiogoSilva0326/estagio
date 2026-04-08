@@ -7,3 +7,5 @@ class FooterAssets {
   static const instagram = 'lib/core/components/footer/images/Instagram.svg';
   static const facebook = 'lib/core/components/footer/images/Facebook.svg';
 }
+
+//comment

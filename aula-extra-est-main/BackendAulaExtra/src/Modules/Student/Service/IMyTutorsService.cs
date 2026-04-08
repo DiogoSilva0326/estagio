@@ -7,6 +7,6 @@ namespace ConfidantPostgreSQL.Modules.Student.Service
 {
     public interface IMyTutorsService
     {
-        Task<IReadOnlyList<MyTutorDto>> GetMyTutorsAsync(Guid studentUserId);
+        Task<IReadOnlyList<MyTutorDto>> GetMyTutorsAsync(Guid studentUserId, Guid? areaId = null);
     }
 }

@@ -6,9 +6,9 @@ class MenuAluno extends StatelessWidget {
     super.key,
     this.selectedIndex,
     this.notificationCount = 0,
-    this.aulasEstaSemana = 4,
-    this.tarefasPendentes = 2,
-    this.proximaAulaEm = '5 minutos',
+    this.aulasEstaSemana = 0,
+    this.tarefasPendentes = 0,
+    this.proximaAulaEm = 'nenhuma',
     this.onItemTap,
   });
 

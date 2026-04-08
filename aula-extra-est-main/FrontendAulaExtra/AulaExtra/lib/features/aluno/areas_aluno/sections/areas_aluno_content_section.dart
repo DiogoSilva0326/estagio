@@ -99,6 +99,17 @@ class _AreasAlunoContentSectionState extends State<AreasAlunoContentSection> {
     return map;
   }
 
+  Map<String, List<String>> get _selectedDisciplinaIdsByAreaId {
+    final map = <String, List<String>>{};
+    for (final d in _myDisciplinas) {
+      final idArea = (d.idArea ?? '').trim();
+      final idDisciplina = d.idDisciplina.trim();
+      if (idArea.isEmpty || idDisciplina.isEmpty) continue;
+      (map[idArea] ??= <String>[]).add(idDisciplina);
+    }
+    return map;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -356,11 +367,13 @@ class _AreasAlunoContentSectionState extends State<AreasAlunoContentSection> {
                           final asset = _assetForAreaName(areaName);
 
                           final idArea = (d.idArea ?? '').trim();
+                          final selectedIds = _selectedDisciplinaIdsByAreaId[idArea] ?? const <String>[];
                           final selectedNames = _selectedDisciplinaNamesByAreaId[idArea] ?? const <String>[];
                           final overview = AreaOverview(
                             idArea: idArea,
                             name: areaName,
                             imageAsset: asset,
+                            selectedDisciplinaIds: selectedIds,
                             selectedDisciplinaNames: selectedNames,
                             scheduledLessons: 0,
                             pendingTasks: 0,

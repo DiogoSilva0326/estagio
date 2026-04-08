@@ -1,0 +1,13 @@
+FROM postgres:16-alpine
+
+WORKDIR /app
+
+COPY BackendAulaExtra/migration /app/migration
+COPY BackendAulaExtra/ConfidantPostgreSQL /app/ConfidantPostgreSQL
+COPY BackendAulaExtra/src /app/src
+COPY BackendAulaExtra/sql /app/sql
+COPY AulaExtraDeployServer/db-deploy-entrypoint.sh /usr/local/bin/db-deploy-entrypoint.sh
+
+RUN chmod +x /usr/local/bin/db-deploy-entrypoint.sh
+
+ENTRYPOINT ["/usr/local/bin/db-deploy-entrypoint.sh"]

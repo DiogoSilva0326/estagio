@@ -84,7 +84,6 @@ logs/
 *.sqlite
 *.db
 *.db-journal
-*.sql
 
 # Certificates and keys
 *.pem

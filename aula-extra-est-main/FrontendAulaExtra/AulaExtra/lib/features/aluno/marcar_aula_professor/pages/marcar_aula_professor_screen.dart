@@ -14,6 +14,7 @@ class MarcarAulaProfessorScreen extends StatelessWidget {
   const MarcarAulaProfessorScreen({super.key});
 
   static const MarcarAulaProfessorArgs fallbackArgs = MarcarAulaProfessorArgs(
+    professorId: '',
     tutorName: 'João Ribeiro',
     subject: 'Matemática',
     rating: 4.9,

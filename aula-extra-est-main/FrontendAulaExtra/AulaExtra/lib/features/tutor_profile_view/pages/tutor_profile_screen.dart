@@ -1,5 +1,7 @@
 import 'package:aula_extra/core/components/footer/sections/footer_section.dart';
 import 'package:aula_extra/core/components/header/app_header.dart';
+import 'package:aula_extra/core/data/professors/dtos/public_professor_profile_dto.dart';
+import 'package:aula_extra/core/data/professors/professors_service.dart';
 import 'package:aula_extra/core/widgets/pinned_header_delegate.dart';
 import 'package:aula_extra/features/tutor_profile_view/models/tutor_profile_args.dart';
 import 'package:aula_extra/features/tutor_profile_view/sections/back_bar_section.dart';
@@ -14,6 +16,7 @@ class TutorProfileScreen extends StatefulWidget {
   const TutorProfileScreen({super.key});
 
   static const TutorProfileArgs fallbackArgs = TutorProfileArgs(
+    professorId: '',
     name: 'João Ribeiro',
     country: 'Reino Unido',
     rating: 4.9,
@@ -30,7 +33,10 @@ class TutorProfileScreen extends StatefulWidget {
 }
 
 class _TutorProfileScreenState extends State<TutorProfileScreen> {
+  final ProfessorsService _professors = ProfessorsService();
   late final ScrollController _scrollController;
+  PublicProfessorProfileDto? _profile;
+  String? _loadedProfessorId;
 
   @override
   void initState() {
@@ -39,15 +45,56 @@ class _TutorProfileScreenState extends State<TutorProfileScreen> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final routeArgs = ModalRoute.of(context)?.settings.arguments;
+    final args = routeArgs is TutorProfileArgs
+        ? routeArgs
+        : TutorProfileScreen.fallbackArgs;
+
+    if (_loadedProfessorId == args.professorId) return;
+    _loadedProfessorId = args.professorId;
+    _loadProfile(args.professorId);
+  }
+
+  @override
   void dispose() {
     _scrollController.dispose();
     super.dispose();
   }
 
+  Future<void> _loadProfile(String professorId) async {
+    if (professorId.trim().isEmpty) {
+      if (!mounted) return;
+      setState(() {
+        _profile = null;
+      });
+      return;
+    }
+
+    try {
+      final profile = await _professors.getPublicProfessorProfile(
+        idProfessor: professorId,
+      );
+      if (!mounted) return;
+      setState(() {
+        _profile = profile;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _profile = null;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final routeArgs = ModalRoute.of(context)?.settings.arguments;
-    final args = routeArgs is TutorProfileArgs ? routeArgs : TutorProfileScreen.fallbackArgs;
+    final args = routeArgs is TutorProfileArgs
+        ? routeArgs
+        : TutorProfileScreen.fallbackArgs;
+    final profile = _profile;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF9FAFB),
@@ -61,10 +108,13 @@ class _TutorProfileScreenState extends State<TutorProfileScreen> {
               delegate: PinnedHeaderDelegate(
                 height: AppHeader.height,
                 child: AppHeader(
-                  onRegisterTap: () => Navigator.of(context).pushNamed(Routes.registerStudent),
-                  onLoginTap: () => Navigator.of(context).pushNamed(Routes.login),
-                  onLogoTap: () => Navigator.of(context)
-                      .pushNamedAndRemoveUntil(Routes.home, (route) => false),
+                  onRegisterTap: () =>
+                      Navigator.of(context).pushNamed(Routes.registerStudent),
+                  onLoginTap: () =>
+                      Navigator.of(context).pushNamed(Routes.login),
+                  onLogoTap: () => Navigator.of(
+                    context,
+                  ).pushNamedAndRemoveUntil(Routes.home, (route) => false),
                 ),
               ),
             ),
@@ -82,31 +132,44 @@ class _TutorProfileScreenState extends State<TutorProfileScreen> {
                     color: const Color(0xFF101828),
                     child: SizedBox(
                       width: double.infinity,
-                      child: FullBleedScaledSection(child: HeroSection(name: args.name)),
-                    ),
-                  ),
-                  DecoratedBox(
-                    decoration: const BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.centerLeft,
-                        end: Alignment.centerRight,
-                        colors: [
-                          Color.fromRGBO(252, 144, 57, 0.05),
-                          Color.fromRGBO(241, 92, 100, 0.05),
-                        ],
+                      child: FullBleedScaledSection(
+                        child: HeroSection(
+                          name: profile?.displayName ?? args.name,
+                          photoUrl: profile?.photo,
+                          presentationVideoUrl: profile?.presentationVideoUrl,
+                          isVerified: profile?.isVerified ?? false,
+                        ),
                       ),
                     ),
-                    child: SizedBox(
-                      width: double.infinity,
-                      child: FullBleedScaledSection(
-                        child: ProfileSummarySection(
-                          name: args.name,
-                          country: args.country,
-                          rating: args.rating,
-                          reviewCount: args.reviewCount,
-                          lessonsText: args.lessonsText,
-                          pricePerHour: args.pricePerHour,
-                          tags: args.tags,
+                  ),
+                  ClipPath(
+                    clipper: const _ProfileSummaryBackgroundClipper(),
+                    child: DecoratedBox(
+                      decoration: const BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.centerLeft,
+                          end: Alignment.centerRight,
+                          colors: [
+                            Color.fromRGBO(252, 144, 57, 0.05),
+                            Color.fromRGBO(241, 92, 100, 0.05),
+                          ],
+                        ),
+                      ),
+                      child: SizedBox(
+                        width: double.infinity,
+                        child: FullBleedScaledSection(
+                          child: ProfileSummarySection(
+                            name: profile?.displayName ?? args.name,
+                            country: args.country,
+                            rating: profile?.stats.avgRating ?? args.rating,
+                            reviewCount:
+                                profile?.stats.reviewCount ?? args.reviewCount,
+                            lessonsText: (profile?.stats.lessonsCount ?? 0) > 0
+                                ? '${profile!.stats.lessonsCount} aulas dadas'
+                                : args.lessonsText,
+                            pricePerHour: args.pricePerHour,
+                            tags: _buildTags(profile, args),
+                          ),
                         ),
                       ),
                     ),
@@ -116,7 +179,20 @@ class _TutorProfileScreenState extends State<TutorProfileScreen> {
                     child: SizedBox(
                       width: double.infinity,
                       child: FullBleedScaledSection(
-                        child: ProfileContentSection(description: args.description),
+                        child: ProfileContentSection(
+                          description:
+                              profile?.biography?.trim().isNotEmpty == true
+                              ? profile!.biography!.trim()
+                              : args.description,
+                          currentSchool: profile?.currentSchool,
+                          yearsExperience: profile?.yearsExperience,
+                          website: profile?.website,
+                          availability: profile?.availability ?? const [],
+                          languages: profile?.languages ?? const [],
+                          disciplinas: profile?.disciplinas ?? const [],
+                          certificates: profile?.certificates ?? const [],
+                          reviews: profile?.reviews ?? const [],
+                        ),
                       ),
                     ),
                   ),
@@ -132,4 +208,59 @@ class _TutorProfileScreenState extends State<TutorProfileScreen> {
       ),
     );
   }
+
+  List<String> _buildTags(
+    PublicProfessorProfileDto? profile,
+    TutorProfileArgs args,
+  ) {
+    if (args.tags.isNotEmpty) {
+      return args.tags.take(2).toList(growable: false);
+    }
+
+    if (profile == null) return args.tags;
+
+    final values = <String>[];
+    if (profile.isVerified) values.add('Perfil Verificado');
+    if (profile.languages.isNotEmpty) {
+      final language = profile.languages.first;
+      final level = language.proficiencyLevel?.trim();
+      values.add(
+        level == null || level.isEmpty
+            ? language.nome
+            : '${language.nome} ($level)',
+      );
+    }
+
+    final seen = <String>{};
+    return values
+        .map((item) => item.trim())
+        .where((item) => item.isNotEmpty && seen.add(item.toLowerCase()))
+        .take(2)
+        .toList(growable: false);
+  }
+}
+
+class _ProfileSummaryBackgroundClipper extends CustomClipper<Path> {
+  const _ProfileSummaryBackgroundClipper();
+
+  static const double _avatarLeft = 40.851;
+  static const double _avatarSize = 204.255;
+  static const double _cutoutRadius = 112;
+
+  @override
+  Path getClip(Size size) {
+    final path = Path()..fillType = PathFillType.evenOdd;
+    path.addRect(Rect.fromLTWH(0, 0, size.width, size.height));
+    path.addOval(
+      Rect.fromCircle(
+        center: const Offset(_avatarLeft + (_avatarSize / 2), 0),
+        radius: _cutoutRadius,
+      ),
+    );
+    return path;
+  }
+
+  @override
+  bool shouldReclip(covariant _ProfileSummaryBackgroundClipper oldClipper) =>
+      false;
 }

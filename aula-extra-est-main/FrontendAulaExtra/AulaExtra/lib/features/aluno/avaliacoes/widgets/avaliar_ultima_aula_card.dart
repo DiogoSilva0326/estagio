@@ -13,7 +13,7 @@ class AvaliarUltimaAulaCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(35.725, 35.725, 35.725, 2.748),
+      padding: const EdgeInsets.fromLTRB(35.725, 25.725, 35.725, 25.748),
       decoration: BoxDecoration(
         color: Colors.white,
         border: Border.all(color: const Color(0xFFFF6B00), width: 2.748),

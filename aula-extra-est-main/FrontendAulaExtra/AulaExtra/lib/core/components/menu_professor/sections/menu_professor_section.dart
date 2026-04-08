@@ -41,6 +41,7 @@ class MenuProfessorSection extends StatelessWidget {
           child: Padding(
             padding: const EdgeInsets.fromLTRB(19.697, 19.697, 39.394, 19.697),
             child: Column(
+              mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const SizedBox(

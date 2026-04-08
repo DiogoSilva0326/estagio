@@ -1,6 +1,7 @@
 import 'package:aula_extra/core/components/header/sections/header_sem_login.dart';
 import 'package:aula_extra/core/components/header/variants/header_aluno.dart';
 import 'package:aula_extra/core/components/header/variants/header_explicador.dart';
+import 'package:aula_extra/core/data/payments/payments_service.dart';
 import 'package:aula_extra/core/providers/user_provider.dart';
 import 'package:aula_extra/routes/routes.dart';
 import 'package:flutter/material.dart';
@@ -81,6 +82,7 @@ class AppHeader extends StatelessWidget {
     final displayName = nonEmpty(user.account?.fullName) ??
         nonEmpty(user.account?.username) ??
         nonEmpty(user.account?.email);
+    final profileImageUrl = nonEmpty(user.account?.profileImageUrl);
 
     final effectiveAlunoItem = userRole == Role.student
         ? (_studentActiveItemFromRoute(currentRouteName) ?? headerAlunoActiveItem)
@@ -94,13 +96,14 @@ class AppHeader extends StatelessWidget {
         ? HeaderExplicador(
             activeItem: effectiveTeacherItem,
             displayName: displayName,
+          profileImageUrl: profileImageUrl,
             onLogoTap: onLogoTap,
             onProfileTap: onProfileTap,
             onMeusAlunosTap: () => Navigator.of(context).pushNamed(Routes.professorMeusAlunos),
-            onRecursosTap: () => Navigator.of(context).pushNamed(Routes.professorArquivos),
+            onRecursosTap: () => Navigator.of(context).pushNamed(Routes.professorMeusAlunos),
           )
         : userRole == Role.student
-            ? HeaderAluno(
+            ? _StudentHeaderWithCredits(
                 activeItem: effectiveAlunoItem,
                 displayName: displayName,
                 onLogoTap: onLogoTap,
@@ -111,5 +114,95 @@ class AppHeader extends StatelessWidget {
                 onLoginTap: onLoginTap,
                 onLogoTap: onLogoTap,
               );
+  }
+}
+
+class _StudentHeaderWithCredits extends StatefulWidget {
+  const _StudentHeaderWithCredits({
+    required this.activeItem,
+    required this.displayName,
+    this.onLogoTap,
+    this.onProfileTap,
+  });
+
+  final HeaderAlunoItem? activeItem;
+  final String? displayName;
+  final VoidCallback? onLogoTap;
+  final VoidCallback? onProfileTap;
+
+  @override
+  State<_StudentHeaderWithCredits> createState() => _StudentHeaderWithCreditsState();
+}
+
+class _StudentHeaderWithCreditsState extends State<_StudentHeaderWithCredits> {
+  final PaymentsService _paymentsService = PaymentsService();
+  bool _isLoadingCredits = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _maybeLoadCredits();
+  }
+
+  @override
+  void didUpdateWidget(covariant _StudentHeaderWithCredits oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _maybeLoadCredits();
+  }
+
+  void _maybeLoadCredits() {
+    if (_isLoadingCredits) return;
+
+    final provider = context.read<UserProvider>();
+    final account = provider.account;
+
+    if (account == null || account.creditsBalance != null) return;
+
+    _loadCredits();
+  }
+
+  Future<void> _loadCredits() async {
+    _isLoadingCredits = true;
+    try {
+      final summary = await _paymentsService.fetchMySummary();
+      if (!mounted) return;
+      final provider = context.read<UserProvider>();
+      provider.setAccount(
+        (provider.account ?? const UserAccount()).copyWith(
+          creditsBalance: summary.availableCredits,
+          creditsCurrency: summary.currency,
+        ),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      final provider = context.read<UserProvider>();
+      provider.setAccount(
+        (provider.account ?? const UserAccount()).copyWith(
+          creditsBalance: 0,
+          creditsCurrency: 'EUR',
+        ),
+      );
+    } finally {
+      _isLoadingCredits = false;
+    }
+  }
+
+  String? _formatCredits(double? balance, String? currency) {
+    if (balance == null) return null;
+    final symbol = (currency ?? 'EUR').toUpperCase() == 'EUR' ? '€' : (currency ?? '').trim();
+    final fixed = balance.toStringAsFixed(balance.truncateToDouble() == balance ? 0 : 2).replaceAll('.', ',');
+    return symbol.isEmpty ? fixed : '$fixed$symbol';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final account = context.watch<UserProvider>().account;
+    return HeaderAluno(
+      activeItem: widget.activeItem,
+      displayName: widget.displayName,
+      creditsText: _formatCredits(account?.creditsBalance, account?.creditsCurrency),
+      onLogoTap: widget.onLogoTap,
+      onProfileTap: widget.onProfileTap,
+    );
   }
 }

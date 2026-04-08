@@ -1,0 +1,6 @@
+API - https://aulaextra-api.synget.ovh
+SITE - https://aulaextra.synget.ovh
+BACKOFFICE - https://aulaextra-backoffice.synget.ovh
+PGADMIN - https://aulaextra-pgadmin.synget.ovh
+AGORA - https://aulaextra-agora.synget.ovh
+R2CLOUDFLARE - aulaextra-r2.synget.ovh

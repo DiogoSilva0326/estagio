@@ -36,6 +36,10 @@ class TutorCard extends StatelessWidget {
     final subjectList = (subjects == null || subjects!.isEmpty)
         ? <String>[subject]
         : subjects!.where((s) => s.trim().isNotEmpty).toList(growable: false);
+    final primarySubject = subjectList.first;
+    final remainingSubjects = subjectList.length > 1
+      ? subjectList.sublist(1)
+      : const <String>[];
 
     final clampedProgress = progress.clamp(0.0, 1.0);
     final clampedRating = rating?.clamp(0.0, 5.0);
@@ -84,12 +88,14 @@ class TutorCard extends StatelessWidget {
             SizedBox(
               height: 33.093,
               child: Center(
-                child: Wrap(
-                  spacing: 11.031,
-                  runSpacing: 11.031,
-                  alignment: WrapAlignment.center,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    for (final s in subjectList) _SubjectChip(subject: s),
+                    Flexible(child: _SubjectChip(subject: primarySubject)),
+                    if (remainingSubjects.isNotEmpty) ...[
+                      const SizedBox(width: 11.031),
+                      _SubjectsDropdownButton(subjects: remainingSubjects),
+                    ],
                   ],
                 ),
               ),
@@ -199,6 +205,8 @@ class _SubjectChip extends StatelessWidget {
       child: Center(
         child: Text(
           subject,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
           style: const TextStyle(
             fontSize: 16.546,
             fontWeight: FontWeight.w400,
@@ -230,6 +238,54 @@ class _SubjectChip extends StatelessWidget {
   }
 }
 
+class _SubjectsDropdownButton extends StatelessWidget {
+  const _SubjectsDropdownButton({required this.subjects});
+
+  final List<String> subjects;
+
+  @override
+  Widget build(BuildContext context) {
+    return PopupMenuButton<String>(
+      tooltip: 'Ver restantes disciplinas',
+      itemBuilder: (context) => [
+        for (final subject in subjects)
+          PopupMenuItem<String>(
+            value: subject,
+            child: Text(subject),
+          ),
+      ],
+      child: Container(
+        height: 33.093,
+        padding: const EdgeInsets.fromLTRB(13, 5.515, 13, 5.515),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF8FAFC),
+          border: Border.all(color: const Color(0xFFD0D5DD), width: 1.2),
+          borderRadius: BorderRadius.circular(23133510),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              '+${subjects.length}',
+              style: const TextStyle(
+                fontSize: 15.5,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF344054),
+              ),
+            ),
+            const SizedBox(width: 4),
+            const Icon(
+              Icons.keyboard_arrow_down_rounded,
+              size: 18,
+              color: Color(0xFF344054),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _Avatar extends StatelessWidget {
   const _Avatar({required this.avatarUrl, required this.name, this.size = 132.371});
 
@@ -242,6 +298,8 @@ class _Avatar extends StatelessWidget {
     final outer = size;
     final borderWidth = 5.0;
     final inner = outer - borderWidth * 2 - 2; // small padding compensation
+    final normalizedAvatarUrl = avatarUrl?.trim();
+    final hasAvatar = normalizedAvatarUrl != null && normalizedAvatarUrl.isNotEmpty;
 
     return Container(
       width: outer,
@@ -252,8 +310,24 @@ class _Avatar extends StatelessWidget {
       ),
       padding: EdgeInsets.all(borderWidth),
       child: ClipOval(
-        child: avatarUrl != null
-            ? Image.network(avatarUrl!, width: inner, height: inner, fit: BoxFit.cover)
+        child: hasAvatar
+            ? Image.network(
+                normalizedAvatarUrl,
+                width: inner,
+                height: inner,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) => Container(
+                  width: inner,
+                  height: inner,
+                  color: const Color(0xFFE5E7EB),
+                  child: Center(
+                    child: Text(
+                      name.isNotEmpty ? name[0] : '?',
+                      style: const TextStyle(fontSize: 42, color: Color(0xFF364153), fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ),
+              )
             : Container(
                 width: inner,
                 height: inner,

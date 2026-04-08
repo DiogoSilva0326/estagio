@@ -1,5 +1,6 @@
 class MarcarAulaProfessorArgs {
   const MarcarAulaProfessorArgs({
+    required this.professorId,
     required this.tutorName,
     required this.subject,
     required this.rating,
@@ -8,6 +9,7 @@ class MarcarAulaProfessorArgs {
     required this.pricePerHour,
   });
 
+  final String professorId;
   final String tutorName;
   final String subject;
   final double rating;

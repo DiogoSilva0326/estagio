@@ -28,30 +28,32 @@ class TutorCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return SizedBox(
       width: 470,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border.all(color: const Color(0xFFF3F4F6), width: 1.277),
-        borderRadius: BorderRadius.circular(20.426),
-        boxShadow: const [
-          BoxShadow(
-            color: Color.fromRGBO(0, 0, 0, 0.1),
-            offset: Offset(0, 5.106),
-            blurRadius: 7.66,
-          ),
-          BoxShadow(
-            color: Color.fromRGBO(0, 0, 0, 0.1),
-            offset: Offset(0, 2.553),
-            blurRadius: 5.106,
-          ),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(30.64),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+      height: 475.371,
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          border: Border.all(color: const Color(0xFFF3F4F6), width: 1.277),
+          borderRadius: BorderRadius.circular(20.426),
+          boxShadow: const [
+            BoxShadow(
+              color: Color.fromRGBO(0, 0, 0, 0.1),
+              offset: Offset(0, 5.106),
+              blurRadius: 7.66,
+            ),
+            BoxShadow(
+              color: Color.fromRGBO(0, 0, 0, 0.1),
+              offset: Offset(0, 2.553),
+              blurRadius: 5.106,
+            ),
+          ],
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(30.64),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -139,12 +141,17 @@ class TutorCard extends StatelessWidget {
                         children: [
                           const Icon(Icons.location_on_outlined, size: 17.872, color: Color(0xFF4A5565)),
                           const SizedBox(width: 10.213),
-                          Text(
-                            country,
-                            style: const TextStyle(
-                              fontSize: 17.872,
-                              height: 25.532 / 17.872,
-                              color: Color(0xFF4A5565),
+                          Expanded(
+                            child: Text(
+                              country,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              softWrap: true,
+                              style: const TextStyle(
+                                fontSize: 17.872,
+                                height: 25.532 / 17.872,
+                                color: Color(0xFF4A5565),
+                              ),
                             ),
                           ),
                           const SizedBox(width: 10.213),
@@ -208,14 +215,18 @@ class TutorCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 20.846),
-            SizedBox(
-              height: 102,
-              child: Text(
-                description,
-                style: const TextStyle(
-                  fontSize: 17.872,
-                  height: 25.532 / 17.872,
-                  color: Color(0xFF364153),
+            Expanded(
+              child: Align(
+                alignment: Alignment.topLeft,
+                child: Text(
+                  description,
+                  maxLines: 4,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 17.872,
+                    height: 25.532 / 17.872,
+                    color: Color(0xFF364153),
+                  ),
                 ),
               ),
             ),
@@ -348,7 +359,8 @@ class TutorCard extends StatelessWidget {
                 ),
               ],
             ),
-          ],
+            ],
+          ),
         ),
       ),
     );

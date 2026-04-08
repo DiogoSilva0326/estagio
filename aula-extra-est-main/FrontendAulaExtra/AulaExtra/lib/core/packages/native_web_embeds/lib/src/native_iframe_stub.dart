@@ -9,12 +9,18 @@ class NativeIframe extends StatelessWidget {
     this.aspectRatio = 16 / 9,
     this.fill = true,
     this.backgroundColor = const Color(0xFFF0F0F0),
+    this.clipTop,
+    this.cutoutBottomLeftWidth = 0,
+    this.cutoutBottomLeftHeight = 0,
   });
 
   final String src;
   final double aspectRatio;
   final bool fill;
   final Color backgroundColor;
+  final double? clipTop;
+  final double cutoutBottomLeftWidth;
+  final double cutoutBottomLeftHeight;
 
   Future<void> _openExternal() async {
     final uri = Uri.tryParse(src);

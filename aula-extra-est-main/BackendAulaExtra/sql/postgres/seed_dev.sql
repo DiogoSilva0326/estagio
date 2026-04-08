@@ -125,6 +125,32 @@ INSERT INTO professors (
   ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa5', '55555555-5555-5555-5555-555555555555', 'Escola Secundária do Norte', 7, 'https://i.pravatar.cc/200?img=58', 'Física aplicada e preparação para testes.', '523456789', 'PT50000000000000000000004', true, true, true, now(), now())
 ON CONFLICT (id_professor) DO NOTHING;
 
+UPDATE professors
+SET presentation_video_url = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'
+WHERE id_professor = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1';
+
+-- Seed professor rooms using the normalized naming expected by the live classroom flow.
+INSERT INTO public.professor_rooms (
+  professor_id,
+  professor_name,
+  room_name,
+  description,
+  is_active
+)
+SELECT
+  u.id_user,
+  COALESCE(NULLIF(u.display_name, ''), CONCAT_WS(' ', u.first_name, u.last_name), u.username),
+  CONCAT('professor_', LOWER(u.username)),
+  CONCAT('Sala do professor ', COALESCE(NULLIF(u.display_name, ''), CONCAT_WS(' ', u.first_name, u.last_name), u.username)),
+  true
+FROM public.professors p
+JOIN public.users u ON u.id_user = p.id_user
+ON CONFLICT (professor_id) DO UPDATE
+SET professor_name = EXCLUDED.professor_name,
+    room_name = EXCLUDED.room_name,
+    description = EXCLUDED.description,
+    is_active = EXCLUDED.is_active;
+
 -- ==========================================================
 -- 3) Education taxonomy (disciplines + levels)
 -- ==========================================================
@@ -184,6 +210,23 @@ VALUES
   ('66666666-6666-6666-6666-666666666666', 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbb002'),
   ('66666666-6666-6666-6666-666666666666', 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbb004')
 ON CONFLICT (user_id, id_disciplina) DO NOTHING;
+
+INSERT INTO public.languages (id_language, nome)
+VALUES
+  ('abababab-abab-abab-abab-abababab0001', 'Português'),
+  ('abababab-abab-abab-abab-abababab0002', 'Inglês'),
+  ('abababab-abab-abab-abab-abababab0003', 'Espanhol'),
+  ('abababab-abab-abab-abab-abababab0004', 'Francês')
+ON CONFLICT (id_language) DO NOTHING;
+
+INSERT INTO public.professor_languages (id_professor, id_language, proficiency_level)
+VALUES
+  ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1', 'abababab-abab-abab-abab-abababab0001', 'Nativo'),
+  ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1', 'abababab-abab-abab-abab-abababab0002', 'Avançado'),
+  ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa2', 'abababab-abab-abab-abab-abababab0001', 'Nativo'),
+  ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa3', 'abababab-abab-abab-abab-abababab0002', 'Nativo'),
+  ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa3', 'abababab-abab-abab-abab-abababab0003', 'Intermédio')
+ON CONFLICT (id_professor, id_language) DO NOTHING;
 
 INSERT INTO anos_escolaridade (id_ano_escolaridade, nome, ano_index)
 VALUES
@@ -279,7 +322,16 @@ INSERT INTO lessons (
   ('20202020-2020-2020-2020-202020202002', '10101010-1010-1010-1010-101010101002', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa2', 'Aula de Física', 1, 60, '2026-01-27 16:00:00', '2026-01-27 17:00:00', false, 1, 30.00),
   ('20202020-2020-2020-2020-202020202003', '10101010-1010-1010-1010-101010101003', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa3', 'Aula de Inglês', 1, 60, '2026-01-28 10:00:00', '2026-01-28 11:00:00', false, 1, 28.00),
   ('20202020-2020-2020-2020-202020202004', '10101010-1010-1010-1010-101010101004', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa4', 'Aula de Matemática (3º Ciclo)', 1, 60, '2026-01-28 15:00:00', '2026-01-28 16:00:00', false, 1, 25.00),
-  ('20202020-2020-2020-2020-202020202005', '10101010-1010-1010-1010-101010101005', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa5', 'Aula de Física (Extra)', 1, 60, '2026-01-28 16:30:00', '2026-01-28 17:30:00', false, 1, 30.00)
+  ('20202020-2020-2020-2020-202020202005', '10101010-1010-1010-1010-101010101005', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa5', 'Aula de Física (Extra)', 1, 60, '2026-01-28 16:30:00', '2026-01-28 17:30:00', false, 1, 30.00),
+  ('20202020-2020-2020-2020-202020202006', '10101010-1010-1010-1010-101010101003', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa3', 'Aula de Inglês (Prática)', 1, 60, '2026-01-29 10:00:00', '2026-01-29 11:00:00', false, 1, 28.00),
+  ('20202020-2020-2020-2020-202020202007', '10101010-1010-1010-1010-101010101001', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1', 'Aula de Matemática (Revisão)', 1, 60, '2026-01-29 14:00:00', '2026-01-29 15:00:00', false, 1, 25.00),
+  ('20202020-2020-2020-2020-202020202008', '10101010-1010-1010-1010-101010101002', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa2', 'Aula de Física (Exercícios)', 1, 60, '2026-01-29 18:00:00', '2026-01-29 19:00:00', false, 1, 30.00),
+  ('20202020-2020-2020-2020-202020202009', '10101010-1010-1010-1010-101010101004', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa4', 'Aula de Matemática (Dúvidas)', 1, 60, '2026-01-30 09:00:00', '2026-01-30 10:00:00', false, 1, 25.00),
+  ('20202020-2020-2020-2020-202020202010', '10101010-1010-1010-1010-101010101005', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa5', 'Aula de Física (Laboratório)', 1, 60, '2026-01-31 11:00:00', '2026-01-31 12:00:00', false, 1, 30.00),
+  ('20202020-2020-2020-2020-202020202011', '10101010-1010-1010-1010-101010101003', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa3', 'Aula de Inglês (Speaking)', 1, 60, '2026-02-01 16:00:00', '2026-02-01 17:00:00', false, 1, 28.00),
+  ('20202020-2020-2020-2020-202020202012', '10101010-1010-1010-1010-101010101001', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1', 'Aula de Matemática (Extra)', 1, 60, '2026-02-02 18:00:00', '2026-02-02 19:00:00', false, 1, 25.00),
+  ('20202020-2020-2020-2020-202020202013', '10101010-1010-1010-1010-101010101004', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa4', 'Aula de Matemática (Noite)', 1, 60, '2026-02-03 01:00:00', '2026-02-03 02:00:00', false, 1, 25.00),
+  ('20202020-2020-2020-2020-202020202014', '10101010-1010-1010-1010-101010101005', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa5', 'Aula de Física (Madrugada)', 1, 60, '2026-02-06 02:00:00', '2026-02-06 03:00:00', false, 1, 30.00)
 ON CONFLICT (id_lesson) DO NOTHING;
 
 INSERT INTO lesson_prices (id_lesson_price, id_lesson, session_price, price_per_student)
@@ -288,7 +340,16 @@ VALUES
   ('21212121-2121-2121-2121-212121212002', '20202020-2020-2020-2020-202020202002', 30.00, NULL),
   ('21212121-2121-2121-2121-212121212003', '20202020-2020-2020-2020-202020202003', 28.00, NULL),
   ('21212121-2121-2121-2121-212121212004', '20202020-2020-2020-2020-202020202004', 25.00, NULL),
-  ('21212121-2121-2121-2121-212121212005', '20202020-2020-2020-2020-202020202005', 30.00, NULL)
+  ('21212121-2121-2121-2121-212121212005', '20202020-2020-2020-2020-202020202005', 30.00, NULL),
+  ('21212121-2121-2121-2121-212121212006', '20202020-2020-2020-2020-202020202006', 28.00, NULL),
+  ('21212121-2121-2121-2121-212121212007', '20202020-2020-2020-2020-202020202007', 25.00, NULL),
+  ('21212121-2121-2121-2121-212121212008', '20202020-2020-2020-2020-202020202008', 30.00, NULL),
+  ('21212121-2121-2121-2121-212121212009', '20202020-2020-2020-2020-202020202009', 25.00, NULL),
+  ('21212121-2121-2121-2121-212121212010', '20202020-2020-2020-2020-202020202010', 30.00, NULL),
+  ('21212121-2121-2121-2121-212121212011', '20202020-2020-2020-2020-202020202011', 28.00, NULL),
+  ('21212121-2121-2121-2121-212121212012', '20202020-2020-2020-2020-202020202012', 25.00, NULL),
+  ('21212121-2121-2121-2121-212121212013', '20202020-2020-2020-2020-202020202013', 25.00, NULL),
+  ('21212121-2121-2121-2121-212121212014', '20202020-2020-2020-2020-202020202014', 30.00, NULL)
 ON CONFLICT (id_lesson_price) DO NOTHING;
 
 -- Student enrollments (Sofia enrolled in all lessons).
@@ -298,7 +359,16 @@ VALUES
   ('30303030-3030-3030-3030-303030303002', '20202020-2020-2020-2020-202020202002', '66666666-6666-6666-6666-666666666666', 'active', 30.00),
   ('30303030-3030-3030-3030-303030303003', '20202020-2020-2020-2020-202020202003', '66666666-6666-6666-6666-666666666666', 'active', 28.00),
   ('30303030-3030-3030-3030-303030303004', '20202020-2020-2020-2020-202020202004', '66666666-6666-6666-6666-666666666666', 'active', 25.00),
-  ('30303030-3030-3030-3030-303030303005', '20202020-2020-2020-2020-202020202005', '66666666-6666-6666-6666-666666666666', 'active', 30.00)
+  ('30303030-3030-3030-3030-303030303005', '20202020-2020-2020-2020-202020202005', '66666666-6666-6666-6666-666666666666', 'active', 30.00),
+  ('30303030-3030-3030-3030-303030303006', '20202020-2020-2020-2020-202020202006', '66666666-6666-6666-6666-666666666666', 'active', 28.00),
+  ('30303030-3030-3030-3030-303030303007', '20202020-2020-2020-2020-202020202007', '66666666-6666-6666-6666-666666666666', 'active', 25.00),
+  ('30303030-3030-3030-3030-303030303008', '20202020-2020-2020-2020-202020202008', '66666666-6666-6666-6666-666666666666', 'active', 30.00),
+  ('30303030-3030-3030-3030-303030303009', '20202020-2020-2020-2020-202020202009', '66666666-6666-6666-6666-666666666666', 'active', 25.00),
+  ('30303030-3030-3030-3030-303030303010', '20202020-2020-2020-2020-202020202010', '66666666-6666-6666-6666-666666666666', 'active', 30.00),
+  ('30303030-3030-3030-3030-303030303011', '20202020-2020-2020-2020-202020202011', '66666666-6666-6666-6666-666666666666', 'active', 28.00),
+  ('30303030-3030-3030-3030-303030303012', '20202020-2020-2020-2020-202020202012', '66666666-6666-6666-6666-666666666666', 'active', 25.00),
+  ('30303030-3030-3030-3030-303030303013', '20202020-2020-2020-2020-202020202013', '66666666-6666-6666-6666-666666666666', 'active', 25.00),
+  ('30303030-3030-3030-3030-303030303014', '20202020-2020-2020-2020-202020202014', '66666666-6666-6666-6666-666666666666', 'active', 30.00)
 ON CONFLICT (id_enrollment) DO NOTHING;
 
 -- Lesson feedback (ratings) shown in "Meus Explicadores".
@@ -315,7 +385,9 @@ INSERT INTO lesson_feedback (
   ('90909090-9090-9090-9090-909090909001', '20202020-2020-2020-2020-202020202001', '66666666-6666-6666-6666-666666666666', true, 5, 'Muito boa aula.', '2026-01-27 16:10:00'),
   ('90909090-9090-9090-9090-909090909002', '20202020-2020-2020-2020-202020202002', '66666666-6666-6666-6666-666666666666', true, 4, 'Explicação clara.', '2026-01-27 18:10:00'),
   ('90909090-9090-9090-9090-909090909003', '20202020-2020-2020-2020-202020202003', '66666666-6666-6666-6666-666666666666', true, 5, 'Excelente!', '2026-01-28 12:00:00'),
-  ('90909090-9090-9090-9090-909090909004', '20202020-2020-2020-2020-202020202004', '66666666-6666-6666-6666-666666666666', true, 4, 'Gostei bastante.', '2026-01-28 17:30:00')
+  ('90909090-9090-9090-9090-909090909004', '20202020-2020-2020-2020-202020202004', '66666666-6666-6666-6666-666666666666', true, 4, 'Gostei bastante.', '2026-01-28 17:30:00'),
+  ('90909090-9090-9090-9090-909090909005', '20202020-2020-2020-2020-202020202013', '66666666-6666-6666-6666-666666666666', true, 5, 'Ótima para testar horário noturno.', '2026-02-03 02:15:00'),
+  ('90909090-9090-9090-9090-909090909006', '20202020-2020-2020-2020-202020202014', '66666666-6666-6666-6666-666666666666', true, 4, 'Bom para validar a madrugada.', '2026-02-06 03:10:00')
 ON CONFLICT (id_lesson_feedback) DO NOTHING;
 
 -- Optional professor feedback (not used by the current endpoint, but useful for other screens).
@@ -347,8 +419,87 @@ INSERT INTO reservations (
   ('40404040-4040-4040-4040-404040404002', '66666666-6666-6666-6666-666666666666', '20202020-2020-2020-2020-202020202002', 1, '2026-01-22 16:00:00', '2026-01-22 17:00:00', 'paid', '2026-01-22 12:00:00'),
   ('40404040-4040-4040-4040-404040404003', '66666666-6666-6666-6666-666666666666', '20202020-2020-2020-2020-202020202003', 1, '2026-01-23 10:00:00', '2026-01-23 11:00:00', 'paid', '2026-01-23 09:00:00'),
   ('40404040-4040-4040-4040-404040404004', '66666666-6666-6666-6666-666666666666', '20202020-2020-2020-2020-202020202004', 1, '2026-01-24 15:00:00', '2026-01-24 16:00:00', 'paid', '2026-01-24 13:00:00'),
-  ('40404040-4040-4040-4040-404040404005', '66666666-6666-6666-6666-666666666666', '20202020-2020-2020-2020-202020202005', 1, '2026-01-28 10:00:00', '2026-01-28 11:00:00', 'pending', '2026-01-28 08:00:00')
+  ('40404040-4040-4040-4040-404040404005', '66666666-6666-6666-6666-666666666666', '20202020-2020-2020-2020-202020202005', 1, '2026-01-28 10:00:00', '2026-01-28 11:00:00', 'pending', '2026-01-28 08:00:00'),
+  ('40404040-4040-4040-4040-404040404006', '66666666-6666-6666-6666-666666666666', '20202020-2020-2020-2020-202020202006', 1, '2026-01-29 10:00:00', '2026-01-29 11:00:00', 'paid', '2026-01-29 08:00:00'),
+  ('40404040-4040-4040-4040-404040404007', '66666666-6666-6666-6666-666666666666', '20202020-2020-2020-2020-202020202007', 1, '2026-01-29 14:00:00', '2026-01-29 15:00:00', 'pending', '2026-01-29 12:00:00'),
+  ('40404040-4040-4040-4040-404040404008', '66666666-6666-6666-6666-666666666666', '20202020-2020-2020-2020-202020202008', 1, '2026-01-29 18:00:00', '2026-01-29 19:00:00', 'paid', '2026-01-29 16:00:00'),
+  ('40404040-4040-4040-4040-404040404009', '66666666-6666-6666-6666-666666666666', '20202020-2020-2020-2020-202020202009', 1, '2026-01-30 09:00:00', '2026-01-30 10:00:00', 'paid', '2026-01-30 07:00:00'),
+  ('40404040-4040-4040-4040-404040404010', '66666666-6666-6666-6666-666666666666', '20202020-2020-2020-2020-202020202010', 1, '2026-01-31 11:00:00', '2026-01-31 12:00:00', 'pending', '2026-01-31 09:00:00'),
+  ('40404040-4040-4040-4040-404040404011', '66666666-6666-6666-6666-666666666666', '20202020-2020-2020-2020-202020202011', 1, '2026-02-01 16:00:00', '2026-02-01 17:00:00', 'paid', '2026-02-01 14:00:00'),
+  ('40404040-4040-4040-4040-404040404012', '66666666-6666-6666-6666-666666666666', '20202020-2020-2020-2020-202020202012', 1, '2026-02-02 18:00:00', '2026-02-02 19:00:00', 'pending', '2026-02-02 16:00:00'),
+  ('40404040-4040-4040-4040-404040404013', '66666666-6666-6666-6666-666666666666', '20202020-2020-2020-2020-202020202013', 1, '2026-02-03 01:00:00', '2026-02-03 02:00:00', 'paid', '2026-02-02 23:00:00'),
+  ('40404040-4040-4040-4040-404040404014', '66666666-6666-6666-6666-666666666666', '20202020-2020-2020-2020-202020202014', 1, '2026-02-06 02:00:00', '2026-02-06 03:00:00', 'pending', '2026-02-06 00:00:00')
 ON CONFLICT (id_reservation) DO NOTHING;
+
+-- Keep the seeded calendar useful by always placing lessons/reservations in the
+-- current/next week. Pedro Costa's lesson with Sofia Oliveira is pinned to the
+-- current moment so entering a class can be tested immediately after applying
+-- the seed.
+-- IDs stay stable; timestamps are updated on each seed run.
+WITH base AS (
+  SELECT
+    date_trunc('week', now())::timestamp AS week_start,
+    date_trunc('minute', now())::timestamp AS live_start
+)
+UPDATE lessons l
+SET
+  scheduled_start = v.scheduled_start,
+  scheduled_end = v.scheduled_end
+FROM (
+  SELECT '20202020-2020-2020-2020-202020202001'::uuid AS id_lesson, (base.week_start + interval '0 day 14 hour 30 min') AS scheduled_start, (base.week_start + interval '0 day 15 hour 30 min') AS scheduled_end FROM base
+  UNION ALL
+  SELECT '20202020-2020-2020-2020-202020202002'::uuid AS id_lesson, (base.week_start + interval '2 day 16 hour')       AS scheduled_start, (base.week_start + interval '2 day 17 hour')       AS scheduled_end FROM base
+  UNION ALL
+  SELECT '20202020-2020-2020-2020-202020202003'::uuid AS id_lesson, base.live_start AS scheduled_start, (base.live_start + interval '1 hour') AS scheduled_end FROM base
+  UNION ALL
+  SELECT '20202020-2020-2020-2020-202020202004'::uuid AS id_lesson, (base.week_start + interval '4 day 15 hour')       AS scheduled_start, (base.week_start + interval '4 day 16 hour')       AS scheduled_end FROM base
+  UNION ALL
+  SELECT '20202020-2020-2020-2020-202020202005'::uuid AS id_lesson, (base.week_start + interval '8 day 10 hour')       AS scheduled_start, (base.week_start + interval '8 day 11 hour')       AS scheduled_end FROM base
+  UNION ALL
+  SELECT '20202020-2020-2020-2020-202020202006'::uuid AS id_lesson, (base.week_start + interval '9 day 10 hour')       AS scheduled_start, (base.week_start + interval '9 day 11 hour')       AS scheduled_end FROM base
+  UNION ALL
+  SELECT '20202020-2020-2020-2020-202020202007'::uuid AS id_lesson, (base.week_start + interval '3 day 14 hour')       AS scheduled_start, (base.week_start + interval '3 day 15 hour')       AS scheduled_end FROM base
+  UNION ALL
+  SELECT '20202020-2020-2020-2020-202020202008'::uuid AS id_lesson, (base.week_start + interval '3 day 18 hour')       AS scheduled_start, (base.week_start + interval '3 day 19 hour')       AS scheduled_end FROM base
+  UNION ALL
+  SELECT '20202020-2020-2020-2020-202020202009'::uuid AS id_lesson, (base.week_start + interval '4 day 9 hour')        AS scheduled_start, (base.week_start + interval '4 day 10 hour')       AS scheduled_end FROM base
+  UNION ALL
+  SELECT '20202020-2020-2020-2020-202020202010'::uuid AS id_lesson, (base.week_start + interval '5 day 11 hour')       AS scheduled_start, (base.week_start + interval '5 day 12 hour')       AS scheduled_end FROM base
+  UNION ALL
+  SELECT '20202020-2020-2020-2020-202020202011'::uuid AS id_lesson, (base.week_start + interval '6 day 16 hour')       AS scheduled_start, (base.week_start + interval '6 day 17 hour')       AS scheduled_end FROM base
+  UNION ALL
+  SELECT '20202020-2020-2020-2020-202020202012'::uuid AS id_lesson, (base.week_start + interval '7 day 18 hour')       AS scheduled_start, (base.week_start + interval '7 day 19 hour')       AS scheduled_end FROM base
+  UNION ALL
+  SELECT '20202020-2020-2020-2020-202020202013'::uuid AS id_lesson, (base.week_start + interval '1 day 1 hour')        AS scheduled_start, (base.week_start + interval '1 day 2 hour')        AS scheduled_end FROM base
+  UNION ALL
+  SELECT '20202020-2020-2020-2020-202020202014'::uuid AS id_lesson, (base.week_start + interval '4 day 2 hour')        AS scheduled_start, (base.week_start + interval '4 day 3 hour')        AS scheduled_end FROM base
+) v
+WHERE l.id_lesson = v.id_lesson;
+
+-- Align reservations and seed-created timestamps with the lesson schedule.
+UPDATE reservations r
+SET
+  start_time = l.scheduled_start,
+  end_time = l.scheduled_end,
+  created_at = l.scheduled_start - interval '2 hours'
+FROM lessons l
+WHERE r.id_lesson = l.id_lesson
+  AND r.id_reservation IN (
+    '40404040-4040-4040-4040-404040404001'::uuid,
+    '40404040-4040-4040-4040-404040404002'::uuid,
+    '40404040-4040-4040-4040-404040404003'::uuid,
+    '40404040-4040-4040-4040-404040404004'::uuid,
+    '40404040-4040-4040-4040-404040404005'::uuid,
+    '40404040-4040-4040-4040-404040404006'::uuid,
+    '40404040-4040-4040-4040-404040404007'::uuid,
+    '40404040-4040-4040-4040-404040404008'::uuid,
+    '40404040-4040-4040-4040-404040404009'::uuid,
+    '40404040-4040-4040-4040-404040404010'::uuid,
+    '40404040-4040-4040-4040-404040404011'::uuid,
+    '40404040-4040-4040-4040-404040404012'::uuid,
+    '40404040-4040-4040-4040-404040404013'::uuid,
+    '40404040-4040-4040-4040-404040404014'::uuid
+  );
 
 -- ==========================================================
 -- 6) Wallet + transactions + reservation payments
@@ -371,7 +522,11 @@ VALUES
   ('60606060-6060-6060-6060-606060606002', '50505050-5050-5050-5050-505050505001', 'debit', 30.00, 113.00, 83.00, 'succeeded', '2026-01-22 12:01:00'),
   ('60606060-6060-6060-6060-606060606003', '50505050-5050-5050-5050-505050505001', 'debit', 28.00, 83.00, 55.00, 'succeeded', '2026-01-23 09:01:00'),
   ('60606060-6060-6060-6060-606060606004', '50505050-5050-5050-5050-505050505001', 'debit', 25.00, 55.00, 30.00, 'succeeded', '2026-01-24 13:01:00'),
-  ('60606060-6060-6060-6060-606060606005', '50505050-5050-5050-5050-505050505001', 'debit', 30.00, 30.00, 0.00, 'pending', '2026-01-28 08:01:00')
+  ('60606060-6060-6060-6060-606060606005', '50505050-5050-5050-5050-505050505001', 'debit', 30.00, 30.00, 0.00, 'pending', '2026-01-28 08:01:00'),
+  ('60606060-6060-6060-6060-606060606006', '50505050-5050-5050-5050-505050505001', 'debit', 25.00, 0.00, 0.00, 'succeeded', '2026-02-02 23:01:00'),
+  ('60606060-6060-6060-6060-606060606007', '50505050-5050-5050-5050-505050505001', 'debit', 30.00, 0.00, 0.00, 'pending', '2026-02-06 00:01:00'),
+  ('60606060-6060-6060-6060-606060606008', '50505050-5050-5050-5050-505050505001', 'debit', 28.00, 0.00, 0.00, 'succeeded', '2026-01-29 08:01:00'),
+  ('60606060-6060-6060-6060-606060606009', '50505050-5050-5050-5050-505050505001', 'debit', 28.00, 0.00, 0.00, 'succeeded', '2026-02-01 14:01:00')
 ON CONFLICT (id_transaction) DO NOTHING;
 
 -- A default commission rule (platform fee example).
@@ -398,7 +553,11 @@ INSERT INTO reservation_payments (
   ('80808080-8080-8080-8080-808080808002', '40404040-4040-4040-4040-404040404002', '50505050-5050-5050-5050-505050505001', '60606060-6060-6060-6060-606060606002', '70707070-7070-7070-7070-707070707002', 30.00, 'paid', '2026-01-22 12:02:00'),
   ('80808080-8080-8080-8080-808080808003', '40404040-4040-4040-4040-404040404003', '50505050-5050-5050-5050-505050505001', '60606060-6060-6060-6060-606060606003', '70707070-7070-7070-7070-707070707003', 28.00, 'paid', '2026-01-23 09:02:00'),
   ('80808080-8080-8080-8080-808080808004', '40404040-4040-4040-4040-404040404004', '50505050-5050-5050-5050-505050505001', '60606060-6060-6060-6060-606060606004', '70707070-7070-7070-7070-707070707004', 25.00, 'paid', '2026-01-24 13:02:00'),
-  ('80808080-8080-8080-8080-808080808005', '40404040-4040-4040-4040-404040404005', '50505050-5050-5050-5050-505050505001', '60606060-6060-6060-6060-606060606005', '70707070-7070-7070-7070-707070707005', 30.00, 'pending', '2026-01-28 08:02:00')
+  ('80808080-8080-8080-8080-808080808005', '40404040-4040-4040-4040-404040404005', '50505050-5050-5050-5050-505050505001', '60606060-6060-6060-6060-606060606005', '70707070-7070-7070-7070-707070707005', 30.00, 'pending', '2026-01-28 08:02:00'),
+  ('80808080-8080-8080-8080-808080808006', '40404040-4040-4040-4040-404040404013', '50505050-5050-5050-5050-505050505001', '60606060-6060-6060-6060-606060606006', '70707070-7070-7070-7070-707070707004', 25.00, 'paid', '2026-02-02 23:02:00'),
+  ('80808080-8080-8080-8080-808080808007', '40404040-4040-4040-4040-404040404014', '50505050-5050-5050-5050-505050505001', '60606060-6060-6060-6060-606060606007', '70707070-7070-7070-7070-707070707005', 30.00, 'pending', '2026-02-06 00:02:00'),
+  ('80808080-8080-8080-8080-808080808008', '40404040-4040-4040-4040-404040404006', '50505050-5050-5050-5050-505050505001', '60606060-6060-6060-6060-606060606008', '70707070-7070-7070-7070-707070707003', 28.00, 'paid', '2026-01-29 08:02:00'),
+  ('80808080-8080-8080-8080-808080808009', '40404040-4040-4040-4040-404040404011', '50505050-5050-5050-5050-505050505001', '60606060-6060-6060-6060-606060606009', '70707070-7070-7070-7070-707070707003', 28.00, 'paid', '2026-02-01 14:02:00')
 ON CONFLICT (id_reservation_payment) DO NOTHING;
 
 -- ==========================================================
@@ -406,12 +565,18 @@ ON CONFLICT (id_reservation_payment) DO NOTHING;
 -- ==========================================================
 INSERT INTO notifications (id_notification, id_user, type, message, was_read, created_at, updated_at)
 VALUES
-  ('90909090-9090-9090-9090-909090909001', '66666666-6666-6666-6666-666666666666', 'aula', 'Sua aula de Matemática com João Silva começa em 5 minutos', false, now(), now()),
+  ('90909090-9090-9090-9090-909090909001', '66666666-6666-6666-6666-666666666666', 'aula', 'Sua aula com Pedro Costa começa agora', false, now(), now()),
   ('90909090-9090-9090-9090-909090909002', '66666666-6666-6666-6666-666666666666', 'tarefa', 'Você recebeu uma nova tarefa: Exercícios de Álgebra', false, now() - interval '15 minutes', now() - interval '15 minutes'),
   ('90909090-9090-9090-9090-909090909003', '66666666-6666-6666-6666-666666666666', 'mensagem', 'Maria Santos enviou uma mensagem', false, now() - interval '1 hour', now() - interval '1 hour'),
   ('90909090-9090-9090-9090-909090909004', '66666666-6666-6666-6666-666666666666', 'avaliacao', 'Que tal avaliar a aula com Pedro Costa?', true, now() - interval '2 hours', now() - interval '2 hours'),
   ('90909090-9090-9090-9090-909090909005', '66666666-6666-6666-6666-666666666666', 'aula', 'Sua aula de Física foi confirmada para amanhã às 10:00', true, now() - interval '3 hours', now() - interval '3 hours'),
-  ('90909090-9090-9090-9090-909090909006', '66666666-6666-6666-6666-666666666666', 'pagamento', 'Seu pagamento de 25€ foi processado com sucesso', true, now() - interval '1 day', now() - interval '1 day')
+  ('90909090-9090-9090-9090-909090909006', '66666666-6666-6666-6666-666666666666', 'pagamento', 'Seu pagamento de 25€ foi processado com sucesso', true, now() - interval '1 day', now() - interval '1 day'),
+  ('91919191-9191-9191-9191-919191919001', '11111111-1111-1111-1111-111111111111', 'aula', 'Nova aula marcada com Sofia Oliveira para amanhã às 18:00', false, now() - interval '5 minutes', now() - interval '5 minutes'),
+  ('91919191-9191-9191-9191-919191919002', '11111111-1111-1111-1111-111111111111', 'mensagem', 'Sofia Oliveira enviou uma nova mensagem sobre a próxima explicação', false, now() - interval '35 minutes', now() - interval '35 minutes'),
+  ('91919191-9191-9191-9191-919191919003', '11111111-1111-1111-1111-111111111111', 'tarefa', 'Foi adicionada uma nova tarefa de preparação para a aula de Matemática', false, now() - interval '2 hours', now() - interval '2 hours'),
+  ('92929292-9292-9292-9292-929292929001', '33333333-3333-3333-3333-333333333333', 'aula', 'Nova aula de Inglês marcada para hoje às 19:30', false, now() - interval '10 minutes', now() - interval '10 minutes'),
+  ('92929292-9292-9292-9292-929292929002', '33333333-3333-3333-3333-333333333333', 'mensagem', 'Sofia Oliveira enviou uma mensagem com dúvidas sobre os exercícios', false, now() - interval '50 minutes', now() - interval '50 minutes'),
+  ('92929292-9292-9292-9292-929292929003', '33333333-3333-3333-3333-333333333333', 'tarefa', 'Foi criada uma nova tarefa de vocabulário para revisão antes da aula', false, now() - interval '3 hours', now() - interval '3 hours')
 ON CONFLICT (id_notification) DO NOTHING;
 
 INSERT INTO messages (id_message, sender_user_id, receiver_user_id, message_content, is_read, sent_at)

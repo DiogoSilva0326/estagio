@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using ConfidantPostgreSQL.Modules.Communication.DTOs;
 using ConfidantPostgreSQL.Modules.Communication.Models;
 
 namespace ConfidantPostgreSQL.Modules.Communication.Service
@@ -20,10 +21,15 @@ namespace ConfidantPostgreSQL.Modules.Communication.Service
         Task<int> DeleteMessageAsync(Guid idMessage);
 
         Task<IEnumerable<Contact>> GetContactsAllAsync();
+        Task<IEnumerable<Contact>> GetContactsByOwnerAsync(Guid ownerUserId);
+        Task<Contact?> GetContactByOwnerAndContactAsync(Guid ownerUserId, Guid contactUserId);
         Task<Contact?> GetContactByIdAsync(Guid id);
         Task<Guid> InsertContactAsync(Contact contact);
+        Task<Guid> UpsertContactAsync(Contact contact);
         Task<int> UpdateContactAsync(Contact contact);
         Task<int> DeleteContactAsync(Guid id);
+
+        Task<IEnumerable<ContactUserSummary>> GetContactUserSummariesByOwnerAsync(Guid ownerUserId);
 
         Task<IEnumerable<GroupRoom>> GetGroupRoomsAllAsync();
         Task<GroupRoom?> GetGroupRoomByIdAsync(Guid id);

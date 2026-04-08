@@ -24,6 +24,14 @@ services:
       - DB_PASSWORD=${SQL_PASSWORD}
       - DB_NAME=${SQL_DB}
       - JWT_SECRET=${JWT_SECRET}
+      - CLOUDFLARE_IMAGES_ACCOUNT_ID=${CLOUDFLARE_IMAGES_ACCOUNT_ID}
+      - CLOUDFLARE_IMAGES_API_TOKEN=${CLOUDFLARE_IMAGES_API_TOKEN}
+      - CLOUDFLARE_IMAGES_DELIVERY_BASE=${CLOUDFLARE_IMAGES_DELIVERY_BASE}
+      - CLOUDFLARE_IMAGES_DEFAULT_VARIANT=${CLOUDFLARE_IMAGES_DEFAULT_VARIANT:-public}
+      - AGORA_INTEGRATOR_BASE_URL=${AGORA_INTEGRATOR_BASE_URL:-http://agoraintegrator}
+      - AGORA_APP_ID=${AGORA_APP_ID:-${AGORA_APPID:-}}
+      - WHITEBOARD_APP_IDENTIFIER=${WHITEBOARD_APP_IDENTIFIER:-}
+      - WHITEBOARD_REGION=${WHITEBOARD_REGION:-us-sv}
       - DB_BOOTSTRAP=0
     restart: unless-stopped
 
@@ -140,6 +148,7 @@ services:
     container_name: agoraintegrator
     depends_on:
       - db
+      - r2integrator
     networks: [confidant]
     ports:
       - "5050:80"  # maps container port 80 to host 5005
@@ -158,6 +167,28 @@ services:
       - Whiteboard__NetlessSdkToken=${WHITEBOARD_NETLESS_SDK_TOKEN:-}
       - Whiteboard__AppIdentifier=${WHITEBOARD_APP_IDENTIFIER:-}
       - Whiteboard__Region=${WHITEBOARD_REGION:-}
+      - R2_INTEGRATOR_BASE_URL=${R2_INTEGRATOR_BASE_URL:-http://r2integrator}
+    restart: unless-stopped
+
+  r2integrator:
+    platform: "linux/amd64"
+    build:
+      context: ./R2_Integrator/src
+      dockerfile: Synget_R2.Integrator.API/Dockerfile
+    image: synget/r2integrator:1.0.0
+    container_name: r2integrator
+    networks: [confidant]
+    ports:
+      - "5051:80"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:80
+      - CloudflareR2__AccountId=${CloudflareR2__AccountId:-}
+      - CloudflareR2__BucketName=${CloudflareR2__BucketName:-aulaextra}
+      - CloudflareR2__AccessKeyId=${CloudflareR2__AccessKeyId:-}
+      - CloudflareR2__SecretAccessKey=${CloudflareR2__SecretAccessKey:-}
+      - CloudflareR2__ApiToken=${CloudflareR2__ApiToken:-}
+      - CloudflareR2__PublicBaseUrl=${CloudflareR2__PublicBaseUrl:-https://pub-d43335aacc3b40cb9c77ba3666318eb8.r2.dev}
     restart: unless-stopped
 
 volumes:

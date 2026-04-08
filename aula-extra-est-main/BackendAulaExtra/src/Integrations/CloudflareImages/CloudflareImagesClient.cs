@@ -28,7 +28,7 @@ public sealed class CloudflareImagesClient : ICloudflareImagesClient
             url += $"&continuation_token={Uri.EscapeDataString(continuationToken)}";
 
         using var res = await _http.GetAsync(url, ct);
-        res.EnsureSuccessStatusCode();
+        await EnsureSuccessAsync(res, ct);
         var env = await JsonSerializer.DeserializeAsync<Envelope<V2ListResponse>>(await res.Content.ReadAsStreamAsync(ct), _json, ct);
         return env?.Result ?? new V2ListResponse();
     }
@@ -36,7 +36,7 @@ public sealed class CloudflareImagesClient : ICloudflareImagesClient
     public async Task<ImageDetails> GetAsync(string imageId, CancellationToken ct)
     {
         using var res = await _http.GetAsync($"images/v1/{imageId}", ct);
-        res.EnsureSuccessStatusCode();
+        await EnsureSuccessAsync(res, ct);
         var env = await JsonSerializer.DeserializeAsync<Envelope<ImageDetails>>(await res.Content.ReadAsStreamAsync(ct), _json, ct);
         return env!.Result;
     }
@@ -44,7 +44,7 @@ public sealed class CloudflareImagesClient : ICloudflareImagesClient
     public async Task DeleteAsync(string imageId, CancellationToken ct)
     {
         using var res = await _http.DeleteAsync($"images/v1/{imageId}", ct);
-        res.EnsureSuccessStatusCode();
+        await EnsureSuccessAsync(res, ct);
     }
 
     public async Task<DirectUploadResponse> CreateDirectUploadAsync(TimeSpan? expiresIn, IDictionary<string, string>? metadata, CancellationToken ct)
@@ -54,7 +54,7 @@ public sealed class CloudflareImagesClient : ICloudflareImagesClient
         if (metadata is not null) body["metadata"] = metadata;
 
         using var res = await _http.PostAsJsonAsync("images/v2/direct_upload", body, _json, ct);
-        res.EnsureSuccessStatusCode();
+        await EnsureSuccessAsync(res, ct);
         var env = await JsonSerializer.DeserializeAsync<Envelope<DirectUploadResponse>>(await res.Content.ReadAsStreamAsync(ct), _json, ct);
         return env!.Result;
     }
@@ -62,7 +62,9 @@ public sealed class CloudflareImagesClient : ICloudflareImagesClient
     public async Task<UploadResponse> UploadFileAsync(Stream fileStream, string fileName, string? id, IDictionary<string, string>? metadata, CancellationToken ct)
     {
         using var form = new MultipartFormDataContent();
-        form.Add(new StreamContent(fileStream), "file", fileName);
+        var fileContent = new StreamContent(fileStream);
+        fileContent.Headers.ContentType = MediaTypeHeaderValue.Parse("application/octet-stream");
+        form.Add(fileContent, "file", fileName);
         if (!string.IsNullOrWhiteSpace(id)) form.Add(new StringContent(id!), "id");
         if (metadata is not null)
         {
@@ -71,21 +73,40 @@ public sealed class CloudflareImagesClient : ICloudflareImagesClient
         }
 
         using var res = await _http.PostAsync("images/v1", form, ct);
-        res.EnsureSuccessStatusCode();
+        await EnsureSuccessAsync(res, ct);
         var env = await JsonSerializer.DeserializeAsync<Envelope<UploadResponse>>(await res.Content.ReadAsStreamAsync(ct), _json, ct);
         return env!.Result;
     }
 
     public async Task<UploadResponse> UploadViaUrlAsync(string url, string? id, IDictionary<string, string>? metadata, CancellationToken ct)
     {
-        var body = new Dictionary<string, object?> { ["url"] = url };
-        if (!string.IsNullOrWhiteSpace(id)) body["id"] = id;
-        if (metadata is not null) body["metadata"] = metadata;
+        using var form = new MultipartFormDataContent();
+        form.Add(new StringContent(url), "url");
+        if (!string.IsNullOrWhiteSpace(id)) form.Add(new StringContent(id!), "id");
+        if (metadata is not null)
+        {
+            var metaJson = JsonSerializer.Serialize(metadata, _json);
+            form.Add(new StringContent(metaJson), "metadata");
+        }
 
-        using var res = await _http.PostAsJsonAsync("images/v1", body, _json, ct);
-        res.EnsureSuccessStatusCode();
+        using var res = await _http.PostAsync("images/v1", form, ct);
+        await EnsureSuccessAsync(res, ct);
         var env = await JsonSerializer.DeserializeAsync<Envelope<UploadResponse>>(await res.Content.ReadAsStreamAsync(ct), _json, ct);
         return env!.Result;
+    }
+
+    private static async Task EnsureSuccessAsync(HttpResponseMessage res, CancellationToken ct)
+    {
+        if (res.IsSuccessStatusCode)
+        {
+            return;
+        }
+
+        var body = res.Content is null
+            ? null
+            : await res.Content.ReadAsStringAsync(ct);
+
+        throw new CloudflareImagesApiException(res.StatusCode, body);
     }
 
     private sealed record Envelope<T>(bool Success, T Result, object? Errors, object? Messages);
@@ -96,9 +117,9 @@ public sealed class CloudflareImagesClient : ICloudflareImagesClient
         public string? ContinuationToken => Continuation_Token;
     }
 
-    public sealed record ImageItem(string Id, string? Filename, Dictionary<string, string>? Variants, Dictionary<string, string>? Meta);
+    public sealed record ImageItem(string Id, string? Filename, List<string>? Variants, Dictionary<string, string>? Meta);
 
-    public sealed record ImageDetails(string Id, string? Filename, bool? Draft, Dictionary<string, string>? Variants, Dictionary<string, string>? Meta);
+    public sealed record ImageDetails(string Id, string? Filename, bool? Draft, List<string>? Variants, Dictionary<string, string>? Meta);
 
     public sealed record DirectUploadResponse(string Id, string UploadURL);
 

@@ -22,6 +22,7 @@ class HeaderAluno extends StatelessWidget {
     super.key,
     this.activeItem,
     this.displayName,
+    this.creditsText,
     this.onInicioTap,
     this.onMinhasAulasTap,
     this.onMaisExplicadoresTap,
@@ -34,6 +35,7 @@ class HeaderAluno extends StatelessWidget {
   final HeaderAlunoItem? activeItem;
 
   final String? displayName;
+  final String? creditsText;
 
   final VoidCallback? onInicioTap;
   final VoidCallback? onMinhasAulasTap;
@@ -137,6 +139,7 @@ class HeaderAluno extends StatelessWidget {
         ),
       ],
       child: Stack(
+        clipBehavior: Clip.none,
         children: [
           Positioned(
             left: 55,
@@ -179,6 +182,32 @@ class HeaderAluno extends StatelessWidget {
                   color: _itemColor(HeaderAlunoItem.recursos),
                   onTap: () => _handleRecursosTap(context),
                 ),
+                if (creditsText != null && creditsText!.trim().isNotEmpty) ...[
+                  const SizedBox(width: 24),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFF7ED),
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(color: const Color(0xFFFFD6A7)),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Color.fromRGBO(15, 23, 42, 0.06),
+                          blurRadius: 8,
+                          offset: Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Text(
+                      '${creditsText!.replaceAll(RegExp(r'[^0-9]'), '').trim()} créditos',
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFFCA3500),
+                      ),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -242,6 +271,7 @@ class HeaderAluno extends StatelessWidget {
             child: HeaderProfileButton(
               onTap: onProfileTap,
               onLogoutTap: () => _handleLogoutTap(context),
+              imageUrl: context.watch<UserProvider>().account?.profileImageUrl,
             ),
           ),
           const Positioned(

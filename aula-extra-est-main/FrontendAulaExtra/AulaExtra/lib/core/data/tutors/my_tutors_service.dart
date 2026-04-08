@@ -13,11 +13,15 @@ class MyTutorsService {
   final TokenStorage _tokenStorage;
 
   Future<List<MyTutorDto>> getMyTutors() async {
+    return getMyTutorsByArea();
+  }
+
+  Future<List<MyTutorDto>> getMyTutorsByArea({String? areaId}) async {
     final token = await _tokenStorage.loadToken();
     if (token == null || token.trim().isEmpty) {
       throw const MyTutorsException('Sessão expirada');
     }
 
-    return _api.getMyTutors(token: token);
+    return _api.getMyTutors(token: token, areaId: areaId);
   }
 }

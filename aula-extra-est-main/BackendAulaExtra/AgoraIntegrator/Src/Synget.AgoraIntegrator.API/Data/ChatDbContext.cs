@@ -24,6 +24,7 @@ public class ChatDbContext : DbContext
     public DbSet<VideoRoomParticipantEntity> VideoRoomParticipants => Set<VideoRoomParticipantEntity>();
     public DbSet<ProfessorRoomEntity> ProfessorRooms => Set<ProfessorRoomEntity>();
     public DbSet<ChatFileEntity> ChatFiles => Set<ChatFileEntity>();
+      public DbSet<NotificationEntity> Notifications => Set<NotificationEntity>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

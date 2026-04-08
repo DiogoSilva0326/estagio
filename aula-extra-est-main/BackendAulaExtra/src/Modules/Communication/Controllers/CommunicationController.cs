@@ -1,8 +1,10 @@
 using System;
 using System.Threading.Tasks;
 using ConfidantPostgreSQL.Auth;
+using ConfidantPostgreSQL.Modules.Communication.DTOs;
 using ConfidantPostgreSQL.Modules.Communication.Models;
 using ConfidantPostgreSQL.Modules.Communication.Service;
+using ConfidantPostgreSQL.Modules.Users.Service;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ConfidantPostgreSQL.Modules.Communication.Controllers
@@ -13,10 +15,23 @@ namespace ConfidantPostgreSQL.Modules.Communication.Controllers
     public class CommunicationController : ControllerBase
     {
         private readonly ICommunicationService _service;
+        private readonly IUserService _userService;
 
-        public CommunicationController(ICommunicationService service)
+        public CommunicationController(ICommunicationService service, IUserService userService)
         {
             _service = service;
+            _userService = userService;
+        }
+
+        private bool TryGetCurrentUserId(out Guid userId)
+        {
+            userId = Guid.Empty;
+            if (HttpContext.Items.TryGetValue("UserId", out var val) && val is Guid guid && guid != Guid.Empty)
+            {
+                userId = guid;
+                return true;
+            }
+            return false;
         }
 
         private bool TryAuthorize(out IActionResult? unauthorized)
@@ -116,6 +131,154 @@ namespace ConfidantPostgreSQL.Modules.Communication.Controllers
         {
            //if (!TryAuthorize(out var unauthorized)) return unauthorized!;
             return Ok(await _service.GetContactsAllAsync());
+        }
+
+        [HttpGet("contacts/me")]
+        public async Task<IActionResult> GetMyContacts()
+        {
+            if (!TryGetCurrentUserId(out var userId)) return Unauthorized(new { error = "token_invalid" });
+            return Ok(await _service.GetContactUserSummariesByOwnerAsync(userId));
+        }
+
+        [HttpPost("contacts/by-username")]
+        public async Task<IActionResult> AddContactByUsername([FromBody] AddContactByUsernameRequest request)
+        {
+            if (request == null || string.IsNullOrWhiteSpace(request.Username)) return BadRequest();
+
+            if (!TryGetCurrentUserId(out var ownerUserId)) return Unauthorized(new { error = "token_invalid" });
+            var target = await _userService.GetByUsernameAsync(request.Username.Trim());
+            if (target?.Id == null || target.Id.Value == Guid.Empty) return NotFound(new { error = "user_not_found" });
+            if (target.Id.Value == ownerUserId) return BadRequest(new { error = "cannot_add_self" });
+
+            var targetUserId = target.Id.Value;
+
+            // If the relationship already exists, avoid flipping accepted back to pending.
+            var existingOwnerToTarget = await _service.GetContactByOwnerAndContactAsync(ownerUserId, targetUserId);
+            if (existingOwnerToTarget != null && string.Equals(existingOwnerToTarget.Status, "accepted", StringComparison.OrdinalIgnoreCase))
+            {
+                return Ok(await _service.GetContactUserSummariesByOwnerAsync(ownerUserId));
+            }
+
+            // If I already have a pending invite from the target, treat this as accepting it.
+            if (existingOwnerToTarget != null && string.Equals(existingOwnerToTarget.Status, "pending", StringComparison.OrdinalIgnoreCase))
+            {
+                await _service.UpsertContactAsync(new Contact
+                {
+                    OwnerUserId = ownerUserId,
+                    ContactUserId = targetUserId,
+                    Status = "accepted"
+                });
+                await _service.UpsertContactAsync(new Contact
+                {
+                    OwnerUserId = targetUserId,
+                    ContactUserId = ownerUserId,
+                    Status = "accepted"
+                });
+
+                return Ok(await _service.GetContactUserSummariesByOwnerAsync(ownerUserId));
+            }
+
+            // Create an invite: requester sees 'requested', receiver sees 'pending'.
+            await _service.UpsertContactAsync(new Contact
+            {
+                OwnerUserId = ownerUserId,
+                ContactUserId = targetUserId,
+                Status = "requested"
+            });
+            await _service.UpsertContactAsync(new Contact
+            {
+                OwnerUserId = targetUserId,
+                ContactUserId = ownerUserId,
+                Status = "pending"
+            });
+
+            return Ok(await _service.GetContactUserSummariesByOwnerAsync(ownerUserId));
+        }
+
+        [HttpPost("contacts/by-user-id")]
+        public async Task<IActionResult> AddContactByUserId([FromBody] AddContactByUserIdRequest request)
+        {
+            if (request == null || request.UserId == Guid.Empty) return BadRequest();
+
+            if (!TryGetCurrentUserId(out var ownerUserId)) return Unauthorized(new { error = "token_invalid" });
+            if (request.UserId == ownerUserId) return BadRequest(new { error = "cannot_add_self" });
+
+            var target = await _userService.GetByIdAsync(request.UserId);
+            if (target?.Id == null || target.Id.Value == Guid.Empty) return NotFound(new { error = "user_not_found" });
+
+            var targetUserId = request.UserId;
+
+            var existingOwnerToTarget = await _service.GetContactByOwnerAndContactAsync(ownerUserId, targetUserId);
+            if (existingOwnerToTarget != null && string.Equals(existingOwnerToTarget.Status, "accepted", StringComparison.OrdinalIgnoreCase))
+            {
+                return Ok(await _service.GetContactUserSummariesByOwnerAsync(ownerUserId));
+            }
+
+            await _service.UpsertContactAsync(new Contact
+            {
+                OwnerUserId = ownerUserId,
+                ContactUserId = targetUserId,
+                Status = "accepted"
+            });
+            await _service.UpsertContactAsync(new Contact
+            {
+                OwnerUserId = targetUserId,
+                ContactUserId = ownerUserId,
+                Status = "accepted"
+            });
+
+            return Ok(await _service.GetContactUserSummariesByOwnerAsync(ownerUserId));
+        }
+
+        [HttpPost("contacts/by-username/{username}/accept")]
+        public async Task<IActionResult> AcceptContactInviteByUsername([FromRoute] string username)
+        {
+            if (string.IsNullOrWhiteSpace(username)) return BadRequest();
+
+            if (!TryGetCurrentUserId(out var ownerUserId)) return Unauthorized(new { error = "token_invalid" });
+            var target = await _userService.GetByUsernameAsync(username.Trim());
+            if (target?.Id == null || target.Id.Value == Guid.Empty) return NotFound(new { error = "user_not_found" });
+            if (target.Id.Value == ownerUserId) return BadRequest(new { error = "cannot_add_self" });
+
+            var targetUserId = target.Id.Value;
+
+            // Only accept if I have something pending/requested; idempotent if already accepted.
+            await _service.UpsertContactAsync(new Contact
+            {
+                OwnerUserId = ownerUserId,
+                ContactUserId = targetUserId,
+                Status = "accepted"
+            });
+            await _service.UpsertContactAsync(new Contact
+            {
+                OwnerUserId = targetUserId,
+                ContactUserId = ownerUserId,
+                Status = "accepted"
+            });
+
+            return Ok(await _service.GetContactUserSummariesByOwnerAsync(ownerUserId));
+        }
+
+        [HttpPost("contacts/by-username/{username}/reject")]
+        public async Task<IActionResult> RejectContactInviteByUsername([FromRoute] string username)
+        {
+            if (string.IsNullOrWhiteSpace(username)) return BadRequest();
+
+            if (!TryGetCurrentUserId(out var ownerUserId)) return Unauthorized(new { error = "token_invalid" });
+            var target = await _userService.GetByUsernameAsync(username.Trim());
+            if (target?.Id == null || target.Id.Value == Guid.Empty) return NotFound(new { error = "user_not_found" });
+            if (target.Id.Value == ownerUserId) return BadRequest(new { error = "cannot_add_self" });
+
+            var targetUserId = target.Id.Value;
+
+            // Reject by removing both rows (simplest semantics).
+            var a = await _service.GetContactByOwnerAndContactAsync(ownerUserId, targetUserId);
+            if (a != null) await _service.DeleteContactAsync(a.Id);
+
+            var b = await _service.GetContactByOwnerAndContactAsync(targetUserId, ownerUserId);
+            if (b != null) await _service.DeleteContactAsync(b.Id);
+
+            return Ok(await _service.GetContactUserSummariesByOwnerAsync(ownerUserId));
         }
 
         [HttpGet("contacts/{id:guid}")]

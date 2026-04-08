@@ -8,7 +8,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 class MeusAlunosProfessorScreen extends StatelessWidget {
-  const MeusAlunosProfessorScreen({super.key});
+  const MeusAlunosProfessorScreen({
+    super.key,
+  });
 
   @override
   Widget build(BuildContext context) {

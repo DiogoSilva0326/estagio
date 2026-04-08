@@ -1,227 +1,512 @@
-import 'dart:convert';
-import 'package:http/http.dart' as http;
-import 'package:aula_extra/core/data/http/api_config.dart';
-import 'package:aula_extra/core/data/session/token_storage.dart';
-import 'package:aula_extra/features/professor/core/widgets/professor_menu_nav.dart';
+import 'dart:async';
+
+import 'package:aula_extra/core/data/communication/chat_files_service.dart';
+import 'package:aula_extra/core/data/communication/contacts_service.dart';
+import 'package:aula_extra/core/data/communication/realtime_chat_service.dart';
+import 'package:aula_extra/core/data/professors/professors_service.dart';
+import 'package:aula_extra/core/data/users/users_service.dart';
+import 'package:aula_extra/core/providers/user_provider.dart';
+import 'package:aula_extra/features/aluno/chats/constants/chats_constants.dart';
 import 'package:aula_extra/features/professor/chats/constants/chats_professor_colors.dart';
 import 'package:aula_extra/features/professor/chats/constants/chats_professor_font_sizes.dart';
 import 'package:aula_extra/features/professor/chats/widgets/chat_avatar.dart';
 import 'package:aula_extra/features/professor/chats/widgets/chat_bubble.dart';
 import 'package:aula_extra/features/professor/chats/widgets/chat_list_item.dart';
 import 'package:aula_extra/features/professor/chats/widgets/full_bleed_scaled_section.dart';
+import 'package:aula_extra/features/professor/core/widgets/professor_menu_nav.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:signalr_netcore/signalr_client.dart';
+import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class ChatsProfessorContentSection extends StatefulWidget {
-  final String? initialStudentId; 
+  const ChatsProfessorContentSection({
+    super.key,
+    this.initialStudentUsername,
+    this.initialStudentName,
+  });
+
+  final String? initialStudentUsername;
   final String? initialStudentName;
-  const ChatsProfessorContentSection({super.key, this.initialStudentId, this.initialStudentName});
 
   @override
-  State<ChatsProfessorContentSection> createState() => _ChatsProfessorContentSectionState();
+  State<ChatsProfessorContentSection> createState() =>
+      _ChatsProfessorContentSectionState();
 }
 
-class _ChatsProfessorContentSectionState extends State<ChatsProfessorContentSection> {
-  late final TextEditingController _searchController;
-  late final TextEditingController _composerController;
-  String _query = '';
-  int? _selectedConversationId;
-  String? _myUserId;
-  List<_ConversationData> _conversations = []; 
-  bool _isLoading = false;
+class _ChatsProfessorContentSectionState
+    extends State<ChatsProfessorContentSection> {
+  final TextEditingController _searchController = TextEditingController();
+  final TextEditingController _composerController = TextEditingController();
+  final ScrollController _messagesScrollController = ScrollController();
 
-  HubConnection? _hubConnection;
-  
+  final ProfessorsService _professorsService = ProfessorsService();
+  final ContactsService _contactsService = ContactsService();
+  final UsersService _usersService = UsersService();
+  final ChatFilesService _chatFilesService = ChatFilesService();
+  final RealtimeChatService _realtimeChatService = RealtimeChatService();
+
+  static const int _maxChatFileSizeBytes = 5 * 1024 * 1024;
+
+  StreamSubscription<RealtimeChatEvent>? _chatSubscription;
+
+  String _query = '';
+  int _selectedConversationId = 0;
+  bool _isLoading = true;
+  String? _errorMessage;
+
+  String? _myUsername;
+  String? _myDisplayName;
+  String? _activeChannelName;
+
+  final Map<int, List<_MessageData>> _fullMessagesByConversationId =
+      <int, List<_MessageData>>{};
+  final Map<int, int> _visibleMessageCountByConversationId = <int, int>{};
+  final Map<int, bool> _otherOnlineByConversationId = <int, bool>{};
+  bool _isLoadingMoreMessages = false;
+
+  List<_ConversationData> _conversations = <_ConversationData>[];
+
   @override
   void initState() {
     super.initState();
-    _searchController = TextEditingController();
-    _composerController = TextEditingController();
-    _carregarTudoDaAPI();
+    _loadStudents();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _initRealtime());
+    _messagesScrollController.addListener(_handleMessagesScroll);
   }
 
-  Future<void> _iniciarSignalR(String myId) async {
-    try {
-      final baseUrl = ApiConfig.uri('/chathub').toString(); 
-      
-      _hubConnection = HubConnectionBuilder()
-          .withUrl(baseUrl)
-          .withAutomaticReconnect()
-          .build();
+  void _handleMessagesScroll() {
+    final selected = _selectedConversation;
+    if (selected == null) return;
+    if (_isLoadingMoreMessages) return;
+    if (!_messagesScrollController.hasClients) return;
 
-      _hubConnection?.on("MessageReceived", _handleNovaMensagemRecebida);
-
-      await _hubConnection?.start();
-      debugPrint('SignalR Conectado com sucesso (Professor)!');
-
-      await _hubConnection?.invoke("JoinMyPersonalRoom", args: [myId]);
-      
-    } catch (e) {
-      debugPrint('Erro a conectar ao SignalR: $e');
+    if (_messagesScrollController.position.pixels <=
+        _messagesScrollController.position.minScrollExtent + 12) {
+      _loadMoreMessages(selected.id);
     }
   }
 
-  void _handleNovaMensagemRecebida(List<Object?>? args) {
-    if (args == null || args.length < 3) return;
-
-    final senderId = args[0].toString();
-    final content = args[1].toString();
-    final timeStr = args[2].toString(); 
-
-    if (senderId == _myUserId) return;
-
-    String timeLabel = 'Agora';
-    try {
-      final dt = DateTime.parse(timeStr).toLocal();
-      timeLabel = '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
-    } catch (_) {}
+  Future<void> _loadMoreMessages(int conversationId) async {
+    final full =
+        _fullMessagesByConversationId[conversationId] ?? const <_MessageData>[];
+    final currentVisible =
+        _visibleMessageCountByConversationId[conversationId] ?? 20;
+    if (full.length <= currentVisible) return;
 
     setState(() {
-      final idx = _conversations.indexWhere((c) => c.backendGuid == senderId);
-      
-      if (idx != -1) {
-        final updatedMessages = List<_MessageData>.from(_conversations[idx].messages)
-          ..add(_MessageData(isMine: false, text: content, timeLabel: timeLabel)); // No professor chamaste isMine
-        
-        _conversations[idx] = _conversations[idx].copyWith(
-          messages: updatedMessages, 
-          preview: content, 
-          timeLabel: timeLabel,
-          unreadCount: (_selectedConversationId == _conversations[idx].id) ? 0 : (_conversations[idx].unreadCount ?? 0) + 1
-        );
-      } else {
-        _carregarTudoDaAPI();
-      }
+      _isLoadingMoreMessages = true;
+    });
+
+    await Future<void>.delayed(const Duration(milliseconds: 250));
+
+    if (!mounted) return;
+
+    setState(() {
+      final next = currentVisible + 20;
+      _visibleMessageCountByConversationId[conversationId] = _safeVisibleCount(
+        next,
+        full.length,
+      );
+      _applyVisibleMessagesForConversation(conversationId);
+      _isLoadingMoreMessages = false;
     });
   }
 
-  String _extrairIdDoToken(String token) {
+  int _safeVisibleCount(int desired, int total) {
+    if (total <= 0) return 0;
+    if (total < 20) return total;
+    return desired.clamp(20, total);
+  }
+
+  void _scrollToBottom({bool animated = true}) {
+    if (!_messagesScrollController.hasClients) return;
+
+    final target = _messagesScrollController.position.maxScrollExtent;
+    if (!animated) {
+      _messagesScrollController.jumpTo(target);
+      return;
+    }
+
+    _messagesScrollController.animateTo(
+      target,
+      duration: const Duration(milliseconds: 200),
+      curve: Curves.easeOut,
+    );
+  }
+
+  Future<void> _loadStudents() async {
+    final previousUsername = _selectedConversation?.username
+        .trim()
+        .toLowerCase();
+
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
     try {
-      final payloadBase64 = token.split('.')[1];
-      final normalized = base64Url.normalize(payloadBase64);
-      final payloadMap = jsonDecode(utf8.decode(base64Url.decode(normalized)));
-      return payloadMap['sub']?.toString() ?? '';
-    } catch (_) {
-      return '';
+      final students = await _professorsService.fetchMeusAlunos();
+      final conversations = <_ConversationData>[];
+
+      for (var index = 0; index < students.length; index++) {
+        final student = students[index];
+        final username = student.username.trim();
+        if (username.isEmpty) continue;
+
+        conversations.add(
+          _ConversationData(
+            id: index + 1,
+            username: username,
+            initials: _initialsFromName(student.fullName),
+            name: student.fullName,
+            status: 'Offline',
+            timeLabel: '',
+            preview: 'Inicia a conversa...',
+            messages: const <_MessageData>[],
+          ),
+        );
+      }
+
+      final initialUsername = widget.initialStudentUsername?.trim();
+      final initialName = widget.initialStudentName?.trim();
+      if (initialUsername != null && initialUsername.isNotEmpty) {
+        final exists = conversations.any(
+          (conversation) =>
+              conversation.username.trim().toLowerCase() ==
+              initialUsername.toLowerCase(),
+        );
+        if (!exists) {
+          final fallbackName = (initialName != null && initialName.isNotEmpty)
+              ? initialName
+              : initialUsername;
+          conversations.insert(
+            0,
+            _ConversationData(
+              id: 1,
+              username: initialUsername,
+              initials: _initialsFromName(fallbackName),
+              name: fallbackName,
+              status: 'Offline',
+              timeLabel: '',
+              preview: 'Inicia a conversa...',
+              messages: const <_MessageData>[],
+            ),
+          );
+          for (var i = 1; i < conversations.length; i++) {
+            conversations[i] = conversations[i].copyWith(id: i + 1);
+          }
+        }
+      }
+
+      var selectedId = conversations.isNotEmpty ? conversations.first.id : 0;
+      if (previousUsername != null && previousUsername.isNotEmpty) {
+        final previousMatch = conversations.indexWhere(
+          (conversation) =>
+              conversation.username.trim().toLowerCase() == previousUsername,
+        );
+        if (previousMatch != -1) selectedId = conversations[previousMatch].id;
+      }
+
+      if (initialUsername != null && initialUsername.isNotEmpty) {
+        final initialMatch = conversations.indexWhere(
+          (conversation) =>
+              conversation.username.trim().toLowerCase() ==
+              initialUsername.toLowerCase(),
+        );
+        if (initialMatch != -1) selectedId = conversations[initialMatch].id;
+      }
+
+      if (!mounted) return;
+      setState(() {
+        _conversations = conversations;
+        _selectedConversationId = selectedId;
+        _fullMessagesByConversationId.clear();
+        _visibleMessageCountByConversationId.clear();
+        _otherOnlineByConversationId.clear();
+        _activeChannelName = null;
+        _isLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = e.toString();
+        _conversations = <_ConversationData>[];
+        _selectedConversationId = 0;
+        _isLoading = false;
+      });
     }
   }
 
-  Future<Map<String, String>> _buscarDadosAluno(String userId, String token) async {
+  Future<void> _initRealtime() async {
+    String? username;
+    String? displayName;
+
     try {
-      final response = await http.get(
-        ApiConfig.uri('/api/Users/$userId'),
-        headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer $token'},
-      );
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        final name = '${data['firstName'] ?? ''} ${data['lastName'] ?? ''}'.trim();
-        String initials = 'AL';
-        if (name.isNotEmpty) {
-          final parts = name.split(' ');
-          initials = parts.length > 1 
-              ? '${parts[0][0]}${parts[parts.length - 1][0]}'.toUpperCase() 
-              : name.substring(0, name.length >= 2 ? 2 : 1).toUpperCase();
-        }
-        return {'name': name.isEmpty ? 'Aluno Desconhecido' : name, 'initials': initials};
-      }
+      final user = context.read<UserProvider>();
+      username = user.account?.username?.trim();
+      displayName = user.account?.fullName?.trim();
     } catch (_) {}
-    return {'name': 'Aluno', 'initials': 'AL'};
+
+    if (username == null || username.isEmpty) {
+      try {
+        final me = await _usersService.getMe();
+        username = me.username?.trim();
+        displayName = me.displayName?.trim();
+      } catch (_) {}
+    }
+
+    if (!mounted) return;
+    if (username == null || username.isEmpty) {
+      setState(() {
+        _errorMessage = 'Não foi possível identificar o professor para o chat.';
+      });
+      return;
+    }
+
+    displayName = (displayName == null || displayName.isEmpty)
+        ? username
+        : displayName;
+
+    setState(() {
+      _myUsername = username;
+      _myDisplayName = displayName;
+    });
+
+    try {
+      await _realtimeChatService.connect(
+        username: username,
+        displayName: displayName,
+      );
+      await _chatSubscription?.cancel();
+      _chatSubscription = _realtimeChatService.events.listen(_onChatEvent);
+
+      final selected = _selectedConversation;
+      if (selected != null) {
+        await _joinConversation(selected);
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = e.toString();
+      });
+    }
   }
 
-  Future<void> _carregarTudoDaAPI() async {
-    setState(() => _isLoading = true);
+  Future<void> _joinConversation(_ConversationData conversation) async {
+    final username = conversation.username.trim();
+    if (username.isEmpty) {
+      setState(() {
+        _errorMessage = 'Este aluno não tem username disponível.';
+      });
+      return;
+    }
+
+    final myUsername = _myUsername;
+    final myDisplayName = _myDisplayName;
+    if (myUsername == null || myDisplayName == null) {
+      await _initRealtime();
+    }
+
+    if (_myUsername == null || _myDisplayName == null) return;
+
+    final expectedChannelName = RealtimeChatConfig.dmChannelName(
+      _myUsername!,
+      username,
+    );
+    if (_activeChannelName?.trim().toLowerCase() ==
+            expectedChannelName.trim().toLowerCase() &&
+        _realtimeChatService.isConnected) {
+      return;
+    }
+
     try {
-      final token = await TokenStorage().loadToken() ?? '';
-      _myUserId = _extrairIdDoToken(token);
-      
-      final response = await http.get(
-        ApiConfig.uri('/api/Communication/messages'),
-        headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer $token'},
+      await _contactsService.acceptInviteByUsername(username);
+    } catch (_) {}
+
+    try {
+      await _realtimeChatService.connect(
+        username: _myUsername!,
+        displayName: _myDisplayName!,
+      );
+      final channelName = await _realtimeChatService.joinDirectMessage(
+        otherUsername: username,
+      );
+      _activeChannelName = channelName;
+      _markConversationRead(channelName);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = e.toString();
+      });
+    }
+  }
+
+  Future<void> _sendMessage() async {
+    final text = _composerController.text.trim();
+    if (text.isEmpty) return;
+
+    final selected = _selectedConversation;
+    if (selected == null) return;
+
+    if (_activeChannelName == null || _activeChannelName!.isEmpty) {
+      await _joinConversation(selected);
+    }
+
+    final channelName = _activeChannelName;
+    if (channelName == null || channelName.isEmpty) return;
+
+    try {
+      await _realtimeChatService.sendMessage(
+        channelName: channelName,
+        content: text,
+      );
+      if (!mounted) return;
+      _composerController.clear();
+      WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = e.toString();
+      });
+    }
+  }
+
+  Future<void> _pickAndSendFile() async {
+    final selected = _selectedConversation;
+    if (selected == null) return;
+
+    if (_activeChannelName == null || _activeChannelName!.isEmpty) {
+      await _joinConversation(selected);
+    }
+
+    final channelName = _activeChannelName;
+    final username = _myUsername;
+    if (channelName == null ||
+        channelName.isEmpty ||
+        username == null ||
+        username.isEmpty) {
+      return;
+    }
+
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        allowMultiple: false,
+        withData: true,
+        type: FileType.any,
+      );
+      if (result == null || result.files.isEmpty) return;
+
+      final pickedFile = result.files.single;
+      final bytes = pickedFile.bytes;
+      if (bytes == null || bytes.isEmpty) {
+        throw Exception('Não foi possível ler o ficheiro selecionado.');
+      }
+
+      if (bytes.length > _maxChatFileSizeBytes) {
+        throw Exception('O ficheiro excede o limite de 5 MB.');
+      }
+
+      final uploaded = await _chatFilesService.uploadFile(
+        bytes: bytes,
+        fileName: pickedFile.name,
+        contentType: _guessContentType(pickedFile.name),
+        userId: username,
+        roomId: channelName,
       );
 
-      if (response.statusCode == 200) {
-        final List<dynamic> jsonMsgs = jsonDecode(response.body);
-        final Map<String, List<dynamic>> mensagensAgrupadas = {};
+      final caption = _composerController.text.trim();
+      await _realtimeChatService.sendFileMessage(
+        channelName: channelName,
+        fileId: uploaded.fileId,
+        caption: caption.isEmpty ? null : caption,
+      );
 
-        for (var m in jsonMsgs) {
-          final sender = m['senderUserId']?.toString() ?? '';
-          final receiver = m['receiverUserId']?.toString() ?? '';
-          if (sender != _myUserId && receiver != _myUserId) continue;
+      if (!mounted) return;
+      _composerController.clear();
+      WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = e.toString();
+      });
+    }
+  }
 
-          final otherUserId = sender == _myUserId ? receiver : sender;
-          mensagensAgrupadas.putIfAbsent(otherUserId, () => []).add(m);
-        }
+  Future<void> _openExternalUrl(String url) async {
+    final uri = Uri.tryParse(url);
+    if (uri == null) {
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = 'Link do ficheiro inválido.';
+      });
+      return;
+    }
 
-        final List<_ConversationData> novasConversas = [];
-        for (var entry in mensagensAgrupadas.entries) {
-          final otherUserId = entry.key;
-          final msgs = entry.value;
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication) &&
+        mounted) {
+      setState(() {
+        _errorMessage = 'Não foi possível abrir o ficheiro.';
+      });
+    }
+  }
 
-          final dadosAluno = await _buscarDadosAluno(otherUserId, token);
-          msgs.sort((a, b) => (a['sentAt'] ?? '').compareTo(b['sentAt'] ?? ''));
+  _MessageData _toMessageData(RealtimeChatMessage message, String myUsername) {
+    return _MessageData(
+      id: message.messageId,
+      senderId: message.senderId,
+      text: message.content,
+      timestamp: message.timestamp.toLocal(),
+      isOutgoing:
+          message.senderId.trim().toLowerCase() ==
+          myUsername.trim().toLowerCase(),
+      isRead: message.isRead,
+      attachment: message.attachment,
+    );
+  }
 
-          final parsedMessages = msgs.map((m) {
-            String timeLabel = 'Agora';
-            if (m['sentAt'] != null) {
-              try {
-                final dt = DateTime.parse(m['sentAt']).toLocal();
-                timeLabel = '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
-              } catch (_) {}
-            }
-            return _MessageData(
-              isMine: m['senderUserId']?.toString() == _myUserId,
-              text: m['messageContent'] ?? '',
-              timeLabel: timeLabel,
-            );
-          }).toList();
-
-          novasConversas.add(_ConversationData(
-            id: otherUserId.hashCode,
-            backendGuid: otherUserId,
-            initials: dadosAluno['initials']!,
-            name: dadosAluno['name']!,
-            status: 'Online',
-            timeLabel: parsedMessages.isNotEmpty ? parsedMessages.last.timeLabel : '',
-            preview: parsedMessages.isNotEmpty ? parsedMessages.last.text : '',
-            messages: parsedMessages,
-          ));
-        }
-
-        if (widget.initialStudentId != null) {
-          final initialIdInt = widget.initialStudentId.hashCode;
-          if (!novasConversas.any((c) => c.id == initialIdInt)) {
-            final studentName = widget.initialStudentName ?? 'Aluno';
-            String initials = 'AL';
-            if (studentName.isNotEmpty) {
-              final parts = studentName.trim().split(' ');
-              initials = parts.length > 1 
-                  ? '${parts[0][0]}${parts[parts.length - 1][0]}'.toUpperCase() 
-                  : studentName.substring(0, studentName.length >= 2 ? 2 : 1).toUpperCase();
-            }
-            novasConversas.insert(0, _ConversationData(
-              id: initialIdInt, backendGuid: widget.initialStudentId!,
-              initials: initials, name: studentName, status: 'Online',
-              timeLabel: 'Agora', preview: 'Inicia a conversa...', messages: const [],
-            ));
-          }
-        }
-
-        setState(() {
-          _conversations = novasConversas;
-          if (widget.initialStudentId != null && _selectedConversationId == null) {
-             _selectedConversationId = widget.initialStudentId.hashCode;
-          } else if (_conversations.isNotEmpty && _selectedConversationId == null) {
-             _selectedConversationId = _conversations.first.id;
-          }
-        });
-
-        if (_hubConnection?.state != HubConnectionState.Connected && _myUserId != null) {
-          await _iniciarSignalR(_myUserId!);
-        }
-      }
-    } catch (_) {
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
+  String _guessContentType(String fileName) {
+    final extension = fileName.split('.').last.toLowerCase();
+    switch (extension) {
+      case 'jpg':
+      case 'jpeg':
+        return 'image/jpeg';
+      case 'png':
+        return 'image/png';
+      case 'gif':
+        return 'image/gif';
+      case 'webp':
+        return 'image/webp';
+      case 'pdf':
+        return 'application/pdf';
+      case 'doc':
+        return 'application/msword';
+      case 'docx':
+        return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+      case 'xls':
+        return 'application/vnd.ms-excel';
+      case 'xlsx':
+        return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+      case 'ppt':
+        return 'application/vnd.ms-powerpoint';
+      case 'pptx':
+        return 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
+      case 'txt':
+        return 'text/plain';
+      case 'csv':
+        return 'text/csv';
+      case 'mp3':
+        return 'audio/mpeg';
+      case 'wav':
+        return 'audio/wav';
+      case 'ogg':
+        return 'audio/ogg';
+      case 'm4a':
+        return 'audio/mp4';
+      case 'mp4':
+        return 'video/mp4';
+      default:
+        return 'application/octet-stream';
     }
   }
 
@@ -229,7 +514,11 @@ class _ChatsProfessorContentSectionState extends State<ChatsProfessorContentSect
   void dispose() {
     _searchController.dispose();
     _composerController.dispose();
-    _hubConnection?.stop();
+    _messagesScrollController.removeListener(_handleMessagesScroll);
+    _messagesScrollController.dispose();
+    _chatSubscription?.cancel();
+    _realtimeChatService.disconnect();
+    _realtimeChatService.dispose();
     super.dispose();
   }
 
@@ -244,56 +533,425 @@ class _ChatsProfessorContentSectionState extends State<ChatsProfessorContentSect
   List<_ConversationData> get _filteredConversations {
     final query = _query.trim().toLowerCase();
     if (query.isEmpty) return _conversations;
-    return _conversations.where((c) => c.name.toLowerCase().contains(query)).toList();
+    return _conversations
+        .where((c) => c.name.toLowerCase().contains(query))
+        .toList();
   }
 
   void _handleSelectConversation(int id) {
     setState(() {
       _selectedConversationId = id;
       final idx = _conversations.indexWhere((c) => c.id == id);
-      if (idx != -1) _conversations[idx] = _conversations[idx].copyWith(unreadCount: 0);
+      if (idx != -1) {
+        _conversations[idx] = _conversations[idx].copyWith(unreadCount: 0);
+      }
     });
+
+    final selected = _selectedConversation;
+    if (selected != null) {
+      _joinConversation(selected);
+    }
   }
 
-  Future<void> _handleSendMessage() async {
-    final text = _composerController.text.trim();
-    if (text.isEmpty) return;
+  void _onChatEvent(RealtimeChatEvent event) {
+    if (!mounted) return;
+
+    if (event is RealtimeChatRoomJoined) {
+      _applyRoomHistory(event.channelName, event.messages);
+      _applyPresenceFromParticipants(event.channelName, event.participants);
+      _markConversationRead(event.channelName);
+      return;
+    }
+
+    if (event is RealtimeChatMessageReceived) {
+      if (event.message.isSystemFileNotification) return;
+      _appendMessageToActive(event.channelName, event.message);
+      final myUsername = _myUsername;
+      if (myUsername != null &&
+          event.message.senderId.trim().toLowerCase() !=
+              myUsername.trim().toLowerCase()) {
+        _markConversationRead(event.channelName);
+      }
+      return;
+    }
+
+    if (event is RealtimeChatDirectMessageReceived) {
+      if (event.message.isSystemFileNotification) return;
+      _applyDirectMessageNotification(event.channelName, event.message);
+      final myUsername = _myUsername;
+      if (myUsername != null &&
+          event.message.senderId.trim().toLowerCase() !=
+              myUsername.trim().toLowerCase()) {
+        _markConversationRead(event.channelName);
+      }
+      return;
+    }
+
+    if (event is RealtimeChatMessagesRead) {
+      _applyMessagesRead(event.channelName, event.messageIds);
+      return;
+    }
+
+    if (event is RealtimeChatUserPresenceChanged) {
+      _applyPresenceChange(event.channelName, event.userId, event.isOnline);
+      return;
+    }
+
+    if (event is RealtimeChatError) {
+      setState(() {
+        _errorMessage = event.message;
+      });
+    }
+  }
+
+  void _applyRoomHistory(
+    String channelName,
+    List<RealtimeChatMessage> messages,
+  ) {
+    final myUsername = _myUsername;
+    if (myUsername == null) return;
 
     final selected = _selectedConversation;
     if (selected == null) return;
 
+    final expectedChannel = RealtimeChatConfig.dmChannelName(
+      myUsername,
+      selected.username,
+    );
+    if (expectedChannel != channelName) return;
+
+    final mapped =
+        messages
+            .map(
+              (message) => _MessageData(
+                id: message.messageId,
+                senderId: message.senderId,
+                text: message.content,
+                timestamp: message.timestamp.toLocal(),
+                isOutgoing:
+                    message.senderId.trim().toLowerCase() ==
+                    myUsername.trim().toLowerCase(),
+                isRead: message.isRead,
+                attachment: message.attachment,
+              ),
+            )
+            .toList(growable: true)
+          ..sort((left, right) => left.timestamp.compareTo(right.timestamp));
+
     setState(() {
-      final idx = _conversations.indexWhere((c) => c.id == selected.id);
-      if (idx != -1) {
-        final updatedMessages = List<_MessageData>.from(_conversations[idx].messages)
-          ..add(_MessageData(isMine: true, text: text, timeLabel: 'Agora'));
-        _conversations[idx] = _conversations[idx].copyWith(messages: updatedMessages, preview: text, timeLabel: 'Agora');
+      final idx = _conversations.indexWhere(
+        (conversation) => conversation.id == selected.id,
+      );
+      if (idx == -1) return;
+
+      final existing = List<_MessageData>.from(
+        _fullMessagesByConversationId[selected.id] ?? const <_MessageData>[],
+      );
+      final mergedById = <String, _MessageData>{};
+
+      for (final item in existing) {
+        final key = item.id.trim();
+        if (key.isEmpty) continue;
+        mergedById[key] = item;
+      }
+
+      for (final item in mapped) {
+        final key = item.id.trim();
+        if (key.isEmpty) continue;
+        mergedById[key] = item;
+      }
+
+      final merged = mergedById.values.toList(growable: true)
+        ..sort((left, right) => left.timestamp.compareTo(right.timestamp));
+
+      _fullMessagesByConversationId[selected.id] = merged;
+      _visibleMessageCountByConversationId[selected.id] = _safeVisibleCount(
+        _visibleMessageCountByConversationId[selected.id] ?? 20,
+        merged.length,
+      );
+      _applyVisibleMessagesForConversation(selected.id);
+
+      final visible = _conversations[idx].messages;
+      final last = visible.isNotEmpty ? visible.last : null;
+      _conversations[idx] = _conversations[idx].copyWith(
+        messages: visible,
+        preview: last?.text ?? '',
+        timeLabel: last != null ? _formatTime(last.timestamp) : '',
+      );
+    });
+
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => _scrollToBottom(animated: false),
+    );
+  }
+
+  void _applyVisibleMessagesForConversation(int conversationId) {
+    final selected = _selectedConversation;
+    if (selected == null || selected.id != conversationId) return;
+
+    final full =
+        _fullMessagesByConversationId[conversationId] ?? const <_MessageData>[];
+    final visibleCount = _safeVisibleCount(
+      _visibleMessageCountByConversationId[conversationId] ?? 20,
+      full.length,
+    );
+    final start = (full.length - visibleCount).clamp(0, full.length);
+    final visible = full.sublist(start);
+
+    final idx = _conversations.indexWhere(
+      (conversation) => conversation.id == conversationId,
+    );
+    if (idx == -1) return;
+    _conversations[idx] = _conversations[idx].copyWith(messages: visible);
+  }
+
+  void _appendMessageToActive(String channelName, RealtimeChatMessage message) {
+    final myUsername = _myUsername;
+    if (myUsername == null) return;
+
+    final selected = _selectedConversation;
+    if (selected == null) return;
+
+    final expectedChannel = RealtimeChatConfig.dmChannelName(
+      myUsername,
+      selected.username,
+    );
+    if (expectedChannel != channelName) return;
+
+    final msg = _toMessageData(message, myUsername);
+
+    setState(() {
+      final idx = _conversations.indexWhere(
+        (conversation) => conversation.id == selected.id,
+      );
+      if (idx == -1) return;
+
+      final full = List<_MessageData>.from(
+        _fullMessagesByConversationId[selected.id] ??
+            _conversations[idx].messages,
+      );
+      full.add(msg);
+      full.sort((left, right) => left.timestamp.compareTo(right.timestamp));
+      _fullMessagesByConversationId[selected.id] = full;
+
+      final currentVisible = _safeVisibleCount(
+        _visibleMessageCountByConversationId[selected.id] ?? 20,
+        full.length,
+      );
+      _visibleMessageCountByConversationId[selected.id] = currentVisible;
+      final visible = full.sublist(
+        (full.length - currentVisible).clamp(0, full.length),
+      );
+
+      _conversations[idx] = _conversations[idx].copyWith(
+        messages: visible,
+        preview: msg.previewText,
+        timeLabel: _formatTime(msg.timestamp),
+      );
+    });
+
+    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
+  }
+
+  void _applyDirectMessageNotification(
+    String channelName,
+    RealtimeChatMessage message,
+  ) {
+    final myUsername = _myUsername;
+    if (myUsername == null) return;
+
+    final msg = _toMessageData(message, myUsername);
+
+    setState(() {
+      final idx = _conversations.indexWhere(
+        (conversation) =>
+            RealtimeChatConfig.dmChannelName(
+              myUsername,
+              conversation.username,
+            ) ==
+            channelName,
+      );
+      if (idx == -1) return;
+
+      final isSelected = _conversations[idx].id == _selectedConversationId;
+      final unread = isSelected
+          ? 0
+          : ((_conversations[idx].unreadCount ?? 0) + 1);
+
+      _conversations[idx] = _conversations[idx].copyWith(
+        preview: msg.previewText,
+        timeLabel: _formatTime(msg.timestamp),
+        unreadCount: unread,
+      );
+
+      if (isSelected) {
+        final full = List<_MessageData>.from(
+          _fullMessagesByConversationId[_conversations[idx].id] ??
+              _conversations[idx].messages,
+        );
+        full.add(msg);
+        full.sort((left, right) => left.timestamp.compareTo(right.timestamp));
+        _fullMessagesByConversationId[_conversations[idx].id] = full;
+
+        final currentVisible = _safeVisibleCount(
+          _visibleMessageCountByConversationId[_conversations[idx].id] ?? 20,
+          full.length,
+        );
+        final visible = full.sublist(
+          (full.length - currentVisible).clamp(0, full.length),
+        );
+        _conversations[idx] = _conversations[idx].copyWith(messages: visible);
       }
     });
-    
-    _composerController.clear();
 
-    try {
-      if (_hubConnection?.state == HubConnectionState.Connected && _myUserId != null) {
-        await _hubConnection?.invoke(
-          "SendPrivateMessage", 
-          args: [_myUserId!, selected.backendGuid, text]
-        );
+    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
+  }
+
+  void _applyMessagesRead(String channelName, List<String> messageIds) {
+    final myUsername = _myUsername;
+    if (myUsername == null) return;
+
+    final conversationIndex = _conversations.indexWhere(
+      (conversation) =>
+          RealtimeChatConfig.dmChannelName(myUsername, conversation.username) ==
+          channelName,
+    );
+    if (conversationIndex == -1) return;
+
+    final conversationId = _conversations[conversationIndex].id;
+    final full = List<_MessageData>.from(
+      _fullMessagesByConversationId[conversationId] ??
+          _conversations[conversationIndex].messages,
+    );
+    if (full.isEmpty) return;
+
+    final ids = messageIds
+        .map((id) => id.trim())
+        .where((id) => id.isNotEmpty)
+        .toSet();
+    if (ids.isEmpty) return;
+
+    var changed = false;
+    for (var i = 0; i < full.length; i++) {
+      final message = full[i];
+      if (!message.isOutgoing || message.isRead || !ids.contains(message.id))
+        continue;
+
+      full[i] = _MessageData(
+        id: message.id,
+        senderId: message.senderId,
+        text: message.text,
+        timestamp: message.timestamp,
+        isOutgoing: true,
+        isRead: true,
+        attachment: message.attachment,
+      );
+      changed = true;
+    }
+
+    if (!changed) return;
+
+    setState(() {
+      _fullMessagesByConversationId[conversationId] = full;
+      if (_selectedConversationId == conversationId) {
+        _applyVisibleMessagesForConversation(conversationId);
       } else {
-        final token = await TokenStorage().loadToken() ?? '';
-        await http.post(
-          ApiConfig.uri('/api/Communication/messages'),
-          headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer $token'},
-          body: jsonEncode({
-            "senderUserId": _myUserId, 
-            "receiverUserId": selected.backendGuid,
-            "messageContent": text,
-            "isRead": false,
-            "sentAt": DateTime.now().toUtc().toIso8601String()
-          }),
-        );
+        final visible = _conversations[conversationIndex].messages;
+        _conversations[conversationIndex] = _conversations[conversationIndex]
+            .copyWith(messages: visible);
       }
-    } catch (_) {}
+    });
+  }
+
+  void _applyPresenceFromParticipants(
+    String channelName,
+    List<RealtimeChatParticipant> participants,
+  ) {
+    final conversationIndex = _conversationIndexByChannel(channelName);
+    if (conversationIndex == -1) return;
+
+    final conversation = _conversations[conversationIndex];
+    final targetUsername = conversation.username.trim().toLowerCase();
+    final isOnline = participants.any(
+      (participant) =>
+          participant.isConnected &&
+          participant.userId.trim().toLowerCase() == targetUsername,
+    );
+
+    _setConversationPresence(conversationIndex, isOnline);
+  }
+
+  void _applyPresenceChange(String channelName, String userId, bool isOnline) {
+    final conversationIndex = _conversationIndexByChannel(channelName);
+    if (conversationIndex == -1) return;
+
+    final conversation = _conversations[conversationIndex];
+    if (conversation.username.trim().toLowerCase() !=
+        userId.trim().toLowerCase())
+      return;
+
+    _setConversationPresence(conversationIndex, isOnline);
+  }
+
+  void _setConversationPresence(int conversationIndex, bool isOnline) {
+    final conversation = _conversations[conversationIndex];
+    setState(() {
+      _otherOnlineByConversationId[conversation.id] = isOnline;
+      _conversations[conversationIndex] = conversation.copyWith(
+        status: isOnline ? 'Online' : 'Offline',
+      );
+    });
+  }
+
+  void _markConversationRead(String channelName) {
+    final selected = _selectedConversation;
+    final myUsername = _myUsername;
+    if (selected == null || myUsername == null) return;
+
+    final expectedChannel = RealtimeChatConfig.dmChannelName(
+      myUsername,
+      selected.username,
+    );
+    if (expectedChannel.trim().toLowerCase() !=
+        channelName.trim().toLowerCase())
+      return;
+
+    _realtimeChatService.markDirectMessagesRead(channelName: channelName);
+  }
+
+  int _conversationIndexByChannel(String channelName) {
+    final myUsername = _myUsername;
+    if (myUsername == null || channelName.trim().isEmpty) return -1;
+
+    return _conversations.indexWhere(
+      (conversation) =>
+          RealtimeChatConfig.dmChannelName(
+            myUsername,
+            conversation.username,
+          ).trim().toLowerCase() ==
+          channelName.trim().toLowerCase(),
+    );
+  }
+
+  String _initialsFromName(String name) {
+    final parts = name
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((part) => part.isNotEmpty)
+        .toList();
+    if (parts.isEmpty) return '--';
+    if (parts.length == 1) {
+      final single = parts.first;
+      return single.substring(0, single.length >= 2 ? 2 : 1).toUpperCase();
+    }
+    return '${parts.first[0]}${parts.last[0]}'.toUpperCase();
+  }
+
+  String _formatTime(DateTime timestamp) {
+    final local = timestamp.toLocal();
+    final hours = local.hour.toString().padLeft(2, '0');
+    final minutes = local.minute.toString().padLeft(2, '0');
+    return '$hours:$minutes';
   }
 
   @override
@@ -304,13 +962,24 @@ class _ChatsProfessorContentSectionState extends State<ChatsProfessorContentSect
       color: ChatsProfessorColors.background,
       child: FullBleedScaledSection(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(54, 90, 23.148, 90),
+          padding: const EdgeInsets.only(
+            left: 54,
+            right: 23.148,
+            top: 90,
+            bottom: 90,
+          ),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Padding(
-                padding: EdgeInsets.only(top: 28.864),
-                child: ProfessorMenuNav(selectedIndex: 4, notificationCount: 2, aulasEstaSemana: 8, ganhosPendentes: '150€', alunosAtivos: 12),
+              Padding(
+                padding: const EdgeInsets.only(top: 28.864),
+                child: const ProfessorMenuNav(
+                  selectedIndex: 5,
+                  notificationCount: 2,
+                  aulasEstaSemana: 8,
+                  ganhosPendentes: '150€',
+                  alunosAtivos: 12,
+                ),
               ),
               Expanded(
                 child: Padding(
@@ -318,33 +987,92 @@ class _ChatsProfessorContentSectionState extends State<ChatsProfessorContentSect
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const SizedBox(height: 43.296, child: Text('Chats', style: TextStyle(color: ChatsProfessorColors.title, fontSize: ChatsProfessorFontSizes.title, fontWeight: FontWeight.w700))),
+                      const SizedBox(
+                        height: 43.296,
+                        child: Text(
+                          'Chats',
+                          style: TextStyle(
+                            color: ChatsProfessorColors.title,
+                            fontSize: ChatsProfessorFontSizes.title,
+                            fontWeight: FontWeight.w700,
+                            height: 43.296 / ChatsProfessorFontSizes.title,
+                          ),
+                        ),
+                      ),
                       const SizedBox(height: 28.864),
                       SizedBox(
                         height: 797.368,
                         child: LayoutBuilder(
                           builder: (context, constraints) {
-                            if (_isLoading) return const Center(child: CircularProgressIndicator());
-                            
-                            const minWidth = 998.217;
+                            if (_isLoading) {
+                              return const Center(
+                                child: CircularProgressIndicator(),
+                              );
+                            }
+
+                            if (_errorMessage != null &&
+                                _conversations.isEmpty) {
+                              return Center(
+                                child: Text(
+                                  _errorMessage!,
+                                  style: const TextStyle(
+                                    color: ChatsProfessorColors.mutedText,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              );
+                            }
+
+                            const leftWidth = 313.492;
+                            const gap = 28.868;
+                            const rightWidth = 655.857;
+                            const minWidth = leftWidth + gap + rightWidth;
+
                             final content = Row(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 SizedBox(
-                                  width: 313.492,
-                                  child: _ChatListCard(controller: _searchController, onQueryChanged: (value) => setState(() => _query = value), conversations: _filteredConversations, selectedConversationId: selectedConversation?.id, onSelectConversation: _handleSelectConversation),
+                                  width: leftWidth,
+                                  child: _ChatListCard(
+                                    controller: _searchController,
+                                    onQueryChanged: (value) =>
+                                        setState(() => _query = value),
+                                    conversations: _filteredConversations,
+                                    selectedConversationId:
+                                        selectedConversation?.id,
+                                    onSelectConversation:
+                                        _handleSelectConversation,
+                                  ),
                                 ),
-                                const SizedBox(width: 28.868),
+                                const SizedBox(width: gap),
                                 SizedBox(
-                                  width: 655.857,
-                                  child: _ConversationCard(conversation: selectedConversation, composerController: _composerController, onSend: _handleSendMessage),
+                                  width: rightWidth,
+                                  child: _ConversationCard(
+                                    conversation: selectedConversation,
+                                    messagesScrollController:
+                                        _messagesScrollController,
+                                    isLoadingMore: _isLoadingMoreMessages,
+                                    composerController: _composerController,
+                                    onSend: _sendMessage,
+                                    onPickFile: _pickAndSendFile,
+                                    onOpenAttachment: _openExternalUrl,
+                                  ),
                                 ),
                               ],
                             );
 
                             if (constraints.maxWidth < minWidth) {
-                              return SingleChildScrollView(scrollDirection: Axis.horizontal, child: ConstrainedBox(constraints: const BoxConstraints(minWidth: minWidth), child: content));
+                              return SingleChildScrollView(
+                                scrollDirection: Axis.horizontal,
+                                child: ConstrainedBox(
+                                  constraints: const BoxConstraints(
+                                    minWidth: minWidth,
+                                  ),
+                                  child: content,
+                                ),
+                              );
                             }
+
                             return content;
                           },
                         ),
@@ -362,9 +1090,20 @@ class _ChatsProfessorContentSectionState extends State<ChatsProfessorContentSect
 }
 
 class _ConversationData {
-  const _ConversationData({required this.id, required this.backendGuid, required this.initials, required this.name, required this.status, required this.timeLabel, required this.preview, required this.messages, this.unreadCount});
+  const _ConversationData({
+    required this.id,
+    required this.username,
+    required this.initials,
+    required this.name,
+    required this.status,
+    required this.timeLabel,
+    required this.preview,
+    required this.messages,
+    this.unreadCount,
+  });
+
   final int id;
-  final String backendGuid;
+  final String username;
   final String initials;
   final String name;
   final String status;
@@ -373,20 +1112,54 @@ class _ConversationData {
   final int? unreadCount;
   final List<_MessageData> messages;
 
-  _ConversationData copyWith({String? timeLabel, String? preview, int? unreadCount, List<_MessageData>? messages}) {
-    return _ConversationData(id: id, backendGuid: backendGuid, initials: initials, name: name, status: status, timeLabel: timeLabel ?? this.timeLabel, preview: preview ?? this.preview, unreadCount: unreadCount, messages: messages ?? this.messages);
+  _ConversationData copyWith({
+    int? id,
+    String? timeLabel,
+    String? preview,
+    int? unreadCount,
+    List<_MessageData>? messages,
+    String? status,
+  }) {
+    return _ConversationData(
+      id: id ?? this.id,
+      username: username,
+      initials: initials,
+      name: name,
+      status: status ?? this.status,
+      timeLabel: timeLabel ?? this.timeLabel,
+      preview: preview ?? this.preview,
+      unreadCount: unreadCount,
+      messages: messages ?? this.messages,
+    );
   }
 }
 
 class _MessageData {
-  const _MessageData({required this.isMine, required this.text, required this.timeLabel});
-  final bool isMine;
+  const _MessageData({
+    required this.id,
+    required this.senderId,
+    required this.text,
+    required this.timestamp,
+    required this.isOutgoing,
+    required this.isRead,
+    this.attachment,
+  });
+
+  final String id;
+  final String senderId;
   final String text;
-  final String timeLabel;
+  final DateTime timestamp;
+  final bool isOutgoing;
+  final bool isRead;
+  final RealtimeChatAttachment? attachment;
+
+  String get previewText =>
+      attachment != null ? '📎 ${attachment!.fileName}' : text;
 }
 
 class _CardShell extends StatelessWidget {
   const _CardShell({required this.child, this.padding});
+
   final Widget child;
   final EdgeInsets? padding;
 
@@ -394,9 +1167,26 @@ class _CardShell extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: ChatsProfessorColors.cardBackground, borderRadius: BorderRadius.circular(19.243),
-        border: Border.all(color: ChatsProfessorColors.cardBorder, width: 1.203),
-        boxShadow: const [BoxShadow(color: Color.fromRGBO(0, 0, 0, 0.10), offset: Offset(0, 4.811), blurRadius: 7.216, spreadRadius: -1.203), BoxShadow(color: Color.fromRGBO(0, 0, 0, 0.10), offset: Offset(0, 2.405), blurRadius: 4.811, spreadRadius: -2.405)],
+        color: ChatsProfessorColors.cardBackground,
+        borderRadius: BorderRadius.circular(19.243),
+        border: Border.all(
+          color: ChatsProfessorColors.cardBorder,
+          width: 1.203,
+        ),
+        boxShadow: const [
+          BoxShadow(
+            color: Color.fromRGBO(0, 0, 0, 0.10),
+            offset: Offset(0, 4.811),
+            blurRadius: 7.216,
+            spreadRadius: -1.203,
+          ),
+          BoxShadow(
+            color: Color.fromRGBO(0, 0, 0, 0.10),
+            offset: Offset(0, 2.405),
+            blurRadius: 4.811,
+            spreadRadius: -2.405,
+          ),
+        ],
       ),
       padding: padding,
       child: child,
@@ -405,7 +1195,14 @@ class _CardShell extends StatelessWidget {
 }
 
 class _ChatListCard extends StatelessWidget {
-  const _ChatListCard({required this.controller, required this.onQueryChanged, required this.conversations, required this.selectedConversationId, required this.onSelectConversation});
+  const _ChatListCard({
+    required this.controller,
+    required this.onQueryChanged,
+    required this.conversations,
+    required this.selectedConversationId,
+    required this.onSelectConversation,
+  });
+
   final TextEditingController controller;
   final ValueChanged<String> onQueryChanged;
   final List<_ConversationData> conversations;
@@ -419,27 +1216,68 @@ class _ChatListCard extends StatelessWidget {
       child: Column(
         children: [
           Container(
-            height: 82.984, padding: const EdgeInsets.fromLTRB(19.243, 19.243, 19.243, 1.203),
-            decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: ChatsProfessorColors.cardBorder, width: 1.203))),
+            height: 82.984,
+            padding: const EdgeInsets.only(
+              left: 19.243,
+              right: 19.243,
+              top: 19.243,
+              bottom: 1.203,
+            ),
+            decoration: const BoxDecoration(
+              border: Border(
+                bottom: BorderSide(
+                  color: ChatsProfessorColors.cardBorder,
+                  width: 1.203,
+                ),
+              ),
+            ),
             child: Container(
-              height: 43.296, padding: const EdgeInsets.symmetric(horizontal: 14.432, vertical: 4.811),
-              decoration: BoxDecoration(color: ChatsProfessorColors.searchBackground, borderRadius: BorderRadius.circular(12.027)),
+              height: 43.296,
+              padding: const EdgeInsets.symmetric(
+                horizontal: 14.432,
+                vertical: 4.811,
+              ),
+              decoration: BoxDecoration(
+                color: ChatsProfessorColors.searchBackground,
+                borderRadius: BorderRadius.circular(12.027),
+                border: Border.all(color: Colors.transparent, width: 1.203),
+              ),
               alignment: Alignment.centerLeft,
-              child: TextField(controller: controller, onChanged: onQueryChanged, decoration: const InputDecoration(hintText: 'Procurar conversa...', border: InputBorder.none, isDense: true, contentPadding: EdgeInsets.zero)),
+              child: TextField(
+                controller: controller,
+                onChanged: onQueryChanged,
+                decoration: const InputDecoration(
+                  hintText: 'Procurar conversa...',
+                  border: InputBorder.none,
+                  isDense: true,
+                  contentPadding: EdgeInsets.zero,
+                ),
+                style: const TextStyle(
+                  color: ChatsProfessorColors.title,
+                  fontSize: ChatsProfessorFontSizes.searchHint,
+                  fontWeight: FontWeight.w400,
+                ),
+              ),
             ),
           ),
           Expanded(
             child: ClipRRect(
               borderRadius: BorderRadius.circular(19.243),
-              child: conversations.isEmpty 
-                ? const Center(child: Text("Ainda não existem conversas", style: TextStyle(color: Colors.grey)))
-                : ListView.builder(
-                  padding: EdgeInsets.zero,
-                  itemCount: conversations.length,
-                  itemBuilder: (context, index) {
-                    final c = conversations[index];
-                    return ChatListItem(initials: c.initials, name: c.name, timeLabel: c.timeLabel, preview: c.preview, unreadCount: c.unreadCount, selected: selectedConversationId == c.id, onTap: () => onSelectConversation(c.id));
-                  },
+              child: ListView.builder(
+                padding: EdgeInsets.zero,
+                itemCount: conversations.length,
+                itemBuilder: (context, index) {
+                  final c = conversations[index];
+                  return ChatListItem(
+                    initials: c.initials,
+                    name: c.name,
+                    timeLabel: c.timeLabel,
+                    preview: c.preview,
+                    unreadCount: c.unreadCount,
+                    selected: selectedConversationId == c.id,
+                    onTap: () => onSelectConversation(c.id),
+                  );
+                },
               ),
             ),
           ),
@@ -450,79 +1288,191 @@ class _ChatListCard extends StatelessWidget {
 }
 
 class _ConversationCard extends StatelessWidget {
-  const _ConversationCard({required this.conversation, required this.composerController, required this.onSend});
+  const _ConversationCard({
+    required this.conversation,
+    required this.messagesScrollController,
+    required this.isLoadingMore,
+    required this.composerController,
+    required this.onSend,
+    required this.onPickFile,
+    required this.onOpenAttachment,
+  });
+
   final _ConversationData? conversation;
+  final ScrollController messagesScrollController;
+  final bool isLoadingMore;
   final TextEditingController composerController;
   final VoidCallback onSend;
+  final VoidCallback onPickFile;
+  final ValueChanged<String> onOpenAttachment;
+
+  String _formatTime(DateTime timestamp) {
+    final local = timestamp.toLocal();
+    final hours = local.hour.toString().padLeft(2, '0');
+    final minutes = local.minute.toString().padLeft(2, '0');
+    return '$hours:$minutes';
+  }
 
   @override
   Widget build(BuildContext context) {
+    final c = conversation;
+
     return _CardShell(
       padding: const EdgeInsets.all(1.203),
       child: Column(
         children: [
           Container(
-            height: 91.403, decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: ChatsProfessorColors.cardBorder, width: 1.203))),
+            height: 91.403,
+            decoration: const BoxDecoration(
+              border: Border(
+                bottom: BorderSide(
+                  color: ChatsProfessorColors.cardBorder,
+                  width: 1.203,
+                ),
+              ),
+            ),
             padding: const EdgeInsets.only(left: 19.243, bottom: 1.203),
             child: Row(
               children: [
-                ChatAvatar(initials: conversation?.initials ?? '--', size: 48.107),
+                ChatAvatar(initials: c?.initials ?? '--', size: 48.107),
                 const SizedBox(width: 14.432),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(conversation?.name ?? 'Sem conversa', style: const TextStyle(color: ChatsProfessorColors.title, fontSize: ChatsProfessorFontSizes.conversationName, fontWeight: FontWeight.w500)),
-                      Text(conversation?.status ?? '', style: const TextStyle(color: ChatsProfessorColors.mutedText, fontSize: ChatsProfessorFontSizes.conversationStatus, fontWeight: FontWeight.w400)),
-                    ],
-                  ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      c?.name ?? 'Sem conversa selecionada',
+                      style: const TextStyle(
+                        color: ChatsProfessorColors.title,
+                        fontSize: ChatsProfessorFontSizes.conversationName,
+                        fontWeight: FontWeight.w500,
+                        height:
+                            32.472 / ChatsProfessorFontSizes.conversationName,
+                      ),
+                    ),
+                    Text(
+                      c?.status ?? '',
+                      style: const TextStyle(
+                        color: ChatsProfessorColors.mutedText,
+                        fontSize: ChatsProfessorFontSizes.conversationStatus,
+                        fontWeight: FontWeight.w400,
+                        height:
+                            19.243 / ChatsProfessorFontSizes.conversationStatus,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
           ),
           Expanded(
             child: Container(
-              width: double.infinity, padding: const EdgeInsets.fromLTRB(19.243, 19.243, 19.243, 0),
-              child: (conversation?.messages.isEmpty ?? true) 
-                ? const Center(child: Text("Envie uma mensagem para iniciar", style: TextStyle(color: Colors.grey)))
-                : ListView.separated(
-                  padding: EdgeInsets.zero,
-                  itemCount: conversation!.messages.length,
-                  separatorBuilder: (context, index) => const SizedBox(height: 19.243),
-                  itemBuilder: (context, index) {
-                    final m = conversation!.messages[index];
-                    return ChatBubble(isMine: m.isMine, text: m.text, timeLabel: m.timeLabel, maxWidth: m.isMine ? 430.47 : 348.294);
-                  },
+              width: double.infinity,
+              padding: const EdgeInsets.fromLTRB(19.243, 19.243, 19.243, 0),
+              child: ListView.builder(
+                controller: messagesScrollController,
+                padding: EdgeInsets.zero,
+                itemCount: (c?.messages.length ?? 0) + (isLoadingMore ? 1 : 0),
+                itemBuilder: (context, index) {
+                  if (isLoadingMore && index == 0) {
+                    return const Padding(
+                      padding: EdgeInsets.only(bottom: 19.243),
+                      child: Center(
+                        child: SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                      ),
+                    );
+                  }
+
+                  final offset = isLoadingMore ? 1 : 0;
+                  final m = c!.messages[index - offset];
+                  return Padding(
+                    padding: EdgeInsets.only(
+                      bottom: index == (c.messages.length + offset - 1)
+                          ? 0
+                          : 19.243,
+                    ),
+                    child: ChatBubble(
+                      isMine: m.isOutgoing,
+                      text: m.text,
+                      timeLabel: _formatTime(m.timestamp),
+                      maxWidth: m.isOutgoing ? 430.47 : 348.294,
+                      attachment: m.attachment,
+                      onAttachmentTap: m.attachment == null
+                          ? null
+                          : () => onOpenAttachment(m.attachment!.downloadUrl),
+                    ),
+                  );
+                },
               ),
             ),
           ),
           DecoratedBox(
-            decoration: const BoxDecoration(border: Border(top: BorderSide(color: ChatsProfessorColors.cardBorder, width: 1.203))),
+            decoration: const BoxDecoration(
+              border: Border(
+                top: BorderSide(
+                  color: ChatsProfessorColors.cardBorder,
+                  width: 1.203,
+                ),
+              ),
+            ),
             child: SafeArea(
               top: false,
               child: Padding(
-                padding: const EdgeInsets.all(20.445),
+                padding: const EdgeInsets.only(
+                  left: 19.243,
+                  right: 19.243,
+                  top: 20.445,
+                  bottom: 20.445,
+                ),
                 child: Row(
                   children: [
-                    _IconButton(icon: Icons.attach_file_rounded, onTap: () {}), const SizedBox(width: 9.621),
-                    _IconButton(icon: Icons.image_rounded, onTap: () {}), const SizedBox(width: 9.621),
+                    _IconButton(
+                      icon: Icons.attach_file_rounded,
+                      onTap: onPickFile,
+                    ),
+                    const SizedBox(width: 9.621),
+                    _IconButton(icon: Icons.image_rounded, onTap: () {}),
+                    const SizedBox(width: 9.621),
                     Expanded(
                       child: Container(
-                        constraints: const BoxConstraints(minHeight: 43.296), padding: const EdgeInsets.symmetric(horizontal: 14.432),
-                        decoration: BoxDecoration(color: ChatsProfessorColors.inputBackground, borderRadius: BorderRadius.circular(14.432)),
+                        constraints: const BoxConstraints(minHeight: 43.296),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14.432,
+                          vertical: 4.811,
+                        ),
+                        decoration: BoxDecoration(
+                          color: ChatsProfessorColors.inputBackground,
+                          borderRadius: BorderRadius.circular(14.432),
+                          border: Border.all(
+                            color: Colors.transparent,
+                            width: 1.203,
+                          ),
+                        ),
                         alignment: Alignment.centerLeft,
-                        child: TextField(controller: composerController, textInputAction: TextInputAction.send, onSubmitted: (_) => onSend(), decoration: const InputDecoration(hintText: 'Escreva...', border: InputBorder.none, isDense: true)),
+                        child: TextField(
+                          controller: composerController,
+                          textInputAction: TextInputAction.send,
+                          onSubmitted: (_) => onSend(),
+                          decoration: const InputDecoration(
+                            hintText: 'Escreva uma mensagem...',
+                            border: InputBorder.none,
+                            isDense: true,
+                            contentPadding: EdgeInsets.zero,
+                          ),
+                          style: const TextStyle(
+                            color: ChatsProfessorColors.title,
+                            fontSize: ChatsProfessorFontSizes.searchHint,
+                            fontWeight: FontWeight.w400,
+                          ),
+                        ),
                       ),
                     ),
                     const SizedBox(width: 9.621),
-                    InkWell(
-                      onTap: onSend, borderRadius: BorderRadius.circular(14.432),
-                      child: Ink(
-                        height: 43.296, width: 48.107,
-                        decoration: BoxDecoration(borderRadius: BorderRadius.circular(14.432), gradient: const LinearGradient(colors: [ChatsProfessorColors.rightBubbleGradientStart, ChatsProfessorColors.rightBubbleGradientEnd])),
-                        child: const Center(child: Icon(Icons.send_rounded, size: 19.243, color: Colors.white)),
-                      ),
-                    ),
+                    _ProfessorSendSquareButton(onTap: onSend),
                   ],
                 ),
               ),
@@ -536,16 +1486,64 @@ class _ConversationCard extends StatelessWidget {
 
 class _IconButton extends StatelessWidget {
   const _IconButton({required this.icon, required this.onTap});
+
   final IconData icon;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: 43.296, height: 43.296,
+      width: 43.296,
+      height: 43.296,
       child: Material(
-        color: Colors.transparent, borderRadius: BorderRadius.circular(12.027),
-        child: InkWell(onTap: onTap, borderRadius: BorderRadius.circular(12.027), child: Center(child: Icon(icon, size: 24.053, color: ChatsProfessorColors.mutedText))),
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(12.027),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(12.027),
+          child: Center(
+            child: Icon(
+              icon,
+              size: 24.053,
+              color: ChatsProfessorColors.mutedText,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ProfessorSendSquareButton extends StatelessWidget {
+  const _ProfessorSendSquareButton({required this.onTap});
+
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 50.194,
+      height: 50.194,
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(13.943),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(13.943),
+          onTap: onTap,
+          child: Ink(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(13.943),
+              gradient: ChatsConstants.orangeGradient,
+            ),
+            child: const Center(
+              child: Icon(
+                Icons.near_me_outlined,
+                size: 20,
+                color: Colors.white,
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

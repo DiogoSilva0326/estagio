@@ -16,7 +16,7 @@ class AvaliacoesStatsRow extends StatelessWidget {
       children: [
         Expanded(
           child: Container(
-            padding: const EdgeInsets.fromLTRB(34.351, 34.351, 34.351, 1.374),
+            padding: const EdgeInsets.fromLTRB(34.351, 20.351, 34.351, 20.374),
             decoration: BoxDecoration(
               gradient: const LinearGradient(
                 begin: Alignment.topLeft,
@@ -61,7 +61,7 @@ class AvaliacoesStatsRow extends StatelessWidget {
         const SizedBox(width: 32.977),
         Expanded(
           child: Container(
-            padding: const EdgeInsets.fromLTRB(34.351, 34.351, 34.351, 1.374),
+            padding: const EdgeInsets.fromLTRB(34.351, 20.351, 34.351, 20.374),
             decoration: BoxDecoration(
               gradient: const LinearGradient(
                 begin: Alignment.topLeft,

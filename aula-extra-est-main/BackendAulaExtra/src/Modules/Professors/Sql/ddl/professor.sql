@@ -36,12 +36,16 @@ CREATE TABLE IF NOT EXISTS certificates (
   id_certificate UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   id_professor UUID NOT NULL REFERENCES professors(id_professor),
   name VARCHAR(255),
+  description TEXT,
   file_url TEXT,
   verified BOOLEAN DEFAULT false,
   verified_by_user_id UUID REFERENCES users(id_user),
   created_at TIMESTAMP DEFAULT now(),
   updated_at TIMESTAMP DEFAULT now()
 );
+
+ALTER TABLE IF EXISTS public.certificates
+  ADD COLUMN IF NOT EXISTS description TEXT;
 
 
 -- professor_rooms is created in ../ddl/create_professor_rooms.sql (UUID-based).

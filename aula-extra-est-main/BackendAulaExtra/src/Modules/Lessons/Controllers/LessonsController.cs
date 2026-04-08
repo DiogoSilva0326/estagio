@@ -1,8 +1,16 @@
 using System;
+using System.Globalization;
+using System.Linq;
 using System.Threading.Tasks;
 using ConfidantPostgreSQL.Auth;
+using ConfidantPostgreSQL.Modules.Communication.Models;
+using ConfidantPostgreSQL.Modules.Communication.Service;
 using ConfidantPostgreSQL.Modules.Lessons.Models;
 using ConfidantPostgreSQL.Modules.Lessons.Service;
+using ConfidantPostgreSQL.Modules.Professors.Service;
+using ConfidantPostgreSQL.Modules.Reservations.Models;
+using ConfidantPostgreSQL.Modules.Reservations.Service;
+using ConfidantPostgreSQL.Modules.Users.Service;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ConfidantPostgreSQL.Modules.Lessons.Controllers
@@ -13,10 +21,69 @@ namespace ConfidantPostgreSQL.Modules.Lessons.Controllers
     public class LessonsController : ControllerBase
     {
         private readonly ILessonsService _service;
+        private readonly IReservationsService _reservations;
+        private readonly ICommunicationService _communication;
+        private readonly IUserService _users;
+        private readonly IProfessorsService _professors;
 
-        public LessonsController(ILessonsService service)
+        public LessonsController(
+            ILessonsService service,
+            IReservationsService reservations,
+            ICommunicationService communication,
+            IUserService users,
+            IProfessorsService professors)
         {
             _service = service;
+            _reservations = reservations;
+            _communication = communication;
+            _users = users;
+            _professors = professors;
+        }
+
+        private static string NormalizePendingStatus(string? status)
+        {
+            var normalized = status?.Trim();
+            return string.IsNullOrWhiteSpace(normalized) ? "Pending" : normalized;
+        }
+
+        private static string BuildDisplayName(string? displayName, string? firstName, string? lastName, string fallback)
+        {
+            if (!string.IsNullOrWhiteSpace(displayName)) return displayName.Trim();
+
+            var fullName = string.Join(" ", new[] { firstName?.Trim(), lastName?.Trim() }
+                .Where(value => !string.IsNullOrWhiteSpace(value))).Trim();
+
+            return !string.IsNullOrWhiteSpace(fullName) ? fullName : fallback;
+        }
+
+        private static string FormatLessonWindow(DateTime? startTime, DateTime? endTime)
+        {
+            if (startTime == null || endTime == null) return "horário a confirmar";
+
+            var culture = new CultureInfo("pt-PT");
+            var start = startTime.Value;
+            var end = endTime.Value;
+
+            if (start.Date == end.Date)
+            {
+                return $"{start.ToString("dd/MM/yyyy", culture)}, das {start.ToString("HH:mm", culture)} às {end.ToString("HH:mm", culture)}";
+            }
+
+            return $"{start.ToString("dd/MM/yyyy HH:mm", culture)} até {end.ToString("dd/MM/yyyy HH:mm", culture)}";
+        }
+
+        private static string BuildLessonRequestMetadata(Guid reservationId, string teacherName, string subject, DateTime? startTime, DateTime? endTime)
+        {
+            var query = string.Join("&", new[]
+            {
+                $"reservationId={Uri.EscapeDataString(reservationId.ToString())}",
+                $"teacherName={Uri.EscapeDataString(teacherName)}",
+                $"subject={Uri.EscapeDataString(subject)}",
+                $"start={Uri.EscapeDataString(startTime?.ToString("o") ?? string.Empty)}",
+                $"end={Uri.EscapeDataString(endTime?.ToString("o") ?? string.Empty)}"
+            });
+
+            return $"[[{query}]]";
         }
 
         // LESSONS
@@ -178,8 +245,99 @@ namespace ConfidantPostgreSQL.Modules.Lessons.Controllers
         [HttpPost("enrollments")]
         public async Task<IActionResult> CreateEnrollment([FromBody] Enrollment enrollment)
         {
+            enrollment.Status = NormalizePendingStatus(enrollment.Status);
             var id = await _service.InsertEnrollmentAsync(enrollment);
             enrollment.IdEnrollment = id;
+
+            Lesson? lesson = null;
+            Guid reservationId = Guid.Empty;
+
+            try
+            {
+                lesson = await _service.GetLessonByIdAsync(enrollment.IdLesson);
+                if (lesson != null)
+                {
+                    var existingReservation = await _reservations
+                        .GetReservationByLessonAndUserAsync(enrollment.IdLesson, enrollment.IdUser);
+
+                    var reservationStatus = string.IsNullOrWhiteSpace(enrollment.Status)
+                        ? "Pending"
+                        : enrollment.Status;
+
+                    if (existingReservation == null)
+                    {
+                        reservationId = await _reservations.InsertReservationAsync(new Reservation
+                        {
+                            IdUser = enrollment.IdUser,
+                            IdLesson = enrollment.IdLesson,
+                            StartTime = lesson.ScheduledStart,
+                            EndTime = lesson.ScheduledEnd,
+                            MinStudentsAtBooking = 1,
+                            Status = reservationStatus,
+                        });
+                    }
+                    else
+                    {
+                        existingReservation.StartTime = lesson.ScheduledStart;
+                        existingReservation.EndTime = lesson.ScheduledEnd;
+                        existingReservation.Status = reservationStatus;
+                        await _reservations.UpdateReservationAsync(existingReservation);
+                        reservationId = existingReservation.IdReservation;
+                    }
+                }
+            }
+            catch
+            {
+                await _service.DeleteEnrollmentAsync(id);
+                throw;
+            }
+
+            if (lesson != null)
+            {
+                try
+                {
+                    var subject = lesson.Title?.Trim();
+                    if (string.IsNullOrWhiteSpace(subject)) subject = "Explicação";
+
+                    var teacherName = "Professor";
+                    if (lesson.IdProfessor != null && lesson.IdProfessor != Guid.Empty)
+                    {
+                        var professor = await _professors.GetProfessorByIdAsync(lesson.IdProfessor.Value);
+                        if (professor != null && professor.IdUser != Guid.Empty)
+                        {
+                            var teacherUser = await _users.GetByIdAsync(professor.IdUser);
+                            teacherName = BuildDisplayName(
+                                teacherUser?.DisplayName,
+                                teacherUser?.FirstName,
+                                teacherUser?.LastName,
+                                teacherUser?.Username ?? teacherName);
+                        }
+                    }
+
+                    var metadata = reservationId == Guid.Empty
+                        ? string.Empty
+                        : Environment.NewLine + BuildLessonRequestMetadata(
+                            reservationId,
+                            teacherName,
+                            subject,
+                            lesson.ScheduledStart,
+                            lesson.ScheduledEnd);
+
+                    await _communication.InsertNotificationAsync(new Notification
+                    {
+                        IdUser = enrollment.IdUser,
+                        Type = "marcar_aula",
+                        Message = $"O professor {teacherName} enviou a marcação da aula {subject} para {FormatLessonWindow(lesson.ScheduledStart, lesson.ScheduledEnd)}. Aceita ou recusa para concluir o agendamento.{metadata}",
+                        WasRead = false,
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow,
+                    });
+                }
+                catch
+                {
+                }
+            }
+
             return CreatedAtAction(nameof(GetEnrollment), new { idEnrollment = id }, enrollment);
         }
 
@@ -188,6 +346,15 @@ namespace ConfidantPostgreSQL.Modules.Lessons.Controllers
         {
             if (idEnrollment != enrollment.IdEnrollment) return BadRequest();
             var rows = await _service.UpdateEnrollmentAsync(enrollment);
+            if (rows > 0)
+            {
+                var reservation = await _reservations.GetReservationByLessonAndUserAsync(enrollment.IdLesson, enrollment.IdUser);
+                if (reservation != null)
+                {
+                    reservation.Status = enrollment.Status;
+                    await _reservations.UpdateReservationAsync(reservation);
+                }
+            }
             return rows == 0 ? NotFound() : NoContent();
         }
 

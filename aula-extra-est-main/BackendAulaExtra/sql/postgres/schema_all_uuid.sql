@@ -166,8 +166,10 @@ CREATE TABLE IF NOT EXISTS wishlist_items (
 CREATE TABLE IF NOT EXISTS favorites (
   id_favorite UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   id_user UUID NOT NULL REFERENCES users(id_user) ON DELETE CASCADE,
+
   created_at TIMESTAMP DEFAULT now(),
   updated_at TIMESTAMP DEFAULT now(),
+
   UNIQUE (id_user)
 );
 
@@ -186,9 +188,11 @@ CREATE TABLE IF NOT EXISTS days (
   day_index INTEGER
 );
 
+
 CREATE TABLE IF NOT EXISTS schedule_blocks (
   id_schedule_block UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   id_professor UUID NOT NULL REFERENCES professors(id_professor) ON DELETE CASCADE,
+
   id_day UUID REFERENCES days(id_day),
   start_time TIMESTAMP,
   end_time TIMESTAMP,
@@ -200,6 +204,7 @@ CREATE TABLE IF NOT EXISTS schedule_blocks (
 );
 
 CREATE TABLE IF NOT EXISTS block_parts (
+
   id_block_part UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   id_schedule_block UUID NOT NULL REFERENCES schedule_blocks(id_schedule_block) ON DELETE CASCADE,
   start_offset_minutes INTEGER,
@@ -211,6 +216,7 @@ CREATE TABLE IF NOT EXISTS block_parts (
 CREATE TABLE IF NOT EXISTS lessons (
   id_lesson UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   id_course UUID REFERENCES courses(id_course) ON DELETE SET NULL,
+
   id_professor UUID REFERENCES professors(id_professor) ON DELETE SET NULL,
   title VARCHAR(200),
   students INTEGER,
@@ -240,9 +246,11 @@ CREATE TABLE IF NOT EXISTS lesson_prices (
   created_at TIMESTAMP DEFAULT now(),
   updated_at TIMESTAMP DEFAULT now(),
   UNIQUE (id_lesson)
+
 );
 
 CREATE TABLE IF NOT EXISTS lesson_schedule_blocks (
+
   id_lesson_schedule_block UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   id_lesson UUID NOT NULL REFERENCES lessons(id_lesson) ON DELETE CASCADE,
   id_schedule_block UUID NOT NULL REFERENCES schedule_blocks(id_schedule_block) ON DELETE CASCADE,

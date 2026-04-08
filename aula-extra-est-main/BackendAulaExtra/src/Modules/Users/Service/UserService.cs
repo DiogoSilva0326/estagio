@@ -32,7 +32,12 @@ namespace ConfidantPostgreSQL.Modules.Users.Service
         public Task<User?> GetByIdAsync(Guid id) => _repo.GetByIdAsync(id);
         public Task<IEnumerable<User>> GetAllAsync() => _repo.GetAllAsync();
         public Task<User?> GetByEmailAsync(string email) => _repo.GetByEmailAsync(email);
+        public Task<User?> GetByUsernameAsync(string username) => _repo.GetByUsernameAsync(username);
         public Task UpdateRolesAsync(Guid userId, IEnumerable<int> roleIds) => _repo.UpdateRolesAsync(userId, roleIds);
+        public Task<IReadOnlyList<UserNotificationDto>> GetNotificationsByUserIdAsync(Guid userId) => _repo.GetNotificationsByUserIdAsync(userId);
+        public Task<bool> MarkNotificationAsReadAsync(Guid userId, Guid notificationId) => _repo.MarkNotificationAsReadAsync(userId, notificationId);
+        public Task<int> MarkAllNotificationsAsReadAsync(Guid userId) => _repo.MarkAllNotificationsAsReadAsync(userId);
+        public Task<int> MarkLessonRequestNotificationsAsReadAsync(Guid userId, Guid reservationId) => _repo.MarkLessonRequestNotificationsAsReadAsync(userId, reservationId);
 
         public async Task<bool> SetInactiveAsync(Guid userId, bool inactive, Guid? lastUserId = null)
         {

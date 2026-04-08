@@ -20,6 +20,7 @@ import 'package:aula_extra/features/login/pages/login_screen.dart';
 import 'package:aula_extra/features/profile/pages/profile_screen.dart';
 import 'package:aula_extra/features/register/pages/register_student_screen.dart';
 import 'package:aula_extra/features/professor/meus_alunos/pages/meus_alunos_professor_screen.dart';
+import 'package:aula_extra/features/professor/minhas_disciplinas/pages/minhas_disciplinas_professor_screen.dart';
 import 'package:aula_extra/features/professor/calendario/pages/calendario_professor_screen.dart';
 import 'package:aula_extra/features/professor/arquivos/pages/arquivos_professor_screen.dart';
 import 'package:aula_extra/features/professor/chats/pages/chats_professor_screen.dart';
@@ -32,7 +33,6 @@ import 'package:aula_extra/core/providers/user_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:aula_extra/core/data/session/token_storage.dart';
 import 'package:aula_extra/core/data/auth/auth_service.dart';
-import 'package:aula_extra/features/professor/meus_alunos/pages/perfil_aluno_professor_screen.dart';
 
 class _TeacherOnly extends StatefulWidget {
   const _TeacherOnly({required this.child});
@@ -65,7 +65,9 @@ class _TeacherOnlyState extends State<_TeacherOnly> {
       // Confirm roles with backend (prevents stale JWT granting access).
       bool teacher;
       try {
-        final session = await AuthService(tokenStorage: _tokenStorage).refresh();
+        final session = await AuthService(
+          tokenStorage: _tokenStorage,
+        ).refresh();
         teacher = session.appRole == Role.teacher;
       } catch (_) {
         // If we cannot confirm with backend, deny teacher access.
@@ -85,8 +87,10 @@ class _TeacherOnlyState extends State<_TeacherOnly> {
 
       // Keep provider role consistent (best-effort).
       final provider = context.read<UserProvider>();
-      if (teacher && provider.role != Role.teacher) provider.setRole(Role.teacher);
-      if (!teacher && provider.role == Role.teacher) provider.setRole(Role.student);
+      if (teacher && provider.role != Role.teacher)
+        provider.setRole(Role.teacher);
+      if (!teacher && provider.role == Role.teacher)
+        provider.setRole(Role.student);
     } catch (_) {
       if (!mounted) return;
       setState(() => _isTeacher = false);
@@ -129,9 +133,10 @@ class Routes {
   static const String perfilAluno = '/aluno/perfil';
   static const String notificacoes = '/aluno/notificacoes';
   static const String areasAluno = '/aluno/areas';
-  static const String professorStudentProfile = '/professor/meus-alunos/perfil';
 
   static const String professorMeusAlunos = '/professor/meus-alunos';
+  static const String professorMinhasDisciplinas =
+      '/professor/minhas-disciplinas';
   static const String professorCalendario = '/professor/calendario';
   static const String professorArquivos = '/professor/arquivos';
   static const String professorChats = '/professor/chats';
@@ -142,47 +147,45 @@ class Routes {
   static const String professorNotificacoes = '/professor/notificacoes';
 
   static Map<String, WidgetBuilder> get all => {
-        home: (context) => const HomeScreen(),
-      faq: (context) => const FaqScreen(),
-        becomeTeacher: (context) => const BecomeTeacherScreen(),
-        login: (context) => const LoginScreen(),
-        profile: (context) => const ProfileScreen(),
-        registerStudent: (context) => const RegisterStudentScreen(),
-        explicadores: (context) => const ExplicadoresScreen(),
-        meusExplicadores: (context) => const MeusExplicadoresScreen(),
-        calendario: (context) => const CalendarioScreen(),
-        calendarioSemanal: (context) => const CalendarioSemanalScreen(),
-        arquivos: (context) => const ArquivosScreen(),
-        chats: (context) => const ChatsScreen(),
-        pagamentos: (context) => const PagamentosScreen(),
-        avaliacoes: (context) => const AvaliacoesScreen(),
-        perfilAluno: (context) => const PerfilAlunoScreen(),
-        notificacoes: (context) => const NotificacoesScreen(),
-        disciplinas: (context) => const DisciplinasScreen(),
-        tutorProfile: (context) => const TutorProfileScreen(),
-        marcarAulaProfessor: (context) => const MarcarAulaProfessorScreen(),
-        areasAluno: (context) => const AreasAlunoScreen(),
-        professorMeusAlunos: (context) => const _TeacherOnly(child: MeusAlunosProfessorScreen()),
-        professorCalendario: (context) => const _TeacherOnly(child: CalendarioProfessorScreen()),
-        professorArquivos: (context) => const _TeacherOnly(child: ArquivosProfessorScreen()),
-        professorChats: (context) {
-        final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
-          return _TeacherOnly(
-            child: ChatsProfessorScreen(
-              initialStudentId: args?['studentId'] as String?,
-              initialStudentName: args?['studentName'] as String?,
-            )
-          );
-        },
-        professorDisponibilidade: (context) => const _TeacherOnly(child: DisponibilidadeProfessorScreen()),
-        professorPagamentos: (context) => const _TeacherOnly(child: PagamentosProfessorScreen()),
-        professorAvaliacoes: (context) => const _TeacherOnly(child: AvaliacoesProfessorScreen()),
-        professorPerfil: (context) => const _TeacherOnly(child: PerfilProfessorScreen()),
-        professorNotificacoes: (context) => const _TeacherOnly(child: NotificacoesProfessorScreen()),
-
-        professorStudentProfile: (context) {
-        final studentId = ModalRoute.of(context)!.settings.arguments as String;
-        return _TeacherOnly(child: ProfessorStudentProfileScreen(studentId: studentId));
-        },
-      };
+    home: (context) => const HomeScreen(),
+    faq: (context) => const FaqScreen(),
+    becomeTeacher: (context) => const BecomeTeacherScreen(),
+    login: (context) => const LoginScreen(),
+    profile: (context) => const ProfileScreen(),
+    registerStudent: (context) => const RegisterStudentScreen(),
+    explicadores: (context) => const ExplicadoresScreen(),
+    meusExplicadores: (context) => const MeusExplicadoresScreen(),
+    calendario: (context) => const CalendarioScreen(),
+    calendarioSemanal: (context) => const CalendarioSemanalScreen(),
+    arquivos: (context) => const ArquivosScreen(),
+    chats: (context) => const ChatsScreen(),
+    pagamentos: (context) => const PagamentosScreen(),
+    avaliacoes: (context) => const AvaliacoesScreen(),
+    perfilAluno: (context) => const PerfilAlunoScreen(),
+    notificacoes: (context) => const NotificacoesScreen(),
+    disciplinas: (context) => const DisciplinasScreen(),
+    tutorProfile: (context) => const TutorProfileScreen(),
+    marcarAulaProfessor: (context) => const MarcarAulaProfessorScreen(),
+    areasAluno: (context) => const AreasAlunoScreen(),
+    professorMeusAlunos: (context) =>
+        const _TeacherOnly(child: MeusAlunosProfessorScreen()),
+    professorMinhasDisciplinas: (context) =>
+        const _TeacherOnly(child: MinhasDisciplinasProfessorScreen()),
+    professorCalendario: (context) =>
+        const _TeacherOnly(child: CalendarioProfessorScreen()),
+    professorArquivos: (context) =>
+        const _TeacherOnly(child: ArquivosProfessorScreen()),
+    professorChats: (context) =>
+        const _TeacherOnly(child: ChatsProfessorScreen()),
+    professorDisponibilidade: (context) =>
+        const _TeacherOnly(child: DisponibilidadeProfessorScreen()),
+    professorPagamentos: (context) =>
+        const _TeacherOnly(child: PagamentosProfessorScreen()),
+    professorAvaliacoes: (context) =>
+        const _TeacherOnly(child: AvaliacoesProfessorScreen()),
+    professorPerfil: (context) =>
+        const _TeacherOnly(child: PerfilProfessorScreen()),
+    professorNotificacoes: (context) =>
+        const _TeacherOnly(child: NotificacoesProfessorScreen()),
+  };
 }

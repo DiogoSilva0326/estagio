@@ -1,27 +1,22 @@
+import 'package:aula_extra/core/data/professors/dtos/professor_aluno_dto.dart';
 import 'package:aula_extra/features/professor/meus_alunos/constants/meus_alunos_professor_colors.dart';
 import 'package:aula_extra/features/professor/meus_alunos/constants/meus_alunos_professor_layout.dart';
 import 'package:aula_extra/features/professor/meus_alunos/widgets/disciplina_badge.dart';
 import 'package:aula_extra/features/professor/meus_alunos/widgets/progresso_bar.dart';
-import 'package:flutter/material.dart';
 import 'package:aula_extra/routes/routes.dart';
+import 'package:flutter/material.dart';
 
-class AlunoCard extends StatelessWidget {
-  final String id;
-  final String name;
-  final String avatarUrl;
-  final List<String> subjects;
-  final String lastLessonDate;
-  final double progress;
+class AlunoCard extends StatefulWidget {
+  const AlunoCard({super.key, required this.data});
 
-  const AlunoCard({
-    super.key,
-    required this.id,
-    required this.name,
-    required this.avatarUrl,
-    required this.subjects,
-    required this.lastLessonDate,
-    required this.progress,
-  });
+  final ProfessorAlunoDto data;
+
+  @override
+  State<AlunoCard> createState() => _AlunoCardState();
+}
+
+class _AlunoCardState extends State<AlunoCard> {
+  bool _showAllSubjects = false;
 
   Color subjectColor(String subject) {
     final lower = subject.toLowerCase();
@@ -37,287 +32,435 @@ class AlunoCard extends StatelessWidget {
     final orange = MeusAlunosProfessorColors.orange;
     final blue = MeusAlunosProfessorColors.blue;
     final green = MeusAlunosProfessorColors.green;
+    final data = widget.data;
+    final progressPercent = (data.progress * 100).round().clamp(0, 100);
+    final studentDisplayName = data.fullName;
+    final uniqueSubjects = data.subjects
+        .map((subject) => subject.trim())
+        .where((subject) => subject.isNotEmpty)
+        .fold<List<String>>(<String>[], (list, subject) {
+          final alreadyExists = list.any(
+            (existing) => existing.toLowerCase() == subject.toLowerCase(),
+          );
+          if (!alreadyExists) {
+            list.add(subject);
+          }
+          return list;
+        });
 
-
-    final int progressPercent = (progress * 100).toInt();
-
-    return SizedBox(
-      width: MeusAlunosProfessorLayout.cardWidth,
-      height: MeusAlunosProfessorLayout.cardHeight,
-      child: Container(
-        padding: const EdgeInsets.only(
-          top: MeusAlunosProfessorLayout.cardPaddingTop,
-          left: MeusAlunosProfessorLayout.cardPaddingSides,
-          right: MeusAlunosProfessorLayout.cardPaddingSides,
-          bottom: MeusAlunosProfessorLayout.cardPaddingBottom,
-        ),
-        decoration: ShapeDecoration(
-          color: Colors.white,
-          shape: RoundedRectangleBorder(
-            side: const BorderSide(
-              width: MeusAlunosProfessorLayout.cardBorderWidth,
-              color: MeusAlunosProfessorColors.cardBorder,
-            ),
-            borderRadius: BorderRadius.circular(MeusAlunosProfessorLayout.cardRadius),
+    return AnimatedSize(
+      duration: const Duration(milliseconds: 220),
+      curve: Curves.easeOutCubic,
+      child: SizedBox(
+        width: MeusAlunosProfessorLayout.cardWidth,
+        child: Container(
+          padding: const EdgeInsets.only(
+            top: MeusAlunosProfessorLayout.cardPaddingTop,
+            left: MeusAlunosProfessorLayout.cardPaddingSides,
+            right: MeusAlunosProfessorLayout.cardPaddingSides,
+            bottom: 14,
           ),
-          shadows: const [
-            BoxShadow(
-              color: Color(0x19000000),
-              blurRadius: 4.92,
-              offset: Offset(0, 2.46),
-              spreadRadius: -2.46,
-            ),
-            BoxShadow(
-              color: Color(0x19000000),
-              blurRadius: 7.39,
-              offset: Offset(0, 4.92),
-              spreadRadius: -1.23,
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  width: MeusAlunosProfessorLayout.avatarSize,
-                  height: MeusAlunosProfessorLayout.avatarSize,
-                  clipBehavior: Clip.antiAlias,
-                  decoration: ShapeDecoration(
-                    color: const Color(0xFFE5E7EB),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20653750),
-                    ),
-                  ),
-                  child: avatarUrl.trim().isEmpty
-                      ? const Center(
-                          child: Icon(
-                            Icons.person,
-                            color: Color(0xFF9CA3AF),
-                          ),
-                        )
-                      : Image.network(
-                          avatarUrl,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) {
-                            return const Icon(Icons.person, color: Color(0xFF9CA3AF));
-                          },
-                        ),
-                ),
-                const SizedBox(width: 19.70),
-                Expanded(
-                  child: LayoutBuilder(
-                    builder: (context, constraints) {
-                      final availableWidth = constraints.maxWidth;
-
-                      const badgeTextStyle = TextStyle(
-                        fontSize: 14.77,
-                        fontWeight: FontWeight.w500,
-                        height: 1.33,
-                      );
-
-                      double measureTextWidth(String text, TextStyle style) {
-                        final tp = TextPainter(
-                          text: TextSpan(text: text, style: style),
-                          textDirection: TextDirection.ltr,
-                        )..layout();
-                        return tp.width;
-                      }
-
-                      final badgeWidths = subjects.map((s) {
-                        final textW = measureTextWidth(s, badgeTextStyle);
-                        return textW + 9.85 * 2;
-                      }).toList(growable: false);
-
-                      const double spacing = 9.85;
-
-                      final List<List<int>> rows = [[]];
-                      double currentRowW = 0.0;
-                      for (var i = 0; i < badgeWidths.length; i++) {
-                        final w = badgeWidths[i];
-                        final projected = currentRowW == 0 ? w : currentRowW + spacing + w;
-                        if (projected <= availableWidth || currentRowW == 0) {
-                          rows.last.add(i);
-                          currentRowW = projected;
-                        } else if (rows.length == 1) {
-                          rows.add([i]);
-                          currentRowW = w;
-                        } else {
-                          final secondProjected = currentRowW + spacing + w;
-                          if (secondProjected <= availableWidth) {
-                            rows.last.add(i);
-                            currentRowW = secondProjected;
-                          } else {
-                            break;
-                          }
-                        }
-                      }
-
-                      return ConstrainedBox(
-                        constraints: const BoxConstraints(
-                          minHeight: MeusAlunosProfessorLayout.headerTextBlockHeight,
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              name,
-                              strutStyle: const StrutStyle(
-                                fontSize: MeusAlunosProfessorLayout.headerNameFontSize,
-                                height: MeusAlunosProfessorLayout.headerNameLineHeight,
-                                forceStrutHeight: true,
-                              ),
-                              style: headline?.copyWith(
-                                color: const Color(0xFF1D2838),
-                                fontSize: MeusAlunosProfessorLayout.headerNameFontSize,
-                                fontWeight: FontWeight.w500,
-                                height: MeusAlunosProfessorLayout.headerNameLineHeight,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            const SizedBox(height: MeusAlunosProfessorLayout.headerBadgesTopGap),
-                            for (var r = 0; r < rows.length; r++)
-                              Padding(
-                                padding: EdgeInsets.only(bottom: r == rows.length - 1 ? 0 : 6.0),
-                                child: Row(
-                                  children: [
-                                    for (var j = 0; j < rows[r].length; j++) ...[
-                                      if (j != 0) const SizedBox(width: spacing),
-                                      DisciplinaBadge(
-                                        label: subjects[rows[r][j]],
-                                        color: subjectColor(subjects[rows[r][j]]),
-                                      ),
-                                    ],
-                                  ],
-                                ),
-                              ),
-                          ],
-                        ),
-                      );
-                    },
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 19.70),
-            SizedBox(
-              height: MeusAlunosProfessorLayout.lastLessonBlockHeight,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Última aula:',
-                    style: body?.copyWith(
-                      color: const Color(0xFF697282),
-                      fontSize: MeusAlunosProfessorLayout.lastLessonFontSize,
-                      fontWeight: FontWeight.w400,
-                    ),
-                  ),
-                  Text(
-                    lastLessonDate,
-                    style: body?.copyWith(
-                      color: const Color(0xFF354152),
-                      fontSize: MeusAlunosProfessorLayout.lastLessonFontSize,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
+          decoration: ShapeDecoration(
+            color: Colors.white,
+            shape: RoundedRectangleBorder(
+              side: const BorderSide(
+                width: MeusAlunosProfessorLayout.cardBorderWidth,
+                color: MeusAlunosProfessorColors.cardBorder,
+              ),
+              borderRadius: BorderRadius.circular(
+                MeusAlunosProfessorLayout.cardRadius,
               ),
             ),
-            const SizedBox(height: 19.70),
-            SizedBox(
-              height: 44.32,
-              child: Column(
+            shadows: const [
+              BoxShadow(
+                color: Color(0x19000000),
+                blurRadius: 4.92,
+                offset: Offset(0, 2.46),
+                spreadRadius: -2.46,
+              ),
+              BoxShadow(
+                color: Color(0x19000000),
+                blurRadius: 7.39,
+                offset: Offset(0, 4.92),
+                spreadRadius: -1.23,
+              ),
+            ],
+          ),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final availableBadgeWidth =
+                  constraints.maxWidth -
+                  MeusAlunosProfessorLayout.avatarSize -
+                  19.70;
+              final subjectRows = _buildSubjectRows(
+                subjects: uniqueSubjects,
+                availableWidth: availableBadgeWidth,
+              );
+              final canToggleSubjects = subjectRows.length > 2;
+              final visibleRows = _showAllSubjects
+                  ? subjectRows
+                  : subjectRows.take(2).toList(growable: false);
+              final hiddenCount = subjectRows
+                  .skip(2)
+                  .expand((row) => row)
+                  .length;
+
+              return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        'Progresso',
-                        style: body?.copyWith(
-                          color: const Color(0xFF495565),
-                          fontSize: 17.23,
-                          fontWeight: FontWeight.w400,
+                      Container(
+                        width: MeusAlunosProfessorLayout.avatarSize,
+                        height: MeusAlunosProfessorLayout.avatarSize,
+                        clipBehavior: Clip.antiAlias,
+                        decoration: ShapeDecoration(
+                          color: const Color(0xFFE5E7EB),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20653750),
+                          ),
                         ),
+                        child: data.avatarUrl.trim().isEmpty
+                            ? const Center(
+                                child: Icon(
+                                  Icons.person,
+                                  color: Color(0xFF9CA3AF),
+                                ),
+                              )
+                            : Image.network(
+                                data.avatarUrl,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) {
+                                  return const SizedBox.shrink();
+                                },
+                              ),
                       ),
-                      const Spacer(),
-                      Text(
-                        '$progressPercent%',
-                        style: body?.copyWith(
-                          color: const Color(0xFF1D2838),
-                          fontSize: 17.23,
-                          fontWeight: FontWeight.w500,
+                      const SizedBox(width: 19.70),
+                      Expanded(
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(
+                            minHeight:
+                                MeusAlunosProfessorLayout.headerTextBlockHeight,
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                studentDisplayName,
+                                strutStyle: const StrutStyle(
+                                  fontSize: MeusAlunosProfessorLayout
+                                      .headerNameFontSize,
+                                  height: MeusAlunosProfessorLayout
+                                      .headerNameLineHeight,
+                                  forceStrutHeight: true,
+                                ),
+                                style: headline?.copyWith(
+                                  color: const Color(0xFF1D2838),
+                                  fontSize: MeusAlunosProfessorLayout
+                                      .headerNameFontSize,
+                                  fontWeight: FontWeight.w500,
+                                  height: MeusAlunosProfessorLayout
+                                      .headerNameLineHeight,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(
+                                height: MeusAlunosProfessorLayout
+                                    .headerBadgesTopGap,
+                              ),
+                              if (visibleRows.isEmpty)
+                                const SizedBox(
+                                  height: MeusAlunosProfessorLayout
+                                      .headerBadgeRowHeight,
+                                )
+                              else
+                                for (
+                                  var index = 0;
+                                  index < visibleRows.length;
+                                  index++
+                                )
+                                  Padding(
+                                    padding: EdgeInsets.only(
+                                      bottom: index == visibleRows.length - 1
+                                          ? 0
+                                          : 6,
+                                    ),
+                                    child: Wrap(
+                                      spacing: 9.85,
+                                      runSpacing: 6,
+                                      children: [
+                                        for (final subject
+                                            in visibleRows[index])
+                                          DisciplinaBadge(
+                                            label: subject,
+                                            color: subjectColor(subject),
+                                          ),
+                                      ],
+                                    ),
+                                  ),
+                              if (canToggleSubjects) ...[
+                                const SizedBox(height: 8),
+                                InkWell(
+                                  onTap: () {
+                                    setState(() {
+                                      _showAllSubjects = !_showAllSubjects;
+                                    });
+                                  },
+                                  borderRadius: BorderRadius.circular(999),
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 4,
+                                      vertical: 2,
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(
+                                          _showAllSubjects
+                                              ? Icons.keyboard_arrow_up_rounded
+                                              : Icons
+                                                    .keyboard_arrow_down_rounded,
+                                          color: orange,
+                                          size: 18,
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          _showAllSubjects
+                                              ? 'Mostrar menos'
+                                              : '+$hiddenCount disciplinas',
+                                          style: const TextStyle(
+                                            color: Color(0xFF667085),
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 9.85),
-                  ProgressoBar(value: progress, color: orange),
-                ],
-              ),
-            ),
-            const SizedBox(height: 19.70),
-            SizedBox(
-              height: MeusAlunosProfessorLayout.actionsRowHeight,
-              child: Row(
-                children: [
-                  Expanded(
-                    child: SizedBox(
-                      height: 39.39,
-                      child: OutlinedButton.icon(
-                        onPressed: () {
-                          Navigator.pushNamed(
-                          context,
-                          Routes.professorStudentProfile,
-                          arguments: id,
-                          );
-                        },
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: orange,
-                          side: BorderSide(color: orange),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(MeusAlunosProfessorLayout.actionButtonRadius),
+                  const SizedBox(height: 19.70),
+                  SizedBox(
+                    height: MeusAlunosProfessorLayout.lastLessonBlockHeight,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Última aula:',
+                          strutStyle: const StrutStyle(
+                            fontSize:
+                                MeusAlunosProfessorLayout.lastLessonFontSize,
+                            height:
+                                MeusAlunosProfessorLayout.lastLessonLineHeight,
+                            forceStrutHeight: true,
+                          ),
+                          style: body?.copyWith(
+                            color: const Color(0xFF697282),
+                            fontSize:
+                                MeusAlunosProfessorLayout.lastLessonFontSize,
+                            fontWeight: FontWeight.w400,
+                            height:
+                                MeusAlunosProfessorLayout.lastLessonLineHeight,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        Text(
+                          data.lastLessonDate,
+                          strutStyle: const StrutStyle(
+                            fontSize:
+                                MeusAlunosProfessorLayout.lastLessonFontSize,
+                            height:
+                                MeusAlunosProfessorLayout.lastLessonLineHeight,
+                            forceStrutHeight: true,
+                          ),
+                          style: body?.copyWith(
+                            color: const Color(0xFF354152),
+                            fontSize:
+                                MeusAlunosProfessorLayout.lastLessonFontSize,
+                            fontWeight: FontWeight.w500,
+                            height:
+                                MeusAlunosProfessorLayout.lastLessonLineHeight,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 19.70),
+                  SizedBox(
+                    height: 44.32,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        SizedBox(
+                          height: 24.62,
+                          child: Row(
+                            children: [
+                              Text(
+                                'Progresso',
+                                style: body?.copyWith(
+                                  color: const Color(0xFF495565),
+                                  fontSize: 17.23,
+                                  fontWeight: FontWeight.w400,
+                                  height: 1.43,
+                                ),
+                              ),
+                              const Spacer(),
+                              Text(
+                                '$progressPercent%',
+                                style: body?.copyWith(
+                                  color: const Color(0xFF1D2838),
+                                  fontSize: 17.23,
+                                  fontWeight: FontWeight.w500,
+                                  height: 1.43,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                        icon: const Icon(Icons.person_outline, size: 20),
-                        label: const Text('Ver Perfil'),
+                        const SizedBox(height: 9.85),
+                        ProgressoBar(value: data.progress, color: orange),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: SizedBox(
+                      height: MeusAlunosProfessorLayout.actionsRowHeight,
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: SizedBox(
+                              height: 39.39,
+                              child: OutlinedButton.icon(
+                                onPressed: () {},
+                                style: OutlinedButton.styleFrom(
+                                  padding: EdgeInsets.zero,
+                                  foregroundColor: orange,
+                                  side: const BorderSide(
+                                    width: MeusAlunosProfessorLayout
+                                        .actionBorderWidth,
+                                    color: MeusAlunosProfessorColors.orange,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(
+                                      MeusAlunosProfessorLayout
+                                          .actionButtonRadius,
+                                    ),
+                                  ),
+                                  textStyle: const TextStyle(
+                                    fontSize: 17.23,
+                                    fontWeight: FontWeight.w500,
+                                    height: 1.43,
+                                  ),
+                                ),
+                                icon: Icon(
+                                  Icons.person_outline,
+                                  size:
+                                      MeusAlunosProfessorLayout.actionIconSize,
+                                  color: orange,
+                                ),
+                                label: const Text('Ver Perfil'),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 9.85),
+                          _SquareActionButton(
+                            icon: Icons.chat_bubble_outline,
+                            borderColor: blue,
+                            iconColor: blue,
+                            onTap: () {
+                              Navigator.pushNamed(
+                                context,
+                                Routes.professorChats,
+                                arguments: <String, dynamic>{
+                                  'studentUsername': data.username,
+                                  'studentName': data.fullName,
+                                },
+                              );
+                            },
+                          ),
+                          const SizedBox(width: 9.85),
+                          _SquareActionButton(
+                            icon: Icons.description_outlined,
+                            borderColor: green,
+                            iconColor: green,
+                            onTap: () {},
+                          ),
+                        ],
                       ),
                     ),
                   ),
-                  const SizedBox(width: 9.85),
-                  _SquareActionButton(
-                  icon: Icons.chat_bubble_outline,
-                  borderColor: blue,
-                  iconColor: blue,
-                    onTap: () {
-                      Navigator.pushNamed(
-                      context,
-                      Routes.professorChats,
-                        arguments: {
-                          'studentId': id,
-                          'studentName': name,
-                          'avatarUrl': avatarUrl, 
-                        },
-                      );
-                    },
-                  ),
-                  const SizedBox(width: 9.85),
-                  _SquareActionButton(
-                    icon: Icons.description_outlined,
-                    borderColor: green,
-                    iconColor: green,
-                    onTap: () {},
-                  ),
                 ],
-              ),
-            ),
-          ],
+              );
+            },
+          ),
         ),
       ),
     );
+  }
+
+  List<List<String>> _buildSubjectRows({
+    required List<String> subjects,
+    required double availableWidth,
+  }) {
+    if (subjects.isEmpty || availableWidth <= 0) return const <List<String>>[];
+
+    const badgeTextStyle = TextStyle(
+      fontSize: 14.77,
+      fontWeight: FontWeight.w500,
+      height: 1.33,
+    );
+    const horizontalPadding = 9.85 * 2;
+    const spacing = 9.85;
+
+    double measureTextWidth(String text) {
+      final painter = TextPainter(
+        text: TextSpan(text: text, style: badgeTextStyle),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      return painter.width;
+    }
+
+    final rows = <List<String>>[];
+    var currentRow = <String>[];
+    var currentWidth = 0.0;
+
+    for (final subject in subjects) {
+      final badgeWidth = measureTextWidth(subject) + horizontalPadding;
+      final nextWidth = currentRow.isEmpty
+          ? badgeWidth
+          : currentWidth + spacing + badgeWidth;
+
+      if (currentRow.isEmpty || nextWidth <= availableWidth) {
+        currentRow.add(subject);
+        currentWidth = nextWidth;
+        continue;
+      }
+
+      rows.add(List<String>.from(currentRow));
+      currentRow = <String>[subject];
+      currentWidth = badgeWidth;
+    }
+
+    if (currentRow.isNotEmpty) {
+      rows.add(List<String>.from(currentRow));
+    }
+
+    return rows;
   }
 }
 
@@ -338,15 +481,26 @@ class _SquareActionButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkResponse(
       onTap: onTap,
+      radius: 24,
       child: Container(
         width: MeusAlunosProfessorLayout.actionButtonSize,
         height: MeusAlunosProfessorLayout.actionButtonSize,
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(MeusAlunosProfessorLayout.actionButtonRadius),
-          border: Border.all(color: borderColor),
+          borderRadius: BorderRadius.circular(
+            MeusAlunosProfessorLayout.actionButtonRadius,
+          ),
+          border: Border.all(
+            color: borderColor,
+            width: MeusAlunosProfessorLayout.actionBorderWidth,
+          ),
+          color: Colors.white,
         ),
         alignment: Alignment.center,
-        child: Icon(icon, size: 20, color: iconColor),
+        child: Icon(
+          icon,
+          size: MeusAlunosProfessorLayout.actionIconSize,
+          color: iconColor,
+        ),
       ),
     );
   }

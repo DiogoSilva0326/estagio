@@ -5,9 +5,13 @@ import 'package:aula_extra/core/data/tutors/dtos/my_tutor_dto.dart';
 import 'package:http/http.dart' as http;
 
 class MyTutorsApi {
-  Future<List<MyTutorDto>> getMyTutors({required String token}) async {
+  Future<List<MyTutorDto>> getMyTutors({required String token, String? areaId}) async {
+    final uri = areaId == null || areaId.trim().isEmpty
+        ? ApiConfig.uri('/api/Users/me/tutors')
+        : ApiConfig.uri('/api/Users/me/tutors?areaId=${Uri.encodeQueryComponent(areaId.trim())}');
+
     final res = await http.get(
-      ApiConfig.uri('/api/Users/me/tutors'),
+      uri,
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',

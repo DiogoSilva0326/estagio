@@ -14,6 +14,7 @@
 \ir '../src/Modules/Users/Sql/ddl/create_usernotification.sql'
 \ir '../src/Modules/Users/Sql/ddl/create_userconsents.sql'
 \ir '../src/Modules/UserProfile/Sql/ddl/001_create_userprofiles_table.sql'
+\ir '../src/Modules/UserProfile/Sql/ddl/002_add_profile_image_columns.sql'
 \ir '../src/Modules/Professors/Sql/ddl/create_professor_rooms.sql'
 
 -- 2) Schema principal da plataforma (tabelas em aula_extra.*)
@@ -22,6 +23,7 @@
 
 -- 3) Module DDLs (create remaining public.* tables used by procs)
 \ir '../src/Modules/Communication/Sql/ddl/communication.sql'
+\ir '../src/Modules/Communication/Sql/ddl/chat_files.sql'
 \ir '../src/Modules/Favorites/Sql/ddl/favorites.sql'
 \ir '../src/Modules/Lessons/Sql/ddl/lesson.sql'
 \ir '../src/Modules/Payments/Sql/ddl/payments.sql'
@@ -30,6 +32,8 @@
 \ir '../src/Modules/Education/Sql/ddl/education.sql'
 \ir '../src/Modules/Education/Sql/ddl/user_disciplinas.sql'
 \ir '../src/Modules/Professors/Sql/ddl/professor.sql'
+\ir '../src/Modules/Professors/Sql/ddl/professor_disciplinas.sql'
+\ir '../src/Modules/Professors/Sql/ddl/professor_languages.sql'
 \ir '../src/Modules/Reservations/Sql/ddl/reservation.sql'
 \ir '../src/Modules/Courses/Sql/ddl/lesson_packs.sql'
 \ir '../src/Modules/Schedule/Sql/ddl/schedule.sql'
@@ -120,18 +124,12 @@
 \ir '../src/Modules/Courses/Sql/procs/usp_user_lesson_packs.sql'
 \ir '../src/Modules/Courses/Sql/procs/usp_pack_transactions.sql'
 
--- Communication
-\ir '../src/Modules/Communication/Sql/procs/usp_messages.sql'
-\ir '../src/Modules/Communication/Sql/procs/usp_contacts.sql'
-\ir '../src/Modules/Communication/Sql/procs/usp_group_rooms.sql'
-\ir '../src/Modules/Communication/Sql/procs/usp_group_room_members.sql'
-\ir '../src/Modules/Communication/Sql/procs/usp_notifications.sql'
-
 -- Professors
 \ir '../src/Modules/Professors/Sql/procs/usp_professors.sql'
 \ir '../src/Modules/Professors/Sql/procs/usp_professor_feedback.sql'
 \ir '../src/Modules/Professors/Sql/procs/usp_certificates.sql'
 \ir '../src/Modules/Professors/Sql/procs/usp_professor_rooms.sql'
+\ir '../src/Modules/Professors/Sql/procs/usp_professor_disciplinas.sql'
 
 -- Lessons
 \ir '../src/Modules/Lessons/Sql/procs/usp_lessons.sql'

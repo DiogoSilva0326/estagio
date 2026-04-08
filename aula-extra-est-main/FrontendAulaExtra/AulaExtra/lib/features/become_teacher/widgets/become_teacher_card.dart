@@ -221,7 +221,7 @@ class _BecomeTeacherCardState extends State<BecomeTeacherCard> {
 
       Navigator.pushReplacementNamed(
         context,
-        isTeacher ? Routes.professorPerfil : Routes.perfilAluno,
+        isTeacher ? Routes.professorMeusAlunos : Routes.perfilAluno,
       );
     } catch (e) {
       if (!mounted) return;

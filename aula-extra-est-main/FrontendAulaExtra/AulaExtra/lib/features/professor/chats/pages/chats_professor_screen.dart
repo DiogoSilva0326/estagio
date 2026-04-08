@@ -8,19 +8,23 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 class ChatsProfessorScreen extends StatelessWidget {
-  final String? initialStudentId; 
-  final String? initialStudentName;
-
   const ChatsProfessorScreen({
     super.key,
-    this.initialStudentId, 
+    this.initialStudentUsername,
     this.initialStudentName,
   });
+
+  final String? initialStudentUsername;
+  final String? initialStudentName;
 
   @override
   Widget build(BuildContext context) {
     final role = context.watch<UserProvider>().role;
     final isTeacher = role == Role.teacher;
+    final rawArgs = ModalRoute.of(context)?.settings.arguments;
+    final args = rawArgs is Map ? Map<String, dynamic>.from(rawArgs) : const <String, dynamic>{};
+    final resolvedUsername = initialStudentUsername ?? args['studentUsername']?.toString() ?? args['studentId']?.toString();
+    final resolvedName = initialStudentName ?? args['studentName']?.toString();
 
     if (!isTeacher) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -36,14 +40,14 @@ class ChatsProfessorScreen extends StatelessWidget {
             pinned: true,
             delegate: PinnedHeaderDelegate(
               height: 90,
-              child: const AppHeader(),
+                  child: const AppHeader(),
             ),
           ),
           SliverToBoxAdapter(
             child: ChatsProfessorContentSection(
-              initialStudentId: initialStudentId,
-              initialStudentName: initialStudentName,
-            ), 
+              initialStudentUsername: resolvedUsername,
+              initialStudentName: resolvedName,
+            ),
           ),
           const SliverToBoxAdapter(child: FooterSection()),
         ],

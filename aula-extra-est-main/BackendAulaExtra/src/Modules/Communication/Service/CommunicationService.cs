@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using ConfidantPostgreSQL.Modules.Communication.DTOs;
 using ConfidantPostgreSQL.Modules.Communication.Models;
 using ConfidantPostgreSQL.Modules.Communication.Repository;
 
@@ -28,10 +29,15 @@ namespace ConfidantPostgreSQL.Modules.Communication.Service
         public Task<int> DeleteMessageAsync(Guid idMessage) => _repo.DeleteMessageAsync(idMessage);
 
         public Task<IEnumerable<Contact>> GetContactsAllAsync() => _repo.GetContactsAllAsync();
+        public Task<IEnumerable<Contact>> GetContactsByOwnerAsync(Guid ownerUserId) => _repo.GetContactsByOwnerAsync(ownerUserId);
+        public Task<Contact?> GetContactByOwnerAndContactAsync(Guid ownerUserId, Guid contactUserId) => _repo.GetContactByOwnerAndContactAsync(ownerUserId, contactUserId);
         public Task<Contact?> GetContactByIdAsync(Guid id) => _repo.GetContactByIdAsync(id);
         public Task<Guid> InsertContactAsync(Contact contact) => _repo.InsertContactAsync(contact);
+        public Task<Guid> UpsertContactAsync(Contact contact) => _repo.UpsertContactAsync(contact);
         public Task<int> UpdateContactAsync(Contact contact) => _repo.UpdateContactAsync(contact);
         public Task<int> DeleteContactAsync(Guid id) => _repo.DeleteContactAsync(id);
+
+        public Task<IEnumerable<ContactUserSummary>> GetContactUserSummariesByOwnerAsync(Guid ownerUserId) => _repo.GetContactUserSummariesByOwnerAsync(ownerUserId);
 
         public Task<IEnumerable<GroupRoom>> GetGroupRoomsAllAsync() => _repo.GetGroupRoomsAllAsync();
         public Task<GroupRoom?> GetGroupRoomByIdAsync(Guid id) => _repo.GetGroupRoomByIdAsync(id);

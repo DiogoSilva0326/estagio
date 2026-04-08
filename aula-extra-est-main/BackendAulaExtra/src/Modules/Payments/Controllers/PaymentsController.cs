@@ -19,6 +19,20 @@ namespace ConfidantPostgreSQL.Modules.Payments.Controllers
             _service = service;
         }
 
+        private bool TryGetAuthenticatedUserId(out Guid userId)
+        {
+            userId = Guid.Empty;
+            if (HttpContext?.Items == null) return false;
+            if (!HttpContext.Items.TryGetValue("UserId", out var raw) || raw == null) return false;
+            if (raw is Guid g)
+            {
+                userId = g;
+                return userId != Guid.Empty;
+            }
+
+            return Guid.TryParse(raw.ToString(), out userId) && userId != Guid.Empty;
+        }
+
         // WALLETS
         [HttpGet("wallets")]
         public async Task<IActionResult> GetWallets()
@@ -124,6 +138,32 @@ namespace ConfidantPostgreSQL.Modules.Payments.Controllers
         {
             RequestContext.ApplyCultureFromHeader(Request);
             return Ok(await _service.GetInvoicesByUserIdAsync(idUser));
+        }
+
+        [HttpGet("me/summary")]
+        public async Task<IActionResult> GetMySummary()
+        {
+            RequestContext.ApplyCultureFromHeader(Request);
+            if (!TryGetAuthenticatedUserId(out var userId)) return Unauthorized();
+            return Ok(await _service.GetStudentPaymentSummaryAsync(userId));
+        }
+
+        [HttpGet("me/teacher-summary")]
+        public async Task<IActionResult> GetMyTeacherSummary()
+        {
+            RequestContext.ApplyCultureFromHeader(Request);
+            if (!TryGetAuthenticatedUserId(out var userId)) return Unauthorized();
+            return Ok(await _service.GetProfessorPaymentSummaryAsync(userId));
+        }
+
+        [HttpGet("me/teacher-payments/{idReservationPayment:guid}")]
+        public async Task<IActionResult> GetMyTeacherPaymentDetails(Guid idReservationPayment)
+        {
+            RequestContext.ApplyCultureFromHeader(Request);
+            if (!TryGetAuthenticatedUserId(out var userId)) return Unauthorized();
+
+            var item = await _service.GetProfessorPaymentDetailsAsync(userId, idReservationPayment);
+            return item == null ? NotFound() : Ok(item);
         }
 
         [HttpPost("invoices")]

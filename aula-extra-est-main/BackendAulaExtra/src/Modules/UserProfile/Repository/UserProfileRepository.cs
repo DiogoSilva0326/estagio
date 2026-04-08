@@ -69,6 +69,21 @@ public class UserProfileRepository : IUserProfileRepository
                     Phone = reader.IsDBNull(reader.GetOrdinal("phone")) 
                         ? null 
                         : reader.GetString(reader.GetOrdinal("phone")),
+                    ProfileImageUrl = reader.IsDBNull(reader.GetOrdinal("profile_image_url"))
+                        ? null
+                        : reader.GetString(reader.GetOrdinal("profile_image_url")),
+                    ProfileImageThumbnailUrl = reader.IsDBNull(reader.GetOrdinal("profile_image_thumbnail_url"))
+                        ? null
+                        : reader.GetString(reader.GetOrdinal("profile_image_thumbnail_url")),
+                    ProfileImageCloudflareId = reader.IsDBNull(reader.GetOrdinal("profile_image_cloudflare_id"))
+                        ? null
+                        : reader.GetString(reader.GetOrdinal("profile_image_cloudflare_id")),
+                    ProfileImageProvider = reader.IsDBNull(reader.GetOrdinal("profile_image_provider"))
+                        ? null
+                        : reader.GetString(reader.GetOrdinal("profile_image_provider")),
+                    ProfileImageSource = reader.IsDBNull(reader.GetOrdinal("profile_image_source"))
+                        ? null
+                        : reader.GetString(reader.GetOrdinal("profile_image_source")),
                     CreationDate = reader.GetDateTime(reader.GetOrdinal("creation_date")),
                     LastUpdate = reader.GetDateTime(reader.GetOrdinal("last_update")),
                     Inactive = reader.GetBoolean(reader.GetOrdinal("inactive"))
@@ -125,6 +140,21 @@ public class UserProfileRepository : IUserProfileRepository
                     Phone = reader.IsDBNull(reader.GetOrdinal("phone")) 
                         ? null 
                         : reader.GetString(reader.GetOrdinal("phone")),
+                    ProfileImageUrl = reader.IsDBNull(reader.GetOrdinal("profile_image_url"))
+                        ? null
+                        : reader.GetString(reader.GetOrdinal("profile_image_url")),
+                    ProfileImageThumbnailUrl = reader.IsDBNull(reader.GetOrdinal("profile_image_thumbnail_url"))
+                        ? null
+                        : reader.GetString(reader.GetOrdinal("profile_image_thumbnail_url")),
+                    ProfileImageCloudflareId = reader.IsDBNull(reader.GetOrdinal("profile_image_cloudflare_id"))
+                        ? null
+                        : reader.GetString(reader.GetOrdinal("profile_image_cloudflare_id")),
+                    ProfileImageProvider = reader.IsDBNull(reader.GetOrdinal("profile_image_provider"))
+                        ? null
+                        : reader.GetString(reader.GetOrdinal("profile_image_provider")),
+                    ProfileImageSource = reader.IsDBNull(reader.GetOrdinal("profile_image_source"))
+                        ? null
+                        : reader.GetString(reader.GetOrdinal("profile_image_source")),
                     CreationDate = reader.GetDateTime(reader.GetOrdinal("creation_date")),
                     LastUpdate = reader.GetDateTime(reader.GetOrdinal("last_update")),
                     Inactive = reader.GetBoolean(reader.GetOrdinal("inactive"))
@@ -181,6 +211,21 @@ public class UserProfileRepository : IUserProfileRepository
                     Phone = reader.IsDBNull(reader.GetOrdinal("phone")) 
                         ? null 
                         : reader.GetString(reader.GetOrdinal("phone")),
+                    ProfileImageUrl = reader.IsDBNull(reader.GetOrdinal("profile_image_url"))
+                        ? null
+                        : reader.GetString(reader.GetOrdinal("profile_image_url")),
+                    ProfileImageThumbnailUrl = reader.IsDBNull(reader.GetOrdinal("profile_image_thumbnail_url"))
+                        ? null
+                        : reader.GetString(reader.GetOrdinal("profile_image_thumbnail_url")),
+                    ProfileImageCloudflareId = reader.IsDBNull(reader.GetOrdinal("profile_image_cloudflare_id"))
+                        ? null
+                        : reader.GetString(reader.GetOrdinal("profile_image_cloudflare_id")),
+                    ProfileImageProvider = reader.IsDBNull(reader.GetOrdinal("profile_image_provider"))
+                        ? null
+                        : reader.GetString(reader.GetOrdinal("profile_image_provider")),
+                    ProfileImageSource = reader.IsDBNull(reader.GetOrdinal("profile_image_source"))
+                        ? null
+                        : reader.GetString(reader.GetOrdinal("profile_image_source")),
                     CreationDate = reader.GetDateTime(reader.GetOrdinal("creation_date")),
                     LastUpdate = reader.GetDateTime(reader.GetOrdinal("last_update")),
                     Inactive = reader.GetBoolean(reader.GetOrdinal("inactive"))
@@ -237,6 +282,21 @@ public class UserProfileRepository : IUserProfileRepository
                     Phone = reader.IsDBNull(reader.GetOrdinal("phone")) 
                         ? null 
                         : reader.GetString(reader.GetOrdinal("phone")),
+                    ProfileImageUrl = reader.IsDBNull(reader.GetOrdinal("profile_image_url"))
+                        ? null
+                        : reader.GetString(reader.GetOrdinal("profile_image_url")),
+                    ProfileImageThumbnailUrl = reader.IsDBNull(reader.GetOrdinal("profile_image_thumbnail_url"))
+                        ? null
+                        : reader.GetString(reader.GetOrdinal("profile_image_thumbnail_url")),
+                    ProfileImageCloudflareId = reader.IsDBNull(reader.GetOrdinal("profile_image_cloudflare_id"))
+                        ? null
+                        : reader.GetString(reader.GetOrdinal("profile_image_cloudflare_id")),
+                    ProfileImageProvider = reader.IsDBNull(reader.GetOrdinal("profile_image_provider"))
+                        ? null
+                        : reader.GetString(reader.GetOrdinal("profile_image_provider")),
+                    ProfileImageSource = reader.IsDBNull(reader.GetOrdinal("profile_image_source"))
+                        ? null
+                        : reader.GetString(reader.GetOrdinal("profile_image_source")),
                     CreationDate = reader.GetDateTime(reader.GetOrdinal("creation_date")),
                     LastUpdate = reader.GetDateTime(reader.GetOrdinal("last_update")),
                     Inactive = reader.GetBoolean(reader.GetOrdinal("inactive"))
@@ -286,7 +346,9 @@ public class UserProfileRepository : IUserProfileRepository
             using var cmd = conn.CreateCommand();
             cmd.CommandText = @"SELECT public.usp_userprofiles_update(
                 @p_user_id, @p_total_spent, @p_reset_password_token, @p_reset_password_token_expiry,
-                @p_email_verification_token, @p_email_verified_at, @p_prefered_language, @p_status, @p_phone
+                @p_email_verification_token, @p_email_verified_at, @p_prefered_language, @p_status, @p_phone,
+                @p_profile_image_url, @p_profile_image_thumbnail_url, @p_profile_image_cloudflare_id,
+                @p_profile_image_provider, @p_profile_image_source, @p_clear_profile_image
             );";
             cmd.Parameters.AddWithValue("p_user_id", request.UserId);
             cmd.Parameters.AddWithValue("p_total_spent", (object?)request.TotalSpent ?? DBNull.Value);
@@ -297,6 +359,12 @@ public class UserProfileRepository : IUserProfileRepository
             cmd.Parameters.AddWithValue("p_prefered_language", (object?)request.PreferedLanguage ?? DBNull.Value);
             cmd.Parameters.AddWithValue("p_status", (object?)request.Status ?? DBNull.Value);
             cmd.Parameters.AddWithValue("p_phone", (object?)request.Phone ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("p_profile_image_url", (object?)request.ProfileImageUrl ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("p_profile_image_thumbnail_url", (object?)request.ProfileImageThumbnailUrl ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("p_profile_image_cloudflare_id", (object?)request.ProfileImageCloudflareId ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("p_profile_image_provider", (object?)request.ProfileImageProvider ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("p_profile_image_source", (object?)request.ProfileImageSource ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("p_clear_profile_image", request.ClearProfileImage);
 
             var result = await cmd.ExecuteScalarAsync();
             return result is int rows ? rows : Convert.ToInt32(result);

@@ -1,177 +1,22 @@
-import 'dart:convert';
-import 'package:http/http.dart' as http;
-import 'package:aula_extra/core/data/http/api_config.dart';
-import 'package:aula_extra/core/data/session/token_storage.dart';
-import 'package:intl/intl.dart';
+import 'dart:async';
 
+import 'package:aula_extra/core/data/notifications/notifications_service.dart';
+import 'package:aula_extra/core/data/lesson_classroom/lesson_classroom_service.dart';
+import 'package:aula_extra/core/data/reservations_calendar/calendar_status.dart';
+import 'package:aula_extra/features/aluno/chats/constants/chats_constants.dart';
 import 'package:aula_extra/features/aluno/core/widgets/aluno_menu_nav.dart';
 import 'package:aula_extra/features/aluno/calendario/constants/calendario_constants.dart';
+import 'package:aula_extra/core/data/reservations_calendar/dtos/student_calendar_item_dto.dart';
+import 'package:aula_extra/core/data/reservations_calendar/reservations_calendar_service.dart';
+import 'package:aula_extra/core/data/users/users_service.dart';
+import 'package:aula_extra/features/aluno/calendario/state/student_calendar_refresh_bus.dart';
+import 'package:aula_extra/features/aluno/calendario/widgets/pending_lesson_review_dialog.dart';
+import 'package:aula_extra/features/classroom/pages/live_classroom_page.dart';
 import 'package:aula_extra/routes/routes.dart';
 import 'package:flutter/material.dart';
 
-class AlunoAulaCardData {
-  final String idLesson;
-  final String subject;
-  final String teacherName;
-  final Color badgeColor;
-  final String dateLabel;
-  final String timeLabel;
-
-  AlunoAulaCardData({
-    required this.idLesson,
-    required this.subject,
-    required this.teacherName,
-    required this.badgeColor,
-    required this.dateLabel,
-    required this.timeLabel,
-  });
-}
-
-class CalendarioContentSection extends StatefulWidget {
+class CalendarioContentSection extends StatelessWidget {
   const CalendarioContentSection({super.key});
-
-  @override
-  State<CalendarioContentSection> createState() => _CalendarioContentSectionState();
-}
-
-class _CalendarioContentSectionState extends State<CalendarioContentSection> {
-  final Key _listaAulasKey = UniqueKey();
-
-  Future<List<AlunoAulaCardData>> _fetchAulasDoAlunoDaBD() async {
-    try {
-      final token = await TokenStorage().loadToken() ?? '';
-
-      String? myUserId;
-      final respUser = await http.get(ApiConfig.uri('/api/Users/me'), headers: {'Authorization': 'Bearer $token'});
-      if (respUser.statusCode == 200) {
-        final userData = jsonDecode(respUser.body);
-        myUserId = (userData['idUser'] ?? userData['id_user'] ?? userData['id'])?.toString();
-      }
-      if (myUserId == null) return [];
-
-      final respEnrolls = await http.get(ApiConfig.uri('/api/Lessons/enrollments'), headers: {'Authorization': 'Bearer $token'});
-      final respLessons = await http.get(ApiConfig.uri('/api/Lessons/lessons'), headers: {'Authorization': 'Bearer $token'});
-      final respCourses = await http.get(ApiConfig.uri('/api/Courses/courses'), headers: {'Authorization': 'Bearer $token'});
-      final respUsers = await http.get(ApiConfig.uri('/api/Users'), headers: {'Authorization': 'Bearer $token'});
-      final respProfessors = await http.get(ApiConfig.uri('/api/Professors'), headers: {'Authorization': 'Bearer $token'});
-
-      List<dynamic> extractList(http.Response res) {
-        if (res.statusCode != 200) return [];
-        final body = jsonDecode(res.body);
-        return body is List ? body : (body['data'] ?? body['items'] ?? []);
-      }
-
-      final enrollments = extractList(respEnrolls);
-      final lessons = extractList(respLessons);
-      final courses = extractList(respCourses);
-      final users = extractList(respUsers);
-      final professors = extractList(respProfessors);
-
-      List<AlunoAulaCardData> aulasConvertidas = [];
-      final agora = DateTime.now();
-
-      final myEnrollments = enrollments.where((e) => 
-        (e['idUser'] ?? e['IdUser'] ?? e['id_user']).toString() == myUserId
-      ).toList();
-
-      for (var enroll in myEnrollments) {
-        final status = (enroll['status'] ?? enroll['Status'] ?? '').toString().toLowerCase();
-        
-        if (status == 'pending' || status == 'canceled') continue;
-        
-        final idLessonEnroll = (enroll['idLesson'] ?? enroll['IdLesson'] ?? enroll['id_lesson'])?.toString();
-
-        final lessonMatch = lessons.where((l) => 
-          (l['idLesson'] ?? l['IdLesson'] ?? l['id_lesson']).toString() == idLessonEnroll
-        ).toList();
-
-        if (lessonMatch.isNotEmpty) {
-          final l = lessonMatch.first;
-          final schedStart = l['scheduledStart'] ?? l['ScheduledStart'];
-          final schedEnd = l['scheduledEnd'] ?? l['ScheduledEnd'];
-          final idCourse = (l['idCourse'] ?? l['IdCourse'] ?? l['id_course'])?.toString();
-          final idProfessor = (l['idProfessor'] ?? l['IdProfessor'] ?? l['id_professor'])?.toString();
-
-          if (schedStart != null && schedEnd != null) {
-            final dtStart = DateTime.parse(schedStart.toString()).toLocal();
-            final dtEnd = DateTime.parse(schedEnd.toString()).toLocal();
-
-            if (dtStart.isBefore(agora.subtract(const Duration(days: 1)))) continue;
-
-            String disciplina = "Aula";
-            if (idCourse != null) {
-              final courseMatch = courses.where((c) => (c['idCourse'] ?? c['IdCourse'] ?? c['id_course']).toString() == idCourse).toList();
-              if (courseMatch.isNotEmpty) {
-                disciplina = (courseMatch.first['name'] ?? courseMatch.first['Name']).toString();
-              }
-            }
-
-            String professorName = "Professor Desconhecido";
-            if (idProfessor != null) {
-              final profMatch = professors.where((p) => (p['idProfessor'] ?? p['IdProfessor'] ?? p['id_professor']).toString() == idProfessor).toList();
-              if (profMatch.isNotEmpty) {
-                final profUserId = (profMatch.first['idUser'] ?? profMatch.first['IdUser'] ?? profMatch.first['id_user']).toString();
-                final userMatch = users.where((u) => (u['idUser'] ?? u['IdUser'] ?? u['id_user'] ?? u['id']).toString() == profUserId).toList();
-                if (userMatch.isNotEmpty) {
-                  final u = userMatch.first;
-                  final firstName = u['firstName'] ?? u['FirstName'];
-                  final lastName = u['lastName'] ?? u['LastName'];
-                  final username = u['username'] ?? u['UserName'];
-
-                  if (firstName != null && lastName != null) {
-                    professorName = "$firstName $lastName";
-                  } else if (username != null) {
-                    professorName = username.toString();
-                  }
-                }
-              }
-            }
-
-            Color badgeColor = const Color(0xFF2B7FFF);
-            final dLower = disciplina.toLowerCase();
-            if (dLower.contains('física') || dLower.contains('biologia')) {
-              badgeColor = const Color(0xFF00C950);
-            } else if (dLower.contains('inglês') || dLower.contains('química')) {
-              badgeColor = const Color(0xFFFF6900);
-            }
-
-            final mes = _traduzirMes(dtStart.month);
-            String dateLabel = '📅 ${dtStart.day} $mes';
-            
-            if (dtStart.year == agora.year && dtStart.month == agora.month && dtStart.day == agora.day) {
-              dateLabel = '📅 Hoje';
-            } else if (dtStart.year == agora.year && dtStart.month == agora.month && dtStart.day == agora.day + 1) {
-              dateLabel = '📅 Amanhã';
-            }
-
-            final timeLabel = '🕐 ${DateFormat('HH:mm').format(dtStart)} - ${DateFormat('HH:mm').format(dtEnd)}';
-
-            aulasConvertidas.add(
-              AlunoAulaCardData(
-                idLesson: idLessonEnroll!,
-                subject: disciplina,
-                teacherName: professorName,
-                badgeColor: badgeColor,
-                dateLabel: dateLabel,
-                timeLabel: timeLabel,
-              )
-            );
-          }
-        }
-      }
-
-      aulasConvertidas.sort((a, b) => a.dateLabel.compareTo(b.dateLabel));
-      return aulasConvertidas;
-    } catch (e) {
-      debugPrint('Erro ao carregar próximas aulas do aluno: $e');
-      return [];
-    }
-  }
-
-  String _traduzirMes(int month) {
-    const meses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
-    return meses[month - 1];
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -186,73 +31,30 @@ class _CalendarioContentSectionState extends State<CalendarioContentSection> {
           const AlunoMenuNav(selectedIndex: 2),
           const SizedBox(width: 40),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 8),
-                const Text(
-                  'Calendário',
-                  style: CalendarioConstants.titleStyle,
-                ),
-                const SizedBox(height: 11.202),
-                const Text(
-                  'Organize suas aulas e compromissos',
-                  style: CalendarioConstants.subtitleStyle,
-                ),
-                const SizedBox(height: 33.607),
-                _CalendarTabs(
-                  onWeeklyTap: () => Navigator.of(context).pushNamed(Routes.calendarioSemanal),
-                ),
-                const SizedBox(height: 22.404),
-                
-                FutureBuilder<List<AlunoAulaCardData>>(
-                  key: _listaAulasKey,
-                  future: _fetchAulasDoAlunoDaBD(),
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const Padding(
-                        padding: EdgeInsets.only(top: 50.0, bottom: 50.0),
-                        child: Center(child: CircularProgressIndicator()),
-                      );
-                    }
-
-                    final aulas = snapshot.data ?? [];
-
-                    if (aulas.isEmpty) {
-                      return const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 40.0),
-                        child: Center(
-                          child: Text(
-                            "Ainda não tens aulas marcadas. Começa agora!",
-                            style: TextStyle(color: Colors.grey, fontSize: 18),
-                          ),
-                        ),
-                      );
-                    }
-
-                    return Column(
-                      children: aulas.map((aula) {
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 22.404),
-                          child: _UpcomingLessonCard(
-                            accentColor: aula.badgeColor,
-                            subject: aula.subject,
-                            teacherName: aula.teacherName,
-                            dateLabel: aula.dateLabel,
-                            timeLabel: aula.timeLabel,
-                            primaryActionStyle: aula.dateLabel.contains('Hoje') 
-                                ? _PrimaryActionStyle.enterClass 
-                                : _PrimaryActionStyle.viewDetails,
-                            primaryActionLabel: aula.dateLabel.contains('Hoje') 
-                                ? 'Entrar na Aula' 
-                                : 'Ver Detalhes',
-                          ),
-                        );
-                      }).toList(),
-                    );
-                  },
-                ),
-              ],
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Calendário',
+                    style: CalendarioConstants.titleStyle,
+                  ),
+                  const SizedBox(height: 11.202),
+                  const Text(
+                    'Organize suas aulas e compromissos',
+                    style: CalendarioConstants.subtitleStyle,
+                  ),
+                  const SizedBox(height: 33.607),
+                  _CalendarTabs(
+                    onWeeklyTap: () => Navigator.of(
+                      context,
+                    ).pushReplacementNamed(Routes.calendarioSemanal),
+                  ),
+                  const SizedBox(height: 22.404),
+                  const _UpcomingLessonsList(),
+                ],
+              ),
             ),
           ),
         ],
@@ -270,7 +72,12 @@ class _CalendarTabs extends StatelessWidget {
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: CalendarioConstants.dividerColor, width: 1.4)),
+        border: Border(
+          bottom: BorderSide(
+            color: CalendarioConstants.dividerColor,
+            width: 1.4,
+          ),
+        ),
       ),
       child: SizedBox(
         height: 71.414,
@@ -326,7 +133,9 @@ class _TabItem extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 22.404,
                   fontWeight: FontWeight.w500,
-                  color: selected ? CalendarioConstants.activeTabColor : CalendarioConstants.inactiveTabColor,
+                  color: selected
+                      ? CalendarioConstants.activeTabColor
+                      : CalendarioConstants.inactiveTabColor,
                   height: 33.607 / 22.404,
                 ),
               ),
@@ -348,9 +157,684 @@ class _TabItem extends StatelessWidget {
   }
 }
 
-enum _PrimaryActionStyle {
-  enterClass,
-  viewDetails,
+enum _PrimaryActionStyle { enterClass, viewDetails }
+
+enum _LateCancellationAction { cancelWithoutJustification, justify }
+
+class _UpcomingLessonsList extends StatefulWidget {
+  const _UpcomingLessonsList();
+
+  @override
+  State<_UpcomingLessonsList> createState() => _UpcomingLessonsListState();
+}
+
+class _UpcomingLessonsListState extends State<_UpcomingLessonsList> {
+  final ReservationsCalendarService _calendarService =
+      ReservationsCalendarService();
+  final LessonClassroomService _lessonClassroomService =
+      LessonClassroomService();
+  final NotificationsService _notificationsService = NotificationsService();
+  final UsersService _usersService = UsersService();
+  late Future<List<StudentCalendarItemDto>> _future;
+  int _limit = 4;
+  Timer? _clockTick;
+  String? _enteringReservationId;
+  String? _cancellingReservationId;
+
+  void _handleCalendarChanged() {
+    if (!mounted) return;
+    _reload();
+  }
+
+  static const _months = [
+    'Jan',
+    'Fev',
+    'Mar',
+    'Abr',
+    'Mai',
+    'Jun',
+    'Jul',
+    'Ago',
+    'Set',
+    'Out',
+    'Nov',
+    'Dez',
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _future = _calendarService.getMyUpcoming(limit: _limit);
+    StudentCalendarRefreshBus.notifier.addListener(_handleCalendarChanged);
+
+    _clockTick = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (!mounted) return;
+      setState(() {
+        // Rebuild to update the time-based CTA window.
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    StudentCalendarRefreshBus.notifier.removeListener(_handleCalendarChanged);
+    _clockTick?.cancel();
+    super.dispose();
+  }
+
+  void _loadMore() {
+    setState(() {
+      _limit += 4;
+      _future = _calendarService.getMyUpcoming(limit: _limit);
+    });
+  }
+
+  void _reload() {
+    setState(() {
+      _future = _calendarService.getMyUpcoming(limit: _limit);
+    });
+  }
+
+  bool _canEnterLesson(StudentCalendarItemDto item) {
+    final now = DateTime.now();
+    final start = item.startTime.toLocal();
+    final end = item.endTime.toLocal();
+    final enterFrom = start.subtract(const Duration(minutes: 10));
+    final enterUntil = end.add(const Duration(minutes: 15));
+    return (now.isAfter(enterFrom) || now.isAtSameMomentAs(enterFrom)) &&
+        (now.isBefore(enterUntil) || now.isAtSameMomentAs(enterUntil));
+  }
+
+  Future<void> _openPendingLessonReview(StudentCalendarItemDto item) async {
+    final decision = await showPendingLessonReviewDialog(
+      context,
+      lesson: PendingLessonReviewData(
+        idReservation: item.idReservation,
+        subject: item.disciplinaName,
+        teacherName: item.professorName,
+        startTime: item.startTime,
+        endTime: item.endTime,
+        status: item.status,
+      ),
+      calendarService: _calendarService,
+    );
+
+    if (decision != null && mounted) {
+      _reload();
+    }
+  }
+
+  Future<void> _handlePrimaryAction(StudentCalendarItemDto item) async {
+    if (isPendingCalendarStatus(item.status)) {
+      await _openPendingLessonReview(item);
+      return;
+    }
+
+    if (!_canEnterLesson(item)) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Podes entrar na aula 10 minutos antes do início e até 15 minutos após o fim.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    if (_enteringReservationId == item.idReservation) return;
+    setState(() => _enteringReservationId = item.idReservation);
+
+    try {
+      final entry = await _lessonClassroomService.enterClassroom(
+        reservationId: item.idReservation,
+      );
+
+      if (!mounted) return;
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => LiveClassroomPage(entry: entry),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.toString())));
+    } finally {
+      if (mounted) {
+        setState(() => _enteringReservationId = null);
+      }
+    }
+  }
+
+  Future<void> _handleSecondaryAction(StudentCalendarItemDto item) async {
+    if (isPendingCalendarStatus(item.status)) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Aceita ou revê primeiro o pedido da aula antes de a cancelar.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    if (_cancellingReservationId == item.idReservation) return;
+
+    final timeUntilStart = item.startTime.difference(DateTime.now());
+    final moreThan24Hours = timeUntilStart >= const Duration(hours: 24);
+
+    if (moreThan24Hours) {
+      final confirmed = await _showStandardCancellationDialog();
+      if (confirmed != true) return;
+
+      await _cancelLesson(item: item, lessThan24Hours: false);
+      return;
+    }
+
+    final action = await _showLateCancellationDialog();
+    if (action == null) return;
+
+    if (action == _LateCancellationAction.cancelWithoutJustification) {
+      await _cancelLesson(item: item, lessThan24Hours: true);
+      return;
+    }
+
+    final justification = await _showJustificationDialog();
+    if (justification == null || justification.trim().isEmpty) return;
+
+    await _cancelLesson(
+      item: item,
+      lessThan24Hours: true,
+      justification: justification.trim(),
+    );
+  }
+
+  Future<bool?> _showStandardCancellationDialog() {
+    return showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: Color(0xFFFF6B00)),
+            SizedBox(width: 8),
+            Text('Cancelar aula'),
+          ],
+        ),
+        content: const Text(
+          'Tens a certeza que pretendes cancelar esta aula?\n\nComo faltam mais de 24 horas, não sofrerás qualquer penalidade.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Voltar'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFF04438),
+            ),
+            child: const Text(
+              'Sim, cancelar',
+              style: TextStyle(color: Colors.white),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<_LateCancellationAction?> _showLateCancellationDialog() {
+    return showDialog<_LateCancellationAction>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: Colors.orange),
+            SizedBox(width: 8),
+            Text('Atenção: penalidade'),
+          ],
+        ),
+        content: const Text(
+          'Faltam menos de 24 horas para o início desta aula.\n\nO cancelamento agora implica uma penalidade. Podes cancelar diretamente ou enviar uma justificação ao professor.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Voltar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(
+              context,
+            ).pop(_LateCancellationAction.cancelWithoutJustification),
+            child: const Text(
+              'Cancelar sem justificar',
+              style: TextStyle(color: Color(0xFFF04438)),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () =>
+                Navigator.of(context).pop(_LateCancellationAction.justify),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFFF6B00),
+            ),
+            child: const Text(
+              'Justificar falta',
+              style: TextStyle(color: Colors.white),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<String?> _showJustificationDialog() async {
+    final controller = TextEditingController();
+
+    final result = await showDialog<String>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Text(
+          'Justificar cancelamento',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Escreve o motivo do cancelamento. O professor irá analisar o teu pedido.',
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: controller,
+              maxLines: 4,
+              decoration: InputDecoration(
+                hintText: 'Ex: Tive um imprevisto médico...',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Voltar'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final value = controller.text.trim();
+              if (value.isEmpty) return;
+              Navigator.of(context).pop(value);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFFF6B00),
+            ),
+            child: const Text(
+              'Enviar e cancelar',
+              style: TextStyle(color: Colors.white),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    controller.dispose();
+    return result;
+  }
+
+  Future<void> _cancelLesson({
+    required StudentCalendarItemDto item,
+    required bool lessThan24Hours,
+    String? justification,
+  }) async {
+    if (item.professorUserId == null || item.professorUserId!.trim().isEmpty) {
+      throw const StudentCalendarException(
+        'Não foi possível identificar o professor desta aula.',
+      );
+    }
+
+    setState(() => _cancellingReservationId = item.idReservation);
+
+    try {
+      await _calendarService.cancelReservation(
+        reservationId: item.idReservation,
+      );
+
+      final me = await _usersService.getMe();
+      final studentName = _resolveStudentName(me);
+
+      final type = lessThan24Hours
+          ? (justification == null || justification.isEmpty
+                ? 'Cancelamento Tardio'
+                : 'Cancelamento Justificado')
+          : 'Aula Cancelada';
+
+      final visibleMessage = !lessThan24Hours
+          ? '$studentName cancelou a aula de ${item.disciplinaName} com antecedência. O teu calendário foi libertado.'
+          : (justification == null || justification.isEmpty
+                ? '$studentName cancelou a aula de ${item.disciplinaName} a menos de 24h sem apresentar justificação.'
+                : '$studentName cancelou a aula de ${item.disciplinaName} a menos de 24h e enviou uma justificação.');
+
+      final message = _appendNotificationMetadata(visibleMessage, {
+        'reservationId': item.idReservation,
+        'studentUserId': me.id ?? '',
+        'studentName': studentName,
+        'teacherName': item.professorName,
+        'subject': item.disciplinaName,
+        'start': item.startTime.toUtc().toIso8601String(),
+        'end': item.endTime.toUtc().toIso8601String(),
+        'decisionMade': 'false',
+        if (justification != null && justification.isNotEmpty)
+          'justification': justification,
+      });
+
+      await _notificationsService.createNotification(
+        idUser: item.professorUserId!,
+        type: type,
+        message: message,
+      );
+
+      if (!mounted) return;
+      _reload();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Aula cancelada com sucesso.'),
+          backgroundColor: Color(0xFF00A63E),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.toString())));
+    } finally {
+      if (mounted) {
+        setState(() => _cancellingReservationId = null);
+      }
+    }
+  }
+
+  String _resolveStudentName(dynamic me) {
+    final displayName = me.displayName?.trim();
+    if (displayName != null && displayName.isNotEmpty) return displayName;
+
+    final username = me.username?.trim();
+    if (username != null && username.isNotEmpty) return username;
+
+    return 'Aluno';
+  }
+
+  static String _appendNotificationMetadata(
+    String message,
+    Map<String, String> metadata,
+  ) {
+    final entries = metadata.entries
+        .where((entry) => entry.value.trim().isNotEmpty)
+        .map(
+          (entry) =>
+              '${Uri.encodeQueryComponent(entry.key)}=${Uri.encodeQueryComponent(entry.value)}',
+        )
+        .join('&');
+
+    if (entries.isEmpty) return message;
+    return '$message [[$entries]]';
+  }
+
+  static String _formatTime(DateTime t) {
+    final hh = t.hour.toString().padLeft(2, '0');
+    final mm = t.minute.toString().padLeft(2, '0');
+    return '$hh:$mm';
+  }
+
+  static String _formatDateLabel(DateTime dt) {
+    final today = DateTime.now();
+    final d0 = DateTime(today.year, today.month, today.day);
+    final d1 = d0.add(const Duration(days: 1));
+    final d = DateTime(dt.year, dt.month, dt.day);
+    if (d == d0) return '📅 Hoje';
+    if (d == d1) return '📅 Amanhã';
+    final dd = dt.day.toString().padLeft(2, '0');
+    final m = (dt.month >= 1 && dt.month <= 12)
+        ? _months[dt.month - 1]
+        : dt.month.toString();
+    return '📅 $dd $m';
+  }
+
+  static Color _accentForDisciplina(String disciplina) {
+    final d = disciplina.toLowerCase();
+    if (d.contains('mat')) return const Color(0xFF2B7FFF);
+    if (d.contains('fís') || d.contains('fis')) return const Color(0xFF00C950);
+    return const Color(0xFFFF6900);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<List<StudentCalendarItemDto>>(
+      future: _future,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (snapshot.hasError) {
+          return Center(
+            child: Text(
+              snapshot.error.toString(),
+              style: const TextStyle(color: Color(0xFF4A5565)),
+            ),
+          );
+        }
+
+        final items = (snapshot.data ?? const <StudentCalendarItemDto>[])
+            .where(
+              (item) => normalizeCalendarStatus(item.status) != 'cancelled',
+            )
+            .toList(growable: false);
+        if (items.isEmpty) {
+          return const _UpcomingLessonsEmptyState();
+        }
+
+        final canLoadMore = items.length >= _limit;
+
+        return Column(
+          children: [
+            for (var i = 0; i < items.length; i++) ...[
+              () {
+                final now = DateTime.now();
+                final item = items[i];
+                final start = item.startTime.toLocal();
+                final end = item.endTime.toLocal();
+                final isPending = isPendingCalendarStatus(item.status);
+                final palette = calendarStatusPalette(item.status);
+
+                final enterFrom = start.subtract(const Duration(minutes: 10));
+                final enterUntil = end.add(const Duration(minutes: 15));
+                final canEnter =
+                    !isPending &&
+                    (now.isAfter(enterFrom) ||
+                        now.isAtSameMomentAs(enterFrom)) &&
+                    (now.isBefore(enterUntil) ||
+                        now.isAtSameMomentAs(enterUntil));
+
+                final isBeforeStart = now.isBefore(start);
+                final minutesToStart = start.difference(now).inMinutes;
+
+                final showStatus = isPending || canEnter;
+                final statusLabel = showStatus
+                    ? (isPending
+                          ? calendarStatusLabel(item.status)
+                          : (isBeforeStart
+                                ? 'Em ${minutesToStart < 0 ? 0 : minutesToStart} minutos'
+                                : 'A decorrer'))
+                    : null;
+                final statusBg = showStatus
+                    ? (isPending ? palette.background : const Color(0xFFDCFCE7))
+                    : null;
+                final statusText = showStatus
+                    ? (isPending ? palette.text : const Color(0xFF008236))
+                    : null;
+
+                return _UpcomingLessonCard(
+                  accentColor: _accentForDisciplina(item.disciplinaName),
+                  subject: item.disciplinaName,
+                  teacherName: item.professorName,
+                  statusLabel: statusLabel,
+                  statusBackgroundColor: statusBg,
+                  statusTextColor: statusText,
+                  dateLabel: _formatDateLabel(item.startTime),
+                  timeLabel:
+                      '🕐 ${_formatTime(item.startTime)} - ${_formatTime(item.endTime)}',
+                  primaryActionStyle: canEnter
+                      ? _PrimaryActionStyle.enterClass
+                      : _PrimaryActionStyle.viewDetails,
+                  primaryActionLabel: isPending
+                      ? 'Rever pedido'
+                      : canEnter
+                      ? 'Entrar na Aula'
+                      : 'Ver Detalhes',
+                  onPrimaryTap: () => _handlePrimaryAction(item),
+                  onSecondaryTap: isPending
+                      ? null
+                      : () => _handleSecondaryAction(item),
+                  secondaryIsLoading:
+                      _cancellingReservationId == item.idReservation,
+                );
+              }(),
+              const SizedBox(height: 22.404),
+            ],
+            if (canLoadMore)
+              SizedBox(
+                width: double.infinity,
+                height: 84.017,
+                child: OutlinedButton.icon(
+                  onPressed: _loadMore,
+                  icon: const Icon(
+                    Icons.expand_more_rounded,
+                    size: 28.006,
+                    color: Color(0xFF4A5565),
+                  ),
+                  label: const Text(
+                    'Ver mais aulas',
+                    style: TextStyle(
+                      fontSize: 22.404,
+                      fontWeight: FontWeight.w400,
+                      color: Color(0xFF4A5565),
+                      height: 33.607 / 22.404,
+                    ),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.all(2.801),
+                    side: const BorderSide(
+                      color: Color(0xFFD1D5DC),
+                      width: 2.801,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(22.404),
+                    ),
+                    backgroundColor: Colors.white,
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _UpcomingLessonsEmptyState extends StatelessWidget {
+  const _UpcomingLessonsEmptyState();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 35.007, vertical: 40),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(CalendarioConstants.cardRadius),
+        border: Border.all(
+          color: CalendarioConstants.cardBorderColor,
+          width: CalendarioConstants.cardBorderWidth,
+        ),
+        boxShadow: CalendarioConstants.cardShadow,
+      ),
+      child: Column(
+        children: [
+          Container(
+            width: 72,
+            height: 72,
+            decoration: const BoxDecoration(
+              color: Color(0xFFFFF7ED),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.calendar_month_rounded,
+              size: 34,
+              color: Color(0xFFFF6B00),
+            ),
+          ),
+          const SizedBox(height: 20),
+          const Text(
+            'Ainda não tem próximas aulas marcadas',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF101828),
+              height: 36 / 28,
+            ),
+          ),
+          const SizedBox(height: 10),
+          const Text(
+            'Explore os explicadores disponíveis e reserve a sua próxima explicação!',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w400,
+              color: Color(0xFF4A5565),
+              height: 28 / 18,
+            ),
+          ),
+          const SizedBox(height: 28),
+          SizedBox(
+            height: 56,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: ChatsConstants.orangeGradient,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: TextButton(
+                onPressed: () =>
+                    Navigator.of(context).pushNamed(Routes.explicadores),
+                style: TextButton.styleFrom(
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 28,
+                    vertical: 16,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  textStyle: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    height: 24 / 18,
+                  ),
+                ),
+                child: const Text('Marque a sua próxima explicação'),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _UpcomingLessonCard extends StatelessWidget {
@@ -358,19 +842,34 @@ class _UpcomingLessonCard extends StatelessWidget {
     required this.accentColor,
     required this.subject,
     required this.teacherName,
+    this.statusLabel,
+    this.statusBackgroundColor,
+    this.statusTextColor,
     required this.dateLabel,
     required this.timeLabel,
     required this.primaryActionStyle,
     required this.primaryActionLabel,
+    required this.onPrimaryTap,
+    this.onSecondaryTap,
+    this.secondaryIsLoading = false,
   });
 
   final Color accentColor;
   final String subject;
   final String teacherName;
+
+  final String? statusLabel;
+  final Color? statusBackgroundColor;
+  final Color? statusTextColor;
+
   final String dateLabel;
   final String timeLabel;
+
   final _PrimaryActionStyle primaryActionStyle;
   final String primaryActionLabel;
+  final VoidCallback onPrimaryTap;
+  final VoidCallback? onSecondaryTap;
+  final bool secondaryIsLoading;
 
   @override
   Widget build(BuildContext context) {
@@ -378,11 +877,17 @@ class _UpcomingLessonCard extends StatelessWidget {
       height: 254.851,
       width: double.infinity,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 35.007, vertical: 35.007),
+        padding: const EdgeInsets.symmetric(
+          horizontal: 35.007,
+          vertical: 35.007,
+        ),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(CalendarioConstants.cardRadius),
-          border: Border.all(color: CalendarioConstants.cardBorderColor, width: CalendarioConstants.cardBorderWidth),
+          border: Border.all(
+            color: CalendarioConstants.cardBorderColor,
+            width: CalendarioConstants.cardBorderWidth,
+          ),
           boxShadow: CalendarioConstants.cardShadow,
         ),
         child: Row(
@@ -428,6 +933,29 @@ class _UpcomingLessonCard extends StatelessWidget {
                           ],
                         ),
                       ),
+                      if (statusLabel != null &&
+                          statusBackgroundColor != null &&
+                          statusTextColor != null)
+                        Container(
+                          height: 33.607,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16.803,
+                          ),
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: statusBackgroundColor,
+                            borderRadius: BorderRadius.circular(23492794),
+                          ),
+                          child: Text(
+                            statusLabel!,
+                            style: TextStyle(
+                              fontSize: 16.803,
+                              fontWeight: FontWeight.w500,
+                              color: statusTextColor,
+                              height: 22.404 / 16.803,
+                            ),
+                          ),
+                        ),
                     ],
                   ),
                   const SizedBox(height: 11.202),
@@ -463,9 +991,13 @@ class _UpcomingLessonCard extends StatelessWidget {
                       _PrimaryActionButton(
                         style: primaryActionStyle,
                         label: primaryActionLabel,
+                        onTap: onPrimaryTap,
                       ),
                       const SizedBox(width: 16.803),
-                      const _SecondaryIconButton(),
+                      _SecondaryIconButton(
+                        onTap: onSecondaryTap,
+                        isLoading: secondaryIsLoading,
+                      ),
                     ],
                   ),
                 ],
@@ -482,66 +1014,78 @@ class _PrimaryActionButton extends StatelessWidget {
   const _PrimaryActionButton({
     required this.style,
     required this.label,
+    required this.onTap,
   });
 
   final _PrimaryActionStyle style;
   final String label;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     return switch (style) {
       _PrimaryActionStyle.enterClass => SizedBox(
-          width: 240.345,
-          height: 56.011,
-          child: ElevatedButton(
-            onPressed: () {},
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF00C950),
-              foregroundColor: Colors.white,
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(19.604),
-              ),
-              padding: EdgeInsets.zero,
+        width: 240.345,
+        height: 56.011,
+        child: ElevatedButton(
+          onPressed: onTap,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF00C950),
+            foregroundColor: Colors.white,
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(19.604),
             ),
-            child: Stack(
-              children: [
-                const Positioned(
-                  left: 33.607,
-                  top: (56.011 - 22.404) / 2,
-                  child: Icon(Icons.play_arrow_rounded, size: 22.404, color: Colors.white),
+            padding: EdgeInsets.zero,
+          ),
+          child: Stack(
+            children: [
+              const Positioned(
+                left: 33.607,
+                top: (56.011 - 22.404) / 2,
+                child: Icon(
+                  Icons.play_arrow_rounded,
+                  size: 22.404,
+                  color: Colors.white,
                 ),
-                Center(
-                  child: Text(
-                    label,
-                    style: const TextStyle(
-                      fontSize: 22.404,
-                      fontWeight: FontWeight.w400,
-                      color: Colors.white,
-                      height: 33.607 / 22.404,
+              ),
+              Positioned.fill(
+                child: Center(
+                  child: Padding(
+                    padding: const EdgeInsets.only(left: 18.0),
+                    child: Text(
+                      label,
+                      style: const TextStyle(
+                        fontSize: 22.404,
+                        fontWeight: FontWeight.w400,
+                        color: Colors.white,
+                        height: 33.607 / 22.404,
+                      ),
                     ),
                   ),
                 ),
-              ],
-            ),
-          ),
-        ),
-      _PrimaryActionStyle.viewDetails => _GradientButton(
-          width: 193.359,
-          height: 56.011,
-          radius: 19.604,
-          child: Center(
-            child: Text(
-              label,
-              style: const TextStyle(
-                fontSize: 22.404,
-                fontWeight: FontWeight.w400,
-                color: Colors.white,
-                height: 33.607 / 22.404,
               ),
+            ],
+          ),
+        ),
+      ),
+      _PrimaryActionStyle.viewDetails => _GradientButton(
+        width: 193.359,
+        height: 56.011,
+        radius: 19.604,
+        onTap: onTap,
+        child: Center(
+          child: Text(
+            label,
+            style: const TextStyle(
+              fontSize: 22.404,
+              fontWeight: FontWeight.w400,
+              color: Colors.white,
+              height: 33.607 / 22.404,
             ),
           ),
         ),
+      ),
     };
   }
 }
@@ -551,12 +1095,14 @@ class _GradientButton extends StatelessWidget {
     required this.width,
     required this.height,
     required this.radius,
+    required this.onTap,
     required this.child,
   });
 
   final double width;
   final double height;
   final double radius;
+  final VoidCallback onTap;
   final Widget child;
 
   @override
@@ -571,15 +1117,12 @@ class _GradientButton extends StatelessWidget {
             gradient: const LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
-              colors: [
-                Color(0xFFFF6B00),
-                Color(0xFFFF9966),
-              ],
+              colors: [Color(0xFFFF6B00), Color(0xFFFF9966)],
             ),
             borderRadius: BorderRadius.circular(radius),
           ),
           child: InkWell(
-            onTap: () {},
+            onTap: onTap,
             borderRadius: BorderRadius.circular(radius),
             child: child,
           ),
@@ -590,7 +1133,10 @@ class _GradientButton extends StatelessWidget {
 }
 
 class _SecondaryIconButton extends StatelessWidget {
-  const _SecondaryIconButton();
+  const _SecondaryIconButton({this.onTap, this.isLoading = false});
+
+  final VoidCallback? onTap;
+  final bool isLoading;
 
   @override
   Widget build(BuildContext context) {
@@ -598,13 +1144,28 @@ class _SecondaryIconButton extends StatelessWidget {
       width: 70.014,
       height: 56.011,
       child: OutlinedButton(
-        onPressed: () {},
+        onPressed: isLoading ? null : onTap,
         style: OutlinedButton.styleFrom(
           padding: EdgeInsets.zero,
           side: const BorderSide(color: Color(0xFFFFC9C9), width: 1.4),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(19.604)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(19.604),
+          ),
         ),
-        child: const Icon(Icons.close_rounded, size: 22.404, color: Color(0xFFFB2C36)),
+        child: isLoading
+            ? const SizedBox(
+                width: 22,
+                height: 22,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFFB2C36)),
+                ),
+              )
+            : const Icon(
+                Icons.close_rounded,
+                size: 22.404,
+                color: Color(0xFFFB2C36),
+              ),
       ),
     );
   }

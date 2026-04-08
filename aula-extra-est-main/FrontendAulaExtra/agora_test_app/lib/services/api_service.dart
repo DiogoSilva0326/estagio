@@ -130,7 +130,7 @@ class ApiService {
       body: jsonEncode({
         'channelName': channelName,
         'userId': userId,
-        'displayName': ?displayName,
+        if (displayName != null) 'displayName': displayName,
       }),
     );
 
@@ -360,7 +360,7 @@ class ApiService {
         'fromUserId': fromUserId,
         'toUserId': toUserId,
         'fromDisplayName': fromDisplayName,
-        'message': ?message,
+        if (message != null) 'message': message,
       }),
     );
 
@@ -458,8 +458,8 @@ class ApiService {
     var uri = Uri.parse('$baseUrl/api/files/upload');
     if (userId != null || roomId != null) {
       uri = uri.replace(queryParameters: {
-        'userId': ?userId,
-        'roomId': ?roomId,
+        if (userId != null) 'userId': userId,
+        if (roomId != null) 'roomId': roomId,
       });
     }
 
@@ -487,8 +487,8 @@ class ApiService {
     var uri = Uri.parse('$baseUrl/api/files/upload');
     if (userId != null || roomId != null) {
       uri = uri.replace(queryParameters: {
-        'userId': ?userId,
-        'roomId': ?roomId,
+        if (userId != null) 'userId': userId,
+        if (roomId != null) 'roomId': roomId,
       });
     }
 
@@ -924,9 +924,9 @@ class ApiService {
       Uri.parse('$baseUrl/api/professorrooms/$id'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({
-        'roomName': ?roomName,
-        'description': ?description,
-        'isActive': ?isActive,
+        if (roomName != null) 'roomName': roomName,
+        if (description != null) 'description': description,
+        if (isActive != null) 'isActive': isActive,
       }),
     );
 

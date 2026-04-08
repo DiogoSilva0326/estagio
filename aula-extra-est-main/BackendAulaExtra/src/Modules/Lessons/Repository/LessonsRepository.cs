@@ -428,6 +428,35 @@ namespace ConfidantPostgreSQL.Modules.Lessons.Repository
             };
         }
 
+        public async Task<Enrollment?> GetEnrollmentByLessonAndUserAsync(Guid idLesson, Guid idUser)
+        {
+            await using var conn = new NpgsqlConnection(_connectionString);
+            await conn.OpenAsync();
+            await using var cmd = conn.CreateCommand();
+            cmd.CommandText = @"
+                SELECT id_enrollment, id_lesson, id_user, status, price_paid, created_at
+                FROM public.enrollments
+                WHERE id_lesson = @id_lesson
+                  AND id_user = @id_user
+                ORDER BY created_at DESC NULLS LAST
+                LIMIT 1;";
+            cmd.Parameters.AddWithValue("id_lesson", idLesson);
+            cmd.Parameters.AddWithValue("id_user", idUser);
+
+            await using var reader = await cmd.ExecuteReaderAsync();
+            if (!await reader.ReadAsync()) return null;
+
+            return new Enrollment
+            {
+                IdEnrollment = reader.GetGuid(reader.GetOrdinal("id_enrollment")),
+                IdLesson = reader.GetGuid(reader.GetOrdinal("id_lesson")),
+                IdUser = reader.GetGuid(reader.GetOrdinal("id_user")),
+                Status = GetNullableString(reader, "status"),
+                PricePaid = GetNullableDecimal(reader, "price_paid"),
+                CreatedAt = GetNullableDateTime(reader, "created_at")
+            };
+        }
+
         public async Task<Guid> InsertEnrollmentAsync(Enrollment enrollment)
         {
             await using var conn = new NpgsqlConnection(_connectionString);

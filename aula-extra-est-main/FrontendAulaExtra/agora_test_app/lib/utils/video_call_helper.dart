@@ -19,7 +19,7 @@ Future<void> openOrNavigateToVideoCall(
     final queryParams = <String, String>{
       'channel': channel,
       'user': user,
-      'token': ?token,
+      if (token != null) 'token': token,
       if (isHost) 'host': 'true',
     };
 

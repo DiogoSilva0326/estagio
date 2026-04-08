@@ -2,21 +2,28 @@ import 'package:aula_extra/features/professor/core/widgets/professor_menu_nav.da
 import 'package:aula_extra/features/professor/disponibilidade/constants/disponibilidade_professor_colors.dart';
 import 'package:aula_extra/features/professor/disponibilidade/constants/disponibilidade_professor_layout.dart';
 import 'package:aula_extra/features/professor/disponibilidade/widgets/full_bleed_scaled_section.dart';
-import 'package:flutter/material.dart';
 import 'package:aula_extra/features/professor/disponibilidade/widgets/horario_padrao_professor.dart';
+import 'package:flutter/material.dart';
 
-class DisponibilidadeProfessorContentSection extends StatelessWidget {
-  const DisponibilidadeProfessorContentSection({
-    super.key,
-  });
+class DisponibilidadeProfessorContentSection extends StatefulWidget {
+  const DisponibilidadeProfessorContentSection({super.key});
 
+  @override
+  State<DisponibilidadeProfessorContentSection> createState() =>
+      _DisponibilidadeProfessorContentSectionState();
+}
+
+class _DisponibilidadeProfessorContentSectionState
+    extends State<DisponibilidadeProfessorContentSection> {
   @override
   Widget build(BuildContext context) {
     final titleStyle = TextStyle(
       color: DisponibilidadeProfessorColors.title,
       fontWeight: FontWeight.w800,
       fontSize: DisponibilidadeProfessorLayout.titleFontSize,
-      height: DisponibilidadeProfessorLayout.titleLineHeight / DisponibilidadeProfessorLayout.titleFontSize,
+      height:
+          DisponibilidadeProfessorLayout.titleLineHeight /
+          DisponibilidadeProfessorLayout.titleFontSize,
     );
 
     return Container(
@@ -32,10 +39,10 @@ class DisponibilidadeProfessorContentSection extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const ProfessorMenuNav(selectedIndex: 6), 
-              
-              const SizedBox(width: DisponibilidadeProfessorLayout.sidebarContentGap),
-              
+              const ProfessorMenuNav(),
+              const SizedBox(
+                width: DisponibilidadeProfessorLayout.sidebarContentGap,
+              ),
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.only(
@@ -48,11 +55,9 @@ class DisponibilidadeProfessorContentSection extends StatelessWidget {
                     children: [
                       SizedBox(
                         height: DisponibilidadeProfessorLayout.titleLineHeight,
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text('Disponibilidade', style: titleStyle),
-                          ],
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text('Disponibilidade', style: titleStyle),
                         ),
                       ),
                       const SizedBox(height: 28.889),

@@ -7,12 +7,14 @@ class ReviewCard extends StatelessWidget {
     required this.when,
     required this.rating,
     required this.text,
+    this.avatarUrl,
   });
 
   final String name;
   final String when;
   final int rating;
   final String text;
+  final String? avatarUrl;
 
   @override
   Widget build(BuildContext context) {
@@ -39,11 +41,24 @@ class ReviewCard extends StatelessWidget {
                       shape: BoxShape.circle,
                       color: Color(0xFFF3F4F6),
                     ),
-                    child: Center(
-                      child: Text(
-                        name.isNotEmpty ? name.trim().characters.first : 'A',
-                        style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
-                      ),
+                    child: ClipOval(
+                      child: avatarUrl?.trim().isNotEmpty == true
+                          ? Image.network(
+                              avatarUrl!.trim(),
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) => Center(
+                                child: Text(
+                                  _initials(name),
+                                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+                                ),
+                              ),
+                            )
+                          : Center(
+                              child: Text(
+                                _initials(name),
+                                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+                              ),
+                            ),
                     ),
                   ),
                   const SizedBox(width: 15.319),
@@ -97,5 +112,16 @@ class ReviewCard extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  String _initials(String value) {
+    final parts = value
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((item) => item.isNotEmpty)
+        .take(2)
+        .toList(growable: false);
+    if (parts.isEmpty) return 'A';
+    return parts.map((item) => item.characters.first.toUpperCase()).join();
   }
 }

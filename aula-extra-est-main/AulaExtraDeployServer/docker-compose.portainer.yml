@@ -1,0 +1,286 @@
+services:
+  api:
+    image: ghcr.io/${GHCR_NAMESPACE:-synget1-0/aula-extra}/aulaextra-api:${TAG:-1.0.0}
+    container_name: aulaextra-api
+    depends_on:
+      db:
+        condition: service_healthy
+      db-deploy:
+        condition: service_completed_successfully
+      agora-integrator:
+        condition: service_started
+    ports:
+      - "${API_PORT:-8080}:80"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:80
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_USER=${SQL_USER}
+      - DB_PASSWORD=${SQL_PASSWORD}
+      - DB_NAME=${SQL_DB}
+      - DB_CONNECTION_STRING=Host=db;Port=5432;Username=${SQL_USER};Password=${SQL_PASSWORD};Database=${SQL_DB}
+      - JWT_SECRET=${JWT_SECRET:-}
+      - CLOUDFLARE_IMAGES_ACCOUNT_ID=${CLOUDFLARE_IMAGES_ACCOUNT_ID:-}
+      - CLOUDFLARE_IMAGES_API_TOKEN=${CLOUDFLARE_IMAGES_API_TOKEN:-}
+      - CLOUDFLARE_IMAGES_DELIVERY_BASE=${CLOUDFLARE_IMAGES_DELIVERY_BASE:-}
+      - CLOUDFLARE_IMAGES_DEFAULT_VARIANT=${CLOUDFLARE_IMAGES_DEFAULT_VARIANT:-public}
+      - CLOUDFLARE_FILES_ACCOUNT_ID=${CLOUDFLARE_FILES_ACCOUNT_ID:-}
+      - CLOUDFLARE_FILES_ACCESS_KEY_ID=${CLOUDFLARE_FILES_ACCESS_KEY_ID:-}
+      - CLOUDFLARE_FILES_API_TOKEN=${CLOUDFLARE_FILES_API_TOKEN:-}
+      - CLOUDFLARE_FILES_DELIVERY=${CLOUDFLARE_FILES_DELIVERY:-}
+      - CLOUDFLARE_FILES_BUCKET=${CLOUDFLARE_FILES_BUCKET:-aulaextra}
+      - POSTMARK_API_TOKEN=${POSTMARK_API_TOKEN:-}
+      - POSTMARK_FROM_EMAIL=${POSTMARK_FROM_EMAIL:-}
+      - POSTMARK_TO_EMAIL=${POSTMARK_TO_EMAIL:-}
+      - GOOGLE_TRANSLATE_API_KEY=${GOOGLE_TRANSLATE_API_KEY:-}
+      - AGORA_INTEGRATOR_BASE_URL=${AGORA_INTEGRATOR_BASE_URL:-http://agora-integrator}
+      - AGORA_APP_ID=${AGORA_APP_ID:-}
+      - WHITEBOARD_APP_IDENTIFIER=${WHITEBOARD_APP_IDENTIFIER:-}
+      - WHITEBOARD_REGION=${WHITEBOARD_REGION:-us-sv}
+      - DB_BOOTSTRAP=${DB_BOOTSTRAP:-0}
+    networks:
+      aulaextra:
+      proxy:
+        aliases:
+          - aulaextra-api
+    volumes:
+      - aulaextra_uploads:/app/uploads
+    restart: unless-stopped
+
+  db-deploy:
+    image: ghcr.io/${GHCR_NAMESPACE:-synget1-0/aula-extra}/aulaextra-db-deploy:${TAG:-1.0.0}
+    container_name: aulaextra-db-deploy
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_USER=${SQL_USER}
+      - DB_PASSWORD=${SQL_PASSWORD}
+      - DB_NAME=${SQL_DB}
+      - DB_SEED=${DB_SEED:-1}
+    networks:
+      - aulaextra
+    restart: "no"
+
+  frontend:
+    image: ghcr.io/${GHCR_NAMESPACE:-synget1-0/aula-extra}/aulaextra-frontend:${TAG:-1.0.0}
+    container_name: aulaextra-frontend
+    depends_on:
+      - api
+    ports:
+      - "${FRONTEND_PORT:-8081}:80"
+    networks:
+      aulaextra:
+      proxy:
+        aliases:
+          - aulaextra-frontend
+    restart: unless-stopped
+
+  backoffice:
+    image: ghcr.io/${GHCR_NAMESPACE:-synget1-0/aula-extra}/aulaextra-backoffice:${TAG:-1.0.0}
+    container_name: aulaextra-backoffice
+    depends_on:
+      - api
+    ports:
+      - "${BACKOFFICE_PORT:-8082}:80"
+    networks:
+      aulaextra:
+      proxy:
+        aliases:
+          - aulaextra-backoffice
+    restart: unless-stopped
+
+  agora-integrator:
+    image: ghcr.io/${GHCR_NAMESPACE:-synget1-0/aula-extra}/aulaextra-agora-integrator:${TAG:-1.0.0}
+    container_name: aulaextra-agora-integrator
+    depends_on:
+      db:
+        condition: service_healthy
+      r2-integrator:
+        condition: service_started
+    ports:
+      - "${AGORA_PORT:-8083}:80"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:80
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_USER=${SQL_USER}
+      - DB_PASSWORD=${SQL_PASSWORD}
+      - DB_NAME=${SQL_DB}
+      - Agora__AppId=${AGORA_APP_ID:-}
+      - Agora__AppCertificate=${AGORA_APP_CERTIFICATE:-}
+      - Agora__TokenExpirationSeconds=${AGORA_TOKEN_EXPIRATION_SECONDS:-3600}
+      - Whiteboard__NetlessSdkToken=${WHITEBOARD_SDK_TOKEN:-}
+      - Whiteboard__AppIdentifier=${WHITEBOARD_APP_IDENTIFIER:-}
+      - Whiteboard__Region=${WHITEBOARD_REGION:-us-sv}
+      - R2_INTEGRATOR_BASE_URL=${R2_INTEGRATOR_BASE_URL:-http://r2-integrator}
+    networks:
+      aulaextra:
+      proxy:
+        aliases:
+          - aulaextra-agora
+    volumes:
+      - aulaextra_agora_uploads:/app/uploads
+    restart: unless-stopped
+
+  r2-integrator:
+    image: ghcr.io/${GHCR_NAMESPACE:-synget1-0/aula-extra}/aulaextra-r2-integrator:${TAG:-1.0.0}
+    container_name: aulaextra-r2-integrator
+    ports:
+      - "${R2_INTEGRATOR_PORT:-8084}:80"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:80
+      - CloudflareR2__AccountId=${CloudflareR2__AccountId:-}
+      - CloudflareR2__BucketName=${CloudflareR2__BucketName:-aulaextra}
+      - CloudflareR2__AccessKeyId=${CloudflareR2__AccessKeyId:-}
+      - CloudflareR2__SecretAccessKey=${CloudflareR2__SecretAccessKey:-}
+      - CloudflareR2__ApiToken=${CloudflareR2__ApiToken:-}
+      - CloudflareR2__PublicBaseUrl=${CloudflareR2__PublicBaseUrl:-}
+    networks:
+      aulaextra:
+      proxy:
+        aliases:
+          - aulaextra-r2
+    restart: unless-stopped
+
+  db:
+    platform: "linux/amd64"
+    image: postgres:16-alpine
+    container_name: aulaextra-db
+    environment:
+      POSTGRES_USER: "${SQL_USER:?SQL_USER is required}"
+      POSTGRES_PASSWORD: "${SQL_PASSWORD:?SQL_PASSWORD is required}"
+      POSTGRES_DB: "${SQL_DB:?SQL_DB is required}"
+    volumes:
+      - aulaextra_pgdata:/var/lib/postgresql/data
+      - aulaextra_pgbackups:/backups
+    ports:
+      - "${DB_EXPOSED_PORT:-5434}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+    networks:
+      - aulaextra
+    restart: unless-stopped
+
+  db-backup:
+    image: postgres:16-alpine
+    container_name: aulaextra-db-backup
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      - SQL_USER=${SQL_USER}
+      - SQL_PASSWORD=${SQL_PASSWORD}
+      - SQL_DB=${SQL_DB}
+      - DB_HOST=db
+      - DB_PORT=5432
+      - BACKUP_INTERVAL_SECONDS=${BACKUP_INTERVAL_SECONDS:-86400}
+      - BACKUP_RETENTION_DAYS=${BACKUP_RETENTION_DAYS:-14}
+      - BACKUP_DIR=/backups
+    volumes:
+      - aulaextra_pgbackups:/backups
+    command:
+      - sh
+      - -c
+      - |
+        set -eu
+        mkdir -p "$${BACKUP_DIR}"
+        while true; do
+          ts=$$(date +%Y%m%d_%H%M%S)
+          file="$${BACKUP_DIR}/aulaextra_$${SQL_DB}_$${ts}.dump"
+          echo "[$$(date -u +%FT%TZ)] creating backup $${file}"
+          PGPASSWORD="$${SQL_PASSWORD}" pg_dump -h "$${DB_HOST}" -p "$${DB_PORT}" -U "$${SQL_USER}" -d "$${SQL_DB}" -Fc -f "$${file}"
+          find "$${BACKUP_DIR}" -type f -name '*.dump' -mtime +"$${BACKUP_RETENTION_DAYS}" -delete
+          sleep "$${BACKUP_INTERVAL_SECONDS}"
+        done
+    networks:
+      - aulaextra
+    restart: unless-stopped
+
+  backup-fileserver:
+    image: nginx:1.27-alpine
+    container_name: aulaextra-backup-fileserver
+    depends_on:
+      - db-backup
+    volumes:
+      - aulaextra_pgbackups:/usr/share/nginx/html:ro
+    ports:
+      - "${BACKUP_FILESERVER_PORT:-9045}:80"
+    command:
+      - sh
+      - -c
+      - |
+        cat <<'EOF' >/etc/nginx/conf.d/default.conf
+        server {
+            listen 80;
+            listen [::]:80;
+            server_name _;
+
+            root /usr/share/nginx/html;
+
+            location / {
+                autoindex on;
+                autoindex_exact_size off;
+                autoindex_localtime on;
+                add_header Cache-Control "no-store" always;
+            }
+        }
+        EOF
+        exec nginx -g 'daemon off;'
+    networks:
+      - aulaextra
+    restart: unless-stopped
+
+  pgadmin:
+    platform: "linux/amd64"
+    image: dpage/pgadmin4:latest
+    container_name: confidant-pgadminAulaExtra
+    depends_on:
+      db:
+        condition: service_healthy
+      db-deploy:
+        condition: service_completed_successfully
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-admin@confidant.pt}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:-admin123}
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+    ports:
+      - "${PGADMIN_PORT:-9060}:80"
+    expose:
+      - "80"
+    volumes:
+      - aulaextra_pgadmin_data:/var/lib/pgadmin
+      - aulaextra_pgbackups:/backups
+    networks:
+      aulaextra:
+      proxy:
+        aliases:
+          - aulaextra-pgadmin
+          - confidant-pgadminAulaExtra
+    restart: unless-stopped
+
+volumes:
+  aulaextra_pgdata:
+  aulaextra_pgbackups:
+  aulaextra_pgadmin_data:
+  aulaextra_uploads:
+  aulaextra_agora_uploads:
+
+networks:
+  aulaextra:
+    name: ${AULAEXTRA_NETWORK_NAME:-aulaextra_net}
+    driver: bridge
+    ipam:
+      config:
+        - subnet: ${AULAEXTRA_SUBNET:-10.203.50.0/24}
+  proxy:
+    external: true
+    name: ${AULAEXTRA_PROXY_NETWORK_NAME:-sga_network}

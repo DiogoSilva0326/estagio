@@ -1,5 +1,6 @@
 class TutorProfileArgs {
   const TutorProfileArgs({
+    required this.professorId,
     required this.name,
     required this.country,
     required this.rating,
@@ -10,6 +11,7 @@ class TutorProfileArgs {
     required this.tags,
   });
 
+  final String professorId;
   final String name;
   final String country;
   final double rating;

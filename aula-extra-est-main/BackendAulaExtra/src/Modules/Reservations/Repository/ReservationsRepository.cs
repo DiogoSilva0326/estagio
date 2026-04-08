@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using ConfidantPostgreSQL.Modules.Reservations.Models;
 using Npgsql;
+using NpgsqlTypes;
 
 namespace ConfidantPostgreSQL.Modules.Reservations.Repository
 {
@@ -41,6 +42,27 @@ namespace ConfidantPostgreSQL.Modules.Reservations.Repository
             await using var cmd = conn.CreateCommand();
             cmd.CommandText = "SELECT * FROM public.usp_reservations_select_details01(@id_reservation);";
             cmd.Parameters.AddWithValue("id_reservation", idReservation);
+
+            await using var reader = await cmd.ExecuteReaderAsync();
+            if (!await reader.ReadAsync()) return null;
+            return MapReservation(reader);
+        }
+
+        public async Task<Reservation?> GetReservationByLessonAndUserAsync(Guid idLesson, Guid idUser)
+        {
+            await using var conn = new NpgsqlConnection(_connectionString);
+            await conn.OpenAsync();
+
+            await using var cmd = conn.CreateCommand();
+            cmd.CommandText = @"
+SELECT *
+FROM public.reservations
+WHERE id_lesson = @id_lesson
+    AND id_user = @id_user
+ORDER BY created_at DESC
+LIMIT 1;";
+            cmd.Parameters.AddWithValue("id_lesson", idLesson);
+            cmd.Parameters.AddWithValue("id_user", idUser);
 
             await using var reader = await cmd.ExecuteReaderAsync();
             if (!await reader.ReadAsync()) return null;
@@ -126,6 +148,242 @@ SELECT public.usp_reservations_update(
 
             var res = await cmd.ExecuteScalarAsync();
             return res == null || res == DBNull.Value ? 0 : Convert.ToInt32(res);
+        }
+
+                public async Task<IEnumerable<StudentCalendarItem>> GetStudentCalendarAsync(Guid studentUserId, DateTime start, DateTime end)
+                {
+                        var list = new List<StudentCalendarItem>();
+                        await using var conn = new NpgsqlConnection(_connectionString);
+                        await conn.OpenAsync();
+
+                        await using var cmd = conn.CreateCommand();
+                        cmd.CommandText = @"
+SELECT
+    r.id_reservation,
+    r.id_lesson,
+    u.id_user AS professor_user_id,
+    r.start_time,
+    r.end_time,
+    r.status,
+    l.title AS lesson_title,
+    CONCAT_WS(' ', u.first_name, u.last_name) AS professor_name,
+    d.nome AS disciplina_name
+FROM reservations r
+JOIN lessons l ON l.id_lesson = r.id_lesson
+LEFT JOIN courses c ON c.id_course = l.id_course
+LEFT JOIN disciplinas d ON d.id_disciplina = c.id_disciplina
+LEFT JOIN professors p ON p.id_professor = l.id_professor
+LEFT JOIN public.users u ON u.id_user = p.id_user
+WHERE r.id_user = @id_user
+    AND r.start_time >= @start_time
+    AND r.start_time < @end_time
+    AND LOWER(COALESCE(r.status, '')) NOT IN ('cancelled', 'canceled', 'cancelada', 'cancelado')
+ORDER BY r.start_time ASC;";
+
+                        cmd.Parameters.Add(new NpgsqlParameter("id_user", NpgsqlDbType.Uuid) { Value = studentUserId });
+                        cmd.Parameters.Add(new NpgsqlParameter("start_time", NpgsqlDbType.Timestamp) { Value = start });
+                        cmd.Parameters.Add(new NpgsqlParameter("end_time", NpgsqlDbType.Timestamp) { Value = end });
+
+                        await using var reader = await cmd.ExecuteReaderAsync();
+                        while (await reader.ReadAsync())
+                        {
+                                list.Add(MapStudentCalendarItem(reader));
+                        }
+
+                        return list;
+                }
+
+                public async Task<IEnumerable<StudentCalendarItem>> GetStudentUpcomingCalendarAsync(Guid studentUserId, DateTime from, int limit)
+                {
+                        var list = new List<StudentCalendarItem>();
+                        await using var conn = new NpgsqlConnection(_connectionString);
+                        await conn.OpenAsync();
+
+                        await using var cmd = conn.CreateCommand();
+                        cmd.CommandText = @"
+SELECT
+    r.id_reservation,
+    r.id_lesson,
+    u.id_user AS professor_user_id,
+    r.start_time,
+    r.end_time,
+    r.status,
+    l.title AS lesson_title,
+    CONCAT_WS(' ', u.first_name, u.last_name) AS professor_name,
+    d.nome AS disciplina_name
+FROM reservations r
+JOIN lessons l ON l.id_lesson = r.id_lesson
+LEFT JOIN courses c ON c.id_course = l.id_course
+LEFT JOIN disciplinas d ON d.id_disciplina = c.id_disciplina
+LEFT JOIN professors p ON p.id_professor = l.id_professor
+LEFT JOIN public.users u ON u.id_user = p.id_user
+WHERE r.id_user = @id_user
+    AND r.end_time >= (@from_time - INTERVAL '15 minutes')
+    AND LOWER(COALESCE(r.status, '')) NOT IN ('cancelled', 'canceled', 'cancelada', 'cancelado')
+ORDER BY r.start_time ASC
+LIMIT @limit;";
+
+                        cmd.Parameters.Add(new NpgsqlParameter("id_user", NpgsqlDbType.Uuid) { Value = studentUserId });
+                        cmd.Parameters.Add(new NpgsqlParameter("from_time", NpgsqlDbType.Timestamp) { Value = from });
+                        cmd.Parameters.Add(new NpgsqlParameter("limit", NpgsqlDbType.Integer) { Value = limit <= 0 ? 10 : limit });
+
+                        await using var reader = await cmd.ExecuteReaderAsync();
+                        while (await reader.ReadAsync())
+                        {
+                                list.Add(MapStudentCalendarItem(reader));
+                        }
+
+                        return list;
+                }
+
+                    public async Task<IEnumerable<ProfessorCalendarItem>> GetProfessorCalendarAsync(Guid professorId, DateTime start, DateTime end)
+                    {
+                        var list = new List<ProfessorCalendarItem>();
+                        await using var conn = new NpgsqlConnection(_connectionString);
+                        await conn.OpenAsync();
+
+                        await using var cmd = conn.CreateCommand();
+                        cmd.CommandText = @"
+            SELECT
+                r.id_reservation,
+                r.id_lesson,
+                r.start_time,
+                r.end_time,
+                r.status,
+                l.title AS lesson_title,
+                CONCAT_WS(' ', su.first_name, su.last_name) AS student_name,
+                d.nome AS disciplina_name
+            FROM reservations r
+            JOIN lessons l ON l.id_lesson = r.id_lesson
+            LEFT JOIN courses c ON c.id_course = l.id_course
+            LEFT JOIN disciplinas d ON d.id_disciplina = c.id_disciplina
+            LEFT JOIN public.users su ON su.id_user = r.id_user
+            WHERE l.id_professor = @id_professor
+                AND r.start_time >= @start_time
+                AND r.start_time < @end_time
+                AND LOWER(COALESCE(r.status, '')) NOT IN ('cancelled', 'canceled', 'cancelada', 'cancelado')
+            ORDER BY r.start_time ASC;";
+
+                        cmd.Parameters.Add(new NpgsqlParameter("id_professor", NpgsqlDbType.Uuid) { Value = professorId });
+                        cmd.Parameters.Add(new NpgsqlParameter("start_time", NpgsqlDbType.Timestamp) { Value = start });
+                        cmd.Parameters.Add(new NpgsqlParameter("end_time", NpgsqlDbType.Timestamp) { Value = end });
+
+                        await using var reader = await cmd.ExecuteReaderAsync();
+                        while (await reader.ReadAsync())
+                        {
+                            list.Add(MapProfessorCalendarItem(reader));
+                        }
+
+                        return list;
+                    }
+
+                    public async Task<IEnumerable<ProfessorCalendarItem>> GetProfessorUpcomingCalendarAsync(Guid professorId, DateTime from, int limit)
+                    {
+                        var list = new List<ProfessorCalendarItem>();
+                        await using var conn = new NpgsqlConnection(_connectionString);
+                        await conn.OpenAsync();
+
+                        await using var cmd = conn.CreateCommand();
+                        cmd.CommandText = @"
+            SELECT
+                r.id_reservation,
+                r.id_lesson,
+                r.start_time,
+                r.end_time,
+                r.status,
+                l.title AS lesson_title,
+                CONCAT_WS(' ', su.first_name, su.last_name) AS student_name,
+                d.nome AS disciplina_name
+            FROM reservations r
+            JOIN lessons l ON l.id_lesson = r.id_lesson
+            LEFT JOIN courses c ON c.id_course = l.id_course
+            LEFT JOIN disciplinas d ON d.id_disciplina = c.id_disciplina
+            LEFT JOIN public.users su ON su.id_user = r.id_user
+            WHERE l.id_professor = @id_professor
+                AND r.end_time >= (@from_time - INTERVAL '15 minutes')
+                AND LOWER(COALESCE(r.status, '')) NOT IN ('cancelled', 'canceled', 'cancelada', 'cancelado')
+            ORDER BY r.start_time ASC
+            LIMIT @limit;";
+
+                        cmd.Parameters.Add(new NpgsqlParameter("id_professor", NpgsqlDbType.Uuid) { Value = professorId });
+                        cmd.Parameters.Add(new NpgsqlParameter("from_time", NpgsqlDbType.Timestamp) { Value = from });
+                        cmd.Parameters.Add(new NpgsqlParameter("limit", NpgsqlDbType.Integer) { Value = limit <= 0 ? 10 : limit });
+
+                        await using var reader = await cmd.ExecuteReaderAsync();
+                        while (await reader.ReadAsync())
+                        {
+                            list.Add(MapProfessorCalendarItem(reader));
+                        }
+
+                        return list;
+                    }
+
+        public async Task<AreaLessonSummary> GetStudentAreaLessonSummaryAsync(Guid studentUserId, Guid areaId, DateTime from)
+        {
+            await using var conn = new NpgsqlConnection(_connectionString);
+            await conn.OpenAsync();
+
+            await using var cmd = conn.CreateCommand();
+            cmd.CommandText = @"
+SELECT
+    COALESCE(completed.completed_lessons, 0) AS completed_lessons,
+    next_lesson.start_time AS next_lesson_start,
+    next_lesson.end_time AS next_lesson_end,
+    next_lesson.lesson_title AS next_lesson_title,
+    next_lesson.professor_name AS next_lesson_professor_name,
+    next_lesson.disciplina_name AS next_lesson_disciplina_name
+FROM (SELECT 1) anchor
+LEFT JOIN LATERAL (
+    SELECT COUNT(*) AS completed_lessons
+    FROM reservations r
+    JOIN lessons l ON l.id_lesson = r.id_lesson
+    LEFT JOIN courses c ON c.id_course = l.id_course
+    LEFT JOIN disciplinas d ON d.id_disciplina = c.id_disciplina
+    WHERE r.id_user = @id_user
+      AND d.id_area = @id_area
+      AND r.end_time < @from_time
+      AND LOWER(COALESCE(r.status, '')) NOT IN ('cancelled', 'canceled', 'cancelada', 'cancelado')
+) completed ON TRUE
+LEFT JOIN LATERAL (
+    SELECT
+    r.start_time,
+    r.end_time,
+    l.title AS lesson_title,
+    CONCAT_WS(' ', u.first_name, u.last_name) AS professor_name,
+    d.nome AS disciplina_name
+    FROM reservations r
+    JOIN lessons l ON l.id_lesson = r.id_lesson
+    LEFT JOIN courses c ON c.id_course = l.id_course
+    LEFT JOIN disciplinas d ON d.id_disciplina = c.id_disciplina
+    LEFT JOIN professors p ON p.id_professor = l.id_professor
+    LEFT JOIN public.users u ON u.id_user = p.id_user
+    WHERE r.id_user = @id_user
+      AND d.id_area = @id_area
+      AND r.end_time >= (@from_time - INTERVAL '15 minutes')
+      AND LOWER(COALESCE(r.status, '')) NOT IN ('cancelled', 'canceled', 'cancelada', 'cancelado')
+    ORDER BY r.start_time ASC
+    LIMIT 1
+) next_lesson ON TRUE;";
+
+            cmd.Parameters.Add(new NpgsqlParameter("id_user", NpgsqlDbType.Uuid) { Value = studentUserId });
+            cmd.Parameters.Add(new NpgsqlParameter("id_area", NpgsqlDbType.Uuid) { Value = areaId });
+            cmd.Parameters.Add(new NpgsqlParameter("from_time", NpgsqlDbType.Timestamp) { Value = from });
+
+            await using var reader = await cmd.ExecuteReaderAsync();
+            if (!await reader.ReadAsync())
+            {
+                return new AreaLessonSummary();
+            }
+
+            return new AreaLessonSummary
+            {
+                CompletedLessons = reader.IsDBNull(reader.GetOrdinal("completed_lessons")) ? 0 : reader.GetInt32(reader.GetOrdinal("completed_lessons")),
+                NextLessonStart = GetNullableDateTime(reader, "next_lesson_start"),
+                NextLessonEnd = GetNullableDateTime(reader, "next_lesson_end"),
+                NextLessonTitle = GetNullableString(reader, "next_lesson_title"),
+                NextLessonProfessorName = GetNullableString(reader, "next_lesson_professor_name"),
+                NextLessonDisciplinaName = GetNullableString(reader, "next_lesson_disciplina_name"),
+            };
         }
 
         public async Task<IEnumerable<ExceptionRule>> GetExceptionRulesAllAsync()
@@ -377,6 +635,37 @@ SELECT public.usp_exception_requests_update(
                 EndTime = GetNullableDateTime(reader, "end_time"),
                 Status = GetNullableString(reader, "status"),
                 CreatedAt = GetNullableDateTime(reader, "created_at")
+            };
+        }
+
+        private static StudentCalendarItem MapStudentCalendarItem(NpgsqlDataReader reader)
+        {
+            return new StudentCalendarItem
+            {
+                IdReservation = reader.GetGuid(reader.GetOrdinal("id_reservation")),
+                IdLesson = reader.GetGuid(reader.GetOrdinal("id_lesson")),
+                ProfessorUserId = GetNullableGuid(reader, "professor_user_id"),
+                StartTime = GetNullableDateTime(reader, "start_time"),
+                EndTime = GetNullableDateTime(reader, "end_time"),
+                Status = GetNullableString(reader, "status"),
+                LessonTitle = GetNullableString(reader, "lesson_title"),
+                ProfessorName = GetNullableString(reader, "professor_name"),
+                DisciplinaName = GetNullableString(reader, "disciplina_name"),
+            };
+        }
+
+        private static ProfessorCalendarItem MapProfessorCalendarItem(NpgsqlDataReader reader)
+        {
+            return new ProfessorCalendarItem
+            {
+                IdReservation = reader.GetGuid(reader.GetOrdinal("id_reservation")),
+                IdLesson = reader.GetGuid(reader.GetOrdinal("id_lesson")),
+                StartTime = GetNullableDateTime(reader, "start_time"),
+                EndTime = GetNullableDateTime(reader, "end_time"),
+                Status = GetNullableString(reader, "status"),
+                LessonTitle = GetNullableString(reader, "lesson_title"),
+                StudentName = GetNullableString(reader, "student_name"),
+                DisciplinaName = GetNullableString(reader, "disciplina_name"),
             };
         }
 

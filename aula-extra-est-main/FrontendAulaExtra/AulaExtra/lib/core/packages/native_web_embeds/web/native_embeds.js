@@ -42,6 +42,22 @@
   // Global hide flag — set when e.g. the mobile drawer is open.
   var _allHidden = false;
 
+  function applyBottomLeftCutout(entry, width, height) {
+    var cutW = Math.max(0, Math.min(entry.cutoutBottomLeftWidth || 0, width));
+    var cutH = Math.max(0, Math.min(entry.cutoutBottomLeftHeight || 0, height));
+
+    if (cutW <= 0 || cutH <= 0) {
+      entry.wrapper.style.clipPath = '';
+      entry.wrapper.style.webkitClipPath = '';
+      return;
+    }
+
+    var cutTop = Math.max(0, height - cutH);
+    var polygon = 'polygon(0 0, 100% 0, 100% 100%, ' + cutW + 'px 100%, ' + cutW + 'px ' + cutTop + 'px, 0 ' + cutTop + 'px)';
+    entry.wrapper.style.clipPath = polygon;
+    entry.wrapper.style.webkitClipPath = polygon;
+  }
+
   // ─── helpers ───────────────────────────────────────────────────────
 
   function setClipTop(y) {
@@ -102,6 +118,7 @@
     ws.top = visibleTop + 'px';
     ws.width = w + 'px';
     ws.height = visibleH + 'px';
+    applyBottomLeftCutout(entry, w, visibleH);
 
     // Inner element: full original size, offset upward so the visible
     // part aligns correctly inside the clipped wrapper.
@@ -292,10 +309,18 @@
     // Individual elements will be repositioned by the next Dart frame sync.
   }
 
+  function setBottomLeftCutout(id, width, height) {
+    var entry = registry[id];
+    if (!entry) return;
+    entry.cutoutBottomLeftWidth = Math.max(0, width || 0);
+    entry.cutoutBottomLeftHeight = Math.max(0, height || 0);
+  }
+
   // ─── Expose to Dart ────────────────────────────────────────────────
 
   window._nativeEmbeds = {
     setClipTop: setClipTop,
+    setBottomLeftCutout: setBottomLeftCutout,
     createVideo: createVideo,
     createIframe: createIframe,
     updateRect: updateRect,

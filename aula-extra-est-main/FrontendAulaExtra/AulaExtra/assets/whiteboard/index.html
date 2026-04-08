@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Whiteboard</title>
+    <script src="fastboard.bundle.js"></script>
+    
+    <style>
+      html, body, #app { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #fff; }
+      #status { position: fixed; left: 8px; top: 8px; z-index: 9999; font-family: sans-serif; font-size: 12px; padding: 6px 8px; border-radius: 6px; background: rgba(0, 0, 0, 0.6); color: #fff; }
+    </style>
+  </head>
+  <body>
+    <div id="status">Loading…</div>
+    <div id="app"></div>
+
+    <script>
+      // Always run (even if module import fails) so we don't get stuck on "Loading…".
+      (function () {
+        function setStatus(message) {
+          const el = document.getElementById("status");
+          if (el) el.textContent = String(message ?? "");
+        }
+
+        function notifyFlutter(type, payload) {
+          try {
+            const msg = JSON.stringify({ type, payload });
+            if (window.WhiteboardChannel && window.WhiteboardChannel.postMessage) {
+              window.WhiteboardChannel.postMessage(msg);
+            }
+          } catch (_) {}
+        }
+
+        window.__whiteboard = window.__whiteboard || { pendingConfig: null };
+        window.__whiteboard.start = window.__whiteboard.start || null;
+        window.__setWhiteboardStatus = setStatus;
+        window.__notifyWhiteboard = notifyFlutter;
+
+        // Stub so Flutter IO can call init even before the SDK is ready.
+        window.initWhiteboard = function (config) {
+          window.__whiteboard.pendingConfig = config;
+          setStatus("Config received…");
+          try {
+            if (window.__whiteboard && typeof window.__whiteboard.start === "function") {
+              window.__whiteboard.start();
+            }
+          } catch (_) {}
+        };
+
+        // Receive init via iframe postMessage (Flutter Web).
+        window.addEventListener("message", (event) => {
+          let data = event.data;
+          if (typeof data === "string") {
+            try {
+              data = JSON.parse(data);
+            } catch (_) {
+              return;
+            }
+          }
+          if (data && data.type === "init") {
+            window.__whiteboard.pendingConfig = data.payload;
+            setStatus("Config received…");
+            try {
+              if (window.__whiteboard && typeof window.__whiteboard.start === "function") {
+                window.__whiteboard.start();
+              }
+            } catch (_) {}
+          }
+        });
+
+        // Surface errors on-screen.
+        window.addEventListener("error", (e) => {
+          const msg = e?.message || "Script error";
+          setStatus("Error: " + msg);
+          notifyFlutter("error", { message: msg });
+        });
+        window.addEventListener("unhandledrejection", (e) => {
+          const msg = e?.reason?.message || String(e?.reason || "Unhandled rejection");
+          setStatus("Error: " + msg);
+          notifyFlutter("error", { message: msg });
+        });
+
+        setStatus("Booting…");
+        notifyFlutter("loaded", null);
+      })();
+    </script>
+
+    <script nomodule>
+      (function () {
+        var setStatus = window.__setWhiteboardStatus || function () {};
+        // Kept for backward compatibility (we no longer require modules).
+        setStatus("Booting…");
+      })();
+    </script>
+
+    <script>
+      (function () {
+        var setStatus = window.__setWhiteboardStatus || function () {};
+        var notifyFlutter = window.__notifyWhiteboard || function () {};
+
+        var currentApp = null;
+        var currentMount = null;
+
+        function ensureFastboardReady() {
+          if (window.Fastboard && window.Fastboard.createFastboard && window.Fastboard.mount) return true;
+          return false;
+        }
+
+        async function waitForFastboard(timeoutMs) {
+          var start = Date.now();
+          while (Date.now() - start < timeoutMs) {
+            if (ensureFastboardReady()) return;
+            await new Promise(function (r) { setTimeout(r, 50); });
+          }
+          throw new Error("Fastboard bundle not loaded. Did you run the build step?");
+        }
+
+        async function initWhiteboard(config) {
+          try {
+            setStatus("Initializing Room...");
+            await waitForFastboard(8000);
+
+            var appIdentifier = config && config.appIdentifier;
+            var region = (config && config.region) || "us-sv";
+            var uuid = config && config.uuid;
+            var roomToken = config && config.roomToken;
+            var uid = config && config.uid;
+
+            if (!appIdentifier || !uuid || !roomToken) {
+              throw new Error("Missing config: appIdentifier/uuid/roomToken");
+            }
+
+            var container = document.getElementById("app");
+            if (!container) throw new Error("Missing #app container");
+
+            try { currentMount && currentMount.destroy && currentMount.destroy(); } catch (_) {}
+            currentMount = null;
+            try { currentApp && currentApp.destroy && currentApp.destroy(); } catch (_) {}
+            currentApp = null;
+            container.innerHTML = "";
+
+            currentApp = await window.Fastboard.createFastboard({
+              sdkConfig: {
+                appIdentifier: appIdentifier,
+                region: region,
+              },
+              joinRoom: {
+                uid: String(uid == null ? "user1" : uid),
+                uuid: String(uuid),
+                roomToken: String(roomToken),
+              },
+              managerConfig: {
+                cursor: true,
+              },
+            });
+
+            window.app = currentApp;
+            currentMount = window.Fastboard.mount(currentApp, container);
+
+            setStatus("");
+            notifyFlutter("ready", { uuid: uuid });
+          } catch (err) {
+            var msg = (err && err.message) || String(err);
+            setStatus("Error: " + msg);
+            notifyFlutter("error", { message: msg });
+          }
+        }
+
+        // Replace stub with real implementation
+        window.initWhiteboard = initWhiteboard;
+
+        // Allow late-arriving config (postMessage) to trigger init.
+        window.__whiteboard = window.__whiteboard || { pendingConfig: null };
+        window.__whiteboard.start = async function () {
+          if (!window.__whiteboard || !window.__whiteboard.pendingConfig) return;
+          var cfg = window.__whiteboard.pendingConfig;
+          window.__whiteboard.pendingConfig = null;
+          await initWhiteboard(cfg);
+        };
+
+        // Start immediately if config was already provided; otherwise wait.
+        setStatus("Waiting for config…");
+        try {
+          window.__whiteboard.start();
+        } catch (_) {}
+      })();
+    </script>
+  </body>
+</html>

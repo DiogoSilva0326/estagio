@@ -16,6 +16,9 @@ class NativeIframe extends StatelessWidget {
     this.aspectRatio = 16 / 9,
     this.fill = true,
     this.backgroundColor = const Color(0xFFF0F0F0),
+    this.clipTop,
+    this.cutoutBottomLeftWidth = 0,
+    this.cutoutBottomLeftHeight = 0,
   });
 
   /// The iframe source URL (e.g., Google Maps embed URL).
@@ -30,6 +33,15 @@ class NativeIframe extends StatelessWidget {
   /// Background color shown while loading.
   final Color backgroundColor;
 
+  /// Optional viewport Y where the embed should start being visible.
+  /// Useful for pinned headers that must always stay above the embed.
+  final double? clipTop;
+
+  /// Optional bottom-left rectangular cutout to keep overlapping Flutter
+  /// elements visible above the native embed.
+  final double cutoutBottomLeftWidth;
+  final double cutoutBottomLeftHeight;
+
   @override
   Widget build(BuildContext context) {
     // Build a stable ID from the src so the overlay is reused across rebuilds.
@@ -41,6 +53,9 @@ class NativeIframe extends StatelessWidget {
       type: NativeEmbedType.iframe,
       src: src,
       backgroundColor: backgroundColor,
+      clipTop: clipTop,
+      cutoutBottomLeftWidth: cutoutBottomLeftWidth,
+      cutoutBottomLeftHeight: cutoutBottomLeftHeight,
     );
 
     if (fill) return child;

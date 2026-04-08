@@ -1,0 +1,41 @@
+@Synget_R2_Integrator_API_HostAddress = http://localhost:5101
+
+GET {{Synget_R2_Integrator_API_HostAddress}}/api/storage/health
+Accept: application/json
+
+###
+
+GET {{Synget_R2_Integrator_API_HostAddress}}/api/files
+Accept: application/json
+
+###
+
+POST {{Synget_R2_Integrator_API_HostAddress}}/api/files/upload?key=exemplos/teste.txt
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="file"; filename="teste.txt"
+Content-Type: text/plain
+
+conteudo de exemplo
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
+
+###
+
+PUT {{Synget_R2_Integrator_API_HostAddress}}/api/files/exemplos/teste.txt
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="file"; filename="teste-atualizado.txt"
+Content-Type: text/plain
+
+conteudo atualizado
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
+
+###
+
+GET {{Synget_R2_Integrator_API_HostAddress}}/api/files/exemplos/teste.txt
+
+###
+
+DELETE {{Synget_R2_Integrator_API_HostAddress}}/api/files/exemplos/teste.txt

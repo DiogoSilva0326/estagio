@@ -5,6 +5,7 @@ class AreaOverview {
     required this.idArea,
     required this.name,
     required this.imageAsset,
+    required this.selectedDisciplinaIds,
     required this.selectedDisciplinaNames,
     required this.scheduledLessons,
     required this.pendingTasks,
@@ -16,6 +17,7 @@ class AreaOverview {
   final String name;
   final String imageAsset;
 
+  final List<String> selectedDisciplinaIds;
   final List<String> selectedDisciplinaNames;
 
   final int scheduledLessons;

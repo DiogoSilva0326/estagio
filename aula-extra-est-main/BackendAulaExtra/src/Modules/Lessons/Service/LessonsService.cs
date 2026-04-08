@@ -41,6 +41,8 @@ namespace ConfidantPostgreSQL.Modules.Lessons.Service
 
         public Task<IEnumerable<Enrollment>> GetEnrollmentsAllAsync() => _repo.GetEnrollmentsAllAsync();
         public Task<Enrollment?> GetEnrollmentByIdAsync(Guid idEnrollment) => _repo.GetEnrollmentByIdAsync(idEnrollment);
+        public Task<Enrollment?> GetEnrollmentByLessonAndUserAsync(Guid idLesson, Guid idUser) =>
+            _repo.GetEnrollmentByLessonAndUserAsync(idLesson, idUser);
         public Task<Guid> InsertEnrollmentAsync(Enrollment enrollment) => _repo.InsertEnrollmentAsync(enrollment);
         public Task<int> UpdateEnrollmentAsync(Enrollment enrollment) => _repo.UpdateEnrollmentAsync(enrollment);
         public Task<int> DeleteEnrollmentAsync(Guid idEnrollment) => _repo.DeleteEnrollmentAsync(idEnrollment);

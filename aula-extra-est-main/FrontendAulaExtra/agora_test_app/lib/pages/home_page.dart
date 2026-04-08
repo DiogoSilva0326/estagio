@@ -4,45 +4,48 @@ import '../services/api_service.dart';
 import '../services/auth_service.dart';
 import '../services/notification_service.dart';
 import '../utils/video_call_helper.dart';
+import 'video_chat_page.dart';
 import 'conversations_page.dart';
 import 'files_page.dart';
 import 'login_page.dart';
 
 class HomePage extends StatefulWidget {
   final AuthService? authService;
-  
+
   const HomePage({super.key, this.authService});
 
   @override
   State<HomePage> createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin {
+class _HomePageState extends State<HomePage>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final ApiService _apiService = ApiService();
-  
+
   // Controllers
   final _channelController = TextEditingController(text: 'test-channel');
   final _uidController = TextEditingController(text: '12345');
   late TextEditingController _userIdController;
   late TextEditingController _userNameController;
   final _roomNameController = TextEditingController();
-  
+
   // State
   String _logs = '';
   bool _isLoading = false;
   List<SessionResponse> _sessions = [];
-  
+
   // Professor Rooms State
   ProfessorRoom? _myProfessorRoom;
   List<ProfessorRoom> _allProfessorRooms = [];
   bool _isLoadingProfessorRooms = false;
-  
+
   // Active calls state (room name -> is active)
   Map<String, bool> _activeCallsStatus = {};
-  
+
   // Subscription for professor room status updates
-  StreamSubscription<ProfessorRoomStatusNotification>? _professorRoomStatusSubscription;
+  StreamSubscription<ProfessorRoomStatusNotification>?
+  _professorRoomStatusSubscription;
 
   AuthUser? get _currentUser => widget.authService?.currentUser;
   bool get _isAuthenticated => widget.authService?.isAuthenticated ?? false;
@@ -52,7 +55,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   void initState() {
     super.initState();
     _tabController = TabController(length: 6, vsync: this);
-    
+
     // Initialize controllers with authenticated user data if available
     _userIdController = TextEditingController(
       text: _currentUser?.username ?? 'user1',
@@ -60,7 +63,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     _userNameController = TextEditingController(
       text: _currentUser?.effectiveDisplayName ?? 'Guest',
     );
-    
+
     _log('App initialized. API URL: ${_apiService.baseUrl}');
     if (_isAuthenticated) {
       _log('Logged in as: ${_currentUser?.username} (${_currentUser?.role})');
@@ -72,21 +75,29 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   /// Connect to notification service for real-time DM/file notifications
   Future<void> _connectNotificationService() async {
     if (_currentUser == null) return;
-    
-    final success = await NotificationService.instance.connect(_currentUser!.username);
+
+    final success = await NotificationService.instance.connect(
+      _currentUser!.username,
+    );
     if (success) {
       _log('🔔 Connected to notification service');
-      
+
       // Subscribe to professor room status updates (for students)
       if (_currentUser?.isStudent == true) {
         _professorRoomStatusSubscription?.cancel();
-        _professorRoomStatusSubscription = NotificationService.instance.professorRoomStatusUpdates.listen((notification) {
-          _log('🔔 Professor room ${notification.roomName} is now ${notification.isOnline ? "ONLINE 🟢" : "OFFLINE 🔴"}');
-          
-          setState(() {
-            _activeCallsStatus[notification.roomName] = notification.isOnline;
-          });
-        });
+        _professorRoomStatusSubscription = NotificationService
+            .instance
+            .professorRoomStatusUpdates
+            .listen((notification) {
+              _log(
+                '🔔 Professor room ${notification.roomName} is now ${notification.isOnline ? "ONLINE 🟢" : "OFFLINE 🔴"}',
+              );
+
+              setState(() {
+                _activeCallsStatus[notification.roomName] =
+                    notification.isOnline;
+              });
+            });
         _log('🔔 Subscribed to professor room status updates');
       }
     } else {
@@ -97,13 +108,15 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   /// Load professor room data based on user role
   Future<void> _loadProfessorRooms() async {
     if (!_isAuthenticated) return;
-    
+
     setState(() => _isLoadingProfessorRooms = true);
-    
+
     try {
       // If user is a professor, load their own room
       if (_currentUser?.isProfessor == true || _currentUser?.role == 'admin') {
-        final room = await _apiService.getProfessorRoomByUsername(_currentUser!.username);
+        final room = await _apiService.getProfessorRoomByUsername(
+          _currentUser!.username,
+        );
         if (room != null) {
           setState(() {
             _myProfessorRoom = room;
@@ -113,13 +126,13 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
           _log('📚 Loaded my professor room: ${room.roomName}');
         }
       }
-      
+
       // If user is a student, load all professor rooms and check active calls
       if (_currentUser?.isStudent == true) {
         final rooms = await _apiService.getProfessorRooms();
         setState(() => _allProfessorRooms = rooms);
         _log('📚 Loaded ${rooms.length} professor rooms');
-        
+
         // Check active call status for each room
         await _checkActiveCallsStatus();
       }
@@ -133,7 +146,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   /// Check active call status for all professor rooms (for students)
   Future<void> _checkActiveCallsStatus() async {
     final Map<String, bool> statusMap = {};
-    
+
     for (final room in _allProfessorRooms) {
       try {
         final result = await _apiService.checkActiveCall(room.roomName);
@@ -143,9 +156,9 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
         _log('⚠️ Could not check call status for ${room.roomName}');
       }
     }
-    
+
     setState(() => _activeCallsStatus = statusMap);
-    
+
     final activeCount = statusMap.values.where((v) => v).length;
     if (activeCount > 0) {
       _log('🟢 $activeCount professor room(s) with active calls');
@@ -177,7 +190,10 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     });
   }
 
-  Future<void> _runAsync(String operation, Future<void> Function() action) async {
+  Future<void> _runAsync(
+    String operation,
+    Future<void> Function() action,
+  ) async {
     setState(() => _isLoading = true);
     _log('Starting: $operation...');
     try {
@@ -193,7 +209,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   Future<void> _logout() async {
     // Disconnect from notification service
     await NotificationService.instance.disconnect();
-    
+
     await widget.authService?.logout();
     if (mounted) {
       Navigator.of(context).pushReplacement(
@@ -235,7 +251,9 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                   _currentUser?.effectiveDisplayName ?? 'User',
                   style: const TextStyle(fontSize: 12),
                 ),
-                backgroundColor: _getRoleColor(_currentUser?.role ?? 'aluno').withOpacity(0.2),
+                backgroundColor: _getRoleColor(
+                  _currentUser?.role ?? 'aluno',
+                ).withOpacity(0.2),
               ),
             ),
             // Logout button
@@ -259,7 +277,9 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(8),
-              color: _getRoleColor(_currentUser?.role ?? 'aluno').withOpacity(0.1),
+              color: _getRoleColor(
+                _currentUser?.role ?? 'aluno',
+              ).withOpacity(0.1),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -278,7 +298,11 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                   ),
                   if (_canStartVideoCall) ...[
                     const SizedBox(width: 16),
-                    const Icon(Icons.check_circle, size: 14, color: Colors.green),
+                    const Icon(
+                      Icons.check_circle,
+                      size: 14,
+                      color: Colors.green,
+                    ),
                     const SizedBox(width: 4),
                     const Text(
                       'Can start video calls',
@@ -352,14 +376,17 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Text('Video Call', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+          const Text(
+            'Video Call',
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          ),
           const SizedBox(height: 8),
           const Text(
             'Vídeo chamada com áudio, screen share e whiteboard',
             style: TextStyle(color: Colors.grey),
           ),
           const SizedBox(height: 24),
-          
+
           // Professor view - only their own room
           if (_canStartVideoCall && _currentUser?.isProfessor == true) ...[
             if (_myProfessorRoom != null)
@@ -369,7 +396,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
             else
               _buildNoProfessorRoomMessage(),
           ],
-          
+
           // Admin view - can use any channel
           if (_currentUser?.role == 'admin') ...[
             if (_myProfessorRoom != null) ...[
@@ -377,31 +404,35 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
               const SizedBox(height: 24),
               const Divider(),
               const SizedBox(height: 16),
-              const Text('Or use a custom channel:', style: TextStyle(fontWeight: FontWeight.w500)),
+              const Text(
+                'Or use a custom channel:',
+                style: TextStyle(fontWeight: FontWeight.w500),
+              ),
               const SizedBox(height: 12),
             ],
             _buildAdminCustomChannelSection(),
           ],
-          
+
           // Student view - only professor rooms with active calls
           if (_isAuthenticated && _currentUser?.isStudent == true) ...[
             _buildProfessorRoomsListSection(),
           ],
-          
+
           // Not authenticated view
-          if (!_isAuthenticated) ...[
-            _buildGuestVideoCallSection(),
-          ],
-          
+          if (!_isAuthenticated) ...[_buildGuestVideoCallSection()],
+
           const SizedBox(height: 16),
-          
+
           Card(
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Funcionalidades:', style: TextStyle(fontWeight: FontWeight.bold)),
+                  const Text(
+                    'Funcionalidades:',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
                   const SizedBox(height: 8),
                   _buildFeatureRow(Icons.videocam, 'Vídeo em tempo real'),
                   _buildFeatureRow(Icons.mic, 'Áudio'),
@@ -556,7 +587,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   }
 
   // ==================== PROFESSOR ROOM WIDGETS ====================
-  
+
   /// Section showing the professor's own room with edit options
   Widget _buildMyProfessorRoomSection() {
     return Card(
@@ -586,7 +617,9 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                 ),
                 IconButton(
                   icon: const Icon(Icons.refresh),
-                  onPressed: _isLoadingProfessorRooms ? null : _loadProfessorRooms,
+                  onPressed: _isLoadingProfessorRooms
+                      ? null
+                      : _loadProfessorRooms,
                   tooltip: 'Refresh',
                 ),
               ],
@@ -606,7 +639,10 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                     children: [
                       const Icon(Icons.meeting_room, size: 20),
                       const SizedBox(width: 8),
-                      const Text('Room: ', style: TextStyle(fontWeight: FontWeight.w500)),
+                      const Text(
+                        'Room: ',
+                        style: TextStyle(fontWeight: FontWeight.w500),
+                      ),
                       Expanded(
                         child: Text(
                           _myProfessorRoom!.roomName,
@@ -616,7 +652,8 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                       ),
                     ],
                   ),
-                  if (_myProfessorRoom!.description != null && _myProfessorRoom!.description!.isNotEmpty) ...[
+                  if (_myProfessorRoom!.description != null &&
+                      _myProfessorRoom!.description!.isNotEmpty) ...[
                     const SizedBox(height: 8),
                     Row(
                       children: [
@@ -669,7 +706,9 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                 const Spacer(),
                 IconButton(
                   icon: const Icon(Icons.refresh),
-                  onPressed: _isLoadingProfessorRooms ? null : _loadProfessorRooms,
+                  onPressed: _isLoadingProfessorRooms
+                      ? null
+                      : _loadProfessorRooms,
                   tooltip: 'Refresh',
                 ),
               ],
@@ -688,7 +727,10 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                   Expanded(
                     child: Text(
                       'You can only join a room when the professor has started a video call.',
-                      style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                      style: TextStyle(
+                        color: Colors.grey.shade600,
+                        fontSize: 12,
+                      ),
                     ),
                   ),
                 ],
@@ -711,7 +753,11 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                 ),
                 child: const Column(
                   children: [
-                    Icon(Icons.meeting_room_outlined, size: 48, color: Colors.grey),
+                    Icon(
+                      Icons.meeting_room_outlined,
+                      size: 48,
+                      color: Colors.grey,
+                    ),
                     SizedBox(height: 8),
                     Text(
                       'No professor rooms available',
@@ -722,7 +768,9 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                 ),
               )
             else
-              ..._allProfessorRooms.map((room) => _buildProfessorRoomTile(room)),
+              ..._allProfessorRooms.map(
+                (room) => _buildProfessorRoomTile(room),
+              ),
           ],
         ),
       ),
@@ -732,7 +780,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   /// A tile showing a professor room with join button (only enabled if call is active)
   Widget _buildProfessorRoomTile(ProfessorRoom room) {
     final isCallActive = _activeCallsStatus[room.roomName] ?? false;
-    
+
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
@@ -747,10 +795,14 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
         leading: Stack(
           children: [
             CircleAvatar(
-              backgroundColor: isCallActive ? Colors.green.shade100 : Colors.grey.shade100,
+              backgroundColor: isCallActive
+                  ? Colors.green.shade100
+                  : Colors.grey.shade100,
               child: Icon(
-                Icons.cast_for_education, 
-                color: isCallActive ? Colors.green.shade700 : Colors.grey.shade500,
+                Icons.cast_for_education,
+                color: isCallActive
+                    ? Colors.green.shade700
+                    : Colors.grey.shade500,
               ),
             ),
             if (isCallActive)
@@ -832,9 +884,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
         trailing: isCallActive
             ? FilledButton(
                 onPressed: () => _joinProfessorRoom(room),
-                style: FilledButton.styleFrom(
-                  backgroundColor: Colors.green,
-                ),
+                style: FilledButton.styleFrom(backgroundColor: Colors.green),
                 child: const Text('Join'),
               )
             : OutlinedButton(
@@ -849,15 +899,15 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   }
 
   // ==================== PROFESSOR ROOM ACTIONS ====================
-  
+
   /// Start a video call in the professor's own room
   Future<void> _startCallInMyRoom() async {
     if (_myProfessorRoom == null) return;
-    
+
     final userName = _currentUser!.effectiveDisplayName;
-    
+
     _log('🚀 Starting call in my room: ${_myProfessorRoom!.roomName}');
-    
+
     // Opens in new tab on web, navigates in-app on mobile
     await openOrNavigateToVideoCall(
       context,
@@ -870,12 +920,12 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
 
   /// Join a professor's room (for students)
   Future<void> _joinProfessorRoom(ProfessorRoom room) async {
-    final userName = _isAuthenticated 
-        ? _currentUser!.effectiveDisplayName 
+    final userName = _isAuthenticated
+        ? _currentUser!.effectiveDisplayName
         : _userNameController.text.trim();
-    
+
     _log('🚀 Joining professor room: ${room.roomName} (${room.professorName})');
-    
+
     // Opens in new tab on web, navigates in-app on mobile
     await openOrNavigateToVideoCall(
       context,
@@ -889,9 +939,9 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   /// Show dialog to edit the professor room name
   void _showEditRoomNameDialog() {
     if (_myProfessorRoom == null) return;
-    
+
     _roomNameController.text = _myProfessorRoom!.roomName;
-    
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -934,7 +984,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   /// Update the professor room name via API
   Future<void> _updateRoomName() async {
     if (_myProfessorRoom == null) return;
-    
+
     final newName = _roomNameController.text.trim();
     if (newName.isEmpty || newName == _myProfessorRoom!.roomName) {
       return;
@@ -946,18 +996,18 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
       if (!availability.isAvailable) {
         throw Exception('Room name "$newName" is already taken');
       }
-      
+
       // Update the room name
       final updatedRoom = await _apiService.updateProfessorRoomName(
         professorId: _myProfessorRoom!.professorId,
         newRoomName: newName,
       );
-      
+
       setState(() {
         _myProfessorRoom = updatedRoom;
         _channelController.text = updatedRoom.roomName;
       });
-      
+
       _log('✅ Room name updated to: ${updatedRoom.roomName}');
     });
   }
@@ -977,10 +1027,10 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
 
   Future<void> _startVideoCall() async {
     final channel = _channelController.text.trim();
-    final userName = _isAuthenticated 
-        ? _currentUser!.effectiveDisplayName 
+    final userName = _isAuthenticated
+        ? _currentUser!.effectiveDisplayName
         : _userNameController.text.trim();
-    
+
     if (channel.isEmpty) {
       _log('❌ Channel name is required');
       return;
@@ -998,7 +1048,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     }
 
     _log('🚀 Starting video call - Channel: $channel, User: $userName');
-    
+
     // Opens in new tab on web, navigates in-app on mobile
     await openOrNavigateToVideoCall(
       context,
@@ -1011,17 +1061,17 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
 
   Future<void> _joinVideoCall() async {
     final channel = _channelController.text.trim();
-    final userName = _isAuthenticated 
-        ? _currentUser!.effectiveDisplayName 
+    final userName = _isAuthenticated
+        ? _currentUser!.effectiveDisplayName
         : _userNameController.text.trim();
-    
+
     if (channel.isEmpty) {
       _log('❌ Channel name is required');
       return;
     }
 
     _log('🚀 Joining video call - Channel: $channel, User: $userName');
-    
+
     // Opens in new tab on web, navigates in-app on mobile
     await openOrNavigateToVideoCall(
       context,
@@ -1039,14 +1089,17 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Text('Chat Standalone', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+          const Text(
+            'Chat Standalone',
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          ),
           const SizedBox(height: 8),
           const Text(
             'Sistema de chat independente com contactos, mensagens 1-to-1 e grupos',
             style: TextStyle(color: Colors.grey),
           ),
           const SizedBox(height: 24),
-          
+
           TextField(
             controller: _userIdController,
             enabled: !_isAuthenticated,
@@ -1055,7 +1108,9 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
               hintText: 'Ex: user123',
               border: const OutlineInputBorder(),
               prefixIcon: const Icon(Icons.person),
-              helperText: _isAuthenticated ? 'Using your account username' : null,
+              helperText: _isAuthenticated
+                  ? 'Using your account username'
+                  : null,
             ),
           ),
           const SizedBox(height: 16),
@@ -1071,24 +1126,25 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
             ),
           ),
           const SizedBox(height: 24),
-          
+
           ElevatedButton.icon(
             onPressed: _isLoading ? null : _openChatSystem,
             icon: const Icon(Icons.chat),
             label: const Text('Abrir Chat'),
-            style: ElevatedButton.styleFrom(
-              padding: const EdgeInsets.all(16),
-            ),
+            style: ElevatedButton.styleFrom(padding: const EdgeInsets.all(16)),
           ),
           const SizedBox(height: 16),
-          
+
           const Card(
             child: Padding(
               padding: EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Funcionalidades:', style: TextStyle(fontWeight: FontWeight.bold)),
+                  Text(
+                    'Funcionalidades:',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
                   SizedBox(height: 8),
                   Text('• Lista de contactos'),
                   Text('• Chat 1-to-1 (mensagens diretas)'),
@@ -1105,23 +1161,23 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   }
 
   void _openChatSystem() {
-    final userId = _isAuthenticated 
-        ? _currentUser!.username 
+    final userId = _isAuthenticated
+        ? _currentUser!.username
         : _userIdController.text.trim();
-    final displayName = _isAuthenticated 
-        ? _currentUser!.effectiveDisplayName 
+    final displayName = _isAuthenticated
+        ? _currentUser!.effectiveDisplayName
         : _userNameController.text.trim();
 
     if (userId.isEmpty) {
       _log('❌ User ID é obrigatório');
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('User ID é obrigatório')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('User ID é obrigatório')));
       return;
     }
 
     _log('Opening chat system for user: $userId');
-    
+
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -1135,11 +1191,11 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
 
   // ==================== FILES TAB ====================
   Widget _buildFilesTab() {
-    final userId = _isAuthenticated 
-        ? _currentUser!.username 
+    final userId = _isAuthenticated
+        ? _currentUser!.username
         : _userIdController.text.trim();
-    final displayName = _isAuthenticated 
-        ? _currentUser!.effectiveDisplayName 
+    final displayName = _isAuthenticated
+        ? _currentUser!.effectiveDisplayName
         : _userNameController.text.trim();
 
     if (userId.isEmpty) {
@@ -1171,9 +1227,12 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Text('Token Generation', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+          const Text(
+            'Token Generation',
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          ),
           const SizedBox(height: 16),
-          
+
           TextField(
             controller: _channelController,
             decoration: const InputDecoration(
@@ -1183,7 +1242,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
             ),
           ),
           const SizedBox(height: 12),
-          
+
           TextField(
             controller: _uidController,
             decoration: const InputDecoration(
@@ -1193,7 +1252,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
             ),
           ),
           const SizedBox(height: 16),
-          
+
           Row(
             children: [
               Expanded(
@@ -1246,9 +1305,12 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Text('Session Management', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+          const Text(
+            'Session Management',
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          ),
           const SizedBox(height: 16),
-          
+
           TextField(
             controller: _channelController,
             decoration: const InputDecoration(
@@ -1258,7 +1320,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
             ),
           ),
           const SizedBox(height: 12),
-          
+
           TextField(
             controller: _userIdController,
             decoration: const InputDecoration(
@@ -1268,7 +1330,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
             ),
           ),
           const SizedBox(height: 16),
-          
+
           Wrap(
             spacing: 8,
             runSpacing: 8,
@@ -1379,7 +1441,10 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
           child: Row(
             children: [
               const Expanded(
-                child: Text('All Active Sessions', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                child: Text(
+                  'All Active Sessions',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                ),
               ),
               FilledButton.icon(
                 onPressed: _isLoading ? null : _loadAllSessions,
@@ -1392,21 +1457,32 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
         Expanded(
           child: _sessions.isEmpty
               ? const Center(
-                  child: Text('No sessions. Tap Refresh to load.', style: TextStyle(color: Colors.grey)),
+                  child: Text(
+                    'No sessions. Tap Refresh to load.',
+                    style: TextStyle(color: Colors.grey),
+                  ),
                 )
               : ListView.builder(
                   itemCount: _sessions.length,
                   itemBuilder: (context, index) {
                     final session = _sessions[index];
                     return Card(
-                      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                      margin: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 4,
+                      ),
                       child: ListTile(
-                        leading: const CircleAvatar(child: Icon(Icons.videocam)),
+                        leading: const CircleAvatar(
+                          child: Icon(Icons.videocam),
+                        ),
                         title: Text(session.channelName),
-                        subtitle: Text('Host: ${session.hostUserId ?? 'N/A'} • Users: ${session.users.length}'),
+                        subtitle: Text(
+                          'Host: ${session.hostUserId ?? 'N/A'} • Users: ${session.users.length}',
+                        ),
                         trailing: IconButton(
                           icon: const Icon(Icons.delete, color: Colors.red),
-                          onPressed: () => _deleteSessionFromList(session.channelName),
+                          onPressed: () =>
+                              _deleteSessionFromList(session.channelName),
                         ),
                       ),
                     );
@@ -1450,7 +1526,10 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
               children: [
                 const Icon(Icons.terminal, size: 16),
                 const SizedBox(width: 8),
-                const Text('Logs', style: TextStyle(fontWeight: FontWeight.bold)),
+                const Text(
+                  'Logs',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
                 const Spacer(),
                 if (_isLoading)
                   const SizedBox(

@@ -3,6 +3,7 @@ import 'package:aula_extra/core/components/header/app_header.dart';
 import 'package:aula_extra/core/providers/user_provider.dart';
 import 'package:aula_extra/core/widgets/pinned_header_delegate.dart';
 import 'package:aula_extra/features/aluno/areas_aluno/widgets/full_bleed_scaled_section.dart';
+import 'package:aula_extra/features/aluno/chats/models/chat_bootstrap_args.dart';
 import 'package:aula_extra/features/aluno/chats/sections/chats_content_section.dart';
 import 'package:aula_extra/routes/routes.dart';
 import 'package:flutter/material.dart';
@@ -15,11 +16,15 @@ class ChatsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final role = context.watch<UserProvider>().role;
     final isStudent = role == Role.student;
+    final routeArgs = ModalRoute.of(context)?.settings.arguments;
+    final initialChat = routeArgs is ChatBootstrapArgs ? routeArgs : null;
 
     if (!isStudent) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!context.mounted) return;
-        Navigator.of(context).pushNamedAndRemoveUntil(Routes.home, (route) => false);
+        Navigator.of(
+          context,
+        ).pushNamedAndRemoveUntil(Routes.home, (route) => false);
       });
     }
 
@@ -33,23 +38,28 @@ class ChatsScreen extends StatelessWidget {
               height: AppHeader.height,
               child: AppHeader(
                 headerAlunoActiveItem: null,
-                onRegisterTap: () => Navigator.of(context).pushNamed(Routes.registerStudent),
+                onRegisterTap: () =>
+                    Navigator.of(context).pushNamed(Routes.registerStudent),
                 onLoginTap: () => Navigator.of(context).pushNamed(Routes.login),
-                onLogoTap: () => Navigator.of(context).pushNamedAndRemoveUntil(Routes.home, (route) => false),
+                onLogoTap: () => Navigator.of(
+                  context,
+                ).pushNamedAndRemoveUntil(Routes.home, (route) => false),
               ),
             ),
           ),
           SliverToBoxAdapter(
             child: Column(
-              children: const [
+              children: [
                 ColoredBox(
-                  color: Color(0xFFF9F9F9),
+                  color: const Color(0xFFF9F9F9),
                   child: SizedBox(
                     width: double.infinity,
-                    child: FullBleedScaledSection(child: ChatsContentSection()),
+                    child: FullBleedScaledSection(
+                      child: ChatsContentSection(initialChat: initialChat),
+                    ),
                   ),
                 ),
-                ColoredBox(
+                const ColoredBox(
                   color: Color(0xFFF9F9F9),
                   child: FooterSection(),
                 ),

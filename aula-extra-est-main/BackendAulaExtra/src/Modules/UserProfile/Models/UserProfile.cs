@@ -12,6 +12,11 @@ public class UserProfile
     public string? PreferedLanguage { get; set; }
     public string? Status { get; set; }
     public string? Phone { get; set; }
+    public string? ProfileImageUrl { get; set; }
+    public string? ProfileImageThumbnailUrl { get; set; }
+    public string? ProfileImageCloudflareId { get; set; }
+    public string? ProfileImageProvider { get; set; }
+    public string? ProfileImageSource { get; set; }
     public DateTime CreationDate { get; set; }
     public DateTime LastUpdate { get; set; }
     public bool Inactive { get; set; }
@@ -37,4 +42,10 @@ public class UpdateUserProfileRequest
     public string? PreferedLanguage { get; set; }
     public string? Status { get; set; }
     public string? Phone { get; set; }
+    public string? ProfileImageUrl { get; set; }
+    public string? ProfileImageThumbnailUrl { get; set; }
+    public string? ProfileImageCloudflareId { get; set; }
+    public string? ProfileImageProvider { get; set; }
+    public string? ProfileImageSource { get; set; }
+    public bool ClearProfileImage { get; set; }
 }

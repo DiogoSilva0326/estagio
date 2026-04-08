@@ -1,14 +1,16 @@
 using System;
+using System.IO;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
-
 using ConfidantPostgreSQL.Auth;
 using ConfidantPostgreSQL.Integrations.CloudflareImages;
 using ConfidantPostgreSQL.Integrations.Email;
+using ConfidantPostgreSQL.Integrations.AgoraLessons;
 
 using ConfidantPostgreSQL.Modules.AgoraAPI.Repository;
 using ConfidantPostgreSQL.Modules.AgoraAPI.Service;
@@ -38,8 +40,6 @@ using ConfidantPostgreSQL.Modules.UserProfile.Repository;
 using ConfidantPostgreSQL.Modules.UserProfile.Service;
 using ConfidantPostgreSQL.Modules.Users.Repository;
 using ConfidantPostgreSQL.Modules.Users.Service;
-
-AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -72,8 +72,6 @@ builder.Services.AddControllers().AddJsonOptions(options =>
 {
     options.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
 });
-
-builder.Services.AddSignalR();
 
 // Repositories
 builder.Services.AddScoped<IUserRepository>(_ => new UserRepository(connString));
@@ -115,10 +113,45 @@ builder.Services.AddScoped<IScheduleService, ScheduleService>();
 builder.Services.AddSingleton<IPostmarkService>(_ => PostmarkService.FromEnvironment());
 builder.Services.AddScoped<IEmailTemplateService, EmailTemplateService>();
 
-builder.Services.Configure<CloudflareImagesOptions>(builder.Configuration.GetSection("CloudflareImages"));
+builder.Services.Configure<CloudflareImagesOptions>(options =>
+{
+    builder.Configuration.GetSection("CloudflareImages").Bind(options);
+
+    options.AccountId ??= Environment.GetEnvironmentVariable("CLOUDFLARE_IMAGES_ACCOUNT_ID");
+    options.ApiToken ??= Environment.GetEnvironmentVariable("CLOUDFLARE_IMAGES_API_TOKEN");
+    options.DeliveryBase ??= Environment.GetEnvironmentVariable("CLOUDFLARE_IMAGES_DELIVERY_BASE");
+
+    var defaultVariant = Environment.GetEnvironmentVariable("CLOUDFLARE_IMAGES_DEFAULT_VARIANT");
+    if (!string.IsNullOrWhiteSpace(defaultVariant))
+    {
+        options.DefaultVariant = defaultVariant;
+    }
+});
 builder.Services.AddHttpClient<ICloudflareImagesClient, CloudflareImagesClient>();
 
+var agoraIntegratorBaseUrl = Environment.GetEnvironmentVariable("AGORA_INTEGRATOR_BASE_URL");
+if (string.IsNullOrWhiteSpace(agoraIntegratorBaseUrl))
+{
+    agoraIntegratorBaseUrl = builder.Environment.IsDevelopment()
+        ? "http://localhost:5050"
+        : "https://aulaextra-agora.synget.ovh";
+}
+
+var agoraLessonOptions = new AgoraLessonOptions
+{
+    BaseUrl = agoraIntegratorBaseUrl,
+    AgoraAppId = Environment.GetEnvironmentVariable("AGORA_APP_ID")
+        ?? Environment.GetEnvironmentVariable("AGORA_APPID")
+        ?? string.Empty,
+    WhiteboardAppIdentifier = Environment.GetEnvironmentVariable("WHITEBOARD_APP_IDENTIFIER") ?? string.Empty,
+    WhiteboardRegion = Environment.GetEnvironmentVariable("WHITEBOARD_REGION") ?? "us-sv",
+};
+builder.Services.AddSingleton(agoraLessonOptions);
+builder.Services.AddHttpClient<IAgoraLessonIntegratorClient, AgoraLessonIntegratorClient>();
+
 var app = builder.Build();
+var uploadsRoot = Path.Combine(app.Environment.ContentRootPath, "uploads");
+Directory.CreateDirectory(uploadsRoot);
 
 if (app.Environment.IsDevelopment())
 {
@@ -154,6 +187,10 @@ else
 
 app.UseRouting();
 app.UseCors("corsapp");
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(uploadsRoot),
+    RequestPath = "/uploads"
+});
 app.MapControllers();
-app.MapHub<ConfidantPostgreSQL.Modules.Communication.Hubs.ChatHub>("/chathub");
 app.Run();

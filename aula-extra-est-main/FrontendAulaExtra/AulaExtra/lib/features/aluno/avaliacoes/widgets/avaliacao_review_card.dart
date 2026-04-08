@@ -11,7 +11,7 @@ class AvaliacaoReviewCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(34.351, 34.351, 34.351, 1.374),
+      padding: const EdgeInsets.fromLTRB(34.351, 20.351, 34.351, 20.374),
       decoration: BoxDecoration(
         color: Colors.white,
         border: Border.all(color: const Color(0xFFF3F4F6), width: 1.374),

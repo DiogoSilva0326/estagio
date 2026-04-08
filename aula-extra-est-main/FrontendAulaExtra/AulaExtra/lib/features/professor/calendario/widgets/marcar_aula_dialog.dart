@@ -1,770 +1,1027 @@
 import 'dart:convert';
-import 'package:http/http.dart' as http;
+
+import 'package:aula_extra/core/data/communication/contacts_service.dart';
+import 'package:aula_extra/core/data/communication/dtos/contact_user_summary_dto.dart';
+import 'package:aula_extra/core/data/education/dtos/disciplina_dto.dart';
 import 'package:aula_extra/core/data/http/api_config.dart';
+import 'package:aula_extra/core/data/professors/dtos/professor_aluno_dto.dart';
+import 'package:aula_extra/core/data/professors/professors_service.dart';
 import 'package:aula_extra/core/data/session/token_storage.dart';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
+import 'package:http/http.dart' as http;
 
 class MarcarAulaDialog extends StatefulWidget {
+  const MarcarAulaDialog({super.key, this.initialDate, this.initialTime});
+
   final DateTime? initialDate;
   final TimeOfDay? initialTime;
-
-  const MarcarAulaDialog({super.key, this.initialDate, this.initialTime});
 
   @override
   State<MarcarAulaDialog> createState() => _MarcarAulaDialogState();
 }
 
+enum _MarcarAulaStep { schedule, student, subject, summary }
+
+class _StudentOption {
+  const _StudentOption({
+    required this.userId,
+    required this.username,
+    required this.displayName,
+    required this.status,
+  });
+
+  final String userId;
+  final String username;
+  final String displayName;
+  final String status;
+}
+
+class _SubjectOption {
+  const _SubjectOption({
+    required this.disciplinaId,
+    required this.courseId,
+    required this.title,
+    this.subtitle,
+    this.isAvailable = true,
+  });
+
+  final String disciplinaId;
+  final String courseId;
+  final String title;
+  final String? subtitle;
+  final bool isAvailable;
+}
+
 class _MarcarAulaDialogState extends State<MarcarAulaDialog> {
-  int _currentStep = 0; // 0: Alunos, 1: Áreas, 2: Data/Hora, 3: Revisão
+  final ContactsService _contactsService = ContactsService();
+  final ProfessorsService _professorsService = ProfessorsService();
 
-  bool _isLoadingDados = true;
+  static const _weekdays = [
+    'Seg',
+    'Ter',
+    'Qua',
+    'Qui',
+    'Sex',
+    'Sáb',
+    'Dom',
+  ];
+  static const _months = [
+    'Jan',
+    'Fev',
+    'Mar',
+    'Abr',
+    'Mai',
+    'Jun',
+    'Jul',
+    'Ago',
+    'Set',
+    'Out',
+    'Nov',
+    'Dez',
+  ];
+
+  final Color _primaryColor = const Color(0xFFFF6B00);
+  final Color _successColor = const Color(0xFF12B76A);
+  final Color _surfaceColor = const Color(0xFFF8FAFC);
+  final Color _borderColor = const Color(0xFFE2E8F0);
+  final Color _textMutedColor = const Color(0xFF64748B);
+
+  _MarcarAulaStep _step = _MarcarAulaStep.schedule;
+
+  DateTime? _selectedDate;
+  TimeOfDay? _startTime;
+  TimeOfDay? _endTime;
+
+  List<_StudentOption> _students = const <_StudentOption>[];
+  List<_SubjectOption> _subjects = const <_SubjectOption>[];
+
+  _StudentOption? _selectedStudent;
+  _SubjectOption? _selectedSubject;
+
+  bool _isLoading = true;
   bool _isSubmitting = false;
+  String? _loadingError;
   String? _myProfessorId;
-
-  List<Map<String, dynamic>> _alunos = [];
-  List<Map<String, dynamic>> _cursos = [];
-
-  Map<String, dynamic>? _alunoSelecionado;
-  Map<String, dynamic>? _cursoSelecionado;
-  
-  late DateTime _dataSelecionada;
-  late TimeOfDay _horaInicio;
-  late TimeOfDay _horaFim;
-
-  final Color primaryOrange = const Color(0xFFFF8A4C);
-  final Color darkOrange = const Color(0xFFFF6B00);
-  final Color textMain = const Color(0xFF101828);
 
   @override
   void initState() {
     super.initState();
-    _dataSelecionada = widget.initialDate ?? DateTime.now();
-    _horaInicio = widget.initialTime ?? const TimeOfDay(hour: 10, minute: 0);
-    
-    int nextHour = (_horaInicio.hour + 1) % 24;
-    _horaFim = TimeOfDay(hour: nextHour, minute: _horaInicio.minute);
-    
-    _carregarDadosIniciais();
+    _selectedDate = widget.initialDate;
+    _startTime = widget.initialTime;
+    _endTime = widget.initialTime == null
+        ? null
+        : _addMinutes(widget.initialTime!, 60);
+    _loadInitialData();
   }
 
-  Future<void> _carregarDadosIniciais() async {
+  Future<void> _loadInitialData() async {
+    setState(() {
+      _isLoading = true;
+      _loadingError = null;
+    });
+
     try {
       final token = await TokenStorage().loadToken() ?? '';
-      
-      // 1. Obter o meu ID de Professor e ID de Utilizador
-      String? myProfId;
-      String? myUserId;
-
-      final respProf = await http.get(ApiConfig.uri('/api/Professors/me'), headers: {'Authorization': 'Bearer $token'});
-      if (respProf.statusCode == 200) {
-        final profData = jsonDecode(respProf.body);
-        myProfId = (profData['idProfessor'] ?? profData['IdProfessor'] ?? profData['id_professor'])?.toString();
-        // A API de Professors/me deve devolver também o idUser, mas pelo sim pelo não, 
-        // vamos descodificar do Token JWT (como fazes na página de Chats)
-        try {
-          final payloadBase64 = token.split('.')[1];
-          final normalized = base64Url.normalize(payloadBase64);
-          final payloadMap = jsonDecode(utf8.decode(base64Url.decode(normalized)));
-          myUserId = payloadMap['sub']?.toString();
-        } catch (_) {}
+      if (token.trim().isEmpty) {
+        throw Exception('Sessão expirada');
       }
 
-      if (myProfId == null || myUserId == null) {
-        throw Exception("Não foi possível identificar o Professor ou o User ID.");
-      }
-      _myProfessorId = myProfId;
+      final professor = await _professorsService.getMyProfessor();
+      final contacts = await _contactsService.getMyContacts();
+      final meusAlunos = await _professorsService.fetchMeusAlunos();
+      final disciplinas = await _professorsService.getMyDisciplinas();
+      final coursesResponse = await http.get(
+        ApiConfig.uri('/api/Courses/courses'),
+        headers: {'Authorization': 'Bearer $token'},
+      );
 
-      // 2. Carregar Cursos, Users e MENSAGENS!
-      final respCourses = await http.get(ApiConfig.uri('/api/Courses/courses'), headers: {'Authorization': 'Bearer $token'});
-      final respUsers = await http.get(ApiConfig.uri('/api/Users'), headers: {'Authorization': 'Bearer $token'});
-      final respMessages = await http.get(ApiConfig.uri('/api/Communication/messages'), headers: {'Authorization': 'Bearer $token'});
-
-      List<dynamic> extractList(http.Response res) {
-        if (res.statusCode != 200) return [];
-        final body = jsonDecode(res.body);
-        return body is List ? body : (body['data'] ?? body['items'] ?? []);
+      if (coursesResponse.statusCode < 200 ||
+          coursesResponse.statusCode >= 300) {
+        throw Exception('Não foi possível carregar as disciplinas do professor.');
       }
 
-      final allCourses = extractList(respCourses);
-      final allUsers = extractList(respUsers);
-      final allMessages = extractList(respMessages);
+      final decodedCourses = jsonDecode(coursesResponse.body);
+      final allCourses = decodedCourses is List
+          ? decodedCourses
+          : (decodedCourses['data'] ??
+                decodedCourses['items'] ??
+                const <dynamic>[]);
 
-      if (mounted) {
-        setState(() {
-          // A. Filtrar os cursos do Professor
-          _cursos = allCourses.where((c) {
-            final courseProfId = (c['idProfessor'] ?? c['IdProfessor'] ?? c['id_professor'])?.toString();
-            return courseProfId == _myProfessorId;
-          }).map((c) => {
-            "id": (c['idCourse'] ?? c['IdCourse'] ?? c['id_course']).toString(),
-            "nome": (c['name'] ?? c['Name'] ?? 'Sem Nome').toString(),
-          }).toList();
+      final myProfessorId = professor?.idProfessor?.trim();
 
-          // B. Encontrar os IDs de todos os Utilizadores com quem tenho CHAT ABERTO
-          Set<String> idAlunosComChat = {};
-          
-          for (var m in allMessages) {
-            final sender = m['senderUserId']?.toString() ?? '';
-            final receiver = m['receiverUserId']?.toString() ?? '';
-            
-            // Se eu for o remetente, o aluno é o recetor. Se eu for o recetor, o aluno é o remetente.
-            if (sender == myUserId && receiver.isNotEmpty) {
-              idAlunosComChat.add(receiver);
-            } else if (receiver == myUserId && sender.isNotEmpty) {
-              idAlunosComChat.add(sender);
-            }
-          }
-
-          // C. Filtrar a lista total de Users para mostrar APENAS os alunos com chat
-          _alunos = allUsers.where((u) {
-            final idU = (u['idUser'] ?? u['IdUser'] ?? u['id']).toString();
-            return idAlunosComChat.contains(idU); // 💡 FILTRO FINAL AQUI!
-          }).map((u) {
-            final firstName = u['firstName'] ?? u['FirstName'] ?? '';
-            final lastName = u['lastName'] ?? u['LastName'] ?? '';
-            final username = u['username'] ?? u['UserName'] ?? 'Utilizador';
-            
-            String nomeExibicao = (firstName.isNotEmpty || lastName.isNotEmpty) 
-                ? '$firstName $lastName'.trim() 
-                : username;
-
-            return {
-              "id": (u['idUser'] ?? u['IdUser'] ?? u['id']).toString(),
-              "nome": nomeExibicao,
-              "iniciais": nomeExibicao.isNotEmpty ? nomeExibicao[0].toUpperCase() : 'A',
-            };
-          }).toList();
-          
-          _isLoadingDados = false;
-        });
-      }
-    } catch (e) {
-      debugPrint('Erro no Wizard: $e');
-      if (mounted) setState(() => _isLoadingDados = false);
+      if (!mounted) return;
+      setState(() {
+        _myProfessorId = myProfessorId;
+        _students = _buildStudentOptions(
+          contacts: contacts,
+          meusAlunos: meusAlunos,
+        );
+        _subjects = _buildSubjectOptions(
+          allCourses: allCourses,
+          disciplinas: disciplinas,
+          myProfessorId: myProfessorId,
+        );
+        _isLoading = false;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _loadingError = error.toString();
+        _isLoading = false;
+      });
     }
   }
 
-  Future<void> _gravarAula() async {
-    if (_cursoSelecionado == null || _alunoSelecionado == null) return;
+  List<_StudentOption> _buildStudentOptions({
+    required List<ContactUserSummaryDto> contacts,
+    required List<ProfessorAlunoDto> meusAlunos,
+  }) {
+    final studentsByUsername = <String, ProfessorAlunoDto>{
+      for (final student in meusAlunos)
+        if (student.username.trim().isNotEmpty)
+          student.username.trim().toLowerCase(): student,
+    };
+
+    final acceptedStatuses = <String>{'accepted', 'active', 'connected'};
+
+    final matchingContacts = contacts.where((contact) {
+      final username = contact.username?.trim().toLowerCase();
+      if (username == null || username.isEmpty) return false;
+      return studentsByUsername.containsKey(username);
+    }).toList(growable: false);
+
+    final source = matchingContacts.isNotEmpty ? matchingContacts : contacts;
+
+    final options = source
+        .where((contact) => (contact.username ?? '').trim().isNotEmpty)
+        .map((contact) {
+          final username = contact.username!.trim();
+          final normalized = username.toLowerCase();
+          final student = studentsByUsername[normalized];
+          final status = contact.status.trim().toLowerCase();
+          final nameCandidate = contact.displayName?.trim();
+          final studentName = student?.fullName.trim();
+          final displayName =
+              (nameCandidate != null && nameCandidate.isNotEmpty)
+              ? nameCandidate
+              : (studentName != null && studentName.isNotEmpty)
+              ? studentName
+              : username;
+
+          return _StudentOption(
+            userId: student?.id.trim().isNotEmpty == true
+                ? student!.id.trim()
+                : contact.contactUserId.trim(),
+            username: username,
+            displayName: displayName,
+            status: acceptedStatuses.contains(status)
+                ? 'Chat ativo'
+                : 'Contacto',
+          );
+        })
+        .where((student) => student.userId.isNotEmpty)
+        .toList(growable: false);
+
+    return options..sort(
+      (left, right) => left.displayName.toLowerCase().compareTo(
+        right.displayName.toLowerCase(),
+      ),
+    );
+  }
+
+  List<_SubjectOption> _buildSubjectOptions({
+    required List<dynamic> allCourses,
+    required List<DisciplinaDto> disciplinas,
+    required String? myProfessorId,
+  }) {
+    final coursesByDisciplinaId = <String, List<Map<String, dynamic>>>{};
+    for (final dynamic rawCourse in allCourses) {
+      if (rawCourse is! Map) continue;
+
+      final course = Map<String, dynamic>.from(rawCourse);
+      final professorId =
+          (course['idProfessor'] ??
+                  course['IdProfessor'] ??
+                  course['id_professor'] ??
+                  course['Id_Professor'])
+              ?.toString()
+              .trim();
+      if (myProfessorId != null &&
+          myProfessorId.isNotEmpty &&
+          professorId != myProfessorId) {
+        continue;
+      }
+
+      final disciplinaId =
+          (course['idDisciplina'] ??
+                  course['IdDisciplina'] ??
+                  course['id_disciplina'])
+              ?.toString()
+              .trim();
+      if (disciplinaId == null || disciplinaId.isEmpty) continue;
+
+      (coursesByDisciplinaId[disciplinaId] ??= <Map<String, dynamic>>[])
+          .add(course);
+    }
+
+    final disciplinasOrdenadas = disciplinas
+      ..sort((left, right) =>
+          left.nome.trim().toLowerCase().compareTo(right.nome.trim().toLowerCase()));
+
+    return disciplinasOrdenadas.map((disciplina) {
+      final disciplinaId = disciplina.idDisciplina.trim();
+      final linkedCourses =
+          coursesByDisciplinaId[disciplinaId] ?? const <Map<String, dynamic>>[];
+      final firstCourse = linkedCourses.isEmpty ? null : linkedCourses.first;
+      final courseId =
+          (firstCourse?['idCourse'] ??
+                  firstCourse?['IdCourse'] ??
+                  firstCourse?['id_course'] ??
+                  firstCourse?['Id_Course'])
+              ?.toString()
+              .trim() ??
+          '';
+      final courseName = (firstCourse?['name'] ?? firstCourse?['Name'])
+          ?.toString()
+          .trim();
+
+      final subtitle = linkedCourses.isEmpty
+          ? 'Sem curso configurado para marcação'
+          : (courseName != null &&
+                courseName.isNotEmpty &&
+                courseName.toLowerCase() != disciplina.nome.trim().toLowerCase())
+          ? courseName
+          : linkedCourses.length > 1
+          ? '${linkedCourses.length} cursos associados'
+          : null;
+
+      return _SubjectOption(
+        disciplinaId: disciplinaId,
+        courseId: courseId,
+        title: disciplina.nome.trim().isEmpty ? 'Disciplina' : disciplina.nome.trim(),
+        subtitle: subtitle,
+        isAvailable: courseId.isNotEmpty,
+      );
+    }).toList(growable: false);
+  }
+
+  TimeOfDay _addMinutes(TimeOfDay value, int minutesToAdd) {
+    final totalMinutes = value.hour * 60 + value.minute + minutesToAdd;
+    final safeMinutes = totalMinutes.clamp(0, (23 * 60) + 59);
+    return TimeOfDay(hour: safeMinutes ~/ 60, minute: safeMinutes % 60);
+  }
+
+  DateTime? get _startDateTime {
+    if (_selectedDate == null || _startTime == null) return null;
+    return DateTime(
+      _selectedDate!.year,
+      _selectedDate!.month,
+      _selectedDate!.day,
+      _startTime!.hour,
+      _startTime!.minute,
+    );
+  }
+
+  DateTime? get _endDateTime {
+    if (_selectedDate == null || _endTime == null) return null;
+    return DateTime(
+      _selectedDate!.year,
+      _selectedDate!.month,
+      _selectedDate!.day,
+      _endTime!.hour,
+      _endTime!.minute,
+    );
+  }
+
+  bool get _isScheduleValid {
+    final start = _startDateTime;
+    final end = _endDateTime;
+    if (start == null || end == null) return false;
+    return end.isAfter(start);
+  }
+
+  bool get _canGoNext {
+    switch (_step) {
+      case _MarcarAulaStep.schedule:
+        return _selectedDate != null &&
+            _startTime != null &&
+            _endTime != null &&
+            _isScheduleValid;
+      case _MarcarAulaStep.student:
+        return _selectedStudent != null;
+      case _MarcarAulaStep.subject:
+        return _selectedSubject != null && _selectedSubject!.isAvailable;
+      case _MarcarAulaStep.summary:
+        return true;
+    }
+  }
+
+  Future<void> _pickDate() async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate ?? now,
+      firstDate: DateTime(now.year, now.month, now.day),
+      lastDate: now.add(const Duration(days: 365)),
+    );
+
+    if (picked == null) return;
+    setState(() => _selectedDate = picked);
+  }
+
+  Future<void> _pickTime({required bool isStart}) async {
+    final initialValue = isStart
+        ? (_startTime ?? const TimeOfDay(hour: 10, minute: 0))
+        : (_endTime ??
+              (_startTime != null
+                  ? _addMinutes(_startTime!, 60)
+                  : const TimeOfDay(hour: 11, minute: 0)));
+
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: initialValue,
+    );
+
+    if (picked == null) return;
+    setState(() {
+      if (isStart) {
+        _startTime = picked;
+        _endTime ??= _addMinutes(picked, 60);
+      } else {
+        _endTime = picked;
+      }
+    });
+  }
+
+  String _formatDate(DateTime value) {
+    return '${_weekdays[value.weekday - 1]}, ${value.day.toString().padLeft(2, '0')} ${_months[value.month - 1]} ${value.year}';
+  }
+
+  String _formatTime(TimeOfDay value) {
+    final hour = value.hour.toString().padLeft(2, '0');
+    final minute = value.minute.toString().padLeft(2, '0');
+    return '$hour:$minute';
+  }
+
+  String _initials(String value) {
+    final parts = value
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((part) => part.isNotEmpty)
+        .toList(growable: false);
+    if (parts.isEmpty) return 'AL';
+    if (parts.length == 1) return parts.first.substring(0, 1).toUpperCase();
+    return '${parts.first[0]}${parts.last[0]}'.toUpperCase();
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: const Color(0xFFFB2C36),
+      ),
+    );
+  }
+
+  Future<void> _saveLesson() async {
+    if (_isSubmitting) return;
+    if (_myProfessorId == null || _myProfessorId!.isEmpty) {
+      _showError('Não foi possível identificar o professor.');
+      return;
+    }
+    if (_selectedStudent == null ||
+        _selectedSubject == null ||
+        _startDateTime == null ||
+        _endDateTime == null) {
+      _showError('Faltam dados para criar a aula.');
+      return;
+    }
+
     setState(() => _isSubmitting = true);
 
     try {
       final token = await TokenStorage().loadToken() ?? '';
-      
-      final startDt = DateTime(_dataSelecionada.year, _dataSelecionada.month, _dataSelecionada.day, _horaInicio.hour, _horaInicio.minute);
-      final endDt = DateTime(_dataSelecionada.year, _dataSelecionada.month, _dataSelecionada.day, _horaFim.hour, _horaFim.minute);
+      if (token.trim().isEmpty) {
+        throw Exception('Sessão expirada');
+      }
 
-      final String startStr = DateFormat("yyyy-MM-ddTHH:mm:ss").format(startDt);
-      final String endStr = DateFormat("yyyy-MM-ddTHH:mm:ss").format(endDt);
-      final int durationMinutes = endDt.difference(startDt).inMinutes;
-      final tituloAutomatico = "Aula de ${_cursoSelecionado!['nome']}";
+      final lessonTitle = 'Explicação de ${_selectedSubject!.title}';
+      final startStr = _startDateTime!.toIso8601String();
+      final endStr = _endDateTime!.toIso8601String();
 
-      // 1. CRIAR A AULA (LESSON)
-      final respLesson = await http.post(
+      final lessonResponse = await http.post(
         ApiConfig.uri('/api/Lessons/lessons'),
-        headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer $token'},
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
         body: jsonEncode({
-          "idProfessor": _myProfessorId,
-          "idCourse": _cursoSelecionado!['id'], 
-          "title": tituloAutomatico,
-          "scheduledStart": startStr, 
-          "scheduledEnd": endStr,    
-          "durationMinutes": durationMinutes,
-          "status": "Pending" 
+          'idProfessor': _myProfessorId,
+          'idCourse': _selectedSubject!.courseId,
+          'title': lessonTitle,
+          'scheduledStart': startStr,
+          'scheduledEnd': endStr,
+          'durationMinutes': _endDateTime!.difference(_startDateTime!).inMinutes,
+          'status': 'Pending',
         }),
       );
 
-      if (respLesson.statusCode == 200 || respLesson.statusCode == 201) {
-        final lessonData = jsonDecode(respLesson.body);
-        final idLessonCriada = (lessonData['idLesson'] ?? lessonData['IdLesson']).toString();
-
-        // 2. CRIAR A INSCRIÇÃO (ENROLLMENT)
-        final respEnrollment = await http.post(
-          ApiConfig.uri('/api/Lessons/enrollments'),
-          headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer $token'},
-          body: jsonEncode({
-            "idEnrollment": "00000000-0000-0000-0000-000000000000",
-            "idLesson": idLessonCriada,
-            "idUser": _alunoSelecionado!['id'], 
-            "status": "Pending", 
-            "pricePaid": 0.0
-          }),
-        );
-
-        if (respEnrollment.statusCode == 200 || respEnrollment.statusCode == 201) {
-          final enrollmentData = jsonDecode(respEnrollment.body);
-          final idEnrollmentCriado = (enrollmentData['idEnrollment'] ?? enrollmentData['IdEnrollment']).toString();
-          
-          // 3. CRIAR OS DADOS DA NOTIFICAÇÃO
-          final startFormatted = DateFormat('dd/MM/yyyy HH:mm').format(startDt);
-          final msgDescritiva = 'Foi marcada uma aula de ${_cursoSelecionado!['nome']} para $startFormatted. Por favor, confirma a tua disponibilidade!';
-          
-          final msgNotificacao = jsonEncode({
-            "text": msgDescritiva,
-            "idEnrollment": idEnrollmentCriado,
-            "idLesson": idLessonCriada
-          });
-
-          // 4. ENVIAR NOTIFICAÇÃO AO ALUNO
-          final respNotif = await http.post(
-            ApiConfig.uri('/api/Communication/notifications'),
-            headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer $token'},
-            body: jsonEncode({
-              "IdUser": _alunoSelecionado!['id'],
-              "Type": "Aula Pendente",            
-              "Message": msgNotificacao, 
-              "WasRead": false,                  
-              "CreatedAt": DateTime.now().toUtc().toIso8601String(),
-              "UpdatedAt": DateTime.now().toUtc().toIso8601String()
-            }),
-          );
-
-          // 5. IMPRIMIR O RESULTADO DA NOTIFICAÇÃO NA CONSOLA DO VS CODE
-          debugPrint('==== TESTE DE NOTIFICAÇÃO ====');
-          debugPrint('STATUS CODE: ${respNotif.statusCode}');
-          debugPrint('RESPOSTA: ${respNotif.body}');
-          debugPrint('==============================');
-
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Aula marcada e notificação enviada ao aluno!'), backgroundColor: Colors.orange));
-            Navigator.pop(context, true); 
-          }
-        }
+      if (lessonResponse.statusCode < 200 || lessonResponse.statusCode >= 300) {
+        throw Exception('Não foi possível criar a aula (${lessonResponse.statusCode}).');
       }
-    } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro: $e'), backgroundColor: Colors.red));
+
+      final lessonData = jsonDecode(lessonResponse.body) as Map<String, dynamic>;
+      final lessonId = (lessonData['idLesson'] ?? lessonData['IdLesson'])?.toString();
+      if (lessonId == null || lessonId.isEmpty) {
+        throw Exception('A resposta da criação da aula é inválida.');
+      }
+
+      final enrollmentResponse = await http.post(
+        ApiConfig.uri('/api/Lessons/enrollments'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({
+          'idEnrollment': '00000000-0000-0000-0000-000000000000',
+          'idLesson': lessonId,
+          'idUser': _selectedStudent!.userId,
+          'status': 'Pending',
+          'pricePaid': 0.0,
+        }),
+      );
+
+      if (enrollmentResponse.statusCode < 200 ||
+          enrollmentResponse.statusCode >= 300) {
+        await http.delete(
+          ApiConfig.uri('/api/Lessons/lessons/$lessonId'),
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+        );
+        throw Exception('A aula foi criada, mas não foi possível associar o aluno.');
+      }
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Pedido de aula enviado. Fica pendente até o aluno aceitar.'),
+          backgroundColor: Color(0xFFF59E0B),
+        ),
+      );
+      Navigator.of(context).pop(true);
+    } catch (error) {
+      _showError(error.toString());
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
   }
 
-  void _nextStep() => setState(() => _currentStep++);
-  void _previousStep() => setState(() => _currentStep--);
+  void _goNext() {
+    if (!_canGoNext) return;
+    setState(() => _step = _MarcarAulaStep.values[_step.index + 1]);
+  }
+
+  void _goBack() {
+    if (_step == _MarcarAulaStep.schedule) return;
+    setState(() => _step = _MarcarAulaStep.values[_step.index - 1]);
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      clipBehavior: Clip.antiAlias, 
-      backgroundColor: const Color(0xFFF9FAFB),
-      child: SizedBox(
-        width: 700, 
-        child: _isLoadingDados 
-          ? const SizedBox(height: 300, child: Center(child: CircularProgressIndicator()))
-          : AnimatedSwitcher(
-              duration: const Duration(milliseconds: 300),
-              child: _buildCurrentStepContent(),
-            ),
-      ),
-    );
-  }
-
-  Widget _buildCurrentStepContent() {
-    switch (_currentStep) {
-      case 0: return _buildStepAlunos();
-      case 1: return _buildStepAreas();
-      case 2: return _buildStepDataHora(); // 💡 PASSO RECUPERADO
-      case 3: return _buildStepRevisao();
-      default: return const SizedBox();
-    }
-  }
-
-  // ==========================================
-  // PASSO 1: ALUNOS
-  // ==========================================
-  Widget _buildStepAlunos() {
-    return Column(
-      key: const ValueKey('step_alunos'),
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-          color: primaryOrange,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('Marcar aula', style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 4),
-                  Text('${_alunos.length} alunos', style: const TextStyle(color: Colors.white70, fontSize: 14)),
-                ],
-              ),
-              IconButton(
-                icon: const Icon(Icons.close, color: Colors.white),
-                onPressed: () => Navigator.of(context).pop(),
-              )
-            ],
-          ),
-        ),
-        Container(
-          color: Colors.white,
-          padding: const EdgeInsets.all(24),
-          constraints: const BoxConstraints(maxHeight: 400),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Seus Alunos', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textMain)),
-              const SizedBox(height: 16),
-              Expanded(
-                child: _alunos.isEmpty 
-                  ? const Center(child: Text("Não tens alunos na tua lista de chats/aulas."))
-                  : ListView.separated(
-                      itemCount: _alunos.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 16),
-                      itemBuilder: (context, index) {
-                        final aluno = _alunos[index];
-                        return _buildStudentCard(aluno);
-                      },
-                    ),
-              ),
-            ],
-          ),
-        ),
-        Container(
-          padding: const EdgeInsets.all(24),
-          color: const Color(0xFFF9FAFB),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text('Fechar', style: TextStyle(color: Color(0xFF667085), fontSize: 16)),
-              ),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: primaryOrange,
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                ),
-                onPressed: () {},
-                child: const Text('Adicionar Aluno', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-              ),
-            ],
-          ),
-        )
-      ],
-    );
-  }
-
-  Widget _buildStudentCard(Map<String, dynamic> aluno) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF9FAFB),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFEAECF0)),
-      ),
-      child: Column(
+    return AlertDialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      title: Row(
         children: [
-          Row(
-            children: [
-              CircleAvatar(
-                radius: 24,
-                backgroundColor: Colors.blueAccent,
-                child: Text(aluno['iniciais'], style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-              ),
-              const SizedBox(width: 16),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(aluno['nome'], style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: textMain)),
-                  const Row(
-                    children: [
-                      Icon(Icons.star, color: Colors.amber, size: 16),
-                      SizedBox(width: 4),
-                      Text('Aluno', style: TextStyle(color: Color(0xFF667085), fontSize: 14)),
-                    ],
-                  ),
-                ],
-              )
-            ],
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: primaryOrange, 
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                  ),
-                  onPressed: () {
-                    _alunoSelecionado = aluno;
-                    _nextStep(); // -> Áreas
+          if (_step != _MarcarAulaStep.schedule)
+            IconButton(
+              onPressed: _goBack,
+              icon: const Icon(Icons.arrow_back_ios_new_rounded),
+            ),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  switch (_step) {
+                    _MarcarAulaStep.schedule => 'Criar Aula',
+                    _MarcarAulaStep.student => 'Selecionar Aluno',
+                    _MarcarAulaStep.subject => 'Selecionar Disciplina',
+                    _MarcarAulaStep.summary => 'Resumo da Explicação',
                   },
-                  child: const Text('Marcar Aula', style: TextStyle(fontWeight: FontWeight.bold)),
+                  style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w700),
                 ),
-              ),
-            ],
-          )
+                const SizedBox(height: 6),
+                Text(
+                  switch (_step) {
+                    _MarcarAulaStep.schedule => 'Escolhe o dia e a hora da explicação.',
+                    _MarcarAulaStep.student => 'Seleciona o aluno que vai receber a aula.',
+                    _MarcarAulaStep.subject => 'Seleciona a disciplina associada.',
+                    _MarcarAulaStep.summary => 'Confirma antes de enviar ao aluno.',
+                  },
+                  style: TextStyle(color: _textMutedColor, fontSize: 14),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
-    );
-  }
-
-  // ==========================================
-  // PASSO 2: ÁREAS
-  // ==========================================
-  Widget _buildStepAreas() {
-    return Column(
-      key: const ValueKey('step_areas'),
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-          color: Colors.white,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  IconButton(icon: Icon(Icons.arrow_back_ios, color: textMain, size: 20), onPressed: _previousStep),
-                  const SizedBox(width: 8),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Escolha uma Área', style: TextStyle(color: textMain, fontSize: 24, fontWeight: FontWeight.bold)),
-                      const SizedBox(height: 4),
-                      const Text('Selecione a disciplina que deseja lecionar', style: TextStyle(color: Color(0xFF667085), fontSize: 14)),
-                    ],
+      content: SizedBox(
+        width: 720,
+        child: _isLoading
+            ? const SizedBox(height: 380, child: Center(child: CircularProgressIndicator()))
+            : _loadingError != null
+            ? SizedBox(
+                height: 380,
+                child: Center(
+                  child: Text(
+                    _loadingError!,
+                    textAlign: TextAlign.center,
                   ),
-                ],
-              ),
-              IconButton(icon: const Icon(Icons.close, color: Color(0xFF667085)), onPressed: () => Navigator.of(context).pop())
-            ],
-          ),
-        ),
-        Container(
-          color: Colors.white,
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-          height: 350, 
-          child: _cursos.isEmpty 
-            ? const Center(child: Text("Não tens disciplinas associadas ao teu perfil."))
-            : SingleChildScrollView(
-                child: Wrap(
-                  spacing: 16,
-                  runSpacing: 16,
-                  children: _cursos.map((c) => _buildAreaCard(c)).toList(),
                 ),
+              )
+            : AnimatedSwitcher(
+                duration: const Duration(milliseconds: 180),
+                child: switch (_step) {
+                  _MarcarAulaStep.schedule => _buildScheduleStep(),
+                  _MarcarAulaStep.student => _buildStudentStep(),
+                  _MarcarAulaStep.subject => _buildSubjectStep(),
+                  _MarcarAulaStep.summary => _buildSummaryStep(),
+                },
               ),
-        ),
-        Container(
-          padding: const EdgeInsets.all(24),
-          color: const Color(0xFFF9FAFB),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(_cursoSelecionado?['nome'] ?? 'Nenhuma área selecionada', style: const TextStyle(color: Color(0xFF667085), fontSize: 16)),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _cursoSelecionado != null ? const Color(0xFFD0D5DD) : const Color(0xFFEAECF0),
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  elevation: 0,
+      ),
+      actions: _isLoading
+          ? const []
+          : [
+              TextButton(
+                onPressed: _isSubmitting ? null : () => Navigator.of(context).pop(false),
+                child: const Text('Cancelar'),
+              ),
+              if (_step != _MarcarAulaStep.summary)
+                ElevatedButton(
+                  onPressed: _canGoNext ? _goNext : null,
+                  style: ElevatedButton.styleFrom(backgroundColor: _primaryColor),
+                  child: const Text('Continuar', style: TextStyle(color: Colors.white)),
+                )
+              else
+                ElevatedButton(
+                  onPressed: _isSubmitting ? null : _saveLesson,
+                  style: ElevatedButton.styleFrom(backgroundColor: _successColor),
+                  child: _isSubmitting
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        )
+                      : const Text('Enviar ao Aluno', style: TextStyle(color: Colors.white)),
                 ),
-                onPressed: _cursoSelecionado != null ? () => _nextStep() : null, // -> Data/Hora
-                child: Text('Confirmar Seleção', style: TextStyle(color: _cursoSelecionado != null ? textMain : const Color(0xFF98A2B3), fontWeight: FontWeight.bold)),
-              ),
             ],
-          ),
-        )
-      ],
     );
   }
 
-  Widget _buildAreaCard(Map<String, dynamic> curso) {
-    bool isSelected = _cursoSelecionado != null && _cursoSelecionado!['id'] == curso['id'];
-    IconData icone = Icons.book;
-    final nomeLower = curso['nome'].toString().toLowerCase();
-    if (nomeLower.contains('matemática')) icone = Icons.calculate;
-    if (nomeLower.contains('física') || nomeLower.contains('química')) icone = Icons.science;
-    if (nomeLower.contains('inglês') || nomeLower.contains('português')) icone = Icons.translate;
-
-    return GestureDetector(
-      onTap: () => setState(() => _cursoSelecionado = curso),
+  Widget _buildScheduleStep() {
+    return SizedBox(
+      key: const ValueKey('schedule-step'),
+      height: 380,
       child: Container(
-        width: 280,
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: isSelected ? darkOrange : const Color(0xFFEAECF0), width: isSelected ? 2 : 1),
-          boxShadow: isSelected ? [const BoxShadow(color: Color.fromRGBO(255, 107, 0, 0.1), blurRadius: 8)] : null,
+          color: _surfaceColor,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: _borderColor),
         ),
-        child: Row(
+        child: Column(
           children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(color: const Color(0xFFE0F2FE), borderRadius: BorderRadius.circular(8)),
-              child: Icon(icone, color: Colors.blue),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(curso['nome'], style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: textMain)),
-                  const Text('Selecionar disciplina', style: TextStyle(fontSize: 12, color: Color(0xFF667085))),
-                ],
+            InkWell(
+              onTap: _pickDate,
+              borderRadius: BorderRadius.circular(16),
+              child: _SelectorTile(
+                icon: Icons.event_outlined,
+                label: 'Data',
+                value: _selectedDate == null ? 'Selecionar data' : _formatDate(_selectedDate!),
               ),
-            )
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: InkWell(
+                    onTap: () => _pickTime(isStart: true),
+                    borderRadius: BorderRadius.circular(16),
+                    child: _SelectorTile(
+                      icon: Icons.schedule_rounded,
+                      label: 'Início',
+                      value: _startTime == null ? '--:--' : _formatTime(_startTime!),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: InkWell(
+                    onTap: () => _pickTime(isStart: false),
+                    borderRadius: BorderRadius.circular(16),
+                    child: _SelectorTile(
+                      icon: Icons.schedule_rounded,
+                      label: 'Fim',
+                      value: _endTime == null ? '--:--' : _formatTime(_endTime!),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                _startTime != null && _endTime != null && !_isScheduleValid
+                    ? 'A hora de fim tem de ser depois da hora de início.'
+                    : 'A aula vai ser criada como pendente até o aluno aceitar.',
+                style: TextStyle(
+                  color: _startTime != null && _endTime != null && !_isScheduleValid
+                      ? const Color(0xFFFB2C36)
+                      : _textMutedColor,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
           ],
         ),
       ),
     );
   }
 
-  // ==========================================
-  // PASSO 3: DATA E HORA (O Passo que faltava!)
-  // ==========================================
-  Widget _buildStepDataHora() {
-    return Column(
-      key: const ValueKey('step_datahora'),
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-          color: Colors.white,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  IconButton(icon: Icon(Icons.arrow_back_ios, color: textMain, size: 20), onPressed: _previousStep),
-                  const SizedBox(width: 8),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Definir Horário', style: TextStyle(color: textMain, fontSize: 24, fontWeight: FontWeight.bold)),
-                      const SizedBox(height: 4),
-                      const Text('Confirma ou ajusta a hora da aula', style: TextStyle(color: Color(0xFF667085), fontSize: 14)),
-                    ],
-                  ),
-                ],
-              ),
-              IconButton(icon: const Icon(Icons.close, color: Color(0xFF667085)), onPressed: () => Navigator.of(context).pop())
-            ],
-          ),
+  Widget _buildStudentStep() {
+    return SizedBox(
+      key: const ValueKey('student-step'),
+      height: 380,
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: _surfaceColor,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: _borderColor),
         ),
-        Container(
-          color: Colors.white,
-          padding: const EdgeInsets.all(40),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('Data da Aula:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-              const SizedBox(height: 8),
-              InkWell(
-                onTap: () async {
-                  final picked = await showDatePicker(
-                    context: context,
-                    initialDate: _dataSelecionada,
-                    firstDate: DateTime.now(),
-                    lastDate: DateTime.now().add(const Duration(days: 365)),
+        child: _students.isEmpty
+            ? Center(
+                child: Text(
+                  'Ainda não tens contactos de chat disponíveis para selecionar.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: _textMutedColor),
+                ),
+              )
+            : ListView.separated(
+                itemCount: _students.length,
+                separatorBuilder: (context, index) => const SizedBox(height: 12),
+                itemBuilder: (context, index) {
+                  final student = _students[index];
+                  final isSelected = _selectedStudent?.userId == student.userId;
+                  return _SelectableTile(
+                    title: student.displayName,
+                    subtitle: '@${student.username}',
+                    badge: student.status,
+                    initials: _initials(student.displayName),
+                    selected: isSelected,
+                    onTap: () => setState(() => _selectedStudent = student),
                   );
-                  if (picked != null) setState(() => _dataSelecionada = picked);
                 },
-                child: Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(8)),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(DateFormat('dd/MM/yyyy').format(_dataSelecionada)),
-                      const Icon(Icons.calendar_today, size: 18, color: Colors.grey),
-                    ],
-                  ),
-                ),
               ),
-              const SizedBox(height: 24),
-              Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text('Hora Início:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                        const SizedBox(height: 8),
-                        InkWell(
-                          onTap: () async {
-                            final picked = await showTimePicker(context: context, initialTime: _horaInicio);
-                            if (picked != null) setState(() { _horaInicio = picked; });
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(8)),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(_horaInicio.format(context)),
-                                const Icon(Icons.access_time, size: 18, color: Colors.grey),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text('Hora Fim:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                        const SizedBox(height: 8),
-                        InkWell(
-                          onTap: () async {
-                            final picked = await showTimePicker(context: context, initialTime: _horaFim);
-                            if (picked != null) setState(() { _horaFim = picked; });
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(8)),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(_horaFim.format(context)),
-                                const Icon(Icons.access_time_filled, size: 18, color: Colors.grey),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-        Container(
-          padding: const EdgeInsets.all(24),
-          color: const Color(0xFFF9FAFB),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: darkOrange,
-                  padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                ),
-                onPressed: _nextStep, // -> Revisão
-                child: const Text('Avançar', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-              ),
-            ],
-          ),
-        )
-      ],
+      ),
     );
   }
 
-  // ==========================================
-  // PASSO 4: REVISÃO (Bug visual resolvido!)
-  // ==========================================
-  Widget _buildStepRevisao() {
-    final startStr = '${_horaInicio.hour.toString().padLeft(2, '0')}:${_horaInicio.minute.toString().padLeft(2, '0')}';
-    final endStr = '${_horaFim.hour.toString().padLeft(2, '0')}:${_horaFim.minute.toString().padLeft(2, '0')}';
-    
-    final diasStr = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'];
-    final mesesStr = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
-    final dataDescritiva = '${diasStr[_dataSelecionada.weekday - 1]}, ${_dataSelecionada.day} ${mesesStr[_dataSelecionada.month - 1]}';
-
-    return Column(
-      key: const ValueKey('step_revisao'),
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-          color: primaryOrange,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  IconButton(icon: const Icon(Icons.arrow_back_ios, color: Colors.white, size: 20), onPressed: _previousStep),
-                  const SizedBox(width: 8),
-                  const Text('Revisão da marcação', style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
-                ],
+  Widget _buildSubjectStep() {
+    return SizedBox(
+      key: const ValueKey('subject-step'),
+      height: 380,
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: _surfaceColor,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: _borderColor),
+        ),
+        child: _subjects.isEmpty
+            ? Center(
+                child: Text(
+                  'Não foram encontradas disciplinas associadas ao professor.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: _textMutedColor),
+                ),
+              )
+            : ListView.separated(
+                itemCount: _subjects.length,
+                separatorBuilder: (context, index) => const SizedBox(height: 12),
+                itemBuilder: (context, index) {
+                  final subject = _subjects[index];
+                  final isSelected = _selectedSubject?.courseId == subject.courseId;
+                  return _SelectableTile(
+                    title: subject.title,
+                    subtitle: subject.subtitle ?? 'Disciplina disponível para marcação',
+                    badge: subject.isAvailable ? 'Disponível' : 'Indisponível',
+                    initials: 'D',
+                    selected: isSelected,
+                    enabled: subject.isAvailable,
+                    onTap: () => setState(() => _selectedSubject = subject),
+                  );
+                },
               ),
-              IconButton(icon: const Icon(Icons.close, color: Colors.white), onPressed: () => Navigator.of(context).pop())
+      ),
+    );
+  }
+
+  Widget _buildSummaryStep() {
+    return SizedBox(
+      key: const ValueKey('summary-step'),
+      height: 380,
+      child: Container(
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: _surfaceColor,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: _borderColor),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _SummaryRow(
+              icon: Icons.event_available_rounded,
+              label: 'Data',
+              value: _startDateTime == null ? '-' : _formatDate(_startDateTime!),
+            ),
+            const SizedBox(height: 14),
+            _SummaryRow(
+              icon: Icons.schedule_rounded,
+              label: 'Hora',
+              value: _startTime == null || _endTime == null
+                  ? '-'
+                  : '${_formatTime(_startTime!)} - ${_formatTime(_endTime!)}',
+            ),
+            const SizedBox(height: 14),
+            _SummaryRow(
+              icon: Icons.person_outline_rounded,
+              label: 'Aluno',
+              value: _selectedStudent?.displayName ?? '-',
+            ),
+            const SizedBox(height: 14),
+            _SummaryRow(
+              icon: Icons.menu_book_rounded,
+              label: 'Disciplina',
+              value: _selectedSubject?.title ?? '-',
+            ),
+            const Spacer(),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFF7E8),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFFF59E0B)),
+              ),
+              child: const Text(
+                'Depois de enviares, a aula fica pendente até o aluno aceitar. Quando aceitar, aparece confirmada nos calendários dos dois.',
+                style: TextStyle(
+                  color: Color(0xFFB45309),
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SelectorTile extends StatelessWidget {
+  const _SelectorTile({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              color: Color(0xFF64748B),
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Icon(icon, size: 18),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  value,
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                ),
+              ),
             ],
           ),
-        ),
+        ],
+      ),
+    );
+  }
+}
 
-        Container(
-          color: Colors.white,
-          padding: const EdgeInsets.all(40),
-          child: Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFFEAECF0), width: 1.5),
-              boxShadow: const [BoxShadow(color: Color.fromRGBO(0, 0, 0, 0.05), blurRadius: 10, offset: Offset(0, 4))],
+class _SelectableTile extends StatelessWidget {
+  const _SelectableTile({
+    required this.title,
+    required this.subtitle,
+    required this.badge,
+    required this.initials,
+    required this.selected,
+    required this.onTap,
+    this.enabled = true,
+  });
+
+  final String title;
+  final String subtitle;
+  final String badge;
+  final String initials;
+  final bool selected;
+  final bool enabled;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final borderColor = selected
+        ? const Color(0xFFFF6B00)
+        : enabled
+        ? const Color(0xFFE2E8F0)
+        : const Color(0xFFE5E7EB);
+
+    return InkWell(
+      onTap: enabled ? onTap : null,
+      borderRadius: BorderRadius.circular(18),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 160),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: selected
+              ? const Color(0xFFFFF1E8)
+              : enabled
+              ? Colors.white
+              : const Color(0xFFF8FAFC),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: borderColor),
+        ),
+        child: Row(
+          children: [
+            CircleAvatar(
+              radius: 22,
+              backgroundColor: selected
+                  ? const Color(0xFFFF6B00)
+                  : const Color(0xFFE2E8F0),
+              child: Text(
+                initials,
+                style: TextStyle(
+                  color: selected ? Colors.white : const Color(0xFF101828),
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
             ),
-            child: Row(
-              children: [
-                CircleAvatar(
-                  radius: 30,
-                  backgroundColor: Colors.blueAccent,
-                  child: Text(_alunoSelecionado?['iniciais'] ?? '', style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
-                ),
-                const SizedBox(width: 20),
-                // 💡 CORREÇÃO DO OVERFLOW: Troquei a Row interna por Wrap para o texto não bater nos botões
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(_alunoSelecionado?['nome'] ?? '', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: textMain)),
-                      const SizedBox(height: 8),
-                      Wrap(
-                        spacing: 12,
-                        runSpacing: 8,
-                        crossAxisAlignment: WrapCrossAlignment.center,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                            decoration: BoxDecoration(color: Colors.blueAccent, borderRadius: BorderRadius.circular(20)),
-                            child: Text(_cursoSelecionado?['nome'] ?? '', style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
-                          ),
-                          Text(dataDescritiva, style: const TextStyle(color: Color(0xFF667085), fontSize: 14)),
-                          Text('$startStr - $endStr', style: TextStyle(color: textMain, fontSize: 14, fontWeight: FontWeight.bold)),
-                        ],
-                      ),
-                    ],
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: enabled ? const Color(0xFF101828) : const Color(0xFF9CA3AF),
+                    ),
                   ),
-                ),
-                const SizedBox(width: 12),
-                OutlinedButton.icon(
-                  onPressed: () => Navigator.of(context).pop(),
-                  icon: const Icon(Icons.close, color: Colors.redAccent, size: 18),
-                  label: const Text('Cancelar', style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    side: const BorderSide(color: Colors.redAccent),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  const SizedBox(height: 4),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(color: Color(0xFF64748B), fontSize: 13),
                   ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF1F5F9),
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Text(
+                badge,
+                style: const TextStyle(
+                  color: Color(0xFF64748B),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
                 ),
-                const SizedBox(width: 12),
-                ElevatedButton(
-                  onPressed: _isSubmitting ? null : _gravarAula,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: darkOrange,
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  ),
-                  child: _isSubmitting 
-                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                    : const Text('Enviar', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-                ),
-              ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SummaryRow extends StatelessWidget {
+  const _SummaryRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icon, color: const Color(0xFF64748B), size: 18),
+        const SizedBox(width: 10),
+        SizedBox(
+          width: 90,
+          child: Text(
+            label,
+            style: const TextStyle(
+              color: Color(0xFF64748B),
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            style: const TextStyle(
+              color: Color(0xFF101828),
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
             ),
           ),
         ),

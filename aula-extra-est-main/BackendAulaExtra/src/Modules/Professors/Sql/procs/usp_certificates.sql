@@ -21,6 +21,7 @@ $$;
 CREATE OR REPLACE FUNCTION public.usp_certificates_insert(
     p_id_professor uuid,
     p_name varchar,
+    p_description text,
     p_file_url text,
     p_verified boolean,
     p_verified_by_user_id uuid,
@@ -30,10 +31,11 @@ CREATE OR REPLACE FUNCTION public.usp_certificates_insert(
 RETURNS uuid
 LANGUAGE sql
 AS $$
-    INSERT INTO public.certificates (id_professor, name, file_url, verified, verified_by_user_id, created_at, updated_at)
+    INSERT INTO public.certificates (id_professor, name, description, file_url, verified, verified_by_user_id, created_at, updated_at)
     VALUES (
         p_id_professor,
         p_name,
+        p_description,
         p_file_url,
         COALESCE(p_verified, false),
         p_verified_by_user_id,
@@ -47,6 +49,7 @@ CREATE OR REPLACE FUNCTION public.usp_certificates_update(
     p_id_certificate uuid,
     p_id_professor uuid,
     p_name varchar,
+    p_description text,
     p_file_url text,
     p_verified boolean,
     p_verified_by_user_id uuid
@@ -58,6 +61,7 @@ AS $$
         UPDATE public.certificates
         SET id_professor = p_id_professor,
             name = p_name,
+            description = p_description,
             file_url = p_file_url,
             verified = COALESCE(p_verified, verified),
             verified_by_user_id = p_verified_by_user_id,

@@ -42,3 +42,9 @@ void destroyEmbed(String id) {}
 void destroyAll() {}
 void hideAll() {}
 void showAll() {}
+
+void setBottomLeftCutout({
+  required String id,
+  required double width,
+  required double height,
+}) {}

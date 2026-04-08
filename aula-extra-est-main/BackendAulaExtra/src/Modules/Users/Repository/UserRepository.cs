@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using System.Collections.Generic;
 using System.Linq;
 using ConfidantPostgreSQL.Modules.Users.Models;
+using ConfidantPostgreSQL.Modules.Users.DTOs;
 using Npgsql;
 
 namespace ConfidantPostgreSQL.Modules.Users.Repository
@@ -25,7 +26,7 @@ namespace ConfidantPostgreSQL.Modules.Users.Repository
             cmd.CommandText = @"
                 SELECT
                     id_user, email, password, first_name, last_name, education_level, birth_date,
-                    biography, auth_message, username, display_name, mobile_number, nif, inactive,
+                    biography, auth_message, username, display_name, mobile_number, phone_number, nif, website, inactive,
                     creation_date, last_update, last_user_id
                 FROM public.users
                 WHERE id_user = @p_id
@@ -47,13 +48,36 @@ namespace ConfidantPostgreSQL.Modules.Users.Repository
             cmd.CommandText = @"
                 SELECT
                     id_user, email, password, first_name, last_name, education_level, birth_date,
-                    biography, auth_message, username, display_name, mobile_number, nif, inactive,
+                    biography, auth_message, username, display_name, mobile_number, phone_number, nif, website, inactive,
                     creation_date, last_update, last_user_id
                 FROM public.users
                 WHERE lower(email) = lower(@p_email)
                 ORDER BY id_user
                 LIMIT 1;";
             cmd.Parameters.AddWithValue("p_email", email);
+
+            await using var reader = await cmd.ExecuteReaderAsync();
+            if (!await reader.ReadAsync()) return null;
+            return MapUser(reader);
+        }
+
+        public async Task<User?> GetByUsernameAsync(string username)
+        {
+            if (string.IsNullOrWhiteSpace(username)) return null;
+
+            await using var conn = new NpgsqlConnection(_connectionString);
+            await conn.OpenAsync();
+            await using var cmd = conn.CreateCommand();
+            cmd.CommandText = @"
+                SELECT
+                    id_user, email, password, first_name, last_name, education_level, birth_date,
+                    biography, auth_message, username, display_name, mobile_number, phone_number, nif, website, inactive,
+                    creation_date, last_update, last_user_id
+                FROM public.users
+                WHERE lower(username) = lower(@p_username)
+                ORDER BY id_user
+                LIMIT 1;";
+            cmd.Parameters.AddWithValue("p_username", username.Trim());
 
             await using var reader = await cmd.ExecuteReaderAsync();
             if (!await reader.ReadAsync()) return null;
@@ -276,6 +300,101 @@ namespace ConfidantPostgreSQL.Modules.Users.Repository
                 await insCmd.ExecuteNonQueryAsync();
             }
         }
+
+        public async Task<IReadOnlyList<UserNotificationDto>> GetNotificationsByUserIdAsync(Guid userId)
+        {
+            var list = new List<UserNotificationDto>();
+            await using var conn = new NpgsqlConnection(_connectionString);
+            await conn.OpenAsync();
+            await using var cmd = conn.CreateCommand();
+            cmd.CommandText = @"
+                SELECT
+                    un.id_notification AS id,
+                    COALESCE(un.type, '') AS type,
+                    CASE
+                        WHEN lower(COALESCE(un.type, '')) = 'marcar_aula' THEN 'Marcar Aula'
+                        ELSE INITCAP(REPLACE(COALESCE(un.type, ''), '_', ' '))
+                    END AS title,
+                    COALESCE(un.message, '') AS message,
+                    COALESCE(un.was_read, false) AS is_read,
+                    un.created_at AS creation_date,
+                    un.updated_at AS last_update
+                FROM public.notifications un
+                WHERE un.id_user = @p_user_id
+                  AND COALESCE(un.was_read, false) = false
+                ORDER BY COALESCE(un.updated_at, un.created_at) DESC NULLS LAST,
+                         un.id_notification DESC;";
+            cmd.Parameters.AddWithValue("p_user_id", userId);
+
+            await using var reader = await cmd.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+            {
+                list.Add(new UserNotificationDto
+                {
+                    Id = reader.GetGuid(reader.GetOrdinal("id")),
+                    Type = GetNullableString(reader, "type") ?? string.Empty,
+                    Title = GetNullableString(reader, "title") ?? string.Empty,
+                    Message = GetNullableString(reader, "message") ?? string.Empty,
+                    IsRead = !reader.IsDBNull(reader.GetOrdinal("is_read")) && reader.GetBoolean(reader.GetOrdinal("is_read")),
+                    CreationDate = GetNullableDateTime(reader, "creation_date"),
+                    LastUpdate = GetNullableDateTime(reader, "last_update")
+                });
+            }
+
+            return list;
+        }
+
+        public async Task<bool> MarkNotificationAsReadAsync(Guid userId, Guid notificationId)
+        {
+            await using var conn = new NpgsqlConnection(_connectionString);
+            await conn.OpenAsync();
+            await using var cmd = conn.CreateCommand();
+            cmd.CommandText = @"
+                UPDATE public.notifications
+                SET was_read = true,
+                    updated_at = now()
+                WHERE id_notification = @p_notification_id
+                  AND id_user = @p_user_id
+                  AND COALESCE(was_read, false) = false;";
+            cmd.Parameters.AddWithValue("p_notification_id", notificationId);
+            cmd.Parameters.AddWithValue("p_user_id", userId);
+            var rows = await cmd.ExecuteNonQueryAsync();
+            return rows > 0;
+        }
+
+        public async Task<int> MarkAllNotificationsAsReadAsync(Guid userId)
+        {
+            await using var conn = new NpgsqlConnection(_connectionString);
+            await conn.OpenAsync();
+            await using var cmd = conn.CreateCommand();
+            cmd.CommandText = @"
+                UPDATE public.notifications
+                SET was_read = true,
+                    updated_at = now()
+                WHERE id_user = @p_user_id
+                  AND COALESCE(was_read, false) = false;";
+            cmd.Parameters.AddWithValue("p_user_id", userId);
+            return await cmd.ExecuteNonQueryAsync();
+        }
+
+        public async Task<int> MarkLessonRequestNotificationsAsReadAsync(Guid userId, Guid reservationId)
+        {
+            await using var conn = new NpgsqlConnection(_connectionString);
+            await conn.OpenAsync();
+            await using var cmd = conn.CreateCommand();
+            cmd.CommandText = @"
+                UPDATE public.notifications
+                SET was_read = true,
+                    updated_at = now()
+                WHERE id_user = @p_user_id
+                  AND COALESCE(was_read, false) = false
+                  AND lower(COALESCE(type, '')) = 'marcar_aula'
+                  AND COALESCE(message, '') ILIKE '%' || @p_reservation_id || '%';";
+            cmd.Parameters.AddWithValue("p_user_id", userId);
+            cmd.Parameters.AddWithValue("p_reservation_id", reservationId.ToString());
+            return await cmd.ExecuteNonQueryAsync();
+        }
+
         private static User MapUser(NpgsqlDataReader reader)
         {
             var user = new User
@@ -292,6 +411,8 @@ namespace ConfidantPostgreSQL.Modules.Users.Repository
                 Username = GetNullableString(reader, "username"),
                 DisplayName = GetNullableString(reader, "display_name"),
                 MobileNumber = GetNullableString(reader, "mobile_number"),
+                PhoneNumber = GetNullableString(reader, "phone_number"),
+                Website = GetNullableString(reader, "website"),
                 Nif = GetNullableString(reader, "nif"),
                 Inactive = GetBoolDefaultFalse(reader, "inactive")
             };

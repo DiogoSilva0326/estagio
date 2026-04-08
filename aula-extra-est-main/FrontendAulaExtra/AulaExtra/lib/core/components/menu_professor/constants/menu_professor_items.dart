@@ -26,15 +26,32 @@ class MenuProfessorItems {
   /// - No widget do menu para renderizar a navegação e associar rotas/ações.
   static const List<MenuProfessorItemData> all = [
     MenuProfessorItemData(label: 'Meus Alunos', icon: Icons.groups_rounded),
-    MenuProfessorItemData(label: 'Calendário', icon: Icons.calendar_month_rounded),
+    MenuProfessorItemData(
+      label: 'Minhas Disciplinas',
+      icon: Icons.menu_book_rounded,
+    ),
+    MenuProfessorItemData(
+      label: 'Calendário',
+      icon: Icons.calendar_month_rounded,
+    ),
     MenuProfessorItemData(label: 'Tarefas', icon: Icons.checklist_rounded),
     MenuProfessorItemData(label: 'Arquivos', icon: Icons.folder_rounded),
     MenuProfessorItemData(label: 'Chats', icon: Icons.chat_bubble_rounded),
-    MenuProfessorItemData(label: 'Publicar Anúncio', icon: Icons.campaign_rounded),
-    MenuProfessorItemData(label: 'Disponibilidade', icon: Icons.schedule_rounded),
+    MenuProfessorItemData(
+      label: 'Publicar Anúncio',
+      icon: Icons.campaign_rounded,
+    ),
+    MenuProfessorItemData(
+      label: 'Disponibilidade',
+      icon: Icons.schedule_rounded,
+    ),
     MenuProfessorItemData(label: 'Pagamentos', icon: Icons.payments_rounded),
     MenuProfessorItemData(label: 'Avaliações', icon: Icons.star_rounded),
     MenuProfessorItemData(label: 'Perfil', icon: Icons.person_rounded),
-    MenuProfessorItemData(label: 'Notificações', icon: Icons.notifications_rounded, hasBadge: true),
+    MenuProfessorItemData(
+      label: 'Notificações',
+      icon: Icons.notifications_rounded,
+      hasBadge: true,
+    ),
   ];
 }

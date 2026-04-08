@@ -1,8 +1,17 @@
-import 'package:aula_extra/features/aluno/arquivos/constants/arquivos_mock_data.dart';
+import 'package:aula_extra/core/data/communication/dtos/chat_file_info_dto.dart';
 import 'package:flutter/material.dart';
 
 class RecentFilesTableCard extends StatelessWidget {
-  const RecentFilesTableCard({super.key});
+  const RecentFilesTableCard({
+    super.key,
+    required this.files,
+    required this.onDownloadTap,
+    required this.onDeleteTap,
+  });
+
+  final List<ChatFileInfoDto> files;
+  final ValueChanged<ChatFileInfoDto> onDownloadTap;
+  final ValueChanged<ChatFileInfoDto> onDeleteTap;
 
   @override
   Widget build(BuildContext context) {
@@ -36,10 +45,12 @@ class RecentFilesTableCard extends StatelessWidget {
             child: Column(
               children: [
                 const _TableHeaderRow(),
-                for (int i = 0; i < ArquivosMockData.recentFiles.length; i++)
+                for (int i = 0; i < files.length; i++)
                   _FileRow(
-                    data: ArquivosMockData.recentFiles[i],
-                    hasBottomBorder: i != ArquivosMockData.recentFiles.length - 1,
+                    data: files[i],
+                    hasBottomBorder: i != files.length - 1,
+                    onDownloadTap: () => onDownloadTap(files[i]),
+                    onDeleteTap: () => onDeleteTap(files[i]),
                   ),
               ],
             ),
@@ -62,7 +73,7 @@ class _TableHeaderRow extends StatelessWidget {
         children: [
           _HeaderCell(width: 397.978, text: 'NOME'),
           _HeaderCell(width: 127.221, text: 'TUTOR'),
-          _HeaderCell(width: 111.699, text: 'DATA'),
+          _HeaderCell(width: 111.699, text: 'SUBMISSÃO'),
           _HeaderCell(width: 154.465, text: 'TAMANHO'),
           _HeaderCell(width: 199.299, text: 'AÇÕES'),
         ],
@@ -97,10 +108,17 @@ class _HeaderCell extends StatelessWidget {
 }
 
 class _FileRow extends StatelessWidget {
-  const _FileRow({required this.data, required this.hasBottomBorder});
+  const _FileRow({
+    required this.data,
+    required this.hasBottomBorder,
+    required this.onDownloadTap,
+    required this.onDeleteTap,
+  });
 
-  final ArquivoRecenteRowData data;
+  final ChatFileInfoDto data;
   final bool hasBottomBorder;
+  final VoidCallback onDownloadTap;
+  final VoidCallback onDeleteTap;
 
   @override
   Widget build(BuildContext context) {
@@ -129,7 +147,7 @@ class _FileRow extends StatelessWidget {
                       borderRadius: BorderRadius.circular(13.932),
                     ),
                     child: Center(
-                      child: Icon(data.icon, size: 27.865, color: const Color(0xFF101828)),
+                      child: Icon(_fileIconFor(data.contentType), size: 27.865, color: const Color(0xFF101828)),
                     ),
                   ),
                   const SizedBox(width: 16.719),
@@ -152,7 +170,7 @@ class _FileRow extends StatelessWidget {
                             ),
                           ),
                           Text(
-                            data.fileType,
+                            _fileTypeLabel(data.contentType),
                             style: const TextStyle(
                               fontSize: 16.719,
                               fontWeight: FontWeight.w400,
@@ -168,16 +186,22 @@ class _FileRow extends StatelessWidget {
               ),
             ),
           ),
-          _BodyCell(width: 127.221, text: data.tutor),
-          _BodyCell(width: 111.699, text: data.date),
-          _BodyCell(width: 154.465, text: data.sizeLabel, alignCenterVertically: true),
+          _BodyCell(width: 127.221, text: data.uploadedByDisplayName),
+          _BodyCell(width: 111.699, text: _formatDate(data.createdAt)),
+          _BodyCell(width: 154.465, text: _formatFileSize(data.fileSizeBytes), alignCenterVertically: true),
           SizedBox(
             width: 199.299,
             child: Padding(
               padding: const EdgeInsets.only(left: 33.44),
               child: Align(
                 alignment: Alignment.centerLeft,
-                child: _DownloadButton(onTap: () {}),
+                child: Row(
+                  children: [
+                    _DownloadButton(onTap: onDownloadTap),
+                    const SizedBox(width: 8),
+                    _DeleteButton(onTap: onDeleteTap),
+                  ],
+                ),
               ),
             ),
           ),
@@ -185,6 +209,56 @@ class _FileRow extends StatelessWidget {
       ),
     );
   }
+}
+
+IconData _fileIconFor(String contentType) {
+  final normalized = contentType.toLowerCase();
+  if (normalized.contains('pdf')) return Icons.picture_as_pdf_rounded;
+  if (normalized.contains('image')) return Icons.image_rounded;
+  if (normalized.contains('presentation') || normalized.contains('powerpoint')) {
+    return Icons.slideshow_rounded;
+  }
+  if (normalized.contains('sheet') || normalized.contains('excel') || normalized.contains('csv')) {
+    return Icons.table_chart_rounded;
+  }
+  if (normalized.contains('audio')) return Icons.audio_file_rounded;
+  if (normalized.contains('video')) return Icons.video_file_rounded;
+  return Icons.description_rounded;
+}
+
+String _fileTypeLabel(String contentType) {
+  final normalized = contentType.toLowerCase();
+  if (normalized.contains('pdf')) return 'PDF';
+  if (normalized.contains('image')) return 'Imagem';
+  if (normalized.contains('presentation') || normalized.contains('powerpoint')) return 'Apresentação';
+  if (normalized.contains('sheet') || normalized.contains('excel') || normalized.contains('csv')) return 'Folha de cálculo';
+  if (normalized.contains('audio')) return 'Áudio';
+  if (normalized.contains('video')) return 'Vídeo';
+  if (normalized.contains('word') || normalized.contains('document') || normalized.contains('text')) return 'Documento';
+  return 'Ficheiro';
+}
+
+String _formatDate(DateTime value) {
+  final local = value.toLocal();
+  final day = local.day.toString().padLeft(2, '0');
+  final month = local.month.toString().padLeft(2, '0');
+  final year = local.year.toString();
+  final hour = local.hour.toString().padLeft(2, '0');
+  final minute = local.minute.toString().padLeft(2, '0');
+  return '$day/$month/$year\n$hour:$minute';
+}
+
+String _formatFileSize(int bytes) {
+  if (bytes <= 0) return '0 B';
+  const units = ['B', 'KB', 'MB', 'GB'];
+  var size = bytes.toDouble();
+  var unitIndex = 0;
+  while (size >= 1024 && unitIndex < units.length - 1) {
+    size /= 1024;
+    unitIndex++;
+  }
+  final decimals = size >= 10 || unitIndex == 0 ? 0 : 1;
+  return '${size.toStringAsFixed(decimals)} ${units[unitIndex]}';
 }
 
 class _BodyCell extends StatelessWidget {
@@ -256,6 +330,30 @@ class _DownloadButton extends StatelessWidget {
                 ),
               ],
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DeleteButton extends StatelessWidget {
+  const _DeleteButton({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 50.157,
+      width: 50.157,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(13.932),
+          onTap: onTap,
+          child: const Center(
+            child: Icon(Icons.delete_outline_rounded, size: 22.292, color: Color(0xFFB42318)),
           ),
         ),
       ),

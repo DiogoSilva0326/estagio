@@ -38,6 +38,9 @@ class NativeOverlayEmbed extends StatefulWidget {
     this.autoplay = false,
     this.loop = false,
     this.backgroundColor = Colors.black,
+    this.clipTop,
+    this.cutoutBottomLeftWidth = 0,
+    this.cutoutBottomLeftHeight = 0,
   });
 
   final String id;
@@ -47,6 +50,9 @@ class NativeOverlayEmbed extends StatefulWidget {
   final bool autoplay;
   final bool loop;
   final Color backgroundColor;
+  final double? clipTop;
+  final double cutoutBottomLeftWidth;
+  final double cutoutBottomLeftHeight;
 
   @override
   State<NativeOverlayEmbed> createState() => _NativeOverlayEmbedState();
@@ -108,6 +114,7 @@ class _NativeOverlayEmbedState extends State<NativeOverlayEmbed>
       if (_disposed) return;
       _checkDrawerState();
       _syncClipTop();
+      _syncCutout();
       _createOrUpdate();
       // Re-schedule for next frame to keep the loop going
       _scheduleFrameSync();
@@ -131,6 +138,11 @@ class _NativeOverlayEmbedState extends State<NativeOverlayEmbed>
   /// Tell JS where the scroll area starts so embeds are clipped behind
   /// the header.
   void _syncClipTop() {
+    if (widget.clipTop != null) {
+      bridge.setClipTop(widget.clipTop!);
+      return;
+    }
+
     final scrollable = Scrollable.maybeOf(context);
     if (scrollable == null) return;
     final scrollRO = scrollable.context.findRenderObject();
@@ -139,6 +151,14 @@ class _NativeOverlayEmbedState extends State<NativeOverlayEmbed>
     }
     final topLeft = scrollRO.localToGlobal(Offset.zero);
     bridge.setClipTop(topLeft.dy);
+  }
+
+  void _syncCutout() {
+    bridge.setBottomLeftCutout(
+      id: widget.id,
+      width: widget.cutoutBottomLeftWidth,
+      height: widget.cutoutBottomLeftHeight,
+    );
   }
 
   Rect? _getRect() {

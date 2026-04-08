@@ -12,6 +12,11 @@ CREATE TABLE IF NOT EXISTS public.userprofiles (
     prefered_language VARCHAR(10) DEFAULT 'pt-PT',
     status VARCHAR(50) DEFAULT 'active',
     phone VARCHAR(20),
+    profile_image_url TEXT,
+    profile_image_thumbnail_url TEXT,
+    profile_image_cloudflare_id TEXT,
+    profile_image_provider VARCHAR(50),
+    profile_image_source VARCHAR(50),
     creation_date TIMESTAMP DEFAULT NOW(),
     last_update TIMESTAMP DEFAULT NOW(),
     inactive BOOLEAN DEFAULT FALSE

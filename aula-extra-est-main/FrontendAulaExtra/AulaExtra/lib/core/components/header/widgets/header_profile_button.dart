@@ -9,16 +9,19 @@ class HeaderProfileButton extends StatelessWidget {
     super.key,
     this.onTap,
     this.onLogoutTap,
+    this.imageUrl,
   });
 
   final VoidCallback? onTap;
   final VoidCallback? onLogoutTap;
+  final String? imageUrl;
 
   static const double size = 35;
   static const double _iconSize = 24;
   static const Color _iconColor = Color(0xFF1D1B20);
 
   Widget _buildIcon() {
+    final url = imageUrl?.trim();
     return Container(
       width: size,
       height: size,
@@ -30,11 +33,22 @@ class HeaderProfileButton extends StatelessWidget {
         ),
       ),
       alignment: Alignment.center,
-      child: const Icon(
-        Icons.person,
-        size: _iconSize,
-        color: _iconColor,
-      ),
+      clipBehavior: Clip.antiAlias,
+      child: url != null && url.isNotEmpty
+          ? Image.network(
+              url,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) => const Icon(
+                Icons.person,
+                size: _iconSize,
+                color: _iconColor,
+              ),
+            )
+          : const Icon(
+              Icons.person,
+              size: _iconSize,
+              color: _iconColor,
+            ),
     );
   }
 

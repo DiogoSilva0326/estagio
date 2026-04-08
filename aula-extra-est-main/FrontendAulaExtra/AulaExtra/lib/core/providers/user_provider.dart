@@ -13,6 +13,9 @@ class UserAccount {
     this.username,
     this.mobileNumber,
     this.nif,
+    this.profileImageUrl,
+    this.creditsBalance,
+    this.creditsCurrency,
   });
 
   final String? fullName;
@@ -20,6 +23,9 @@ class UserAccount {
   final String? username;
   final String? mobileNumber;
   final String? nif;
+  final String? profileImageUrl;
+  final double? creditsBalance;
+  final String? creditsCurrency;
 
   UserAccount copyWith({
     String? fullName,
@@ -27,6 +33,9 @@ class UserAccount {
     String? username,
     String? mobileNumber,
     String? nif,
+    String? profileImageUrl,
+    double? creditsBalance,
+    String? creditsCurrency,
   }) {
     return UserAccount(
       fullName: fullName ?? this.fullName,
@@ -34,6 +43,9 @@ class UserAccount {
       username: username ?? this.username,
       mobileNumber: mobileNumber ?? this.mobileNumber,
       nif: nif ?? this.nif,
+      profileImageUrl: profileImageUrl ?? this.profileImageUrl,
+      creditsBalance: creditsBalance ?? this.creditsBalance,
+      creditsCurrency: creditsCurrency ?? this.creditsCurrency,
     );
   }
 }

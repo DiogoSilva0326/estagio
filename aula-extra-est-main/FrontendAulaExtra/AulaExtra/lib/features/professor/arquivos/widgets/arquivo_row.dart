@@ -10,9 +10,10 @@ class ArquivoRow extends StatelessWidget {
     required this.fileName,
     required this.sizeLabel,
     required this.dateLabel,
+    this.ownerLabel,
     this.onDownloadTap,
     this.onEditTap,
-    this.onMoreTap,
+    this.onDeleteTap,
     this.showDivider = true,
   });
 
@@ -21,10 +22,11 @@ class ArquivoRow extends StatelessWidget {
   final String fileName;
   final String sizeLabel;
   final String dateLabel;
+  final String? ownerLabel;
 
   final VoidCallback? onDownloadTap;
   final VoidCallback? onEditTap;
-  final VoidCallback? onMoreTap;
+  final VoidCallback? onDeleteTap;
 
   final bool showDivider;
 
@@ -67,6 +69,31 @@ class ArquivoRow extends StatelessWidget {
                   const SizedBox(height: 4.815),
                   Row(
                     children: [
+                      if (ownerLabel != null && ownerLabel!.trim().isNotEmpty) ...[
+                        Flexible(
+                          child: Text(
+                            ownerLabel!,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: ArquivosProfessorColors.textSecondary,
+                              fontSize: ArquivosProfessorFontSizes.fileMeta,
+                              fontWeight: FontWeight.w400,
+                              height: 19.259 / ArquivosProfessorFontSizes.fileMeta,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 14.444),
+                        const Text(
+                          '•',
+                          style: TextStyle(
+                            color: ArquivosProfessorColors.textSecondary,
+                            fontSize: ArquivosProfessorFontSizes.fileMeta,
+                            fontWeight: FontWeight.w400,
+                            height: 19.259 / ArquivosProfessorFontSizes.fileMeta,
+                          ),
+                        ),
+                        const SizedBox(width: 14.444),
+                      ],
                       Text(
                         sizeLabel,
                         style: const TextStyle(
@@ -110,7 +137,11 @@ class ArquivoRow extends StatelessWidget {
                   const SizedBox(width: 9.63),
                   _ActionButton(icon: Icons.edit_rounded, onTap: onEditTap),
                   const SizedBox(width: 9.63),
-                  _ActionButton(icon: Icons.more_vert_rounded, onTap: onMoreTap),
+                  _ActionButton(
+                    icon: Icons.delete_outline_rounded,
+                    iconColor: const Color(0xFFB42318),
+                    onTap: onDeleteTap,
+                  ),
                 ],
               ),
             ),
@@ -138,10 +169,12 @@ class _ActionButton extends StatelessWidget {
   const _ActionButton({
     required this.icon,
     required this.onTap,
+    this.iconColor = ArquivosProfessorColors.title,
   });
 
   final IconData icon;
   final VoidCallback? onTap;
+  final Color iconColor;
 
   @override
   Widget build(BuildContext context) {
@@ -152,7 +185,7 @@ class _ActionButton extends StatelessWidget {
         width: 43.333,
         height: 43.333,
         child: Center(
-          child: Icon(icon, size: 19.259, color: ArquivosProfessorColors.title),
+          child: Icon(icon, size: 19.259, color: iconColor),
         ),
       ),
     );

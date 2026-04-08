@@ -21,6 +21,7 @@ class HeaderExplicador extends StatelessWidget {
     super.key,
     this.activeItem,
     this.displayName,
+    this.profileImageUrl,
     this.onInicioTap,
     this.onMinhasAulasTap,
     this.onMeusAlunosTap,
@@ -33,6 +34,7 @@ class HeaderExplicador extends StatelessWidget {
   final HeaderExplicadorItem? activeItem;
 
   final String? displayName;
+  final String? profileImageUrl;
 
   final VoidCallback? onInicioTap;
   final VoidCallback? onMinhasAulasTap;
@@ -221,6 +223,7 @@ class HeaderExplicador extends StatelessWidget {
             left: 1255,
             top: 27,
             child: HeaderProfileButton(
+              imageUrl: profileImageUrl,
               onTap: onProfileTap,
               onLogoutTap: () => _handleLogoutTap(context),
             ),

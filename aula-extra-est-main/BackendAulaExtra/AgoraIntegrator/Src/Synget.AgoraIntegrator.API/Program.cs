@@ -5,6 +5,7 @@ using Synget.ChatIntegrator;
 using Microsoft.EntityFrameworkCore;
 using Synget.AgoraIntegrator.API.Data;
 using Synget.AgoraIntegrator.API.Data.Repositories;
+using Synget.AgoraIntegrator.API.Storage;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -40,6 +41,17 @@ builder.Services.AddScoped<ISessionRepository, SessionRepository>();
 builder.Services.AddScoped<IVideoRoomRepository, VideoRoomRepository>();
 builder.Services.AddScoped<IProfessorRoomRepository, ProfessorRoomRepository>();
 builder.Services.AddScoped<IChatFileRepository, ChatFileRepository>();
+
+var r2IntegratorStorageOptions = new R2IntegratorStorageOptions
+{
+    BaseUrl = builder.Configuration["R2_INTEGRATOR_BASE_URL"]
+        ?? Environment.GetEnvironmentVariable("R2_INTEGRATOR_BASE_URL")
+        ?? string.Empty,
+};
+
+builder.Services.AddSingleton(r2IntegratorStorageOptions);
+builder.Services.AddHttpClient(nameof(ChatFileStorage));
+builder.Services.AddScoped<IChatFileStorage, ChatFileStorage>();
 
 // Configure Agora settings from configuration
 var agoraConfig = new AgoraConfig
@@ -93,12 +105,14 @@ if (app.Environment.IsDevelopment())
 
 app.UseCors("AllowAll");
 
-// Ensure uploads folder exists
-var uploadsPath = Path.Combine(app.Environment.ContentRootPath, "uploads");
-if (!Directory.Exists(uploadsPath))
+if (!r2IntegratorStorageOptions.IsConfigured)
 {
-    Directory.CreateDirectory(uploadsPath);
-    Console.WriteLine($"Created uploads folder: {uploadsPath}");
+    var uploadsPath = Path.Combine(app.Environment.ContentRootPath, "uploads");
+    if (!Directory.Exists(uploadsPath))
+    {
+        Directory.CreateDirectory(uploadsPath);
+        Console.WriteLine($"Created uploads folder: {uploadsPath}");
+    }
 }
 
 app.UseStaticFiles(); // Enable static file serving

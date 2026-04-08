@@ -1,6 +1,8 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using System;
 using ConfidantPostgreSQL.Modules.Users.Models;
+using ConfidantPostgreSQL.Modules.Users.DTOs;
 
 namespace ConfidantPostgreSQL.Modules.Users.Repository
 {
@@ -12,8 +14,13 @@ namespace ConfidantPostgreSQL.Modules.Users.Repository
         Task<User?> GetByIdAsync(Guid id);
         Task<IEnumerable<User>> GetAllAsync();
         Task<User?> GetByEmailAsync(string email);
+        Task<User?> GetByUsernameAsync(string username);
         Task UpdateRolesAsync(Guid userId, IEnumerable<int> roleIds);
         Task<IReadOnlyList<string>> GetRoleDescriptionsAsync(Guid userId);
         Task<bool> EnsureRoleAsync(Guid userId, string roleDescription);
+        Task<IReadOnlyList<UserNotificationDto>> GetNotificationsByUserIdAsync(Guid userId);
+        Task<bool> MarkNotificationAsReadAsync(Guid userId, Guid notificationId);
+        Task<int> MarkAllNotificationsAsReadAsync(Guid userId);
+        Task<int> MarkLessonRequestNotificationsAsReadAsync(Guid userId, Guid reservationId);
     }
 }

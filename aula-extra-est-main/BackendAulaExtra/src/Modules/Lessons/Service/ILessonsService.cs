@@ -33,6 +33,7 @@ namespace ConfidantPostgreSQL.Modules.Lessons.Service
 
         Task<IEnumerable<Enrollment>> GetEnrollmentsAllAsync();
         Task<Enrollment?> GetEnrollmentByIdAsync(Guid idEnrollment);
+        Task<Enrollment?> GetEnrollmentByLessonAndUserAsync(Guid idLesson, Guid idUser);
         Task<Guid> InsertEnrollmentAsync(Enrollment enrollment);
         Task<int> UpdateEnrollmentAsync(Enrollment enrollment);
         Task<int> DeleteEnrollmentAsync(Guid idEnrollment);

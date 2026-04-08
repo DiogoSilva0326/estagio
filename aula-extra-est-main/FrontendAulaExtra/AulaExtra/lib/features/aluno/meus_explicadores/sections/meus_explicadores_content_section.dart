@@ -2,6 +2,7 @@ import 'package:aula_extra/features/aluno/core/widgets/aluno_menu_nav.dart';
 import 'package:aula_extra/core/providers/user_provider.dart';
 import 'package:aula_extra/core/data/tutors/my_tutors_service.dart';
 import 'package:aula_extra/core/data/tutors/dtos/my_tutor_dto.dart';
+import 'package:aula_extra/features/aluno/chats/models/chat_bootstrap_args.dart';
 import 'package:aula_extra/features/aluno/marcar_aula_professor/models/marcar_aula_professor_args.dart';
 import 'package:aula_extra/features/aluno/meus_explicadores/constants/meus_explicadores_constants.dart';
 import 'package:aula_extra/features/aluno/meus_explicadores/widgets/tutor_card.dart';
@@ -14,10 +15,12 @@ class MeusExplicadoresContentSection extends StatefulWidget {
   const MeusExplicadoresContentSection({super.key});
 
   @override
-  State<MeusExplicadoresContentSection> createState() => _MeusExplicadoresContentSectionState();
+  State<MeusExplicadoresContentSection> createState() =>
+      _MeusExplicadoresContentSectionState();
 }
 
-class _MeusExplicadoresContentSectionState extends State<MeusExplicadoresContentSection> {
+class _MeusExplicadoresContentSectionState
+    extends State<MeusExplicadoresContentSection> {
   late final Future<List<MyTutorDto>> _future;
 
   @override
@@ -31,6 +34,27 @@ class _MeusExplicadoresContentSectionState extends State<MeusExplicadoresContent
     final d = dt.toLocal();
     String two(int v) => v.toString().padLeft(2, '0');
     return '${two(d.day)}/${two(d.month)}/${d.year}';
+  }
+
+  void _openTutorChat(MyTutorDto tutor) {
+    final tutorUserId = tutor.tutorUserId.trim();
+    if (tutorUserId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Não foi possível abrir o chat deste explicador.'),
+        ),
+      );
+      return;
+    }
+
+    Navigator.of(context).pushNamed(
+      Routes.chats,
+      arguments: ChatBootstrapArgs(
+        contactUserId: tutorUserId,
+        contactName: tutor.tutorName,
+        contactUsername: tutor.tutorUsername,
+      ),
+    );
   }
 
   @override
@@ -59,17 +83,26 @@ class _MeusExplicadoresContentSectionState extends State<MeusExplicadoresContent
                   'Meus Explicadores',
                   style: MeusExplicadoresConstants.titleStyle,
                 ),
-                const SizedBox(height: MeusExplicadoresConstants.titleSubtitleGap),
+                const SizedBox(
+                  height: MeusExplicadoresConstants.titleSubtitleGap,
+                ),
                 const Text(
                   'Veja seus explicadores preferidos e gerencie suas aulas',
                   style: MeusExplicadoresConstants.subtitleStyle,
                 ),
-                const SizedBox(height: MeusExplicadoresConstants.afterSubtitleGap),
+                const SizedBox(
+                  height: MeusExplicadoresConstants.afterSubtitleGap,
+                ),
                 FutureBuilder<List<MyTutorDto>>(
                   future: _future,
                   builder: (context, snapshot) {
                     if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const Center(child: Padding(padding: EdgeInsets.all(24), child: CircularProgressIndicator()));
+                      return const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(24),
+                          child: CircularProgressIndicator(),
+                        ),
+                      );
                     }
 
                     if (snapshot.hasError) {
@@ -98,56 +131,73 @@ class _MeusExplicadoresContentSectionState extends State<MeusExplicadoresContent
                         final availableWidth = constraints.maxWidth;
                         const cardWidth = MeusExplicadoresConstants.cardWidth;
                         const spacing = MeusExplicadoresConstants.gridSpacing;
-                        final columns = ((availableWidth + spacing) / (cardWidth + spacing)).floor().clamp(1, 3);
+                        final columns =
+                            ((availableWidth + spacing) / (cardWidth + spacing))
+                                .floor()
+                                .clamp(1, 3);
 
                         return GridView.builder(
                           shrinkWrap: true,
                           physics: const NeverScrollableScrollPhysics(),
-                          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: columns,
-                            crossAxisSpacing: spacing,
-                            mainAxisSpacing: spacing,
-                            mainAxisExtent: MeusExplicadoresConstants.gridMainAxisExtent,
-                          ),
+                          gridDelegate:
+                              SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: columns,
+                                crossAxisSpacing: spacing,
+                                mainAxisSpacing: spacing,
+                                mainAxisExtent: MeusExplicadoresConstants
+                                    .gridMainAxisExtent,
+                              ),
                           itemCount: items.length,
                           itemBuilder: (context, index) {
                             final item = items[index];
-                            final subject = (item.lastLessonSubject == null || item.lastLessonSubject!.trim().isEmpty)
-                                ? '—'
-                                : item.lastLessonSubject!.trim();
+                            final subjects = item.subjects
+                                .where((value) => value.trim().isNotEmpty)
+                                .map((value) => value.trim())
+                                .toList(growable: false);
+                            final subject = subjects.isNotEmpty
+                                ? subjects.first
+                                : ((item.lastLessonSubject == null ||
+                                        item.lastLessonSubject!.trim().isEmpty)
+                                      ? '—'
+                                      : item.lastLessonSubject!.trim());
 
                             return TutorCard(
                               name: item.tutorName,
                               subject: subject,
-                              subjects: [subject],
-                              lastLessonDateText: _formatDate(item.lastLessonStart),
+                              subjects: subjects.isNotEmpty ? subjects : [subject],
+                              avatarUrl: item.avatarUrl,
+                              lastLessonDateText: _formatDate(
+                                item.lastLessonStart,
+                              ),
                               rating: item.rating,
                               progress: item.progress,
                               onViewProfileTap: () {
                                 Navigator.of(context).pushNamed(
                                   Routes.tutorProfile,
                                   arguments: TutorProfileArgs(
+                                    professorId: item.professorId,
                                     name: item.tutorName,
                                     country: 'Portugal',
                                     rating: item.rating ?? 0,
-                                    reviewCount: 84,
+                                    reviewCount: item.reviewCount,
                                     description:
                                         'Sou ${item.tutorName}, um explicador apaixonado por ensinar e ajudar alunos a alcançarem os seus objetivos.',
                                     lessonsText: '—',
                                     pricePerHour: 25,
-                                    tags: [subject],
+                                    tags: subjects.isNotEmpty ? subjects.take(2).toList(growable: false) : [subject],
                                   ),
                                 );
                               },
-                              onChatTap: () {},
+                              onChatTap: () => _openTutorChat(item),
                               onScheduleTap: () {
                                 Navigator.of(context).pushNamed(
                                   Routes.marcarAulaProfessor,
                                   arguments: MarcarAulaProfessorArgs(
+                                    professorId: item.professorId,
                                     tutorName: item.tutorName,
                                     subject: subject,
                                     rating: item.rating ?? 0,
-                                    reviewCount: 84,
+                                    reviewCount: item.reviewCount,
                                     location: 'Lisboa',
                                     pricePerHour: 25,
                                   ),

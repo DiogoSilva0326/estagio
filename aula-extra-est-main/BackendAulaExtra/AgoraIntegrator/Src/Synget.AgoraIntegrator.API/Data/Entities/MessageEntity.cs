@@ -43,7 +43,7 @@ public class MessageEntity
     /// <summary>
     /// JSON metadata (e.g., message type, file attachment info).
     /// </summary>
-    [NotMapped]
+    [Column("metadata")]
     public string? Metadata { get; set; }
 
     /// <summary>

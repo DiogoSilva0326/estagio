@@ -3,6 +3,7 @@ using Synget.ChatIntegrator;
 using Synget.AgoraIntegrator.API.DTOs;
 using Synget.AgoraIntegrator.API.Data.Repositories;
 using Synget.AgoraIntegrator.API.Data.Entities;
+using Synget.AgoraIntegrator.API.Storage;
 
 namespace Synget.AgoraIntegrator.API.Controllers;
 
@@ -17,12 +18,13 @@ public class FilesController : ControllerBase
     private readonly IWebHostEnvironment _environment;
     private readonly IChatFileRepository _fileRepository;
     private readonly IUserRepository _userRepository;
+    private readonly IChatFileStorage _fileStorage;
     private const string UploadFolder = "uploads";
-    private const long MaxFileSize = 50 * 1024 * 1024; // 50MB
+    private const long MaxFileSize = 5 * 1024 * 1024; // 5MB
 
     private static readonly HashSet<string> AllowedImageExtensions = new(StringComparer.OrdinalIgnoreCase)
     {
-        ".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp"
+        ".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".pdf"
     };
 
     private static readonly HashSet<string> AllowedDocumentExtensions = new(StringComparer.OrdinalIgnoreCase)
@@ -44,12 +46,14 @@ public class FilesController : ControllerBase
         ILogger<FilesController> logger, 
         IWebHostEnvironment environment,
         IChatFileRepository fileRepository,
-        IUserRepository userRepository)
+        IUserRepository userRepository,
+        IChatFileStorage fileStorage)
     {
         _logger = logger;
         _environment = environment;
         _fileRepository = fileRepository;
         _userRepository = userRepository;
+        _fileStorage = fileStorage;
     }
 
     /// <summary>
@@ -82,30 +86,9 @@ public class FilesController : ControllerBase
 
         try
         {
-            // Create upload directory if it doesn't exist
-            var uploadPath = Path.Combine(_environment.WebRootPath ?? _environment.ContentRootPath, UploadFolder);
-            if (!Directory.Exists(uploadPath))
-            {
-                Directory.CreateDirectory(uploadPath);
-            }
-
             // Generate unique file ID and name
             var fileId = Guid.NewGuid().ToString();
-            var safeFileName = $"{fileId}{extension}";
-            var filePath = Path.Combine(uploadPath, safeFileName);
-
-            // Save file to disk
-            using (var stream = new FileStream(filePath, FileMode.Create))
-            {
-                await file.CopyToAsync(stream);
-            }
-
-            // Generate thumbnail URL for images
-            string? thumbnailUrl = null;
-            if (AllowedImageExtensions.Contains(extension))
-            {
-                thumbnailUrl = $"/api/files/{fileId}";
-            }
+            var storedFile = await _fileStorage.SaveAsync(file, fileId, HttpContext.RequestAborted);
 
             // Get user ID if provided - always lookup by username first
             Guid? uploadedByUserId = null;
@@ -131,12 +114,12 @@ public class FilesController : ControllerBase
             {
                 FileId = fileId,
                 FileName = file.FileName,
-                StoragePath = filePath,
+                StoragePath = storedFile.StoragePath,
                 ContentType = file.ContentType,
                 FileSize = file.Length,
                 UploadedByUserId = uploadedByUserId,
                 RoomId = roomId,
-                ThumbnailUrl = thumbnailUrl
+                ThumbnailUrl = storedFile.ThumbnailUrl
             };
 
             await _fileRepository.CreateAsync(fileEntity);
@@ -145,10 +128,10 @@ public class FilesController : ControllerBase
             {
                 FileId = fileId,
                 FileName = file.FileName,
-                FileUrl = $"/api/files/{fileId}",
+                FileUrl = storedFile.PublicUrl,
                 ContentType = file.ContentType,
                 FileSizeBytes = file.Length,
-                ThumbnailUrl = thumbnailUrl
+                ThumbnailUrl = storedFile.ThumbnailUrl
             };
 
             _logger.LogInformation("File uploaded: {FileName} ({FileSize} bytes) by user {UserId}", 
@@ -176,10 +159,18 @@ public class FilesController : ControllerBase
             // First try to get from database
             var fileEntity = await _fileRepository.GetByFileIdAsync(fileId);
             
-            if (fileEntity != null && System.IO.File.Exists(fileEntity.StoragePath))
+            if (fileEntity != null)
             {
-                var stream = new FileStream(fileEntity.StoragePath, FileMode.Open, FileAccess.Read);
-                return File(stream, fileEntity.ContentType, fileEntity.FileName);
+                if (_fileStorage.IsStoredInCloud(fileEntity))
+                {
+                    return Redirect(_fileStorage.ResolveFileUrl(fileEntity));
+                }
+
+                if (System.IO.File.Exists(fileEntity.StoragePath))
+                {
+                    var stream = new FileStream(fileEntity.StoragePath, FileMode.Open, FileAccess.Read);
+                    return File(stream, fileEntity.ContentType, fileEntity.FileName);
+                }
             }
 
             // Fallback to disk search for legacy files
@@ -224,10 +215,10 @@ public class FilesController : ControllerBase
         {
             FileId = fileEntity.FileId,
             FileName = fileEntity.FileName,
-            FileUrl = $"/api/files/{fileEntity.FileId}",
+            FileUrl = _fileStorage.ResolveFileUrl(fileEntity),
             ContentType = fileEntity.ContentType,
             FileSizeBytes = fileEntity.FileSize,
-            ThumbnailUrl = fileEntity.ThumbnailUrl
+            ThumbnailUrl = _fileStorage.ResolveThumbnailUrl(fileEntity)
         });
     }
 
@@ -237,19 +228,18 @@ public class FilesController : ControllerBase
     [HttpDelete("{fileId}")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
-    public ActionResult DeleteFile(string fileId)
+    public async Task<ActionResult> DeleteFile(string fileId)
     {
         try
         {
-            var uploadPath = Path.Combine(_environment.WebRootPath ?? _environment.ContentRootPath, UploadFolder);
-            
-            var files = Directory.GetFiles(uploadPath, $"{fileId}.*");
-            if (files.Length == 0)
+            var fileEntity = await _fileRepository.GetByFileIdAsync(fileId);
+            if (fileEntity == null)
             {
                 return NotFound(new ErrorResponse { Message = "File not found" });
             }
 
-            System.IO.File.Delete(files[0]);
+            await _fileStorage.DeleteAsync(fileEntity, HttpContext.RequestAborted);
+            await _fileRepository.DeleteAsync(fileId);
             _logger.LogInformation("File deleted: {FileId}", fileId);
 
             return Ok(new { message = "File deleted successfully" });
@@ -285,8 +275,8 @@ public class FilesController : ControllerBase
                     RoomId = f.RoomId,
                     UploadedBy = f.UploadedByUser?.Username ?? "Unknown",
                     UploadedByDisplayName = f.UploadedByUser?.DisplayName ?? "Unknown",
-                    DownloadUrl = $"/api/files/{f.FileId}",
-                    ThumbnailUrl = f.ThumbnailUrl,
+                    DownloadUrl = _fileStorage.ResolveFileUrl(f),
+                    ThumbnailUrl = _fileStorage.ResolveThumbnailUrl(f),
                     CreatedAt = f.CreatedAt,
                     IsOwnFile = f.UploadedByUser?.Username == username
                 }).ToList()
@@ -336,8 +326,8 @@ public class FilesController : ControllerBase
                     RoomId = f.RoomId,
                     UploadedBy = f.UploadedByUser?.Username ?? "Unknown",
                     UploadedByDisplayName = f.UploadedByUser?.DisplayName ?? "Unknown",
-                    DownloadUrl = $"/api/files/{f.FileId}",
-                    ThumbnailUrl = f.ThumbnailUrl,
+                    DownloadUrl = _fileStorage.ResolveFileUrl(f),
+                    ThumbnailUrl = _fileStorage.ResolveThumbnailUrl(f),
                     CreatedAt = f.CreatedAt,
                     IsOwnFile = !string.IsNullOrEmpty(username) && f.UploadedByUser?.Username == username
                 }).ToList()

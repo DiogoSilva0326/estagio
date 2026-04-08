@@ -1,22 +1,31 @@
 import 'package:flutter/material.dart';
 
 class SearchAndUploadRow extends StatelessWidget {
-  const SearchAndUploadRow({super.key});
+  const SearchAndUploadRow({
+    super.key,
+    this.onChanged,
+    this.onUpload,
+  });
+
+  final ValueChanged<String>? onChanged;
+  final VoidCallback? onUpload;
 
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
-        const Expanded(child: _SearchField()),
+        Expanded(child: _SearchField(onChanged: onChanged)),
         const SizedBox(width: 22.292),
-        _GradientButton(label: 'Fazer Upload', icon: Icons.upload_rounded, onTap: () {}),
+        _GradientButton(label: 'Fazer Upload', icon: Icons.upload_rounded, onTap: onUpload ?? () {}),
       ],
     );
   }
 }
 
 class _SearchField extends StatelessWidget {
-  const _SearchField();
+  const _SearchField({this.onChanged});
+
+  final ValueChanged<String>? onChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -29,12 +38,13 @@ class _SearchField extends StatelessWidget {
           border: Border.all(color: const Color(0xFFE5E7EB), width: 1.393),
         ),
         child: Row(
-          children: const [
+          children: [
             SizedBox(width: 22.292),
             Icon(Icons.search_rounded, size: 27.865, color: Color(0xFF101828)),
             SizedBox(width: 16.719),
             Expanded(
               child: TextField(
+                onChanged: onChanged,
                 decoration: InputDecoration(
                   hintText: 'Buscar arquivos...',
                   hintStyle: TextStyle(

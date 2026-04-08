@@ -179,6 +179,7 @@ class _MarcarAulaProfessorContentSectionState extends State<MarcarAulaProfessorC
                   Navigator.of(context).pushNamed(
                     Routes.tutorProfile,
                     arguments: TutorProfileArgs(
+                      professorId: args.professorId,
                       name: args.tutorName,
                       country: 'Portugal',
                       rating: args.rating,

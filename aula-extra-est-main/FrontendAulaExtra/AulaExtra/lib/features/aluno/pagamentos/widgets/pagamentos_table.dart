@@ -1,8 +1,39 @@
-import 'package:aula_extra/features/aluno/pagamentos/constants/pagamentos_mock_data.dart';
+import 'package:aula_extra/core/data/payments/dtos/payment_summary_dto.dart';
 import 'package:flutter/material.dart';
 
 class PagamentosTableCard extends StatelessWidget {
-  const PagamentosTableCard({super.key});
+  const PagamentosTableCard({
+    super.key,
+    required this.rows,
+    required this.currency,
+    required this.onReceiptTap,
+  });
+
+  final List<PaymentHistoryItemDto> rows;
+  final String currency;
+  final Future<void> Function(PaymentHistoryItemDto row) onReceiptTap;
+
+  String _formatDate(DateTime? date) {
+    if (date == null) return '—';
+    const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+    return '${date.day.toString().padLeft(2, '0')} ${months[date.month - 1]} ${date.year}';
+  }
+
+  String _formatAmount(double value) {
+    final symbol = currency.toUpperCase() == 'EUR' ? '€' : currency;
+    final fixed = value.toStringAsFixed(value.truncateToDouble() == value ? 0 : 2).replaceAll('.', ',');
+    return symbol == '€' ? '$fixed$symbol' : '$fixed $symbol';
+  }
+
+  String _statusLabel(String status) {
+    final normalized = status.trim().toLowerCase();
+    if (normalized.contains('paid') || normalized.contains('pago') || normalized.contains('success') || normalized.contains('completed')) {
+      return 'Pago';
+    }
+    return 'Pendente';
+  }
+
+  bool _isPaid(String status) => _statusLabel(status) == 'Pago';
 
   @override
   Widget build(BuildContext context) {
@@ -36,11 +67,29 @@ class PagamentosTableCard extends StatelessWidget {
             child: Column(
               children: [
                 const _TableHeaderRow(),
-                for (int i = 0; i < PagamentosMockData.rows.length; i++)
-                  _PagamentoRow(
-                    data: PagamentosMockData.rows[i],
-                    hasBottomBorder: i != PagamentosMockData.rows.length - 1,
-                  ),
+                  if (rows.isEmpty)
+                    const SizedBox(
+                      height: 120,
+                      child: Center(
+                        child: Text(
+                          'Ainda não existem pagamentos para mostrar.',
+                          style: TextStyle(fontSize: 18, color: Color(0xFF4A5565)),
+                        ),
+                      ),
+                    )
+                  else
+                    for (int i = 0; i < rows.length; i++)
+                      _PagamentoRow(
+                        tutor: rows[i].tutorName,
+                        disciplina: rows[i].subject,
+                        data: _formatDate(rows[i].date),
+                        valor: _formatAmount(rows[i].amount),
+                        status: _statusLabel(rows[i].status),
+                        isPago: _isPaid(rows[i].status),
+                        hasReceipt: (rows[i].receiptUrl?.trim().isNotEmpty ?? false),
+                        hasBottomBorder: i != rows.length - 1,
+                        onReceiptTap: () => onReceiptTap(rows[i]),
+                      ),
               ],
             ),
           ),
@@ -102,10 +151,27 @@ class _HeaderCell extends StatelessWidget {
 }
 
 class _PagamentoRow extends StatelessWidget {
-  const _PagamentoRow({required this.data, required this.hasBottomBorder});
+  const _PagamentoRow({
+    required this.tutor,
+    required this.disciplina,
+    required this.data,
+    required this.valor,
+    required this.status,
+    required this.isPago,
+    required this.hasReceipt,
+    required this.hasBottomBorder,
+    required this.onReceiptTap,
+  });
 
-  final PagamentoRowData data;
+  final String tutor;
+  final String disciplina;
+  final String data;
+  final String valor;
+  final String status;
+  final bool isPago;
+  final bool hasReceipt;
   final bool hasBottomBorder;
+  final VoidCallback onReceiptTap;
 
   @override
   Widget build(BuildContext context) {
@@ -121,12 +187,12 @@ class _PagamentoRow extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _TutorCell(text: data.tutor),
-          _BodyCell(width: 167.974, text: data.disciplina, topPadding: 39),
-          _BodyCell(width: 138.832, text: data.data, topPadding: 26),
-          _ValueCell(text: data.valor),
-          _StatusCell(text: data.status, isPago: data.isPago),
-          _ActionsCell(icon: data.receiptIcon),
+          _TutorCell(text: tutor),
+          _BodyCell(width: 167.974, text: disciplina, topPadding: 39),
+          _BodyCell(width: 138.832, text: data, topPadding: 26),
+          _ValueCell(text: valor),
+          _StatusCell(text: status, isPago: isPago),
+          _ActionsCell(hasReceipt: hasReceipt, onTap: onReceiptTap),
         ],
       ),
     );
@@ -256,9 +322,10 @@ class _StatusCell extends StatelessWidget {
 }
 
 class _ActionsCell extends StatelessWidget {
-  const _ActionsCell({required this.icon});
+  const _ActionsCell({required this.hasReceipt, required this.onTap});
 
-  final IconData icon;
+  final bool hasReceipt;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -268,7 +335,11 @@ class _ActionsCell extends StatelessWidget {
         padding: const EdgeInsets.only(left: 32.87),
         child: Align(
           alignment: Alignment.centerLeft,
-          child: _ReceiptButton(icon: icon, onTap: () {}),
+          child: _ReceiptButton(
+            icon: Icons.receipt_long_rounded,
+            enabled: hasReceipt,
+            onTap: onTap,
+          ),
         ),
       ),
     );
@@ -276,15 +347,16 @@ class _ActionsCell extends StatelessWidget {
 }
 
 class _ReceiptButton extends StatelessWidget {
-  const _ReceiptButton({required this.icon, required this.onTap});
+  const _ReceiptButton({required this.icon, required this.onTap, required this.enabled});
 
   final IconData icon;
   final VoidCallback onTap;
+  final bool enabled;
 
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      onTap: onTap,
+      onTap: enabled ? onTap : null,
       borderRadius: BorderRadius.circular(10),
       child: SizedBox(
         height: 38.343,
@@ -292,14 +364,14 @@ class _ReceiptButton extends StatelessWidget {
         child: Row(
           children: [
             const SizedBox(width: 16.433),
-            Icon(icon, size: 21.91, color: const Color(0xFF364153)),
+            Icon(icon, size: 21.91, color: enabled ? const Color(0xFF364153) : const Color(0xFF9CA3AF)),
             const SizedBox(width: 10),
-            const Text(
+            Text(
               'Recibo',
               style: TextStyle(
                 fontSize: 19.171,
                 fontWeight: FontWeight.w400,
-                color: Color(0xFF364153),
+                color: enabled ? const Color(0xFF364153) : const Color(0xFF9CA3AF),
                 height: 27.388 / 19.171,
               ),
             ),
