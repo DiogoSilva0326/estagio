@@ -1,91 +1,140 @@
-import 'package:aula_extra/features/disciplinas/models/subject_area.dart';
+import 'package:aula_extra/core/data/education/dtos/area_dto.dart';
+import 'package:aula_extra/core/data/education/dtos/disciplina_dto.dart';
+import 'package:aula_extra/features/disciplinas/utils/area_visuals.dart';
 import 'package:aula_extra/features/disciplinas/widgets/subject_card.dart';
-import 'package:aula_extra/features/home/assets/home_assets.dart';
+import 'package:aula_extra/features/explicadores/pages/explicadores_screen.dart';
+import 'package:aula_extra/routes/routes.dart';
 import 'package:flutter/material.dart';
 
 class PopularAreasSection extends StatelessWidget {
-  const PopularAreasSection({super.key});
+  const PopularAreasSection({
+    super.key,
+    required this.areas,
+    required this.disciplinas,
+    required this.selectedArea,
+    required this.onAreaSelected,
+    required this.onClearArea,
+  });
 
-  static const List<SubjectArea> _areas = [
-    SubjectArea(
-      title: 'MATEMÁTICA',
-      tutorsText: '201 explicadores',
-      imageAsset: HomeAssets.areaMatematica,
-      dotColor: Color(0xFF3B94EF),
-    ),
-    SubjectArea(
-      title: 'CIÊNCIAS',
-      tutorsText: '98 explicadores',
-      imageAsset: HomeAssets.areaCiencias,
-      dotColor: Color(0xFF45AB61),
-    ),
-    SubjectArea(
-      title: 'LÍNGUAS',
-      tutorsText: '506 explicadores',
-      imageAsset: HomeAssets.areaLinguas,
-      dotColor: Color(0xFFFC9039),
-    ),
-    SubjectArea(
-      title: 'LITERATURA',
-      tutorsText: '88 explicadores',
-      imageAsset: HomeAssets.areaLiteratura,
-      dotColor: Color(0xFF9B59B6),
-    ),
-    SubjectArea(
-      title: 'PROGRAMAÇÃO',
-      tutorsText: '304 explicadores',
-      imageAsset: HomeAssets.areaProgramacao,
-      dotColor: Color(0xFFE74C3C),
-    ),
-    SubjectArea(
-      title: 'GEOGRAFIA',
-      tutorsText: '105 explicadores',
-      imageAsset: HomeAssets.areaGeografia,
-      dotColor: Color(0xFFFFC505),
-    ),
-    SubjectArea(
-      title: 'MÚSICA',
-      tutorsText: '45 explicadores',
-      imageAsset: HomeAssets.areaMusica,
-      dotColor: Color(0xFFFF8CEF),
-    ),
-    SubjectArea(
-      title: 'ARTES',
-      tutorsText: '67 explicadores',
-      imageAsset: HomeAssets.areaArtes,
-      dotColor: Color(0xFFDAF508),
-    ),
-  ];
+  final List<AreaDto> areas;
+  final List<DisciplinaDto> disciplinas;
+  final AreaDto? selectedArea;
+  final ValueChanged<String> onAreaSelected;
+  final VoidCallback onClearArea;
+
+  String _formatProfessorCount(int count) {
+    if (count == 1) return '1 explicador';
+    return '$count explicadores';
+  }
 
   @override
   Widget build(BuildContext context) {
+    final showingDisciplinas = selectedArea != null;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Áreas Populares',
-          style: TextStyle(
-            fontSize: 30.638,
-            height: 1.333,
-            fontWeight: FontWeight.w700,
-            color: Color(0xFF0A0A0A),
-          ),
+        Row(
+          children: [
+            Text(
+              showingDisciplinas
+                  ? 'Disciplinas em ${selectedArea!.nome}'
+                  : 'Áreas Populares',
+              style: const TextStyle(
+                fontSize: 30.638,
+                height: 1.333,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF0A0A0A),
+              ),
+            ),
+            const Spacer(),
+            if (showingDisciplinas)
+              TextButton.icon(
+                onPressed: onClearArea,
+                icon: const Icon(Icons.arrow_back_rounded),
+                label: const Text('Voltar às áreas'),
+              ),
+          ],
         ),
         const SizedBox(height: 30.638),
-        SizedBox(
-          width: 949.787,
-          child: Wrap(
-            spacing: 30.638,
-            runSpacing: 30.638,
-            children: [
-              for (final area in _areas)
-                SubjectCard(
-                  title: area.title,
-                  subtitle: area.tutorsText,
-                  imageAsset: area.imageAsset,
-                  dotColor: area.dotColor,
-                ),
-            ],
+        AnimatedSwitcher(
+          duration: const Duration(milliseconds: 280),
+          switchInCurve: Curves.easeOut,
+          switchOutCurve: Curves.easeIn,
+          transitionBuilder: (child, animation) {
+            return FadeTransition(
+              opacity: animation,
+              child: SizeTransition(
+                sizeFactor: animation,
+                axisAlignment: -1,
+                child: child,
+              ),
+            );
+          },
+          child: SizedBox(
+            key: ValueKey<String>(selectedArea?.idArea ?? 'all-areas'),
+            width: 949.787,
+            child: showingDisciplinas && disciplinas.isEmpty
+                ? Container(
+                    padding: const EdgeInsets.all(30.638),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(25.532),
+                      border: Border.all(color: const Color(0xFFE5E7EB)),
+                    ),
+                    child: const Text(
+                      'Não encontrámos disciplinas associadas a esta área.',
+                      style: TextStyle(
+                        fontSize: 20.426,
+                        height: 1.5,
+                        fontWeight: FontWeight.w400,
+                        color: Color(0xFF4A5565),
+                      ),
+                    ),
+                  )
+                : Wrap(
+                    spacing: 30.638,
+                    runSpacing: 30.638,
+                    children: showingDisciplinas
+                        ? [
+                            for (final disciplina in disciplinas)
+                              Builder(
+                                builder: (context) {
+                                  final visuals = getAreaVisuals(
+                                    disciplina.areaNome ?? selectedArea!.nome,
+                                  );
+                                  return SubjectCard(
+                                    title: disciplina.nome.toUpperCase(),
+                                    subtitle: _formatProfessorCount(disciplina.activeStudentsCount),
+                                    imageAsset: visuals.imageAsset,
+                                    iconData: visuals.icon,
+                                    dotColor: visuals.dotColor,
+                                    onTap: () => Navigator.of(context).pushNamed(
+                                      Routes.explicadores,
+                                      arguments: ExplicadoresScreenArgs(initialQuery: disciplina.nome),
+                                    ),
+                                  );
+                                },
+                              ),
+                          ]
+                        : [
+                            for (final area in areas)
+                              Builder(
+                                builder: (context) {
+                                  final visuals = getAreaVisuals(area.nome);
+                                  return SubjectCard(
+                                    title: area.nome.toUpperCase(),
+                                    subtitle: _formatProfessorCount(area.professorCount),
+                                    imageAsset: visuals.imageAsset,
+                                    iconData: visuals.icon,
+                                    dotColor: visuals.dotColor,
+                                    selected: selectedArea?.idArea == area.idArea,
+                                    onTap: () => onAreaSelected(area.idArea),
+                                  );
+                                },
+                              ),
+                          ],
+                  ),
           ),
         ),
       ],

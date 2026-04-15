@@ -17,7 +17,12 @@ class CalendarStatusPalette {
 String normalizeCalendarStatus(String? status) {
   final value = status?.trim().toLowerCase() ?? '';
   if (value.isEmpty) return 'accepted';
-  if (value == 'pending' || value == 'waiting' || value == 'requested') {
+  if (value == 'pending' ||
+      value == 'waiting' ||
+      value == 'requested' ||
+      value == 'pendingpayment' ||
+      value == 'pending_payment' ||
+      value == 'awaiting_payment') {
     return 'pending';
   }
   if (value == 'accepted' ||
@@ -42,6 +47,13 @@ bool isAcceptedCalendarStatus(String? status) =>
     normalizeCalendarStatus(status) == 'accepted';
 
 String calendarStatusLabel(String? status) {
+  final normalized = status?.trim().toLowerCase() ?? '';
+  if (normalized == 'pendingpayment' ||
+      normalized == 'pending_payment' ||
+      normalized == 'awaiting_payment') {
+    return 'A aguardar pagamento';
+  }
+
   switch (normalizeCalendarStatus(status)) {
     case 'pending':
       return 'A aguardar aceitação';

@@ -7,6 +7,79 @@ import 'package:aula_extra/core/data/http/api_config.dart';
 import 'package:http/http.dart' as http;
 
 class EducationApi {
+  Future<List<AreaDto>> getPublicAreas() async {
+    final res = await http.get(
+      ApiConfig.uri('/api/Education/areas'),
+      headers: {'Content-Type': 'application/json'},
+    );
+
+    if (res.statusCode < 200 || res.statusCode >= 300) {
+      throw EducationException('Falha ao carregar áreas (${res.statusCode})');
+    }
+
+    final data = jsonDecode(res.body);
+    if (data is! List) return <AreaDto>[];
+
+    return data
+        .whereType<Map<String, dynamic>>()
+        .map(AreaDto.fromJson)
+        .where(
+          (area) =>
+              area.idArea.trim().isNotEmpty && area.nome.trim().isNotEmpty,
+        )
+        .toList(growable: false);
+  }
+
+  Future<List<DisciplinaDto>> getPublicDisciplinasWithProfessors() async {
+    final res = await http.get(
+      ApiConfig.uri('/api/Education/disciplinas/public'),
+      headers: {'Content-Type': 'application/json'},
+    );
+
+    if (res.statusCode < 200 || res.statusCode >= 300) {
+      throw EducationException(
+        'Falha ao carregar disciplinas públicas (${res.statusCode})',
+      );
+    }
+
+    final data = jsonDecode(res.body);
+    if (data is! List) return <DisciplinaDto>[];
+
+    return data
+        .whereType<Map<String, dynamic>>()
+        .map(DisciplinaDto.fromJson)
+        .where(
+          (disciplina) =>
+              disciplina.idDisciplina.trim().isNotEmpty &&
+              disciplina.nome.trim().isNotEmpty,
+        )
+        .toList(growable: false);
+  }
+
+  Future<List<CicloEstudoDto>> getPublicCiclosEstudo() async {
+    final res = await http.get(
+      ApiConfig.uri('/api/Education/ciclos-estudo'),
+      headers: {'Content-Type': 'application/json'},
+    );
+
+    if (res.statusCode < 200 || res.statusCode >= 300) {
+      throw EducationException(
+        'Falha ao carregar ciclos de estudo (${res.statusCode})',
+      );
+    }
+
+    final data = jsonDecode(res.body);
+    if (data is! List) return <CicloEstudoDto>[];
+
+    return data
+        .whereType<Map<String, dynamic>>()
+        .map(CicloEstudoDto.fromJson)
+        .where(
+          (c) => c.idCicloEstudo.trim().isNotEmpty && c.nome.trim().isNotEmpty,
+        )
+        .toList(growable: false);
+  }
+
   Future<List<CicloEstudoDto>> getCiclosEstudo({required String token}) async {
     final res = await http.get(
       ApiConfig.uri('/api/Education/ciclos-estudo'),
@@ -20,7 +93,9 @@ class EducationApi {
       throw const EducationException('Sessão expirada');
     }
     if (res.statusCode < 200 || res.statusCode >= 300) {
-      throw EducationException('Falha ao carregar ciclos de estudo (${res.statusCode})');
+      throw EducationException(
+        'Falha ao carregar ciclos de estudo (${res.statusCode})',
+      );
     }
 
     final data = jsonDecode(res.body);
@@ -29,7 +104,9 @@ class EducationApi {
     return data
         .whereType<Map<String, dynamic>>()
         .map(CicloEstudoDto.fromJson)
-        .where((c) => c.idCicloEstudo.trim().isNotEmpty && c.nome.trim().isNotEmpty)
+        .where(
+          (c) => c.idCicloEstudo.trim().isNotEmpty && c.nome.trim().isNotEmpty,
+        )
         .toList(growable: false);
   }
 
@@ -55,6 +132,10 @@ class EducationApi {
     return data
         .whereType<Map<String, dynamic>>()
         .map(AreaDto.fromJson)
+        .where(
+          (area) =>
+              area.idArea.trim().isNotEmpty && area.nome.trim().isNotEmpty,
+        )
         .toList(growable: false);
   }
 
@@ -74,7 +155,9 @@ class EducationApi {
       throw const EducationException('Sessão expirada');
     }
     if (res.statusCode < 200 || res.statusCode >= 300) {
-      throw EducationException('Falha ao carregar disciplinas (${res.statusCode})');
+      throw EducationException(
+        'Falha ao carregar disciplinas (${res.statusCode})',
+      );
     }
 
     final data = jsonDecode(res.body);
@@ -99,7 +182,9 @@ class EducationApi {
       throw const EducationException('Sessão expirada');
     }
     if (res.statusCode < 200 || res.statusCode >= 300) {
-      throw EducationException('Falha ao carregar disciplinas (${res.statusCode})');
+      throw EducationException(
+        'Falha ao carregar disciplinas (${res.statusCode})',
+      );
     }
 
     final data = jsonDecode(res.body);
@@ -124,7 +209,9 @@ class EducationApi {
       throw const EducationException('Sessão expirada');
     }
     if (res.statusCode < 200 || res.statusCode >= 300) {
-      throw EducationException('Falha ao carregar as suas disciplinas (${res.statusCode})');
+      throw EducationException(
+        'Falha ao carregar as suas disciplinas (${res.statusCode})',
+      );
     }
 
     final data = jsonDecode(res.body);
@@ -153,7 +240,9 @@ class EducationApi {
       throw const EducationException('Sessão expirada');
     }
     if (res.statusCode < 200 || res.statusCode >= 300) {
-      throw EducationException('Falha ao guardar disciplinas (${res.statusCode})');
+      throw EducationException(
+        'Falha ao guardar disciplinas (${res.statusCode})',
+      );
     }
 
     final obj = jsonDecode(res.body);
@@ -184,7 +273,9 @@ class EducationApi {
       throw const EducationException('Sessão expirada');
     }
     if (res.statusCode < 200 || res.statusCode >= 300) {
-      throw EducationException('Falha ao remover disciplina (${res.statusCode})');
+      throw EducationException(
+        'Falha ao remover disciplina (${res.statusCode})',
+      );
     }
 
     final obj = jsonDecode(res.body);

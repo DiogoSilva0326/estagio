@@ -19,6 +19,7 @@ namespace ConfidantPostgreSQL.Modules.Reservations.Service
         public Task<Reservation?> GetReservationByIdAsync(Guid idReservation) => _repo.GetReservationByIdAsync(idReservation);
         public Task<Reservation?> GetReservationByLessonAndUserAsync(Guid idLesson, Guid idUser) =>
             _repo.GetReservationByLessonAndUserAsync(idLesson, idUser);
+        public Task<IEnumerable<Reservation>> GetReservationsByLessonAsync(Guid idLesson) => _repo.GetReservationsByLessonAsync(idLesson);
         public Task<Guid> InsertReservationAsync(Reservation reservation) => _repo.InsertReservationAsync(reservation);
         public Task<int> UpdateReservationAsync(Reservation reservation) => _repo.UpdateReservationAsync(reservation);
         public Task<int> DeleteReservationAsync(Guid idReservation) => _repo.DeleteReservationAsync(idReservation);

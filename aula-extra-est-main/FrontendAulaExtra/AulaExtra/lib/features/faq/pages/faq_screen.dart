@@ -20,12 +20,15 @@ class FaqScreen extends StatelessWidget {
               SliverPersistentHeader(
                 pinned: true,
                 delegate: PinnedHeaderDelegate(
-                  height: AppHeader.height,
+                  height: AppHeader.resolvedHeight(context),
                   child: AppHeader(
-                    onRegisterTap: () => Navigator.of(context).pushNamed(Routes.registerStudent),
-                    onLoginTap: () => Navigator.of(context).pushNamed(Routes.login),
-                    onLogoTap: () => Navigator.of(context)
-                        .pushNamedAndRemoveUntil(Routes.home, (route) => false),
+                    onRegisterTap: () =>
+                        Navigator.of(context).pushNamed(Routes.registerStudent),
+                    onLoginTap: () =>
+                        Navigator.of(context).pushNamed(Routes.login),
+                    onLogoTap: () => Navigator.of(
+                      context,
+                    ).pushNamedAndRemoveUntil(Routes.home, (route) => false),
                   ),
                 ),
               ),
@@ -36,7 +39,9 @@ class FaqScreen extends StatelessWidget {
                       color: Color(0xFFF9FAFB),
                       child: SizedBox(
                         width: double.infinity,
-                        child: FullBleedScaledSection(child: FaqContentSection()),
+                        child: FullBleedScaledSection(
+                          child: FaqContentSection(),
+                        ),
                       ),
                     ),
                     const ColoredBox(

@@ -4,6 +4,7 @@ import 'package:aula_extra/core/data/auth/dtos/auth_response_dto.dart';
 import 'package:aula_extra/core/data/http/api_config.dart';
 import 'package:aula_extra/core/data/education/dtos/disciplina_dto.dart';
 import 'package:aula_extra/core/data/professors/dtos/public_professor_profile_dto.dart';
+import 'package:aula_extra/core/data/professors/dtos/global_professor_rating_summary_dto.dart';
 import 'package:aula_extra/core/data/professors/dtos/professor_aluno_dto.dart';
 import 'package:aula_extra/core/data/professors/dtos/professor_certificate_dto.dart';
 import 'package:aula_extra/core/data/professors/dtos/professor_evaluations_overview_dto.dart';
@@ -196,6 +197,26 @@ class ProfessorsApi {
     }
 
     return ProfessorStatsDto.fromJson(obj);
+  }
+
+  Future<GlobalProfessorRatingSummaryDto> getGlobalRatingSummary() async {
+    final res = await http.get(
+      ApiConfig.uri('/api/Professors/ratings/summary'),
+      headers: const {'Content-Type': 'application/json'},
+    );
+
+    if (res.statusCode < 200 || res.statusCode >= 300) {
+      throw ProfessorsException(
+        'Falha ao carregar média global das avaliações (${res.statusCode})',
+      );
+    }
+
+    final obj = jsonDecode(res.body);
+    if (obj is! Map<String, dynamic>) {
+      throw const ProfessorsException('Resposta inválida do servidor');
+    }
+
+    return GlobalProfessorRatingSummaryDto.fromJson(obj);
   }
 
   Future<ProfessorEvaluationsOverviewDto> getMyEvaluations({

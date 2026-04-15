@@ -6,7 +6,14 @@ import 'package:aula_extra/features/faq/widgets/faq_gradient_pill_bar.dart';
 import 'package:flutter/material.dart';
 
 class FaqHeroBlock extends StatelessWidget {
-  const FaqHeroBlock({super.key});
+  const FaqHeroBlock({
+    super.key,
+    required this.searchController,
+    required this.onSearchPressed,
+  });
+
+  final TextEditingController searchController;
+  final VoidCallback onSearchPressed;
 
   @override
   Widget build(BuildContext context) {
@@ -18,21 +25,30 @@ class FaqHeroBlock extends StatelessWidget {
           bottom: BorderSide(color: FaqColors.borderLight, width: FaqDimens.borderThin),
         ),
       ),
-      child: const Padding(
+      child: Padding(
         padding: EdgeInsets.only(
           left: 148.025,
           right: 148.025,
           top: 81.669,
           bottom: 81.669,
         ),
-        child: _HeroInner(),
+        child: _HeroInner(
+          searchController: searchController,
+          onSearchPressed: onSearchPressed,
+        ),
       ),
     );
   }
 }
 
 class _HeroInner extends StatelessWidget {
-  const _HeroInner();
+  const _HeroInner({
+    required this.searchController,
+    required this.onSearchPressed,
+  });
+
+  final TextEditingController searchController;
+  final VoidCallback onSearchPressed;
 
   @override
   Widget build(BuildContext context) {
@@ -43,14 +59,14 @@ class _HeroInner extends StatelessWidget {
       child: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
-          children: const [
-            FaqGradientCircleIcon(
+          children: [
+            const FaqGradientCircleIcon(
               size: 102.086,
               iconSize: 51.043,
               icon: Icons.help_outline,
             ),
-            SizedBox(height: 30.626),
-            Text(
+            const SizedBox(height: 30.626),
+            const Text(
               FaqCopy.heroTitle,
               textAlign: TextAlign.center,
               style: TextStyle(
@@ -60,10 +76,10 @@ class _HeroInner extends StatelessWidget {
                 color: FaqColors.textPrimary,
               ),
             ),
-            SizedBox(height: 20.417),
-            FaqGradientPillBar(width: 163.338, height: 5.104),
-            SizedBox(height: 30.626),
-            Text(
+            const SizedBox(height: 20.417),
+            const FaqGradientPillBar(width: 163.338, height: 5.104),
+            const SizedBox(height: 30.626),
+            const Text(
               FaqCopy.heroSubtitle,
               textAlign: TextAlign.center,
               style: TextStyle(
@@ -73,8 +89,11 @@ class _HeroInner extends StatelessWidget {
                 color: FaqColors.textSecondary,
               ),
             ),
-            SizedBox(height: 40.834),
-            _SearchRow(),
+            const SizedBox(height: 40.834),
+            _SearchRow(
+              searchController: searchController,
+              onSearchPressed: onSearchPressed,
+            ),
           ],
         ),
       ),
@@ -83,7 +102,13 @@ class _HeroInner extends StatelessWidget {
 }
 
 class _SearchRow extends StatelessWidget {
-  const _SearchRow();
+  const _SearchRow({
+    required this.searchController,
+    required this.onSearchPressed,
+  });
+
+  final TextEditingController searchController;
+  final VoidCallback onSearchPressed;
 
   @override
   Widget build(BuildContext context) {
@@ -91,13 +116,19 @@ class _SearchRow extends StatelessWidget {
       width: 857.524,
       height: 76.565,
       child: Row(
-        children: const [
-          Expanded(child: _SearchField()),
-          SizedBox(width: 20.417),
+        children: [
+          Expanded(
+            child: _SearchField(
+              controller: searchController,
+              onSubmitted: (_) => onSearchPressed(),
+            ),
+          ),
+          const SizedBox(width: 20.417),
           FaqGradientButton(
             width: 159.928,
             height: 76.565,
             label: FaqCopy.searchButtonLabel,
+            onTap: onSearchPressed,
           ),
         ],
       ),
@@ -105,27 +136,11 @@ class _SearchRow extends StatelessWidget {
   }
 }
 
-class _SearchField extends StatefulWidget {
-  const _SearchField();
+class _SearchField extends StatelessWidget {
+  const _SearchField({required this.controller, required this.onSubmitted});
 
-  @override
-  State<_SearchField> createState() => _SearchFieldState();
-}
-
-class _SearchFieldState extends State<_SearchField> {
-  late final TextEditingController _controller;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = TextEditingController();
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
+  final TextEditingController controller;
+  final ValueChanged<String> onSubmitted;
 
   @override
   Widget build(BuildContext context) {
@@ -155,7 +170,8 @@ class _SearchFieldState extends State<_SearchField> {
             const SizedBox(width: 15.313),
             Expanded(
               child: TextField(
-                controller: _controller,
+                controller: controller,
+                onSubmitted: onSubmitted,
                 style: const TextStyle(
                   fontSize: 20.417,
                   height: 1.2,

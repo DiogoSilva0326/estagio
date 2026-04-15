@@ -1,6 +1,7 @@
 import 'package:aula_extra/core/data/notifications/dtos/user_notification_dto.dart';
 import 'package:aula_extra/core/data/notifications/notifications_service.dart';
 import 'package:aula_extra/core/data/reservations_calendar/reservations_calendar_service.dart';
+import 'package:aula_extra/core/data/reservations_calendar/calendar_status.dart';
 import 'package:aula_extra/features/aluno/calendario/state/student_calendar_refresh_bus.dart';
 import 'package:aula_extra/features/aluno/calendario/widgets/pending_lesson_review_dialog.dart';
 import 'package:aula_extra/features/aluno/core/widgets/aluno_menu_nav.dart';
@@ -86,10 +87,7 @@ class _NotificacoesContentSectionState
   }
 
   bool _isPendingStatus(String? status) {
-    final normalized = status?.trim().toLowerCase();
-    return normalized == 'pending' ||
-        normalized == 'waiting' ||
-        normalized == 'requested';
+    return isPendingCalendarStatus(status);
   }
 
   Future<void> _reviewLessonRequest(UserNotificationDto item) async {
@@ -314,7 +312,7 @@ class _NotificacoesContentSectionState
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          AlunoMenuNav(selectedIndex: 9, notificationCount: _unreadCount),
+          AlunoMenuNav(selectedIndex: 8, notificationCount: _unreadCount),
           const SizedBox(width: 40),
           Expanded(
             child: FutureBuilder<void>(

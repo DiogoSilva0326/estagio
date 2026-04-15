@@ -16,6 +16,7 @@ namespace ConfidantPostgreSQL.Modules.Education.Service
         }
 
         public Task<IEnumerable<Disciplina>> GetDisciplinasAllAsync() => _repo.GetDisciplinasAllAsync();
+        public Task<IEnumerable<Disciplina>> GetPublicDisciplinasWithProfessorsAsync() => _repo.GetPublicDisciplinasWithProfessorsAsync();
         public Task<Disciplina?> GetDisciplinaByIdAsync(Guid idDisciplina) => _repo.GetDisciplinaByIdAsync(idDisciplina);
         public Task<Guid> InsertDisciplinaAsync(Disciplina disciplina) => _repo.InsertDisciplinaAsync(disciplina);
         public Task<int> UpdateDisciplinaAsync(Disciplina disciplina) => _repo.UpdateDisciplinaAsync(disciplina);

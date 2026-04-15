@@ -14,7 +14,9 @@ import 'package:aula_extra/features/aluno/notificacoes/pages/notificacoes_screen
 import 'package:aula_extra/features/aluno/marcar_aula_professor/pages/marcar_aula_professor_screen.dart';
 import 'package:aula_extra/features/tutor_profile_view/pages/tutor_profile_screen.dart';
 import 'package:aula_extra/features/faq/pages/faq_screen.dart';
+import 'package:aula_extra/features/contactos/pages/contactos_screen.dart';
 import 'package:aula_extra/features/become_teacher/pages/become_teacher_screen.dart';
+import 'package:aula_extra/features/comprar_creditos/pages/comprar_creditos_screen.dart';
 import 'package:aula_extra/features/home/pages/home_screen.dart';
 import 'package:aula_extra/features/login/pages/login_screen.dart';
 import 'package:aula_extra/features/profile/pages/profile_screen.dart';
@@ -28,11 +30,14 @@ import 'package:aula_extra/features/professor/disponibilidade/pages/disponibilid
 import 'package:aula_extra/features/professor/pagamentos/pages/pagamentos_professor_screen.dart';
 import 'package:aula_extra/features/professor/avaliacoes/pages/avaliacoes_professor_screen.dart';
 import 'package:aula_extra/features/professor/perfil/pages/perfil_professor_screen.dart';
+import 'package:aula_extra/features/professor/meus_anuncios/pages/meus_anuncios_professor_screen.dart';
 import 'package:aula_extra/features/professor/notificacoes/pages/notificacoes_professor_screen.dart';
+import 'package:aula_extra/features/professor/publicar_anuncio/pages/publicar_anuncio_professor_screen.dart';
 import 'package:aula_extra/core/providers/user_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:aula_extra/core/data/session/token_storage.dart';
 import 'package:aula_extra/core/data/auth/auth_service.dart';
+import 'package:aula_extra/core/session/session_manager.dart';
 
 class _TeacherOnly extends StatefulWidget {
   const _TeacherOnly({required this.child});
@@ -57,6 +62,7 @@ class _TeacherOnlyState extends State<_TeacherOnly> {
     try {
       final token = await _tokenStorage.loadToken();
       if (token == null || token.trim().isEmpty) {
+        await SessionManager.instance.handleExpiredSession();
         if (!mounted) return;
         setState(() => _isTeacher = false);
         return;
@@ -70,16 +76,13 @@ class _TeacherOnlyState extends State<_TeacherOnly> {
         ).refresh();
         teacher = session.appRole == Role.teacher;
       } catch (_) {
-        // If we cannot confirm with backend, deny teacher access.
+        await SessionManager.instance.handleExpiredSession();
         teacher = false;
       }
 
       if (!mounted) return;
 
-      // As a tiny resilience fallback, if refresh succeeded earlier but appRole is teacher,
-      // we don't need to parse JWT. If refresh failed, teacher is already false.
       if (teacher == false) {
-        // Keep a best-effort provider correction (won't grant teacher).
         final provider = context.read<UserProvider>();
         if (provider.role == Role.teacher) provider.setRole(Role.student);
       }
@@ -87,11 +90,14 @@ class _TeacherOnlyState extends State<_TeacherOnly> {
 
       // Keep provider role consistent (best-effort).
       final provider = context.read<UserProvider>();
-      if (teacher && provider.role != Role.teacher)
+      if (teacher && provider.role != Role.teacher) {
         provider.setRole(Role.teacher);
-      if (!teacher && provider.role == Role.teacher)
+      }
+      if (!teacher && provider.role == Role.teacher) {
         provider.setRole(Role.student);
+      }
     } catch (_) {
+      await SessionManager.instance.handleExpiredSession();
       if (!mounted) return;
       setState(() => _isTeacher = false);
       final provider = context.read<UserProvider>();
@@ -115,6 +121,8 @@ class _TeacherOnlyState extends State<_TeacherOnly> {
 class Routes {
   static const String home = '/';
   static const String faq = '/faq';
+  static const String contactos = '/contactos';
+  static const String comprarCreditos = '/precos';
   static const String becomeTeacher = '/tornar-se-explicador';
   static const String login = '/login';
   static const String profile = '/profile';
@@ -143,12 +151,16 @@ class Routes {
   static const String professorDisponibilidade = '/professor/disponibilidade';
   static const String professorPagamentos = '/professor/pagamentos';
   static const String professorAvaliacoes = '/professor/avaliacoes';
+  static const String professorPublicarAnuncio = '/professor/publicar-anuncio';
+  static const String professorMeusAnuncios = '/professor/meus-anuncios';
   static const String professorPerfil = '/professor/perfil';
   static const String professorNotificacoes = '/professor/notificacoes';
 
   static Map<String, WidgetBuilder> get all => {
     home: (context) => const HomeScreen(),
     faq: (context) => const FaqScreen(),
+    contactos: (context) => const ContactosScreen(),
+    comprarCreditos: (context) => const ComprarCreditosScreen(),
     becomeTeacher: (context) => const BecomeTeacherScreen(),
     login: (context) => const LoginScreen(),
     profile: (context) => const ProfileScreen(),
@@ -183,6 +195,10 @@ class Routes {
         const _TeacherOnly(child: PagamentosProfessorScreen()),
     professorAvaliacoes: (context) =>
         const _TeacherOnly(child: AvaliacoesProfessorScreen()),
+    professorPublicarAnuncio: (context) =>
+        const _TeacherOnly(child: PublicarAnuncioProfessorScreen()),
+    professorMeusAnuncios: (context) =>
+        const _TeacherOnly(child: MeusAnunciosProfessorScreen()),
     professorPerfil: (context) =>
         const _TeacherOnly(child: PerfilProfessorScreen()),
     professorNotificacoes: (context) =>

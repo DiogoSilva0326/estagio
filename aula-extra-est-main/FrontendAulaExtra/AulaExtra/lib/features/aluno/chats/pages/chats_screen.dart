@@ -35,7 +35,7 @@ class ChatsScreen extends StatelessWidget {
           SliverPersistentHeader(
             pinned: true,
             delegate: PinnedHeaderDelegate(
-              height: AppHeader.height,
+              height: AppHeader.resolvedHeight(context),
               child: AppHeader(
                 headerAlunoActiveItem: null,
                 onRegisterTap: () =>

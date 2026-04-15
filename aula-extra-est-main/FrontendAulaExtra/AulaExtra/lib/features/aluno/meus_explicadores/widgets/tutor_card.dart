@@ -13,6 +13,7 @@ class TutorCard extends StatelessWidget {
     this.onViewProfileTap,
     this.onChatTap,
     this.onScheduleTap,
+    this.onComplaintTap,
   });
 
   final String name;
@@ -25,6 +26,7 @@ class TutorCard extends StatelessWidget {
   final VoidCallback? onViewProfileTap;
   final VoidCallback? onChatTap;
   final VoidCallback? onScheduleTap;
+  final VoidCallback? onComplaintTap;
 
   static const _orangeStart = Color(0xFFFF6B00);
   static const _orangeEnd = Color(0xFFFF9966);
@@ -46,7 +48,7 @@ class TutorCard extends StatelessWidget {
 
     return SizedBox(
       width: 305.182,
-      height: 557.062,
+      height: 636,
       child: Container(
         padding: const EdgeInsets.fromLTRB(33.09, 33.09, 33.09, 33.09),
         decoration: BoxDecoration(
@@ -184,6 +186,29 @@ class TutorCard extends StatelessWidget {
               onChatTap: onChatTap,
               onScheduleTap: onScheduleTap,
             ),
+            if (onComplaintTap != null) ...[
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: OutlinedButton.icon(
+                  onPressed: onComplaintTap,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFFB42318),
+                    side: const BorderSide(color: Color(0xFFF15C64), width: 1.5),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    textStyle: const TextStyle(
+                      fontSize: 16.2,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  icon: const Icon(Icons.report_gmailerrorred_rounded),
+                  label: const Text('Submeter reclamação'),
+                ),
+              ),
+            ],
           ],
         ),
       ),

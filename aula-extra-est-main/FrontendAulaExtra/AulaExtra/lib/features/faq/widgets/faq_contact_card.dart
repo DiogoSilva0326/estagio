@@ -2,6 +2,7 @@ import 'package:aula_extra/features/faq/constants/faq_constants.dart';
 import 'package:aula_extra/features/faq/constants/faq_copy.dart';
 import 'package:aula_extra/features/faq/widgets/faq_buttons.dart';
 import 'package:aula_extra/features/faq/widgets/faq_gradient_circle_icon.dart';
+import 'package:aula_extra/routes/routes.dart';
 import 'package:flutter/material.dart';
 
 class FaqContactCard extends StatelessWidget {
@@ -13,24 +14,31 @@ class FaqContactCard extends StatelessWidget {
       width: double.infinity,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(FaqDimens.radiusCard),
-        border: Border.all(color: FaqColors.orangeSoft, width: FaqDimens.borderThick),
+        border: Border.all(
+          color: FaqColors.orangeSoft,
+          width: FaqDimens.borderThick,
+        ),
         gradient: FaqGradients.contactBackground,
       ),
-      child: const Padding(
+      child: Padding(
         padding: EdgeInsets.only(
           left: 193.964,
           right: 193.964,
           top: 43.387,
           bottom: 43.387,
         ),
-        child: _ContactInner(),
+        child: _ContactInner(
+          onContactTap: () => Navigator.of(context).pushNamed(Routes.contactos),
+        ),
       ),
     );
   }
 }
 
 class _ContactInner extends StatelessWidget {
-  const _ContactInner();
+  const _ContactInner({required this.onContactTap});
+
+  final VoidCallback onContactTap;
 
   @override
   Widget build(BuildContext context) {
@@ -70,7 +78,7 @@ class _ContactInner extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 30.626),
-          const Row(
+          Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               FaqGradientIconButton(
@@ -78,8 +86,9 @@ class _ContactInner extends StatelessWidget {
                 height: 76.565,
                 label: FaqCopy.contactPrimaryCta,
                 icon: Icons.send_outlined,
+                onTap: onContactTap,
               ),
-              SizedBox(width: 15.313),
+              const SizedBox(width: 15.313),
               FaqOutlinedButton(
                 width: 197.951,
                 height: 76.565,

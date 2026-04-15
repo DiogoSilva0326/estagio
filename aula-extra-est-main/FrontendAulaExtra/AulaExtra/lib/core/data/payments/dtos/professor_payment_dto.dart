@@ -1,3 +1,5 @@
+import '../payment_status.dart';
+
 class ProfessorPaymentHistoryItemDto {
   const ProfessorPaymentHistoryItemDto({
     required this.id,
@@ -34,12 +36,7 @@ class ProfessorPaymentHistoryItemDto {
   final String currency;
 
   bool get isPaid {
-    final normalized = status.trim().toLowerCase();
-    return normalized.contains('paid') ||
-        normalized.contains('pago') ||
-        normalized.contains('success') ||
-        normalized.contains('completed') ||
-        normalized.contains('conclu');
+    return isPaidPaymentStatus(status);
   }
 
   factory ProfessorPaymentHistoryItemDto.fromJson(Map<String, dynamic> json) {

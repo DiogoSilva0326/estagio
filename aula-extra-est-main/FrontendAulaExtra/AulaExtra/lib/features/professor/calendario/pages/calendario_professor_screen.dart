@@ -8,9 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 class CalendarioProfessorScreen extends StatelessWidget {
-  const CalendarioProfessorScreen({
-    super.key,
-  });
+  const CalendarioProfessorScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -20,7 +18,9 @@ class CalendarioProfessorScreen extends StatelessWidget {
     if (!isTeacher) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!context.mounted) return;
-        Navigator.of(context).pushNamedAndRemoveUntil(Routes.home, (route) => false);
+        Navigator.of(
+          context,
+        ).pushNamedAndRemoveUntil(Routes.home, (route) => false);
       });
     }
 
@@ -30,8 +30,8 @@ class CalendarioProfessorScreen extends StatelessWidget {
           SliverPersistentHeader(
             pinned: true,
             delegate: PinnedHeaderDelegate(
-              height: 90,
-                  child: const AppHeader(),
+              height: AppHeader.resolvedHeight(context),
+              child: const AppHeader(),
             ),
           ),
           const SliverToBoxAdapter(child: CalendarioProfessorContentSection()),

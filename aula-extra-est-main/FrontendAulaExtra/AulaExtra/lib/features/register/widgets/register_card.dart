@@ -14,11 +14,7 @@ import 'package:aula_extra/core/providers/user_provider.dart';
 import 'package:aula_extra/routes/routes.dart';
 
 class RegisterCard extends StatefulWidget {
-  const RegisterCard({
-    super.key,
-    required this.onLoginTap,
-    this.onSubmit,
-  });
+  const RegisterCard({super.key, required this.onLoginTap, this.onSubmit});
 
   final VoidCallback onLoginTap;
   final VoidCallback? onSubmit;
@@ -72,7 +68,9 @@ class _RegisterCardState extends State<RegisterCard> {
         email: _emailController.text.trim(),
         password: _passwordController.text,
         fullName: _nameController.text.trim(),
-        educationLevel: (_educationLevel ?? '').trim().isEmpty ? null : _educationLevel!.trim(),
+        educationLevel: (_educationLevel ?? '').trim().isEmpty
+            ? null
+            : _educationLevel!.trim(),
       );
 
       AuthService.applySessionToProvider(user, session);
@@ -80,8 +78,8 @@ class _RegisterCardState extends State<RegisterCard> {
       final targetRoute = session.appRole == Role.teacher
           ? Routes.professorMeusAlunos
           : session.appRole == Role.student
-              ? Routes.areasAluno
-              : Routes.home;
+          ? Routes.areasAluno
+          : Routes.home;
 
       if (!mounted) return;
       navigator.pushNamedAndRemoveUntil(targetRoute, (r) => false);
@@ -126,7 +124,10 @@ class _RegisterCardState extends State<RegisterCard> {
                       decoration: const BoxDecoration(
                         color: Color(0xFFF9FAFB),
                         border: Border(
-                          bottom: BorderSide(width: 0.836, color: Color(0xFFE5E7EB)),
+                          bottom: BorderSide(
+                            width: 0.836,
+                            color: Color(0xFFE5E7EB),
+                          ),
                         ),
                         borderRadius: BorderRadius.only(
                           topLeft: Radius.circular(20),
@@ -152,10 +153,16 @@ class _RegisterCardState extends State<RegisterCard> {
                       gradient: LinearGradient(
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
-                        colors: [RegisterColors.gradientStart, RegisterColors.gradientEnd],
+                        colors: [
+                          RegisterColors.gradientStart,
+                          RegisterColors.gradientEnd,
+                        ],
                       ),
                       border: Border(
-                        bottom: BorderSide(width: 0.836, color: Color(0xFFE5E7EB)),
+                        bottom: BorderSide(
+                          width: 0.836,
+                          color: Color(0xFFE5E7EB),
+                        ),
                       ),
                       borderRadius: BorderRadius.only(
                         topRight: Radius.circular(20),
@@ -236,7 +243,11 @@ class _RegisterCardState extends State<RegisterCard> {
                   label: 'Nome Completo',
                   hintText: 'O teu nome completo',
                   controller: _nameController,
-                  prefix: const Icon(Icons.person_outline, size: 16.719, color: Color(0xFF99A1AF)),
+                  prefix: const Icon(
+                    Icons.person_outline,
+                    size: 16.719,
+                    color: Color(0xFF99A1AF),
+                  ),
                 ),
                 const SizedBox(height: 20.063),
                 LabeledTextField(
@@ -244,7 +255,11 @@ class _RegisterCardState extends State<RegisterCard> {
                   hintText: 'o-teu-email@exemplo.com',
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
-                  prefix: const AssetPicture(RegisterAssets.email, width: 16.719, height: 16.719),
+                  prefix: const AssetPicture(
+                    RegisterAssets.email,
+                    width: 16.719,
+                    height: 16.719,
+                  ),
                 ),
                 const SizedBox(height: 20.063),
                 LabeledDropdown(
@@ -258,16 +273,26 @@ class _RegisterCardState extends State<RegisterCard> {
                   hintText: 'Mínimo 6 caracteres',
                   controller: _passwordController,
                   obscureText: _obscurePassword,
-                  prefix: const AssetPicture(RegisterAssets.password, width: 16.719, height: 16.719),
+                  prefix: const AssetPicture(
+                    RegisterAssets.password,
+                    width: 16.719,
+                    height: 16.719,
+                  ),
                   suffix: IconButton(
-                    onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                    onPressed: () =>
+                        setState(() => _obscurePassword = !_obscurePassword),
                     icon: Icon(
-                      _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                      _obscurePassword
+                          ? Icons.visibility_off_outlined
+                          : Icons.visibility_outlined,
                       size: 16.719,
                       color: const Color(0xFF99A1AF),
                     ),
                     padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints.tightFor(width: 32, height: 32),
+                    constraints: const BoxConstraints.tightFor(
+                      width: 32,
+                      height: 32,
+                    ),
                   ),
                   onChanged: (_) => setState(() {}),
                 ),
@@ -277,16 +302,26 @@ class _RegisterCardState extends State<RegisterCard> {
                   hintText: 'Repete a password',
                   controller: _confirmController,
                   obscureText: _obscureConfirm,
-                  prefix: const AssetPicture(RegisterAssets.password, width: 16.719, height: 16.719),
+                  prefix: const AssetPicture(
+                    RegisterAssets.password,
+                    width: 16.719,
+                    height: 16.719,
+                  ),
                   suffix: IconButton(
-                    onPressed: () => setState(() => _obscureConfirm = !_obscureConfirm),
+                    onPressed: () =>
+                        setState(() => _obscureConfirm = !_obscureConfirm),
                     icon: Icon(
-                      _obscureConfirm ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                      _obscureConfirm
+                          ? Icons.visibility_off_outlined
+                          : Icons.visibility_outlined,
                       size: 16.719,
                       color: const Color(0xFF99A1AF),
                     ),
                     padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints.tightFor(width: 32, height: 32),
+                    constraints: const BoxConstraints.tightFor(
+                      width: 32,
+                      height: 32,
+                    ),
                   ),
                   onChanged: (_) => setState(() {}),
                 ),
@@ -299,8 +334,12 @@ class _RegisterCardState extends State<RegisterCard> {
                       height: 16.719,
                       child: Checkbox(
                         value: _acceptTerms,
-                        onChanged: (v) => setState(() => _acceptTerms = v ?? false),
-                        side: const BorderSide(color: RegisterColors.stroke, width: 1.2),
+                        onChanged: (v) =>
+                            setState(() => _acceptTerms = v ?? false),
+                        side: const BorderSide(
+                          color: RegisterColors.stroke,
+                          width: 1.2,
+                        ),
                         activeColor: RegisterColors.gradientStart,
                         materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                         visualDensity: VisualDensity.compact,
@@ -308,9 +347,7 @@ class _RegisterCardState extends State<RegisterCard> {
                     ),
                     const SizedBox(width: 10.031),
                     Expanded(
-                      child: TermsText(
-                        onChanged: () => setState(() {}),
-                      ),
+                      child: TermsText(onChanged: () => setState(() {})),
                     ),
                   ],
                 ),
@@ -326,7 +363,10 @@ class _RegisterCardState extends State<RegisterCard> {
                           ? const LinearGradient(
                               begin: Alignment.topCenter,
                               end: Alignment.bottomCenter,
-                              colors: [RegisterColors.gradientStart, RegisterColors.gradientEnd],
+                              colors: [
+                                RegisterColors.gradientStart,
+                                RegisterColors.gradientEnd,
+                              ],
                             )
                           : null,
                       borderRadius: BorderRadius.circular(11.703),

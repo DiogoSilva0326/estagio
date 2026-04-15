@@ -348,9 +348,15 @@ CREATE TABLE IF NOT EXISTS complaints (
   sender_user_id UUID NOT NULL REFERENCES public.users(id_user) ON DELETE CASCADE,
   receiver_user_id UUID REFERENCES public.users(id_user),
   complaint_type VARCHAR(100),
+  complaint_subject VARCHAR(160),
   complaint_message VARCHAR(1000),
   status VARCHAR(30),
   is_read BOOLEAN DEFAULT false,
+  sender_display_name VARCHAR(160),
+  receiver_display_name VARCHAR(160),
+  sender_role VARCHAR(30),
+  receiver_role VARCHAR(30),
+  relationship_context VARCHAR(30),
   created_at TIMESTAMP DEFAULT now(),
   updated_at TIMESTAMP DEFAULT now()
 );
@@ -496,12 +502,22 @@ CREATE TABLE IF NOT EXISTS refunds (
 
 CREATE TABLE IF NOT EXISTS disputes (
   id_dispute UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  transaction_id UUID NOT NULL REFERENCES transactions(id_transaction) ON DELETE CASCADE,
+  transaction_id UUID REFERENCES transactions(id_transaction) ON DELETE CASCADE,
+  id_reservation UUID,
+  reservation_payment_id UUID,
+  topup_id UUID,
   raised_by_user_id UUID REFERENCES public.users(id_user),
+  reporter_name VARCHAR(160),
+  reporter_email VARCHAR(255),
+  reporter_role VARCHAR(20),
+  subject VARCHAR(160),
   reason TEXT,
+  payment_reference TEXT,
+  payment_source VARCHAR(40),
   status VARCHAR(20),
   resolution_note TEXT,
-  created_at TIMESTAMP DEFAULT now()
+  created_at TIMESTAMP DEFAULT now(),
+  updated_at TIMESTAMP DEFAULT now()
 );
 
 CREATE TABLE IF NOT EXISTS commission_rules (

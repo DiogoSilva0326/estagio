@@ -1,7 +1,9 @@
+import 'package:aula_extra/core/data/complaints/complaints_service.dart';
 import 'package:aula_extra/features/aluno/core/widgets/aluno_menu_nav.dart';
 import 'package:aula_extra/core/providers/user_provider.dart';
 import 'package:aula_extra/core/data/tutors/my_tutors_service.dart';
 import 'package:aula_extra/core/data/tutors/dtos/my_tutor_dto.dart';
+import 'package:aula_extra/features/shared/complaints/widgets/related_user_complaint_dialog.dart';
 import 'package:aula_extra/features/aluno/chats/models/chat_bootstrap_args.dart';
 import 'package:aula_extra/features/aluno/marcar_aula_professor/models/marcar_aula_professor_args.dart';
 import 'package:aula_extra/features/aluno/meus_explicadores/constants/meus_explicadores_constants.dart';
@@ -22,6 +24,7 @@ class MeusExplicadoresContentSection extends StatefulWidget {
 class _MeusExplicadoresContentSectionState
     extends State<MeusExplicadoresContentSection> {
   late final Future<List<MyTutorDto>> _future;
+  final ComplaintsService _complaintsService = ComplaintsService();
 
   @override
   void initState() {
@@ -53,6 +56,27 @@ class _MeusExplicadoresContentSectionState
         contactUserId: tutorUserId,
         contactName: tutor.tutorName,
         contactUsername: tutor.tutorUsername,
+      ),
+    );
+  }
+
+  Future<void> _showComplaintDialog(MyTutorDto tutor) async {
+    final submitted = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => RelatedUserComplaintDialog(
+        targetUserId: tutor.tutorUserId,
+        targetName: tutor.tutorName,
+        targetRoleLabel: 'do professor',
+        relationshipType: 'professor',
+        onSubmit: _complaintsService.createRelatedUserComplaint,
+      ),
+    );
+
+    if (!mounted || submitted != true) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Reclamação submetida sobre ${tutor.tutorName}.'),
       ),
     );
   }
@@ -189,6 +213,7 @@ class _MeusExplicadoresContentSectionState
                                 );
                               },
                               onChatTap: () => _openTutorChat(item),
+                              onComplaintTap: () => _showComplaintDialog(item),
                               onScheduleTap: () {
                                 Navigator.of(context).pushNamed(
                                   Routes.marcarAulaProfessor,

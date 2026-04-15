@@ -3,10 +3,7 @@ import 'package:aula_extra/features/professor/arquivos/constants/arquivos_profes
 import 'package:flutter/material.dart';
 
 class ArquivosProfessorSearchField extends StatelessWidget {
-  const ArquivosProfessorSearchField({
-    super.key,
-    this.onChanged,
-  });
+  const ArquivosProfessorSearchField({super.key, this.onChanged});
 
   final ValueChanged<String>? onChanged;
 

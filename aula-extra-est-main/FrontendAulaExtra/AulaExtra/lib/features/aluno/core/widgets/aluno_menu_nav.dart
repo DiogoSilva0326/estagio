@@ -134,12 +134,12 @@ class _AlunoMenuNavState extends State<AlunoMenuNav> {
     if (routeName == Routes.meusExplicadores) return 1;
     if (routeName == Routes.calendario) return 2;
     if (routeName == Routes.calendarioSemanal) return 2;
-    if (routeName == Routes.arquivos) return 4;
-    if (routeName == Routes.chats) return 5;
-    if (routeName == Routes.pagamentos) return 6;
-    if (routeName == Routes.avaliacoes) return 7;
-    if (routeName == Routes.perfilAluno) return 8;
-    if (routeName == Routes.notificacoes) return 9;
+    if (routeName == Routes.arquivos) return 3;
+    if (routeName == Routes.chats) return 4;
+    if (routeName == Routes.pagamentos) return 5;
+    if (routeName == Routes.avaliacoes) return 6;
+    if (routeName == Routes.perfilAluno) return 7;
+    if (routeName == Routes.notificacoes) return 8;
     return null;
   }
 
@@ -151,12 +151,12 @@ class _AlunoMenuNavState extends State<AlunoMenuNav> {
         0 => Routes.areasAluno,
         1 => Routes.meusExplicadores,
         2 => Routes.calendario,
-        4 => Routes.arquivos,
-        5 => Routes.chats,
-        6 => Routes.pagamentos,
-        7 => Routes.avaliacoes,
-        8 => Routes.perfilAluno,
-        9 => Routes.notificacoes,
+        3 => Routes.arquivos,
+        4 => Routes.chats,
+        5 => Routes.pagamentos,
+        6 => Routes.avaliacoes,
+        7 => Routes.perfilAluno,
+        8 => Routes.notificacoes,
         _ => null,
       };
 

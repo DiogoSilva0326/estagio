@@ -39,6 +39,64 @@ namespace ConfidantPostgreSQL.Modules.Education.Repository
             return list;
         }
 
+        public async Task<IEnumerable<Disciplina>> GetPublicDisciplinasWithProfessorsAsync()
+        {
+            var list = new List<Disciplina>();
+            await using var conn = new NpgsqlConnection(_connectionString);
+            await conn.OpenAsync();
+            await using var cmd = conn.CreateCommand();
+            cmd.CommandText = @"
+SELECT
+    d.id_disciplina,
+    d.id_area,
+    a.nome AS area_nome,
+    d.nome,
+    d.descricao,
+    NULL::uuid AS id_ciclo_estudo,
+    NULL::text AS ciclo_estudos,
+    COUNT(DISTINCT pd.id_professor)::int AS active_students_count,
+    TRUE AS is_active,
+    d.created_at,
+    d.updated_at
+FROM public.professor_disciplina pd
+JOIN public.professors p ON p.id_professor = pd.id_professor
+JOIN public.disciplinas d ON d.id_disciplina = pd.id_disciplina
+LEFT JOIN public.areas a ON a.id_area = d.id_area
+WHERE COALESCE(pd.is_active, TRUE) = TRUE
+  AND COALESCE(p.is_active, TRUE) = TRUE
+  AND COALESCE(p.is_verified, FALSE) = TRUE
+GROUP BY
+    d.id_disciplina,
+    d.id_area,
+    a.nome,
+    d.nome,
+    d.descricao,
+    d.created_at,
+    d.updated_at
+ORDER BY d.nome ASC;";
+
+            await using var reader = await cmd.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+            {
+                list.Add(new Disciplina
+                {
+                    IdDisciplina = reader.GetGuid(reader.GetOrdinal("id_disciplina")),
+                    IdArea = GetNullableGuid(reader, "id_area"),
+                    AreaNome = GetNullableString(reader, "area_nome"),
+                    Nome = reader.GetString(reader.GetOrdinal("nome")),
+                    Descricao = GetNullableString(reader, "descricao"),
+                    IdCicloEstudo = GetNullableGuid(reader, "id_ciclo_estudo"),
+                    CicloEstudos = GetNullableString(reader, "ciclo_estudos"),
+                    ActiveStudentsCount = GetNullableInt(reader, "active_students_count") ?? 0,
+                    IsActive = true,
+                    CreatedAt = GetNullableDateTime(reader, "created_at"),
+                    UpdatedAt = GetNullableDateTime(reader, "updated_at")
+                });
+            }
+
+            return list;
+        }
+
         public async Task<Disciplina?> GetDisciplinaByIdAsync(Guid idDisciplina)
         {
             await using var conn = new NpgsqlConnection(_connectionString);
@@ -120,7 +178,30 @@ namespace ConfidantPostgreSQL.Modules.Education.Repository
             await using var conn = new NpgsqlConnection(_connectionString);
             await conn.OpenAsync();
             await using var cmd = conn.CreateCommand();
-            cmd.CommandText = "SELECT * FROM public.usp_areas_select_all01();";
+            cmd.CommandText = @"
+SELECT
+    a.id_area,
+    a.nome,
+    a.descricao,
+    a.created_at,
+    a.updated_at,
+    COALESCE(pc.professor_count, 0) AS professor_count
+FROM areas a
+LEFT JOIN (
+    SELECT
+        d.id_area,
+        COUNT(DISTINCT pd.id_professor) AS professor_count
+    FROM professor_disciplina pd
+    JOIN disciplinas d ON d.id_disciplina = pd.id_disciplina
+    JOIN professors p ON p.id_professor = pd.id_professor
+    WHERE pd.id_professor IS NOT NULL
+        AND d.id_area IS NOT NULL
+        AND COALESCE(pd.is_active, TRUE) = TRUE
+        AND COALESCE(p.is_active, TRUE) = TRUE
+        AND COALESCE(p.is_verified, FALSE) = TRUE
+    GROUP BY d.id_area
+) pc ON pc.id_area = a.id_area
+ORDER BY a.nome;";
             await using var reader = await cmd.ExecuteReaderAsync();
             while (await reader.ReadAsync())
             {
@@ -129,6 +210,7 @@ namespace ConfidantPostgreSQL.Modules.Education.Repository
                     IdArea = reader.GetGuid(reader.GetOrdinal("id_area")),
                     Nome = reader.GetString(reader.GetOrdinal("nome")),
                     Descricao = GetNullableString(reader, "descricao"),
+                    ProfessorCount = GetNullableInt(reader, "professor_count") ?? 0,
                     CreatedAt = GetNullableDateTime(reader, "created_at"),
                     UpdatedAt = GetNullableDateTime(reader, "updated_at")
                 });
@@ -150,6 +232,7 @@ namespace ConfidantPostgreSQL.Modules.Education.Repository
                 IdArea = reader.GetGuid(reader.GetOrdinal("id_area")),
                 Nome = reader.GetString(reader.GetOrdinal("nome")),
                 Descricao = GetNullableString(reader, "descricao"),
+                ProfessorCount = 0,
                 CreatedAt = GetNullableDateTime(reader, "created_at"),
                 UpdatedAt = GetNullableDateTime(reader, "updated_at")
             };

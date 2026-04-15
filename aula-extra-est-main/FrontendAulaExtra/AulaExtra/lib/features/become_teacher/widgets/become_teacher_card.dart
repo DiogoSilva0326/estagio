@@ -2,6 +2,8 @@ import 'package:aula_extra/core/providers/user_provider.dart';
 import 'package:aula_extra/core/data/auth/auth_service.dart';
 import 'package:aula_extra/core/data/professors/professors_api.dart';
 import 'package:aula_extra/core/data/professors/professors_service.dart';
+import 'package:aula_extra/core/data/users/dtos/user_profile_dto.dart';
+import 'package:aula_extra/core/data/users/users_service.dart';
 import 'package:aula_extra/features/become_teacher/constants/become_teacher_constants.dart';
 import 'package:aula_extra/features/register/constants/register_colors.dart';
 import 'package:aula_extra/routes/routes.dart';
@@ -38,7 +40,10 @@ class _BecomeTeacherCardState extends State<BecomeTeacherCard> {
   bool _obscurePassword = true;
   bool _obscureConfirm = true;
   bool _isSubmitting = false;
+  bool _didStartPrefill = false;
 
+  final _usersService = UsersService();
+  final _professorsService = ProfessorsService();
   final _fullNameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -62,29 +67,93 @@ class _BecomeTeacherCardState extends State<BecomeTeacherCard> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final user = context.read<UserProvider>();
-      final account = user.account;
+      _prefillKnownData();
+    });
+  }
 
-      if (account != null) {
-        if ((account.fullName ?? '').trim().isNotEmpty) {
-          _fullNameController.text = account.fullName!.trim();
-        }
-        if ((account.email ?? '').trim().isNotEmpty) {
-          _emailController.text = account.email!.trim();
-        }
-        if ((account.username ?? '').trim().isNotEmpty) {
-          _usernameController.text = account.username!.trim();
-        }
-        if ((account.mobileNumber ?? '').trim().isNotEmpty) {
-          _mobileController.text = account.mobileNumber!.trim();
-        }
-        if ((account.nif ?? '').trim().isNotEmpty) {
-          _nifController.text = account.nif!.trim();
-        }
+  void _setIfEmpty(TextEditingController controller, String? value) {
+    final normalized = value?.trim();
+    if (normalized == null || normalized.isEmpty) return;
+    if (controller.text.trim().isNotEmpty) return;
+    controller.text = normalized;
+  }
+
+  String? _deriveDisplayName(UserProfileDto me) {
+    final displayName = me.displayName?.trim();
+    if (displayName != null && displayName.isNotEmpty) return displayName;
+    return null;
+  }
+
+  void _syncProvider(UserProfileDto me) {
+    final provider = context.read<UserProvider>();
+    provider.setAccount(
+      (provider.account ?? const UserAccount()).copyWith(
+        fullName: _deriveDisplayName(me) ?? provider.account?.fullName,
+        email: me.email?.trim(),
+        username: me.username?.trim(),
+        mobileNumber: (me.mobileNumber ?? me.phoneNumber)?.trim(),
+        nif: me.nif?.trim(),
+        profileImageUrl: me.profileImageUrl?.trim(),
+      ),
+    );
+  }
+
+  Future<void> _prefillKnownData() async {
+    if (_didStartPrefill || !mounted) return;
+    _didStartPrefill = true;
+
+    final user = context.read<UserProvider>();
+    final account = user.account;
+
+    if (account != null) {
+      _setIfEmpty(_fullNameController, account.fullName);
+      _setIfEmpty(_emailController, account.email);
+      _setIfEmpty(_usernameController, account.username);
+      _setIfEmpty(_mobileController, account.mobileNumber);
+      _setIfEmpty(_nifController, account.nif);
+      _setIfEmpty(_bioImageUrlController, account.profileImageUrl);
+    }
+
+    if (!user.isLoggedIn) {
+      if (mounted) setState(() {});
+      return;
+    }
+
+    try {
+      final me = await _usersService.getMe();
+      if (!mounted) return;
+
+      _syncProvider(me);
+      _setIfEmpty(_fullNameController, _deriveDisplayName(me));
+      _setIfEmpty(_emailController, me.email);
+      _setIfEmpty(_usernameController, me.username);
+      _setIfEmpty(_mobileController, me.mobileNumber ?? me.phoneNumber);
+      _setIfEmpty(_nifController, me.nif);
+      _setIfEmpty(_bioImageUrlController, me.profileImageUrl);
+      _setIfEmpty(_presentationController, me.biography);
+    } catch (_) {}
+
+    try {
+      final professor = await _professorsService.getMyProfessor();
+      if (!mounted || professor == null) {
+        if (mounted) setState(() {});
+        return;
       }
 
-      setState(() {});
-    });
+      _setIfEmpty(_currentSchoolController, professor.currentSchool);
+      _setIfEmpty(
+        _yearsExperienceController,
+        professor.yearsExperience?.toString(),
+      );
+      _setIfEmpty(_vatController, professor.vat);
+      _setIfEmpty(_ibanController, professor.iban);
+      _setIfEmpty(_ibanDocumentUrlController, professor.ibanDocumentUrl);
+      _setIfEmpty(_videoUrlController, professor.presentationVideoUrl);
+      _setIfEmpty(_bioImageUrlController, professor.photo);
+      _setIfEmpty(_presentationController, professor.biography);
+    } catch (_) {}
+
+    if (mounted) setState(() {});
   }
 
   @override

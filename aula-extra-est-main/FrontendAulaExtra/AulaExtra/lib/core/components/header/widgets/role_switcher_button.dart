@@ -1,15 +1,12 @@
 import 'package:aula_extra/core/data/session/token_storage.dart';
 import 'package:aula_extra/core/data/auth/auth_service.dart';
-import 'package:aula_extra/core/data/session/jwt_utils.dart';
 import 'package:aula_extra/core/providers/user_provider.dart';
+import 'package:aula_extra/core/session/session_manager.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 class RoleSwitcherButton extends StatefulWidget {
-  const RoleSwitcherButton({
-    super.key,
-    this.size = 32,
-  });
+  const RoleSwitcherButton({super.key, this.size = 32});
 
   final double size;
 
@@ -34,11 +31,13 @@ class _RoleSwitcherButtonState extends State<RoleSwitcherButton> {
       if (token == null || token.trim().isEmpty) {
         if (!mounted) return;
         setState(() => _availableRoles = {Role.none});
-        final current = context.read<UserProvider>().role;
-        if (current != Role.none) {
+
+        final userProvider = context.read<UserProvider>();
+        if (userProvider.role != Role.none || userProvider.account != null) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (!mounted) return;
-            context.read<UserProvider>().setRole(Role.none);
+            userProvider.setAccount(null);
+            userProvider.setRole(Role.none);
           });
         }
         return;
@@ -53,22 +52,16 @@ class _RoleSwitcherButtonState extends State<RoleSwitcherButton> {
         roles = session.backendRoles;
 
         if (!mounted) return;
-        AuthService.applySessionToProvider(context.read<UserProvider>(), session);
+        AuthService.applySessionToProvider(
+          context.read<UserProvider>(),
+          session,
+        );
       } catch (_) {
-        // If refresh fails, fall back to safest interpretation for UI: logged in but NOT teacher.
-        roles = const [];
-
-        final payload = JwtUtils.tryDecodePayload(token);
-        final email = (payload?['email'] as String?)?.trim();
-        if (!mounted) return;
-        if (email != null && email.isNotEmpty) {
-          context.read<UserProvider>().setAccount(UserAccount(email: email));
-        }
+        await SessionManager.instance.handleExpiredSession();
+        return;
       }
 
       if (roles.isEmpty) {
-        // If backend refresh wasn't possible, do NOT trust JWT roles for teacher access.
-        // Keep only the student view for authenticated users.
         final available = <Role>{Role.student};
         if (!mounted) return;
         setState(() => _availableRoles = available);
@@ -83,8 +76,14 @@ class _RoleSwitcherButtonState extends State<RoleSwitcherButton> {
         return;
       }
 
-      final normalized = roles.map((r) => r.trim().toLowerCase()).where((r) => r.isNotEmpty).toSet();
-      final hasTeacher = normalized.contains('professor') || normalized.contains('teacher') || normalized.contains('admin');
+      final normalized = roles
+          .map((r) => r.trim().toLowerCase())
+          .where((r) => r.isNotEmpty)
+          .toSet();
+      final hasTeacher =
+          normalized.contains('professor') ||
+          normalized.contains('teacher') ||
+          normalized.contains('admin');
 
       // All authenticated users can use the app as student.
       // Only users with professor/admin role can switch to teacher.
@@ -109,17 +108,8 @@ class _RoleSwitcherButtonState extends State<RoleSwitcherButton> {
         });
       }
     } catch (_) {
-      // Safe fallback: if logged-in, keep only student; otherwise none.
       if (!mounted) return;
-      final currentRole = context.read<UserProvider>().role;
-      final fallback = currentRole == Role.none ? Role.none : Role.student;
-      setState(() => _availableRoles = {fallback});
-      if (currentRole != fallback) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (!mounted) return;
-          context.read<UserProvider>().setRole(fallback);
-        });
-      }
+      setState(() => _availableRoles = {Role.none});
     }
   }
 
@@ -139,9 +129,7 @@ class _RoleSwitcherButtonState extends State<RoleSwitcherButton> {
     final currentRole = context.watch<UserProvider>().role;
 
     final available = _availableRoles;
-    final allowedRoles = (available == null)
-        ? <Role>{currentRole}
-        : available;
+    final allowedRoles = (available == null) ? <Role>{currentRole} : available;
 
     // Never allow switching to Role.none through UI (logout should clear token).
     final menuRoles = allowedRoles.where((r) => r != Role.none).toList();
@@ -184,11 +172,7 @@ class _RoleSwitcherButtonState extends State<RoleSwitcherButton> {
           border: Border.all(color: Colors.black12),
         ),
         child: const Center(
-          child: Icon(
-            Icons.swap_horiz,
-            size: 18,
-            color: Colors.black,
-          ),
+          child: Icon(Icons.swap_horiz, size: 18, color: Colors.black),
         ),
       ),
     );

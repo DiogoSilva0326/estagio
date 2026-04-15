@@ -119,6 +119,17 @@ namespace ConfidantPostgreSQL.Modules.Payments.Service
         public Task<IEnumerable<Topup>> GetTopupsAllAsync() => _repo.GetTopupsAllAsync();
         public Task<Topup?> GetTopupByIdAsync(Guid idTopup) => _repo.GetTopupByIdAsync(idTopup);
         public Task<Guid> InsertTopupAsync(Topup topup) => _repo.InsertTopupAsync(topup);
+        public async Task<StudentPaymentSummaryDto> SimulateStudentTopupAsync(Guid idUser, StudentTopupSimulationRequest request)
+        {
+            await _repo.SimulateStudentTopupAsync(idUser, request);
+            return await GetStudentPaymentSummaryAsync(idUser);
+        }
+        public Task<ReservationPaymentReviewDto?> GetReservationPaymentReviewAsync(Guid idUser, Guid idReservation) =>
+            _repo.GetReservationPaymentReviewAsync(idUser, idReservation);
+        public Task<ReservationPaymentProcessResultDto> ProcessReservationPaymentAsync(Guid idUser, Guid idReservation) =>
+            _repo.ProcessReservationPaymentAsync(idUser, idReservation);
+        public Task<ReservationPaymentRefundResultDto> RefundReservationPaymentAsync(Guid idReservation) =>
+            _repo.RefundReservationPaymentAsync(idReservation);
         public Task<int> UpdateTopupAsync(Topup topup) => _repo.UpdateTopupAsync(topup);
         public Task<int> DeleteTopupAsync(Guid idTopup) => _repo.DeleteTopupAsync(idTopup);
 
@@ -130,6 +141,42 @@ namespace ConfidantPostgreSQL.Modules.Payments.Service
 
         public Task<IEnumerable<Dispute>> GetDisputesAllAsync() => _repo.GetDisputesAllAsync();
         public Task<Dispute?> GetDisputeByIdAsync(Guid idDispute) => _repo.GetDisputeByIdAsync(idDispute);
+        public async Task<Dispute?> CreatePaymentDisputeAsync(Guid idUser, CreatePaymentDisputeRequest request)
+        {
+            var context = await _repo.ResolvePaymentDisputeContextAsync(idUser, request.PaymentSource, request.PaymentRecordId);
+            if (context == null)
+            {
+                return null;
+            }
+
+            var utcNow = DateTime.UtcNow;
+            var dispute = new Dispute
+            {
+                TransactionId = context.TransactionId,
+                IdReservation = context.ReservationId,
+                ReservationPaymentId = context.ReservationPaymentId,
+                TopupId = context.TopupId,
+                RaisedByUserId = idUser,
+                ReporterName = request.Name.Trim(),
+                ReporterEmail = request.Email.Trim(),
+                ReporterRole = context.ReporterRole,
+                Subject = request.Subject.Trim(),
+                Reason = request.Message.Trim(),
+                PaymentReference = context.PaymentReference,
+                PaymentSource = context.PaymentSource,
+                Status = "submetida",
+                CreatedAt = utcNow,
+                UpdatedAt = utcNow
+            };
+
+            var id = await _repo.InsertDisputeAsync(dispute);
+            if (id == Guid.Empty)
+            {
+                return null;
+            }
+
+            return await _repo.GetDisputeByIdAsync(id);
+        }
         public Task<Guid> InsertDisputeAsync(Dispute dispute) => _repo.InsertDisputeAsync(dispute);
         public Task<int> UpdateDisputeAsync(Dispute dispute) => _repo.UpdateDisputeAsync(dispute);
         public Task<int> DeleteDisputeAsync(Guid idDispute) => _repo.DeleteDisputeAsync(idDispute);

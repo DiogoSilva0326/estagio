@@ -8,20 +8,42 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 class MeusAlunosProfessorScreen extends StatelessWidget {
-  const MeusAlunosProfessorScreen({
-    super.key,
-  });
+  const MeusAlunosProfessorScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
     final role = context.watch<UserProvider>().role;
     final isTeacher = role == Role.teacher;
+    final isMobile =
+        MediaQuery.sizeOf(context).width <= AppHeader.mobileBreakpoint;
 
     if (!isTeacher) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!context.mounted) return;
-        Navigator.of(context).pushNamedAndRemoveUntil(Routes.home, (route) => false);
+        Navigator.of(
+          context,
+        ).pushNamedAndRemoveUntil(Routes.home, (route) => false);
       });
+    }
+
+    if (isMobile) {
+      return Scaffold(
+        body: Column(
+          children: const [
+            AppHeader(),
+            Expanded(
+              child: SingleChildScrollView(
+                child: Column(
+                  children: [
+                    MeusAlunosProfessorContentSection(),
+                    FooterSection(),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
     }
 
     return Scaffold(
@@ -30,7 +52,7 @@ class MeusAlunosProfessorScreen extends StatelessWidget {
           SliverPersistentHeader(
             pinned: true,
             delegate: PinnedHeaderDelegate(
-              height: 90,
+              height: AppHeader.resolvedHeight(context),
               child: const AppHeader(),
             ),
           ),

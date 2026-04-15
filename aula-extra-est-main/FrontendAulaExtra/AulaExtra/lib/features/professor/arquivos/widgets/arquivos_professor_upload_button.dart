@@ -3,10 +3,7 @@ import 'package:aula_extra/features/professor/arquivos/constants/arquivos_profes
 import 'package:flutter/material.dart';
 
 class ArquivosProfessorUploadButton extends StatelessWidget {
-  const ArquivosProfessorUploadButton({
-    super.key,
-    required this.onTap,
-  });
+  const ArquivosProfessorUploadButton({super.key, required this.onTap});
 
   final VoidCallback onTap;
 

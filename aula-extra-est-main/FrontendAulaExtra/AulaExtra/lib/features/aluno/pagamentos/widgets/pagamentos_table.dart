@@ -1,3 +1,4 @@
+import 'package:aula_extra/core/data/payments/payment_status.dart';
 import 'package:aula_extra/core/data/payments/dtos/payment_summary_dto.dart';
 import 'package:flutter/material.dart';
 
@@ -24,16 +25,6 @@ class PagamentosTableCard extends StatelessWidget {
     final fixed = value.toStringAsFixed(value.truncateToDouble() == value ? 0 : 2).replaceAll('.', ',');
     return symbol == '€' ? '$fixed$symbol' : '$fixed $symbol';
   }
-
-  String _statusLabel(String status) {
-    final normalized = status.trim().toLowerCase();
-    if (normalized.contains('paid') || normalized.contains('pago') || normalized.contains('success') || normalized.contains('completed')) {
-      return 'Pago';
-    }
-    return 'Pendente';
-  }
-
-  bool _isPaid(String status) => _statusLabel(status) == 'Pago';
 
   @override
   Widget build(BuildContext context) {
@@ -84,8 +75,8 @@ class PagamentosTableCard extends StatelessWidget {
                         disciplina: rows[i].subject,
                         data: _formatDate(rows[i].date),
                         valor: _formatAmount(rows[i].amount),
-                        status: _statusLabel(rows[i].status),
-                        isPago: _isPaid(rows[i].status),
+                        status: paymentStatusLabel(rows[i].status),
+                        statusKind: normalizePaymentStatus(rows[i].status),
                         hasReceipt: (rows[i].receiptUrl?.trim().isNotEmpty ?? false),
                         hasBottomBorder: i != rows.length - 1,
                         onReceiptTap: () => onReceiptTap(rows[i]),
@@ -157,7 +148,7 @@ class _PagamentoRow extends StatelessWidget {
     required this.data,
     required this.valor,
     required this.status,
-    required this.isPago,
+    required this.statusKind,
     required this.hasReceipt,
     required this.hasBottomBorder,
     required this.onReceiptTap,
@@ -168,7 +159,7 @@ class _PagamentoRow extends StatelessWidget {
   final String data;
   final String valor;
   final String status;
-  final bool isPago;
+  final String statusKind;
   final bool hasReceipt;
   final bool hasBottomBorder;
   final VoidCallback onReceiptTap;
@@ -191,7 +182,7 @@ class _PagamentoRow extends StatelessWidget {
           _BodyCell(width: 167.974, text: disciplina, topPadding: 39),
           _BodyCell(width: 138.832, text: data, topPadding: 26),
           _ValueCell(text: valor),
-          _StatusCell(text: status, isPago: isPago),
+          _StatusCell(text: status, statusKind: statusKind),
           _ActionsCell(hasReceipt: hasReceipt, onTap: onReceiptTap),
         ],
       ),
@@ -283,15 +274,23 @@ class _ValueCell extends StatelessWidget {
 }
 
 class _StatusCell extends StatelessWidget {
-  const _StatusCell({required this.text, required this.isPago});
+  const _StatusCell({required this.text, required this.statusKind});
 
   final String text;
-  final bool isPago;
+  final String statusKind;
 
   @override
   Widget build(BuildContext context) {
-    final bg = isPago ? const Color(0xFFDCFCE7) : const Color(0xFFFFEDD4);
-    final fg = isPago ? const Color(0xFF008236) : const Color(0xFFCA3500);
+    final bg = statusKind == 'refunded'
+        ? const Color(0xFFFEE2E2)
+        : statusKind == 'paid'
+            ? const Color(0xFFDCFCE7)
+            : const Color(0xFFFFEDD4);
+    final fg = statusKind == 'refunded'
+        ? const Color(0xFFB42318)
+        : statusKind == 'paid'
+            ? const Color(0xFF008236)
+            : const Color(0xFFCA3500);
 
     return SizedBox(
       width: 168.423,

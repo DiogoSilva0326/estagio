@@ -49,8 +49,10 @@ class _ProfessorMenuNavState extends State<ProfessorMenuNav> {
     if (routeName == Routes.professorMeusAlunos) return 0;
     if (routeName == Routes.professorMinhasDisciplinas) return 1;
     if (routeName == Routes.professorCalendario) return 2;
-    if (routeName == Routes.professorArquivos) return 4;
-    if (routeName == Routes.professorChats) return 5;
+    if (routeName == Routes.professorArquivos) return 3;
+    if (routeName == Routes.professorChats) return 4;
+    if (routeName == Routes.professorPublicarAnuncio) return 5;
+    if (routeName == Routes.professorMeusAnuncios) return 6;
     if (routeName == Routes.professorDisponibilidade) return 7;
     if (routeName == Routes.professorPagamentos) return 8;
     if (routeName == Routes.professorAvaliacoes) return 9;
@@ -67,8 +69,10 @@ class _ProfessorMenuNavState extends State<ProfessorMenuNav> {
         0 => Routes.professorMeusAlunos,
         1 => Routes.professorMinhasDisciplinas,
         2 => Routes.professorCalendario,
-        4 => Routes.professorArquivos,
-        5 => Routes.professorChats,
+        3 => Routes.professorArquivos,
+        4 => Routes.professorChats,
+        5 => Routes.professorPublicarAnuncio,
+        6 => Routes.professorMeusAnuncios,
         7 => Routes.professorDisponibilidade,
         8 => Routes.professorPagamentos,
         9 => Routes.professorAvaliacoes,

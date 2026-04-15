@@ -24,6 +24,7 @@
 -- 3) Module DDLs (create remaining public.* tables used by procs)
 \ir '../src/Modules/Communication/Sql/ddl/communication.sql'
 \ir '../src/Modules/Communication/Sql/ddl/chat_files.sql'
+\ir '../src/Modules/ContactsForm/Sql/ddl/contacts_form.sql'
 \ir '../src/Modules/Favorites/Sql/ddl/favorites.sql'
 \ir '../src/Modules/Lessons/Sql/ddl/lesson.sql'
 \ir '../src/Modules/Payments/Sql/ddl/payments.sql'
@@ -31,6 +32,7 @@
 \ir '../src/Modules/Courses/Sql/ddl/courses.sql'
 \ir '../src/Modules/Education/Sql/ddl/education.sql'
 \ir '../src/Modules/Education/Sql/ddl/user_disciplinas.sql'
+\ir '../src/Modules/Faq/Sql/ddl/faq.sql'
 \ir '../src/Modules/Professors/Sql/ddl/professor.sql'
 \ir '../src/Modules/Professors/Sql/ddl/professor_disciplinas.sql'
 \ir '../src/Modules/Professors/Sql/ddl/professor_languages.sql'
@@ -115,6 +117,9 @@
 \ir '../src/Modules/Education/Sql/procs/usp_ciclos_estudo.sql'
 \ir '../src/Modules/Education/Sql/procs/usp_ciclos_estudo_anos.sql'
 
+-- FAQ
+\ir '../src/Modules/Faq/Sql/procs/usp_faq.sql'
+
 -- Courses
 \ir '../src/Modules/Courses/Sql/procs/usp_tutoring_types.sql'
 \ir '../src/Modules/Courses/Sql/procs/usp_pricing_models.sql'
@@ -130,6 +135,10 @@
 \ir '../src/Modules/Professors/Sql/procs/usp_certificates.sql'
 \ir '../src/Modules/Professors/Sql/procs/usp_professor_rooms.sql'
 \ir '../src/Modules/Professors/Sql/procs/usp_professor_disciplinas.sql'
+
+-- ProfessorAds (anúncios de professores)
+\ir '../src/Modules/ProfessorAds/Sql/ddl/professor_ads.sql'
+\ir '../src/Modules/ProfessorAds/Sql/procs/usp_professor_ads.sql'
 
 -- Lessons
 \ir '../src/Modules/Lessons/Sql/procs/usp_lessons.sql'
@@ -166,3 +175,5 @@
 \ir '../src/Modules/Payments/Sql/procs/usp_withdrawal_policies.sql'
 \ir '../src/Modules/Payments/Sql/procs/usp_withdrawal_requests.sql'
 \ir '../src/Modules/Payments/Sql/procs/usp_reservation_payments.sql'
+\ir '../src/Modules/ContactsForm/Sql/procs/usp_contact_form_categories.sql'
+\ir '../src/Modules/ContactsForm/Sql/procs/usp_contact_form_submissions.sql'

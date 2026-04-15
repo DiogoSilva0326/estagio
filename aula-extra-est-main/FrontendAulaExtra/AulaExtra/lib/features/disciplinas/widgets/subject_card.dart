@@ -5,15 +5,19 @@ class SubjectCard extends StatelessWidget {
     super.key,
     required this.title,
     required this.subtitle,
-    required this.imageAsset,
     required this.dotColor,
+    this.imageAsset,
+    this.iconData,
+    this.selected = false,
     this.onTap,
   });
 
   final String title;
   final String subtitle;
-  final String imageAsset;
+  final String? imageAsset;
+  final IconData? iconData;
   final Color dotColor;
+  final bool selected;
   final VoidCallback? onTap;
 
   @override
@@ -24,6 +28,9 @@ class SubjectCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(25.532),
+        border: selected
+            ? Border.all(color: dotColor.withValues(alpha: 0.75), width: 2)
+            : null,
         boxShadow: const [
           BoxShadow(
             color: Color.fromRGBO(0, 0, 0, 0.10),
@@ -40,7 +47,11 @@ class SubjectCard extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Image.asset(imageAsset, width: 81.702, height: 81.702, fit: BoxFit.contain),
+                _CardVisual(
+                  imageAsset: imageAsset,
+                  iconData: iconData,
+                  dotColor: dotColor,
+                ),
                 Container(
                   width: 15.319,
                   height: 15.319,
@@ -78,6 +89,44 @@ class SubjectCard extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(25.532),
       child: card,
+    );
+  }
+}
+
+class _CardVisual extends StatelessWidget {
+  const _CardVisual({
+    required this.imageAsset,
+    required this.iconData,
+    required this.dotColor,
+  });
+
+  final String? imageAsset;
+  final IconData? iconData;
+  final Color dotColor;
+
+  @override
+  Widget build(BuildContext context) {
+    if (imageAsset != null && imageAsset!.trim().isNotEmpty) {
+      return Image.asset(
+        imageAsset!,
+        width: 81.702,
+        height: 81.702,
+        fit: BoxFit.contain,
+      );
+    }
+
+    return Container(
+      width: 81.702,
+      height: 81.702,
+      decoration: BoxDecoration(
+        color: dotColor.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Icon(
+        iconData ?? Icons.school_rounded,
+        size: 40,
+        color: dotColor,
+      ),
     );
   }
 }

@@ -33,11 +33,18 @@ class ChatListItem extends StatelessWidget {
       onTap: onTap,
       child: Container(
         height: 97.416,
-        padding: const EdgeInsets.only(left: 19.243, right: 19.243, bottom: 1.203),
+        padding: const EdgeInsets.only(
+          left: 19.243,
+          right: 19.243,
+          bottom: 1.203,
+        ),
         decoration: BoxDecoration(
           color: background,
           border: const Border(
-            bottom: BorderSide(color: ChatsProfessorColors.divider, width: 1.203),
+            bottom: BorderSide(
+              color: ChatsProfessorColors.divider,
+              width: 1.203,
+            ),
           ),
         ),
         child: Row(
@@ -88,7 +95,8 @@ class ChatListItem extends StatelessWidget {
                               color: ChatsProfessorColors.mutedText,
                               fontSize: ChatsProfessorFontSizes.listPreview,
                               fontWeight: FontWeight.w500,
-                              height: 24.053 / ChatsProfessorFontSizes.listPreview,
+                              height:
+                                  24.053 / ChatsProfessorFontSizes.listPreview,
                             ),
                           ),
                         ),
@@ -97,7 +105,10 @@ class ChatListItem extends StatelessWidget {
                           Container(
                             height: 24.053,
                             constraints: const BoxConstraints(minWidth: 27.455),
-                            padding: const EdgeInsets.symmetric(horizontal: 9.621, vertical: 2.405),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 9.621,
+                              vertical: 2.405,
+                            ),
                             decoration: BoxDecoration(
                               color: ChatsProfessorColors.unreadBadgeBackground,
                               borderRadius: BorderRadius.circular(16.837),

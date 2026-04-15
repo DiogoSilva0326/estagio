@@ -5,6 +5,7 @@ namespace ConfidantPostgreSQL.Modules.Payments.Models
     public class StudentPaymentHistoryItemDto
     {
         public Guid Id { get; set; }
+        public string PaymentSource { get; set; } = "reservation_payment";
         public string TutorName { get; set; } = string.Empty;
         public string Subject { get; set; } = string.Empty;
         public DateTime? Date { get; set; }

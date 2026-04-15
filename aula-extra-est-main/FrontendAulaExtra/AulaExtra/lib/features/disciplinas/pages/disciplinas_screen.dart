@@ -18,11 +18,14 @@ class DisciplinasScreen extends StatelessWidget {
           SliverPersistentHeader(
             pinned: true,
             delegate: PinnedHeaderDelegate(
-              height: AppHeader.height,
+              height: AppHeader.resolvedHeight(context),
               child: AppHeader(
-                onRegisterTap: () => Navigator.of(context).pushNamed(Routes.registerStudent),
+                onRegisterTap: () =>
+                    Navigator.of(context).pushNamed(Routes.registerStudent),
                 onLoginTap: () => Navigator.of(context).pushNamed(Routes.login),
-                onLogoTap: () => Navigator.of(context).pushNamedAndRemoveUntil(Routes.home, (route) => false),
+                onLogoTap: () => Navigator.of(
+                  context,
+                ).pushNamedAndRemoveUntil(Routes.home, (route) => false),
               ),
             ),
           ),
@@ -33,13 +36,12 @@ class DisciplinasScreen extends StatelessWidget {
                   color: Color(0xFFF9FAFB),
                   child: SizedBox(
                     width: double.infinity,
-                    child: FullBleedScaledSection(child: DisciplinasContentSection()),
+                    child: FullBleedScaledSection(
+                      child: DisciplinasContentSection(),
+                    ),
                   ),
                 ),
-                ColoredBox(
-                  color: Color(0xFFF9FAFB),
-                  child: FooterSection(),
-                ),
+                ColoredBox(color: Color(0xFFF9FAFB), child: FooterSection()),
               ],
             ),
           ),

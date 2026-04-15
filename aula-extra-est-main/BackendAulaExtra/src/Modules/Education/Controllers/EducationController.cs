@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using ConfidantPostgreSQL.Auth;
 using ConfidantPostgreSQL.Modules.Education.Models;
 using ConfidantPostgreSQL.Modules.Education.Service;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ConfidantPostgreSQL.Modules.Education.Controllers
@@ -52,7 +53,16 @@ namespace ConfidantPostgreSQL.Modules.Education.Controllers
             return Ok(await _service.GetDisciplinasAllAsync());
         }
 
+        [AllowAnonymous]
+        [HttpGet("disciplinas/public")]
+        public async Task<IActionResult> GetPublicDisciplinasWithProfessors()
+        {
+            ApplyCulture();
+            return Ok(await _service.GetPublicDisciplinasWithProfessorsAsync());
+        }
+
         // AREAS
+        [AllowAnonymous]
         [HttpGet("areas")]
         public async Task<IActionResult> GetAreas()
         {
@@ -229,6 +239,7 @@ namespace ConfidantPostgreSQL.Modules.Education.Controllers
         }
 
         // CICLOS ESTUDO
+        [AllowAnonymous]
         [HttpGet("ciclos-estudo")]
         public async Task<IActionResult> GetCiclosEstudo()
         {

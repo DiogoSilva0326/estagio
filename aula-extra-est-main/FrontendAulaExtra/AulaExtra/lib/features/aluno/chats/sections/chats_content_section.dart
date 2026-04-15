@@ -19,7 +19,7 @@ class ChatsContentSection extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const AlunoMenuNav(selectedIndex: 5),
+          const AlunoMenuNav(selectedIndex: 4),
           const SizedBox(width: 40),
           Expanded(
             child: Column(

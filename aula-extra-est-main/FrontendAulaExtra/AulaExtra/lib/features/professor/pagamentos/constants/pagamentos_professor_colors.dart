@@ -32,6 +32,12 @@ class PagamentosProfessorColors {
   /// Cor do texto do badge “Pendente”.
   static const Color badgePendingText = Color(0xFF894B00);
 
+  /// Fundo do badge quando o pagamento foi devolvido.
+  static const Color badgeRefundedBackground = Color(0xFFFEE2E2);
+
+  /// Cor do texto do badge “Devolvido”.
+  static const Color badgeRefundedText = Color(0xFFB42318);
+
   /// Cor do valor a verde (ex.: ganhos/entradas).
   static const Color valueGreenText = Color(0xFF00A63E);
 

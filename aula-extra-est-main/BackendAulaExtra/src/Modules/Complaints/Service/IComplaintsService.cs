@@ -10,6 +10,7 @@ namespace ConfidantPostgreSQL.Modules.Complaints.Service
         Task<IEnumerable<Complaint>> GetComplaintsAllAsync();
         Task<Complaint?> GetComplaintByIdAsync(Guid idComplaint);
         Task<Guid> InsertComplaintAsync(Complaint complaint);
+        Task<Complaint> CreateComplaintAgainstRelatedUserAsync(Guid senderUserId, CreateRelatedComplaintRequest request);
         Task<int> UpdateComplaintAsync(Complaint complaint);
         Task<int> DeleteComplaintAsync(Guid idComplaint);
 

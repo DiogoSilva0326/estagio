@@ -5,14 +5,24 @@ import 'package:aula_extra/core/data/education/education_api.dart';
 import 'package:aula_extra/core/data/session/token_storage.dart';
 
 class EducationService {
-  EducationService({
-    EducationApi? api,
-    TokenStorage? tokenStorage,
-  })  : _api = api ?? EducationApi(),
-        _tokenStorage = tokenStorage ?? TokenStorage();
+  EducationService({EducationApi? api, TokenStorage? tokenStorage})
+    : _api = api ?? EducationApi(),
+      _tokenStorage = tokenStorage ?? TokenStorage();
 
   final EducationApi _api;
   final TokenStorage _tokenStorage;
+
+  Future<List<AreaDto>> getPublicAreas() async {
+    return _api.getPublicAreas();
+  }
+
+  Future<List<DisciplinaDto>> getPublicDisciplinasWithProfessors() async {
+    return _api.getPublicDisciplinasWithProfessors();
+  }
+
+  Future<List<CicloEstudoDto>> getPublicCiclosEstudo() async {
+    return _api.getPublicCiclosEstudo();
+  }
 
   Future<List<CicloEstudoDto>> getCiclosEstudo() async {
     final token = await _tokenStorage.loadToken();
@@ -30,7 +40,9 @@ class EducationService {
     return _api.getAreas(token: token);
   }
 
-  Future<List<DisciplinaDto>> getDisciplinasByArea({required String idArea}) async {
+  Future<List<DisciplinaDto>> getDisciplinasByArea({
+    required String idArea,
+  }) async {
     final token = await _tokenStorage.loadToken();
     if (token == null || token.trim().isEmpty) {
       throw const EducationException('Sessão expirada');
@@ -54,7 +66,9 @@ class EducationService {
     return _api.getMyDisciplinas(token: token);
   }
 
-  Future<List<DisciplinaDto>> setMyDisciplinas({required List<String> ids}) async {
+  Future<List<DisciplinaDto>> setMyDisciplinas({
+    required List<String> ids,
+  }) async {
     final token = await _tokenStorage.loadToken();
     if (token == null || token.trim().isEmpty) {
       throw const EducationException('Sessão expirada');
@@ -62,7 +76,9 @@ class EducationService {
     return _api.setMyDisciplinas(token: token, ids: ids);
   }
 
-  Future<List<DisciplinaDto>> removeMyDisciplina({required String idDisciplina}) async {
+  Future<List<DisciplinaDto>> removeMyDisciplina({
+    required String idDisciplina,
+  }) async {
     final token = await _tokenStorage.loadToken();
     if (token == null || token.trim().isEmpty) {
       throw const EducationException('Sessão expirada');

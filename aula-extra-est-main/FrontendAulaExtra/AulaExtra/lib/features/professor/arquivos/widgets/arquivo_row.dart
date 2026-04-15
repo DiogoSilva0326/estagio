@@ -46,7 +46,11 @@ class ArquivoRow extends StatelessWidget {
                 borderRadius: BorderRadius.circular(19.259),
               ),
               child: Center(
-                child: Icon(leadingIcon, size: 28.889, color: ArquivosProfessorColors.title),
+                child: Icon(
+                  leadingIcon,
+                  size: 28.889,
+                  color: ArquivosProfessorColors.title,
+                ),
               ),
             ),
             const SizedBox(width: 19.259),
@@ -69,7 +73,8 @@ class ArquivoRow extends StatelessWidget {
                   const SizedBox(height: 4.815),
                   Row(
                     children: [
-                      if (ownerLabel != null && ownerLabel!.trim().isNotEmpty) ...[
+                      if (ownerLabel != null &&
+                          ownerLabel!.trim().isNotEmpty) ...[
                         Flexible(
                           child: Text(
                             ownerLabel!,
@@ -78,7 +83,8 @@ class ArquivoRow extends StatelessWidget {
                               color: ArquivosProfessorColors.textSecondary,
                               fontSize: ArquivosProfessorFontSizes.fileMeta,
                               fontWeight: FontWeight.w400,
-                              height: 19.259 / ArquivosProfessorFontSizes.fileMeta,
+                              height:
+                                  19.259 / ArquivosProfessorFontSizes.fileMeta,
                             ),
                           ),
                         ),
@@ -89,7 +95,8 @@ class ArquivoRow extends StatelessWidget {
                             color: ArquivosProfessorColors.textSecondary,
                             fontSize: ArquivosProfessorFontSizes.fileMeta,
                             fontWeight: FontWeight.w400,
-                            height: 19.259 / ArquivosProfessorFontSizes.fileMeta,
+                            height:
+                                19.259 / ArquivosProfessorFontSizes.fileMeta,
                           ),
                         ),
                         const SizedBox(width: 14.444),
@@ -133,7 +140,10 @@ class ArquivoRow extends StatelessWidget {
               height: 43.333,
               child: Row(
                 children: [
-                  _ActionButton(icon: Icons.download_rounded, onTap: onDownloadTap),
+                  _ActionButton(
+                    icon: Icons.download_rounded,
+                    onTap: onDownloadTap,
+                  ),
                   const SizedBox(width: 9.63),
                   _ActionButton(icon: Icons.edit_rounded, onTap: onEditTap),
                   const SizedBox(width: 9.63),
@@ -184,9 +194,7 @@ class _ActionButton extends StatelessWidget {
       child: SizedBox(
         width: 43.333,
         height: 43.333,
-        child: Center(
-          child: Icon(icon, size: 19.259, color: iconColor),
-        ),
+        child: Center(child: Icon(icon, size: 19.259, color: iconColor)),
       ),
     );
   }

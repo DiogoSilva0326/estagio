@@ -21,28 +21,36 @@ class AulaCard extends StatelessWidget {
       color: CalendarioProfessorColors.title,
       fontSize: CalendarioProfessorLayout.nameFontSize,
       fontWeight: FontWeight.w500,
-      height: CalendarioProfessorLayout.nameLineHeightPx / CalendarioProfessorLayout.nameFontSize,
+      height:
+          CalendarioProfessorLayout.nameLineHeightPx /
+          CalendarioProfessorLayout.nameFontSize,
     );
 
     final metaStyle = TextStyle(
       color: CalendarioProfessorColors.muted,
       fontSize: CalendarioProfessorLayout.metaFontSize,
       fontWeight: FontWeight.w400,
-      height: CalendarioProfessorLayout.metaLineHeight / CalendarioProfessorLayout.metaFontSize,
+      height:
+          CalendarioProfessorLayout.metaLineHeight /
+          CalendarioProfessorLayout.metaFontSize,
     );
 
     final timeStyle = TextStyle(
       color: CalendarioProfessorColors.text,
       fontSize: CalendarioProfessorLayout.metaFontSize,
       fontWeight: FontWeight.w500,
-      height: CalendarioProfessorLayout.metaLineHeight / CalendarioProfessorLayout.metaFontSize,
+      height:
+          CalendarioProfessorLayout.metaLineHeight /
+          CalendarioProfessorLayout.metaFontSize,
     );
 
     final badgeTextStyle = TextStyle(
       color: Colors.white,
       fontSize: CalendarioProfessorLayout.badgeFontSize,
       fontWeight: FontWeight.w500,
-      height: CalendarioProfessorLayout.badgeLineHeightPx / CalendarioProfessorLayout.badgeFontSize,
+      height:
+          CalendarioProfessorLayout.badgeLineHeightPx /
+          CalendarioProfessorLayout.badgeFontSize,
     );
 
     return SizedBox(
@@ -56,7 +64,9 @@ class AulaCard extends StatelessWidget {
         ),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(CalendarioProfessorLayout.aulaCardRadius),
+          borderRadius: BorderRadius.circular(
+            CalendarioProfessorLayout.aulaCardRadius,
+          ),
           border: Border.all(
             color: CalendarioProfessorColors.cardBorder,
             width: CalendarioProfessorLayout.aulaCardBorderWidth,
@@ -102,7 +112,9 @@ class AulaCard extends StatelessWidget {
                                 color: data.color,
                                 textStyle: badgeTextStyle,
                               ),
-                              const SizedBox(width: CalendarioProfessorLayout.metaGap),
+                              const SizedBox(
+                                width: CalendarioProfessorLayout.metaGap,
+                              ),
                               Flexible(
                                 child: Text(
                                   data.weekdayAndDate,
@@ -111,8 +123,15 @@ class AulaCard extends StatelessWidget {
                                   overflow: TextOverflow.ellipsis,
                                 ),
                               ),
-                              const SizedBox(width: CalendarioProfessorLayout.metaGap),
-                              Text(data.timeRange, style: timeStyle, maxLines: 1, overflow: TextOverflow.ellipsis),
+                              const SizedBox(
+                                width: CalendarioProfessorLayout.metaGap,
+                              ),
+                              Text(
+                                data.timeRange,
+                                style: timeStyle,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ],
                           ),
                         ],
@@ -130,27 +149,40 @@ class AulaCard extends StatelessWidget {
                       SizedBox(
                         height: CalendarioProfessorLayout.actionsHeight,
                         child: ElevatedButton.icon(
-                          onPressed: data.primaryActionEnabled ? onEnterTap : null,
+                          onPressed: data.primaryActionEnabled
+                              ? onEnterTap
+                              : null,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: data.primaryActionEnabled
                                 ? CalendarioProfessorColors.enterButton
                                 : const Color(0xFFF1F5F9),
                             foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(horizontal: 14.18),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14.18,
+                            ),
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(CalendarioProfessorLayout.actionRadius),
+                              borderRadius: BorderRadius.circular(
+                                CalendarioProfessorLayout.actionRadius,
+                              ),
                             ),
                             textStyle: TextStyle(
                               fontSize: CalendarioProfessorLayout.tabFontSize,
                               fontWeight: FontWeight.w500,
-                              height: CalendarioProfessorLayout.tabLineHeight / CalendarioProfessorLayout.tabFontSize,
+                              height:
+                                  CalendarioProfessorLayout.tabLineHeight /
+                                  CalendarioProfessorLayout.tabFontSize,
                             ),
                           ),
-                          icon: Icon(Icons.video_call_outlined, size: CalendarioProfessorLayout.actionIconSize),
+                          icon: Icon(
+                            Icons.video_call_outlined,
+                            size: CalendarioProfessorLayout.actionIconSize,
+                          ),
                           label: Text(data.primaryActionLabel),
                         ),
                       ),
-                      const SizedBox(width: CalendarioProfessorLayout.actionGap),
+                      const SizedBox(
+                        width: CalendarioProfessorLayout.actionGap,
+                      ),
                     ],
                     SizedBox(
                       width: CalendarioProfessorLayout.cancelButtonWidth,
@@ -163,17 +195,26 @@ class AulaCard extends StatelessWidget {
                             color: CalendarioProfessorColors.cancelRed,
                             width: CalendarioProfessorLayout.cancelBorderWidth,
                           ),
-                          padding: const EdgeInsets.symmetric(horizontal: 14.18),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14.18,
+                          ),
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(CalendarioProfessorLayout.actionRadius),
+                            borderRadius: BorderRadius.circular(
+                              CalendarioProfessorLayout.actionRadius,
+                            ),
                           ),
                           textStyle: TextStyle(
                             fontSize: CalendarioProfessorLayout.tabFontSize,
                             fontWeight: FontWeight.w500,
-                            height: CalendarioProfessorLayout.tabLineHeight / CalendarioProfessorLayout.tabFontSize,
+                            height:
+                                CalendarioProfessorLayout.tabLineHeight /
+                                CalendarioProfessorLayout.tabFontSize,
                           ),
                         ),
-                        icon: Icon(Icons.cancel_outlined, size: CalendarioProfessorLayout.actionIconSize),
+                        icon: Icon(
+                          Icons.cancel_outlined,
+                          size: CalendarioProfessorLayout.actionIconSize,
+                        ),
                         label: const Text('Cancelar'),
                       ),
                     ),
@@ -189,10 +230,7 @@ class AulaCard extends StatelessWidget {
 }
 
 class _InitialsAvatar extends StatelessWidget {
-  const _InitialsAvatar({
-    required this.initials,
-    required this.color,
-  });
+  const _InitialsAvatar({required this.initials, required this.color});
 
   final String initials;
   final Color color;
@@ -202,10 +240,7 @@ class _InitialsAvatar extends StatelessWidget {
     return Container(
       width: CalendarioProfessorLayout.avatarSize,
       height: CalendarioProfessorLayout.avatarSize,
-      decoration: BoxDecoration(
-        color: color,
-        shape: BoxShape.circle,
-      ),
+      decoration: BoxDecoration(color: color, shape: BoxShape.circle),
       alignment: Alignment.center,
       child: Text(
         initials,
@@ -213,7 +248,9 @@ class _InitialsAvatar extends StatelessWidget {
           color: Colors.white,
           fontSize: CalendarioProfessorLayout.avatarFontSize,
           fontWeight: FontWeight.w500,
-          height: CalendarioProfessorLayout.avatarLineHeight / CalendarioProfessorLayout.avatarFontSize,
+          height:
+              CalendarioProfessorLayout.avatarLineHeight /
+              CalendarioProfessorLayout.avatarFontSize,
         ),
       ),
     );
@@ -242,7 +279,9 @@ class _SubjectBadge extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: color,
-        borderRadius: BorderRadius.circular(CalendarioProfessorLayout.badgeRadius),
+        borderRadius: BorderRadius.circular(
+          CalendarioProfessorLayout.badgeRadius,
+        ),
       ),
       child: Center(
         child: Text(

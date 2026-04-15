@@ -23,11 +23,15 @@ class ChatBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final hasVisibleText = text.trim().isNotEmpty &&
-        (attachment == null || text.trim() != '[Ficheiro: ${attachment!.fileName}]');
+    final hasVisibleText =
+        text.trim().isNotEmpty &&
+        (attachment == null ||
+            text.trim() != '[Ficheiro: ${attachment!.fileName}]');
 
     final bubble = Container(
-      constraints: BoxConstraints(maxWidth: maxWidth ?? (isMine ? 430.47 : 348.294)),
+      constraints: BoxConstraints(
+        maxWidth: maxWidth ?? (isMine ? 430.47 : 348.294),
+      ),
       padding: const EdgeInsets.only(left: 14.432, right: 14.432, top: 14.432),
       decoration: BoxDecoration(
         color: isMine ? null : ChatsProfessorColors.leftBubbleBackground,
@@ -57,7 +61,9 @@ class ChatBubble extends StatelessWidget {
             Text(
               text,
               style: TextStyle(
-                color: isMine ? Colors.white : ChatsProfessorColors.leftBubbleText,
+                color: isMine
+                    ? Colors.white
+                    : ChatsProfessorColors.leftBubbleText,
                 fontSize: ChatsProfessorFontSizes.message,
                 fontWeight: FontWeight.w400,
                 height: 24.053 / ChatsProfessorFontSizes.message,
@@ -67,7 +73,9 @@ class ChatBubble extends StatelessWidget {
           Text(
             timeLabel,
             style: TextStyle(
-              color: isMine ? Colors.white.withValues(alpha: 0.8) : ChatsProfessorColors.mutedText,
+              color: isMine
+                  ? Colors.white.withValues(alpha: 0.8)
+                  : ChatsProfessorColors.mutedText,
               fontSize: ChatsProfessorFontSizes.messageTime,
               fontWeight: FontWeight.w400,
               height: 19.243 / ChatsProfessorFontSizes.messageTime,
@@ -98,8 +106,12 @@ class _AttachmentCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final foreground = isMine ? Colors.white : ChatsProfessorColors.leftBubbleText;
-    final secondary = isMine ? Colors.white.withValues(alpha: 0.8) : ChatsProfessorColors.mutedText;
+    final foreground = isMine
+        ? Colors.white
+        : ChatsProfessorColors.leftBubbleText;
+    final secondary = isMine
+        ? Colors.white.withValues(alpha: 0.8)
+        : ChatsProfessorColors.mutedText;
 
     return InkWell(
       onTap: onTap,
@@ -111,7 +123,9 @@ class _AttachmentCard extends StatelessWidget {
           color: isMine ? Colors.white.withValues(alpha: 0.12) : Colors.white,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: isMine ? Colors.white.withValues(alpha: 0.2) : const Color(0xFFE5E7EB),
+            color: isMine
+                ? Colors.white.withValues(alpha: 0.2)
+                : const Color(0xFFE5E7EB),
           ),
         ),
         child: Row(

@@ -78,6 +78,27 @@ SELECT
             };
         }
 
+        public async Task<ProfessorGlobalRatingSummary> GetGlobalRatingSummaryAsync()
+        {
+            await using var conn = new NpgsqlConnection(_connectionString);
+            await conn.OpenAsync();
+
+            await using var cmd = conn.CreateCommand();
+            cmd.CommandText = "SELECT * FROM public.usp_professor_feedback_global_rating_summary01();";
+
+            await using var reader = await cmd.ExecuteReaderAsync();
+            if (!await reader.ReadAsync())
+            {
+                return new ProfessorGlobalRatingSummary();
+            }
+
+            return new ProfessorGlobalRatingSummary
+            {
+                AvgRating = reader.IsDBNull(reader.GetOrdinal("avg_rating")) ? 0 : reader.GetDecimal(reader.GetOrdinal("avg_rating")),
+                ReviewCount = reader.IsDBNull(reader.GetOrdinal("review_count")) ? 0 : reader.GetInt32(reader.GetOrdinal("review_count")),
+            };
+        }
+
                 public async Task<TutorBrowseResponse> BrowseTutorsAsync(TutorBrowseQuery query)
                 {
                         query ??= new TutorBrowseQuery();
@@ -110,6 +131,8 @@ WITH base AS (
         CONCAT_WS(' ', NULLIF(u.first_name, ''), NULLIF(u.last_name, '')) AS user_name,
         u.display_name,
         u.username,
+        p.photo,
+        p.years_experience,
         p.current_school,
         p.biography
     FROM professors p
@@ -118,24 +141,32 @@ WITH base AS (
         AND COALESCE(p.is_verified, FALSE) = TRUE
         AND (
             @q IS NULL
-            OR CONCAT_WS(' ', COALESCE(u.first_name, ''), COALESCE(u.last_name, '')) ILIKE '%' || @q || '%'
-            OR COALESCE(u.display_name, '') ILIKE '%' || @q || '%'
-            OR COALESCE(u.username, '') ILIKE '%' || @q || '%'
+            OR TRANSLATE(LOWER(CONCAT_WS(' ', COALESCE(u.first_name, ''), COALESCE(u.last_name, ''))), 'áàâãäåéèêëíìîïóòôõöúùûüçñ', 'aaaaaaeeeeiiiiooooouuuucn') = TRANSLATE(LOWER(@q), 'áàâãäåéèêëíìîïóòôõöúùûüçñ', 'aaaaaaeeeeiiiiooooouuuucn')
+            OR TRANSLATE(LOWER(CONCAT_WS(' ', COALESCE(u.first_name, ''), COALESCE(u.last_name, ''))), 'áàâãäåéèêëíìîïóòôõöúùûüçñ', 'aaaaaaeeeeiiiiooooouuuucn') LIKE '%' || TRANSLATE(LOWER(@q), 'áàâãäåéèêëíìîïóòôõöúùûüçñ', 'aaaaaaeeeeiiiiooooouuuucn') || '%'
+            OR TRANSLATE(LOWER(COALESCE(u.display_name, '')), 'áàâãäåéèêëíìîïóòôõöúùûüçñ', 'aaaaaaeeeeiiiiooooouuuucn') = TRANSLATE(LOWER(@q), 'áàâãäåéèêëíìîïóòôõöúùûüçñ', 'aaaaaaeeeeiiiiooooouuuucn')
+            OR TRANSLATE(LOWER(COALESCE(u.display_name, '')), 'áàâãäåéèêëíìîïóòôõöúùûüçñ', 'aaaaaaeeeeiiiiooooouuuucn') LIKE '%' || TRANSLATE(LOWER(@q), 'áàâãäåéèêëíìîïóòôõöúùûüçñ', 'aaaaaaeeeeiiiiooooouuuucn') || '%'
+            OR TRANSLATE(LOWER(COALESCE(u.username, '')), 'áàâãäåéèêëíìîïóòôõöúùûüçñ', 'aaaaaaeeeeiiiiooooouuuucn') = TRANSLATE(LOWER(@q), 'áàâãäåéèêëíìîïóòôõöúùûüçñ', 'aaaaaaeeeeiiiiooooouuuucn')
+            OR TRANSLATE(LOWER(COALESCE(u.username, '')), 'áàâãäåéèêëíìîïóòôõöúùûüçñ', 'aaaaaaeeeeiiiiooooouuuucn') LIKE '%' || TRANSLATE(LOWER(@q), 'áàâãäåéèêëíìîïóòôõöúùûüçñ', 'aaaaaaeeeeiiiiooooouuuucn') || '%'
             OR EXISTS (
                 SELECT 1
-                FROM courses c
-                JOIN disciplinas d ON d.id_disciplina = c.id_disciplina
-                WHERE c.id_professor = p.id_professor
-                    AND d.nome ILIKE '%' || @q || '%'
+                FROM professor_disciplina pd
+                JOIN disciplinas d ON d.id_disciplina = pd.id_disciplina
+                WHERE pd.id_professor = p.id_professor
+                    AND COALESCE(pd.is_active, TRUE) = TRUE
+                    AND (
+                        TRANSLATE(LOWER(d.nome), 'áàâãäåéèêëíìîïóòôõöúùûüçñ', 'aaaaaaeeeeiiiiooooouuuucn') = TRANSLATE(LOWER(@q), 'áàâãäåéèêëíìîïóòôõöúùûüçñ', 'aaaaaaeeeeiiiiooooouuuucn')
+                        OR TRANSLATE(LOWER(d.nome), 'áàâãäåéèêëíìîïóòôõöúùûüçñ', 'aaaaaaeeeeiiiiooooouuuucn') LIKE '%' || TRANSLATE(LOWER(@q), 'áàâãäåéèêëíìîïóòôõöúùûüçñ', 'aaaaaaeeeeiiiiooooouuuucn') || '%'
+                    )
             )
         )
         AND (
             @area_id IS NULL
             OR EXISTS (
                 SELECT 1
-                FROM courses c
-                JOIN disciplinas d ON d.id_disciplina = c.id_disciplina
-                WHERE c.id_professor = p.id_professor
+                FROM professor_disciplina pd
+                JOIN disciplinas d ON d.id_disciplina = pd.id_disciplina
+                WHERE pd.id_professor = p.id_professor
+                    AND COALESCE(pd.is_active, TRUE) = TRUE
                     AND d.id_area = @area_id
             )
         )
@@ -143,18 +174,20 @@ WITH base AS (
             @disciplina_id IS NULL
             OR EXISTS (
                 SELECT 1
-                FROM courses c
-                WHERE c.id_professor = p.id_professor
-                    AND c.id_disciplina = @disciplina_id
+                FROM professor_disciplina pd
+                WHERE pd.id_professor = p.id_professor
+                    AND COALESCE(pd.is_active, TRUE) = TRUE
+                    AND pd.id_disciplina = @disciplina_id
             )
         )
         AND (
             @ciclo_id IS NULL
             OR EXISTS (
                 SELECT 1
-                FROM courses c
-                WHERE c.id_professor = p.id_professor
-                    AND c.id_ciclo_estudo = @ciclo_id
+                FROM professor_disciplina pd
+                WHERE pd.id_professor = p.id_professor
+                    AND COALESCE(pd.is_active, TRUE) = TRUE
+                    AND pd.id_ciclo_estudo = @ciclo_id
             )
         )
         AND (
@@ -196,6 +229,7 @@ WITH base AS (
                     WHERE sb.id_professor = p.id_professor
                         AND sb.is_available = TRUE
                         AND sb.start_time IS NOT NULL
+                        AND EXTRACT(HOUR FROM sb.start_time) >= 8
                         AND EXTRACT(HOUR FROM sb.start_time) < 12
                 ))
                 OR (@avail_afternoon = TRUE AND EXISTS (
@@ -205,7 +239,7 @@ WITH base AS (
                         AND sb.is_available = TRUE
                         AND sb.start_time IS NOT NULL
                         AND EXTRACT(HOUR FROM sb.start_time) >= 12
-                        AND EXTRACT(HOUR FROM sb.start_time) < 18
+                        AND EXTRACT(HOUR FROM sb.start_time) < 19
                 ))
                 OR (@avail_evening = TRUE AND EXISTS (
                     SELECT 1
@@ -213,7 +247,10 @@ WITH base AS (
                     WHERE sb.id_professor = p.id_professor
                         AND sb.is_available = TRUE
                         AND sb.start_time IS NOT NULL
-                        AND EXTRACT(HOUR FROM sb.start_time) >= 18
+                        AND (
+                            EXTRACT(HOUR FROM sb.start_time) >= 19
+                            OR EXTRACT(HOUR FROM sb.start_time) < 8
+                        )
                 ))
                 OR (@avail_weekend = TRUE AND EXISTS (
                     SELECT 1
@@ -230,12 +267,16 @@ SELECT
     b.id_professor,
     COALESCE(NULLIF(TRIM(b.display_name), ''), NULLIF(TRIM(b.user_name), ''), NULLIF(TRIM(b.username), ''), 'Explicador') AS display_name,
     COALESCE(NULLIF(TRIM(b.current_school), ''), 'Online') AS subtitle,
+    NULLIF(TRIM(b.photo), '') AS photo,
+    b.years_experience,
     COALESCE(NULLIF(TRIM(b.biography), ''), 'Sem descrição') AS biography,
+    COALESCE(sd.primary_subject, 'Explicador') AS primary_subject,
     COALESCE(r.avg_rating, 0) AS avg_rating,
     COALESCE(r.review_count, 0) AS review_count,
     COALESCE(pr.min_price, 0) AS min_price,
     COALESCE(ls.lessons_count, 0) AS lessons_count,
     COALESCE(tg.tags, ARRAY[]::text[]) AS tags,
+    COALESCE(el.education_levels, ARRAY[]::text[]) AS education_levels,
     COUNT(*) OVER() AS total_count
 FROM base b
 LEFT JOIN LATERAL (
@@ -258,11 +299,28 @@ LEFT JOIN LATERAL (
     WHERE l.id_professor = b.id_professor
 ) ls ON TRUE
 LEFT JOIN LATERAL (
-    SELECT ARRAY_AGG(DISTINCT d.nome) FILTER (WHERE d.nome IS NOT NULL) AS tags
-    FROM courses c
-    JOIN disciplinas d ON d.id_disciplina = c.id_disciplina
-    WHERE c.id_professor = b.id_professor
+    SELECT MIN(d.nome) AS primary_subject
+    FROM public.professor_disciplina pd
+    JOIN public.disciplinas d ON d.id_disciplina = pd.id_disciplina
+    WHERE pd.id_professor = b.id_professor
+        AND COALESCE(pd.is_active, TRUE) = TRUE
+) sd ON TRUE
+LEFT JOIN LATERAL (
+    SELECT ARRAY_AGG(DISTINCT d.nome ORDER BY d.nome)
+        FILTER (WHERE d.nome IS NOT NULL AND TRIM(d.nome) <> '') AS tags
+    FROM public.professor_disciplina pd
+    JOIN public.disciplinas d ON d.id_disciplina = pd.id_disciplina
+    WHERE pd.id_professor = b.id_professor
+        AND COALESCE(pd.is_active, TRUE) = TRUE
 ) tg ON TRUE
+LEFT JOIN LATERAL (
+    SELECT ARRAY_AGG(DISTINCT ce.nome ORDER BY ce.nome)
+        FILTER (WHERE ce.nome IS NOT NULL AND TRIM(ce.nome) <> '') AS education_levels
+    FROM public.professor_disciplina pd
+    LEFT JOIN public.ciclos_estudo ce ON ce.id_ciclo_estudo = pd.id_ciclo_estudo
+    WHERE pd.id_professor = b.id_professor
+        AND COALESCE(pd.is_active, TRUE) = TRUE
+) el ON TRUE
 ORDER BY r.avg_rating DESC NULLS LAST, r.review_count DESC, display_name ASC
 OFFSET @offset
 LIMIT @limit;
@@ -295,6 +353,9 @@ LIMIT @limit;
                                         IdProfessor = reader.GetGuid(reader.GetOrdinal("id_professor")),
                                         Name = reader.GetString(reader.GetOrdinal("display_name")),
                                         Subtitle = reader.GetString(reader.GetOrdinal("subtitle")),
+                                    Photo = reader.IsDBNull(reader.GetOrdinal("photo")) ? null : reader.GetString(reader.GetOrdinal("photo")),
+                                    PrimarySubject = reader.IsDBNull(reader.GetOrdinal("primary_subject")) ? string.Empty : reader.GetString(reader.GetOrdinal("primary_subject")),
+                                    YearsExperience = reader.IsDBNull(reader.GetOrdinal("years_experience")) ? null : reader.GetInt32(reader.GetOrdinal("years_experience")),
                                         Description = reader.GetString(reader.GetOrdinal("biography")),
                                         Rating = reader.IsDBNull(reader.GetOrdinal("avg_rating")) ? 0 : reader.GetDecimal(reader.GetOrdinal("avg_rating")),
                                         ReviewCount = reader.IsDBNull(reader.GetOrdinal("review_count")) ? 0 : reader.GetInt32(reader.GetOrdinal("review_count")),
@@ -309,6 +370,15 @@ LIMIT @limit;
                                         {
                                                 item.Tags = new List<string>(arr);
                                         }
+                                }
+
+                                var educationLevelsOrdinal = reader.GetOrdinal("education_levels");
+                                if (!reader.IsDBNull(educationLevelsOrdinal))
+                                {
+                                    if (reader.GetValue(educationLevelsOrdinal) is string[] levels)
+                                    {
+                                        item.EducationLevels = new List<string>(levels);
+                                    }
                                 }
 
                                 var totalOrdinal = reader.GetOrdinal("total_count");

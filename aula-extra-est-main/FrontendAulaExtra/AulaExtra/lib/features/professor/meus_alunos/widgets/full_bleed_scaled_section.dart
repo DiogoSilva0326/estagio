@@ -2,10 +2,7 @@ import 'package:aula_extra/features/professor/meus_alunos/constants/meus_alunos_
 import 'package:flutter/material.dart';
 
 class FullBleedScaledSection extends StatelessWidget {
-  const FullBleedScaledSection({
-    super.key,
-    required this.child,
-  });
+  const FullBleedScaledSection({super.key, required this.child});
 
   final Widget child;
 

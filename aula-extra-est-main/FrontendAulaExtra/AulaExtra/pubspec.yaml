@@ -79,6 +79,7 @@ flutter:
     - lib/features/home/images/
     - lib/features/login/images/
     - lib/features/register/images/
+    - public/images/
 
   # To add assets to your application, add an assets section, like this:
   # assets:

@@ -11,13 +11,7 @@ class RegisterHeroPanelOffset extends StatelessWidget {
       height: 999.781,
       child: const Stack(
         clipBehavior: Clip.none,
-        children: [
-          Positioned(
-            top: 278,
-            left: 0,
-            child: RegisterHeroPanel(),
-          ),
-        ],
+        children: [Positioned(top: 278, left: 0, child: RegisterHeroPanel())],
       ),
     );
   }

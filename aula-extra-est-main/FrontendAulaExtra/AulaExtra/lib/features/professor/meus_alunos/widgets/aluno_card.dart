@@ -7,9 +7,10 @@ import 'package:aula_extra/routes/routes.dart';
 import 'package:flutter/material.dart';
 
 class AlunoCard extends StatefulWidget {
-  const AlunoCard({super.key, required this.data});
+  const AlunoCard({super.key, required this.data, this.onComplaintTap});
 
   final ProfessorAlunoDto data;
+  final VoidCallback? onComplaintTap;
 
   @override
   State<AlunoCard> createState() => _AlunoCardState();
@@ -404,6 +405,34 @@ class _AlunoCardState extends State<AlunoCard> {
                       ),
                     ),
                   ),
+                  if (widget.onComplaintTap != null) ...[
+                    const SizedBox(height: 10),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 39.39,
+                      child: OutlinedButton.icon(
+                        onPressed: widget.onComplaintTap,
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: const Color(0xFFB42318),
+                          side: const BorderSide(
+                            color: Color(0xFFF15C64),
+                            width: MeusAlunosProfessorLayout.actionBorderWidth,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(
+                              MeusAlunosProfessorLayout.actionButtonRadius,
+                            ),
+                          ),
+                          textStyle: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        icon: const Icon(Icons.report_gmailerrorred_rounded),
+                        label: const Text('Submeter reclamação'),
+                      ),
+                    ),
+                  ],
                 ],
               );
             },

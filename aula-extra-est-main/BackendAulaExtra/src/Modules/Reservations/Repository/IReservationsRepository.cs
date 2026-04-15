@@ -13,6 +13,7 @@ namespace ConfidantPostgreSQL.Modules.Reservations.Repository
         Task<Guid> InsertReservationAsync(Reservation reservation);
         Task<int> UpdateReservationAsync(Reservation reservation);
         Task<int> DeleteReservationAsync(Guid idReservation);
+        Task<IEnumerable<Reservation>> GetReservationsByLessonAsync(Guid idLesson);
 
         Task<IEnumerable<StudentCalendarItem>> GetStudentCalendarAsync(Guid studentUserId, DateTime start, DateTime end);
         Task<IEnumerable<StudentCalendarItem>> GetStudentUpcomingCalendarAsync(Guid studentUserId, DateTime from, int limit);

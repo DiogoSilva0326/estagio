@@ -6,4 +6,10 @@ namespace ConfidantPostgreSQL.Modules.Professors.Models
         public int ReviewCount { get; set; }
         public int LessonsCount { get; set; }
     }
+
+    public class ProfessorGlobalRatingSummary
+    {
+        public decimal AvgRating { get; set; }
+        public int ReviewCount { get; set; }
+    }
 }

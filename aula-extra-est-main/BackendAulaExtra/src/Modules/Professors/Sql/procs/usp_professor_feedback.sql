@@ -7,6 +7,19 @@ AS $$
     ORDER BY created_at DESC;
 $$;
 
+CREATE OR REPLACE FUNCTION public.usp_professor_feedback_global_rating_summary01()
+RETURNS TABLE(avg_rating numeric, review_count integer)
+LANGUAGE sql
+STABLE
+AS $$
+    SELECT
+        ROUND(COALESCE(AVG(pf.rating::numeric), 0), 1) AS avg_rating,
+        COUNT(*)::int AS review_count
+    FROM public.professor_feedback pf
+    WHERE pf.is_valid = TRUE
+        AND pf.rating IS NOT NULL;
+$$;
+
 CREATE OR REPLACE FUNCTION public.usp_professor_feedback_select_details01(
     p_id_professor_feedback uuid
 )

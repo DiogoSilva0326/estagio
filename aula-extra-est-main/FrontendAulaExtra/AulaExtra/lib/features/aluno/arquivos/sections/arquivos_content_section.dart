@@ -132,7 +132,8 @@ class _ArquivosContentSectionState extends State<ArquivosContentSection> {
 
   Future<void> _openFile(ChatFileInfoDto file) async {
     final uri = Uri.tryParse(file.downloadUrl);
-    if (uri == null || !await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+    if (uri == null ||
+        !await launchUrl(uri, mode: LaunchMode.externalApplication)) {
       if (!mounted) return;
       setState(() {
         _errorMessage = 'Não foi possível abrir ${file.fileName}.';
@@ -145,7 +146,9 @@ class _ArquivosContentSectionState extends State<ArquivosContentSection> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Apagar ficheiro'),
-        content: Text('Pretende apagar "${file.fileName}"? Esta ação remove o ficheiro do R2.'),
+        content: Text(
+          'Pretende apagar "${file.fileName}"? Esta ação remove o ficheiro do R2.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
@@ -182,11 +185,15 @@ class _ArquivosContentSectionState extends State<ArquivosContentSection> {
     final normalizedQuery = _query.trim().toLowerCase();
     if (normalizedQuery.isEmpty) return _files;
 
-    return _files.where((file) {
-      return file.fileName.toLowerCase().contains(normalizedQuery) ||
-          file.uploadedByDisplayName.toLowerCase().contains(normalizedQuery) ||
-          file.contentType.toLowerCase().contains(normalizedQuery);
-    }).toList(growable: false);
+    return _files
+        .where((file) {
+          return file.fileName.toLowerCase().contains(normalizedQuery) ||
+              file.uploadedByDisplayName.toLowerCase().contains(
+                normalizedQuery,
+              ) ||
+              file.contentType.toLowerCase().contains(normalizedQuery);
+        })
+        .toList(growable: false);
   }
 
   String _guessContentType(String fileName) {
@@ -230,16 +237,13 @@ class _ArquivosContentSectionState extends State<ArquivosContentSection> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const AlunoMenuNav(selectedIndex: 4),
+          const AlunoMenuNav(selectedIndex: 3),
           const SizedBox(width: 40),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Arquivos',
-                  style: ArquivosConstants.titleStyle,
-                ),
+                const Text('Arquivos', style: ArquivosConstants.titleStyle),
                 const SizedBox(height: ArquivosConstants.gapSmall),
                 const Text(
                   'Gerencie seus documentos e materiais de estudo',

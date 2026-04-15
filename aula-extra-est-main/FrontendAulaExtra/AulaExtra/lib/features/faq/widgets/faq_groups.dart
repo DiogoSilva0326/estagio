@@ -4,49 +4,113 @@ import 'package:aula_extra/features/faq/widgets/faq_question_row.dart';
 import 'package:flutter/material.dart';
 
 class FaqGroups extends StatefulWidget {
-  const FaqGroups({super.key});
+  const FaqGroups({super.key, required this.groups});
+
+  final List<FaqGroupData> groups;
 
   @override
   State<FaqGroups> createState() => _FaqGroupsState();
 }
 
 class _FaqGroupsState extends State<FaqGroups> {
-  late int? _expandedIndex;
-  final Map<int, int?> _expandedQuestionByGroup = {};
+  String? _expandedTitle;
+  final Map<String, int?> _expandedQuestionByGroup = {};
 
   @override
   void initState() {
     super.initState();
-    final initial = FaqCopy.groups.indexWhere((g) => g.initiallyExpanded);
-    _expandedIndex = initial == -1 ? null : initial;
+    _syncExpandedGroup();
   }
 
-  void _toggle(int index) {
+  @override
+  void didUpdateWidget(covariant FaqGroups oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.groups != widget.groups) {
+      _syncExpandedGroup();
+    }
+  }
+
+  void _syncExpandedGroup() {
+    if (widget.groups.isEmpty) {
+      _expandedTitle = null;
+      return;
+    }
+
+    final stillExists = widget.groups.any((group) => group.title == _expandedTitle);
+    if (!stillExists) {
+      final initial = widget.groups.cast<FaqGroupData?>().firstWhere(
+        (group) => group?.initiallyExpanded ?? false,
+        orElse: () => widget.groups.first,
+      );
+      _expandedTitle = initial?.title;
+    }
+  }
+
+  void _toggle(String title) {
     setState(() {
-      _expandedIndex = _expandedIndex == index ? null : index;
+      _expandedTitle = _expandedTitle == title ? null : title;
     });
   }
 
-  void _toggleQuestion({required int groupIndex, required int questionIndex}) {
+  void _toggleQuestion({required String groupTitle, required int questionIndex}) {
     setState(() {
-      final current = _expandedQuestionByGroup[groupIndex];
-      _expandedQuestionByGroup[groupIndex] = current == questionIndex ? null : questionIndex;
+      final current = _expandedQuestionByGroup[groupTitle];
+      _expandedQuestionByGroup[groupTitle] = current == questionIndex ? null : questionIndex;
     });
   }
 
   @override
   Widget build(BuildContext context) {
+    if (widget.groups.isEmpty) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 40),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(FaqDimens.radiusCard),
+          border: Border.all(color: FaqColors.borderLight, width: FaqDimens.borderThin),
+        ),
+        child: const Column(
+          children: [
+            Icon(Icons.search_off_outlined, size: 42, color: FaqColors.textMuted),
+            SizedBox(height: 16),
+            Text(
+              'Nenhuma FAQ encontrada.',
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w700,
+                color: FaqColors.textPrimary,
+              ),
+            ),
+            SizedBox(height: 10),
+            Text(
+              'Tenta outra categoria ou ajusta a pesquisa para veres mais resultados.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 17,
+                height: 1.5,
+                color: FaqColors.textSecondary,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     return Column(
       children: [
-        for (int i = 0; i < FaqCopy.groups.length; i++) ...[
+        for (int i = 0; i < widget.groups.length; i++) ...[
           _FaqGroupCard(
-            data: FaqCopy.groups[i],
-            expanded: _expandedIndex == i,
-            onHeaderTap: () => _toggle(i),
-            expandedQuestionIndex: _expandedQuestionByGroup[i],
-            onQuestionTap: (qIndex) => _toggleQuestion(groupIndex: i, questionIndex: qIndex),
+            data: widget.groups[i],
+            expanded: _expandedTitle == widget.groups[i].title,
+            onHeaderTap: () => _toggle(widget.groups[i].title),
+            expandedQuestionIndex: _expandedQuestionByGroup[widget.groups[i].title],
+            onQuestionTap: (qIndex) => _toggleQuestion(
+              groupTitle: widget.groups[i].title,
+              questionIndex: qIndex,
+            ),
           ),
-          if (i != FaqCopy.groups.length - 1) const SizedBox(height: 30.626),
+          if (i != widget.groups.length - 1) const SizedBox(height: 30.626),
         ],
       ],
     );

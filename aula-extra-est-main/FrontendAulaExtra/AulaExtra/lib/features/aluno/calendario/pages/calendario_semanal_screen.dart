@@ -20,7 +20,9 @@ class CalendarioSemanalScreen extends StatelessWidget {
     if (!isStudent) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!context.mounted) return;
-        Navigator.of(context).pushNamedAndRemoveUntil(Routes.home, (route) => false);
+        Navigator.of(
+          context,
+        ).pushNamedAndRemoveUntil(Routes.home, (route) => false);
       });
     }
 
@@ -31,13 +33,15 @@ class CalendarioSemanalScreen extends StatelessWidget {
           SliverPersistentHeader(
             pinned: true,
             delegate: PinnedHeaderDelegate(
-              height: AppHeader.height,
+              height: AppHeader.resolvedHeight(context),
               child: AppHeader(
                 headerAlunoActiveItem: HeaderAlunoItem.calendario,
-                onRegisterTap: () => Navigator.of(context).pushNamed(Routes.registerStudent),
+                onRegisterTap: () =>
+                    Navigator.of(context).pushNamed(Routes.registerStudent),
                 onLoginTap: () => Navigator.of(context).pushNamed(Routes.login),
-                onLogoTap: () => Navigator.of(context)
-                    .pushNamedAndRemoveUntil(Routes.home, (route) => false),
+                onLogoTap: () => Navigator.of(
+                  context,
+                ).pushNamedAndRemoveUntil(Routes.home, (route) => false),
               ),
             ),
           ),
@@ -48,13 +52,12 @@ class CalendarioSemanalScreen extends StatelessWidget {
                   color: Color(0xFFF9F9F9),
                   child: SizedBox(
                     width: double.infinity,
-                    child: FullBleedScaledSection(child: CalendarioSemanalContentSection()),
+                    child: FullBleedScaledSection(
+                      child: CalendarioSemanalContentSection(),
+                    ),
                   ),
                 ),
-                ColoredBox(
-                  color: Color(0xFFF9F9F9),
-                  child: FooterSection(),
-                ),
+                ColoredBox(color: Color(0xFFF9F9F9), child: FooterSection()),
               ],
             ),
           ),

@@ -7,30 +7,39 @@ class FaqGradientButton extends StatelessWidget {
     required this.width,
     required this.height,
     required this.label,
+    this.onTap,
   });
 
   final double width;
   final double height;
   final String label;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
       width: width,
       height: height,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          gradient: FaqGradients.orangeVertical,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
           borderRadius: BorderRadius.circular(FaqDimens.radiusCard),
-        ),
-        child: Center(
-          child: Text(
-            label,
-            style: const TextStyle(
-              fontSize: 20.417,
-              height: 1.5,
-              fontWeight: FontWeight.w500,
-              color: Colors.white,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: FaqGradients.orangeVertical,
+              borderRadius: BorderRadius.circular(FaqDimens.radiusCard),
+            ),
+            child: Center(
+              child: Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 20.417,
+                  height: 1.5,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.white,
+                ),
+              ),
             ),
           ),
         ),
@@ -46,38 +55,47 @@ class FaqGradientIconButton extends StatelessWidget {
     required this.height,
     required this.label,
     required this.icon,
+    this.onTap,
   });
 
   final double width;
   final double height;
   final String label;
   final IconData icon;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
       width: width,
       height: height,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          gradient: FaqGradients.orangeVertical,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
           borderRadius: BorderRadius.circular(FaqDimens.radiusButton),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 25.522, color: Colors.white),
-            const SizedBox(width: 12),
-            Text(
-              label,
-              style: const TextStyle(
-                fontSize: 20.417,
-                height: 1.5,
-                fontWeight: FontWeight.w500,
-                color: Colors.white,
-              ),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: FaqGradients.orangeVertical,
+              borderRadius: BorderRadius.circular(FaqDimens.radiusButton),
             ),
-          ],
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon, size: 25.522, color: Colors.white),
+                const SizedBox(width: 12),
+                Text(
+                  label,
+                  style: const TextStyle(
+                    fontSize: 20.417,
+                    height: 1.5,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.white,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -90,31 +108,43 @@ class FaqOutlinedButton extends StatelessWidget {
     required this.width,
     required this.height,
     required this.label,
+    this.onTap,
   });
 
   final double width;
   final double height;
   final String label;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
       width: width,
       height: height,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: Colors.white,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
           borderRadius: BorderRadius.circular(FaqDimens.radiusButton),
-          border: Border.all(color: FaqColors.borderDefault, width: FaqDimens.borderThick),
-        ),
-        child: Center(
-          child: Text(
-            label,
-            style: const TextStyle(
-              fontSize: 20.417,
-              height: 1.5,
-              fontWeight: FontWeight.w500,
-              color: FaqColors.textButtonSecondary,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(FaqDimens.radiusButton),
+              border: Border.all(
+                color: FaqColors.borderDefault,
+                width: FaqDimens.borderThick,
+              ),
+            ),
+            child: Center(
+              child: Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 20.417,
+                  height: 1.5,
+                  fontWeight: FontWeight.w500,
+                  color: FaqColors.textButtonSecondary,
+                ),
+              ),
             ),
           ),
         ),

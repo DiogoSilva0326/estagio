@@ -19,6 +19,20 @@ namespace ConfidantPostgreSQL.Modules.Complaints.Controllers
             _service = service;
         }
 
+        private bool TryGetAuthenticatedUserId(out Guid userId)
+        {
+            userId = Guid.Empty;
+            if (HttpContext?.Items == null) return false;
+            if (!HttpContext.Items.TryGetValue("UserId", out var raw) || raw == null) return false;
+            if (raw is Guid guid)
+            {
+                userId = guid;
+                return userId != Guid.Empty;
+            }
+
+            return Guid.TryParse(raw.ToString(), out userId) && userId != Guid.Empty;
+        }
+
         private bool TryAuthorize(out IActionResult? unauthorized)
         {
             RequestContext.ApplyCultureFromHeader(Request);
@@ -48,6 +62,26 @@ namespace ConfidantPostgreSQL.Modules.Complaints.Controllers
             var id = await _service.InsertComplaintAsync(complaint);
             complaint.IdComplaint = id;
             return CreatedAtAction(nameof(GetComplaint), new { idComplaint = id }, complaint);
+        }
+
+        [HttpPost("me/related-user")]
+        public async Task<IActionResult> CreateComplaintAgainstRelatedUser([FromBody] CreateRelatedComplaintRequest request)
+        {
+            if (!TryGetAuthenticatedUserId(out var userId)) return Unauthorized();
+
+            try
+            {
+                var complaint = await _service.CreateComplaintAgainstRelatedUserAsync(userId, request);
+                return CreatedAtAction(nameof(GetComplaint), new { idComplaint = complaint.IdComplaint }, complaint);
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
         }
 
         [HttpPut("{idComplaint:guid}")]

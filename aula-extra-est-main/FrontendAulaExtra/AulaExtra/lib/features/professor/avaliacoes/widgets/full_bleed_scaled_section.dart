@@ -1,10 +1,7 @@
 import 'package:flutter/material.dart';
 
 class FullBleedScaledSection extends StatelessWidget {
-  const FullBleedScaledSection({
-    super.key,
-    required this.child,
-  });
+  const FullBleedScaledSection({super.key, required this.child});
 
   final Widget child;
 
@@ -13,7 +10,9 @@ class FullBleedScaledSection extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         const designWidth = 1440.0;
-        final scale = constraints.maxWidth < designWidth ? constraints.maxWidth / designWidth : 1.0;
+        final scale = constraints.maxWidth < designWidth
+            ? constraints.maxWidth / designWidth
+            : 1.0;
 
         return Align(
           alignment: Alignment.topCenter,

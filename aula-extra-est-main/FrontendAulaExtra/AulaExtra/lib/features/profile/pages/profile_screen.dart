@@ -16,12 +16,14 @@ class ProfileScreen extends StatelessWidget {
           SliverPersistentHeader(
             pinned: true,
             delegate: PinnedHeaderDelegate(
-              height: AppHeader.height,
+              height: AppHeader.resolvedHeight(context),
               child: AppHeader(
-                onRegisterTap: () => Navigator.of(context).pushNamed(Routes.registerStudent),
+                onRegisterTap: () =>
+                    Navigator.of(context).pushNamed(Routes.registerStudent),
                 onLoginTap: () => Navigator.of(context).pushNamed(Routes.login),
-                onLogoTap: () => Navigator.of(context)
-                    .pushNamedAndRemoveUntil(Routes.home, (route) => false),
+                onLogoTap: () => Navigator.of(
+                  context,
+                ).pushNamedAndRemoveUntil(Routes.home, (route) => false),
               ),
             ),
           ),

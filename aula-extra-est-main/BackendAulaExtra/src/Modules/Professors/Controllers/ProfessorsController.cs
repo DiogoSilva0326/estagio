@@ -272,6 +272,18 @@ namespace ConfidantPostgreSQL.Modules.Professors.Controllers
             });
         }
 
+        [AllowAnonymous]
+        [HttpGet("ratings/summary")]
+        public async Task<IActionResult> GetGlobalRatingSummary()
+        {
+            var stats = await _service.GetGlobalRatingSummaryAsync();
+            return Ok(new
+            {
+                avgRating = stats.AvgRating,
+                reviewCount = stats.ReviewCount,
+            });
+        }
+
         // GET /api/Professors/me/evaluations
         [HttpGet("me/evaluations")]
         public async Task<IActionResult> GetMyEvaluations()

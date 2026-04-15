@@ -37,5 +37,6 @@ namespace ConfidantPostgreSQL.Modules.Lessons.Repository
         Task<Guid> InsertEnrollmentAsync(Enrollment enrollment);
         Task<int> UpdateEnrollmentAsync(Enrollment enrollment);
         Task<int> DeleteEnrollmentAsync(Guid idEnrollment);
+        Task<IEnumerable<Enrollment>> GetEnrollmentsByLessonAsync(Guid idLesson);
     }
 }

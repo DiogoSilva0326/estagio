@@ -106,7 +106,7 @@ class _TutorProfileScreenState extends State<TutorProfileScreen> {
             SliverPersistentHeader(
               pinned: true,
               delegate: PinnedHeaderDelegate(
-                height: AppHeader.height,
+                height: AppHeader.resolvedHeight(context),
                 child: AppHeader(
                   onRegisterTap: () =>
                       Navigator.of(context).pushNamed(Routes.registerStudent),

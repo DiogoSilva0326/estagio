@@ -1,12 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# 1. Impede o Git Bash de converter caminhos do contentor Docker (ex: /tmp/...)
-export MSYS_NO_PATHCONV=1
-
-# 2. Força os caminhos a usar o formato Windows (C:/...) se estiver no Git Bash
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}" )" && pwd -W 2>/dev/null || pwd)"
-PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd -W 2>/dev/null || pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}" )" && pwd)"
+PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 ENV_FILE="$PROJECT_ROOT/.env"
 if [[ -f "$ENV_FILE" ]]; then

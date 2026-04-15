@@ -31,12 +31,16 @@ class MarcarAulaProfessorScreen extends StatelessWidget {
     if (!isStudent) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!context.mounted) return;
-        Navigator.of(context).pushNamedAndRemoveUntil(Routes.home, (route) => false);
+        Navigator.of(
+          context,
+        ).pushNamedAndRemoveUntil(Routes.home, (route) => false);
       });
     }
 
     final routeArgs = ModalRoute.of(context)?.settings.arguments;
-    final args = routeArgs is MarcarAulaProfessorArgs ? routeArgs : fallbackArgs;
+    final args = routeArgs is MarcarAulaProfessorArgs
+        ? routeArgs
+        : fallbackArgs;
 
     return Scaffold(
       backgroundColor: MarcarAulaProfessorConstants.pageBackground,
@@ -45,11 +49,14 @@ class MarcarAulaProfessorScreen extends StatelessWidget {
           SliverPersistentHeader(
             pinned: true,
             delegate: PinnedHeaderDelegate(
-              height: AppHeader.height,
+              height: AppHeader.resolvedHeight(context),
               child: AppHeader(
-                onRegisterTap: () => Navigator.of(context).pushNamed(Routes.registerStudent),
+                onRegisterTap: () =>
+                    Navigator.of(context).pushNamed(Routes.registerStudent),
                 onLoginTap: () => Navigator.of(context).pushNamed(Routes.login),
-                onLogoTap: () => Navigator.of(context).pushNamedAndRemoveUntil(Routes.home, (route) => false),
+                onLogoTap: () => Navigator.of(
+                  context,
+                ).pushNamedAndRemoveUntil(Routes.home, (route) => false),
               ),
             ),
           ),

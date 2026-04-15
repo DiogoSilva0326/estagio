@@ -8,6 +8,7 @@ namespace ConfidantPostgreSQL.Modules.Education.Service
     public interface IEducationService
     {
         Task<IEnumerable<Disciplina>> GetDisciplinasAllAsync();
+        Task<IEnumerable<Disciplina>> GetPublicDisciplinasWithProfessorsAsync();
         Task<Disciplina?> GetDisciplinaByIdAsync(Guid idDisciplina);
         Task<Guid> InsertDisciplinaAsync(Disciplina disciplina);
         Task<int> UpdateDisciplinaAsync(Disciplina disciplina);

@@ -55,23 +55,41 @@ class LabeledTextField extends StatelessWidget {
                 letterSpacing: -0.2612,
               ),
               prefixIcon: Padding(
-                padding: const EdgeInsetsDirectional.only(start: 13.375, end: 10),
+                padding: const EdgeInsetsDirectional.only(
+                  start: 13.375,
+                  end: 10,
+                ),
                 child: prefix,
               ),
-              prefixIconConstraints: const BoxConstraints.tightFor(width: 40.125, height: 43.469),
+              prefixIconConstraints: const BoxConstraints.tightFor(
+                width: 40.125,
+                height: 43.469,
+              ),
               suffixIcon: suffix,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 13.375, vertical: 10.031),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 13.375,
+                vertical: 10.031,
+              ),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(11.703),
-                borderSide: const BorderSide(color: RegisterColors.stroke, width: 1.672),
+                borderSide: const BorderSide(
+                  color: RegisterColors.stroke,
+                  width: 1.672,
+                ),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(11.703),
-                borderSide: const BorderSide(color: RegisterColors.stroke, width: 1.672),
+                borderSide: const BorderSide(
+                  color: RegisterColors.stroke,
+                  width: 1.672,
+                ),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(11.703),
-                borderSide: const BorderSide(color: RegisterColors.stroke, width: 1.672),
+                borderSide: const BorderSide(
+                  color: RegisterColors.stroke,
+                  width: 1.672,
+                ),
               ),
             ),
           ),

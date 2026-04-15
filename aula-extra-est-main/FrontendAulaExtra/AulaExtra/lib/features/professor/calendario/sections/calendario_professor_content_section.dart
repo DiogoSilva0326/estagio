@@ -134,10 +134,21 @@ class _ProfessorUpcomingLessonsListState
   late Future<List<ProfessorCalendarItemDto>> _future;
   int _limit = 4;
   String? _enteringReservationId;
+  String? _cancellingReservationId;
 
   static const _months = [
-    'Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun',
-    'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez',
+    'Jan',
+    'Fev',
+    'Mar',
+    'Abr',
+    'Mai',
+    'Jun',
+    'Jul',
+    'Ago',
+    'Set',
+    'Out',
+    'Nov',
+    'Dez',
   ];
 
   @override
@@ -153,9 +164,21 @@ class _ProfessorUpcomingLessonsListState
     });
   }
 
+  void _reload() {
+    setState(() {
+      _future = _calendarService.getProfessorUpcoming(limit: _limit);
+    });
+  }
+
   String _formatWeekdayAndDate(DateTime dt) {
     const weekdays = [
-      'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo',
+      'Segunda',
+      'Terça',
+      'Quarta',
+      'Quinta',
+      'Sexta',
+      'Sábado',
+      'Domingo',
     ];
     final weekday = weekdays[dt.weekday - 1];
     final day = dt.day.toString().padLeft(2, '0');
@@ -243,6 +266,36 @@ class _ProfessorUpcomingLessonsListState
     }
   }
 
+  Future<void> _cancelLesson(ProfessorCalendarItemDto item) async {
+    if (_cancellingReservationId == item.idReservation) return;
+
+    setState(() => _cancellingReservationId = item.idReservation);
+
+    try {
+      await _calendarService.cancelReservationAsProfessor(
+        reservationId: item.idReservation,
+      );
+
+      if (!mounted) return;
+      _reload();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Aula cancelada com sucesso.'),
+          backgroundColor: Color(0xFF00A63E),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.toString())));
+    } finally {
+      if (mounted) {
+        setState(() => _cancellingReservationId = null);
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<List<ProfessorCalendarItemDto>>(
@@ -290,6 +343,8 @@ class _ProfessorUpcomingLessonsListState
                 final item = items[index];
                 final canEnter = _canEnterLesson(item);
                 final isPending = isPendingCalendarStatus(item.status);
+                final isCancelled =
+                    normalizeCalendarStatus(item.status) == 'cancelled';
                 final studentName = item.studentName.trim().isEmpty
                     ? 'Aluno'
                     : item.studentName.trim();
@@ -317,6 +372,11 @@ class _ProfessorUpcomingLessonsListState
                       canEnter && _enteringReservationId != item.idReservation
                       ? () => _handleEnterLesson(item)
                       : null,
+                  onCancelTap:
+                      isCancelled ||
+                          _cancellingReservationId == item.idReservation
+                      ? null
+                      : () => _cancelLesson(item),
                 );
               },
             ),
@@ -338,10 +398,6 @@ class _ProfessorUpcomingLessonsListState
     );
   }
 }
-
-// ==========================================
-// CALENDÁRIO SEMANAL
-// ==========================================
 
 class _ProfessorWeeklyCalendarCard extends StatelessWidget {
   const _ProfessorWeeklyCalendarCard({super.key});
@@ -406,8 +462,18 @@ class _ProfessorWeeklyCalendarGridState
   );
   static const _days = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
   static const _months = [
-    'Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun',
-    'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez',
+    'Jan',
+    'Fev',
+    'Mar',
+    'Abr',
+    'Mai',
+    'Jun',
+    'Jul',
+    'Ago',
+    'Set',
+    'Out',
+    'Nov',
+    'Dez',
   ];
 
   static DateTime _startOfWeek(DateTime now) {
@@ -430,14 +496,13 @@ class _ProfessorWeeklyCalendarGridState
     return a.year == b.year && a.month == b.month && a.day == b.day;
   }
 
-  // 💡 CORREÇÃO DA DISPONIBILIDADE: Agora foca-se num horário normal de trabalho
   static (int, int) _visibleSlotRangeForWeek(
     List<ProfessorCalendarItemDto> items,
     DateTime weekStart,
   ) {
-    // Janela padrão de disponibilidade (08:00 às 20:00)
-    var earliestSlot = 16; // 16 * 30m = 08:00
-    var latestSlot = 40;   // 40 * 30m = 20:00
+    var earliestSlot = 47;
+    var latestSlot = 1;
+    var hasLessons = false;
 
     for (final item in items) {
       final dayKey = DateTime(
@@ -448,10 +513,15 @@ class _ProfessorWeeklyCalendarGridState
       final dayIndex = dayKey.difference(weekStart).inDays;
       if (dayIndex < 0 || dayIndex > 6) continue;
 
+      hasLessons = true;
       final startSlot = _slotFloor(item.startTime);
       final endSlot = _slotCeil(item.endTime);
       earliestSlot = math.min(earliestSlot, startSlot);
       latestSlot = math.max(latestSlot, endSlot);
+    }
+
+    if (!hasLessons) {
+      return (0, 48);
     }
 
     final startSlot = math.max(0, earliestSlot - 1);
@@ -651,9 +721,6 @@ class _ProfessorWeeklyCalendarGridState
               final endSlot = visibleRange.$2;
               final slotCount = endSlot - startSlot;
               final totalHeight = slotCount * _slotHeight;
-              
-              // 💡 CORREÇÃO DO OVERFLOW: Adicionamos 4 pixéis à altura para acomodar as bordas
-              final containerHeight = totalHeight + 4; 
 
               return SingleChildScrollView(
                 child: SizedBox(
@@ -663,7 +730,7 @@ class _ProfessorWeeklyCalendarGridState
                     children: [
                       SizedBox(
                         width: _timeColumnWidth,
-                        height: containerHeight, 
+                        height: totalHeight,
                         child: Column(
                           children: List.generate(slotCount, (index) {
                             final slot = startSlot + index;
@@ -700,9 +767,8 @@ class _ProfessorWeeklyCalendarGridState
                                 (constraints.maxWidth - (_dayGap * 6)) / 7;
 
                             return SizedBox(
-                              height: containerHeight, // 💡 CORREÇÃO APLICADA AQUI TAMBÉM
+                              height: totalHeight,
                               child: Stack(
-                                clipBehavior: Clip.none, // Permite que a borda flua sem erro
                                 children: [
                                   Row(
                                     crossAxisAlignment:
@@ -721,7 +787,9 @@ class _ProfessorWeeklyCalendarGridState
                                             color: isTodayColumn
                                                 ? _todayCellBackground
                                                 : const Color(0xFFF9FAFB),
-                                            borderRadius: BorderRadius.circular(12),
+                                            borderRadius: BorderRadius.circular(
+                                              12,
+                                            ),
                                             border: Border.all(
                                               color: isTodayColumn
                                                   ? _todayCellBorder
@@ -742,8 +810,12 @@ class _ProfessorWeeklyCalendarGridState
                                                       color: index == 0
                                                           ? Colors.transparent
                                                           : (slot.isOdd
-                                                              ? const Color(0xFFF2F4F7)
-                                                              : const Color(0xFFE5E7EB)),
+                                                                ? const Color(
+                                                                    0xFFF2F4F7,
+                                                                  )
+                                                                : const Color(
+                                                                    0xFFE5E7EB,
+                                                                  )),
                                                     ),
                                                   ),
                                                 ),
@@ -769,12 +841,12 @@ class _ProfessorWeeklyCalendarGridState
 
                                     final startOffset =
                                         (_minutesSinceDayStart(item.startTime) /
-                                                30) -
-                                            startSlot;
+                                            30) -
+                                        startSlot;
                                     final endOffset =
                                         (_minutesSinceDayStart(item.endTime) /
-                                                30) -
-                                            startSlot;
+                                            30) -
+                                        startSlot;
 
                                     final top = (startOffset * _slotHeight) + 2;
                                     final height = math.max(
@@ -795,72 +867,74 @@ class _ProfessorWeeklyCalendarGridState
                                       height: height.toDouble(),
                                       child: Container(
                                         padding: const EdgeInsets.symmetric(
-                                          horizontal: 8,
-                                          vertical: 4, // 💡 Reduzimos o padding para dar mais espaço ao texto
+                                          horizontal: 10,
+                                          vertical: 8,
                                         ),
                                         decoration: BoxDecoration(
                                           color: palette.background,
-                                          borderRadius: BorderRadius.circular(12),
+                                          borderRadius: BorderRadius.circular(
+                                            12,
+                                          ),
                                           border: Border.all(
                                             color: palette.border,
                                             width: 1.2,
                                           ),
                                           boxShadow: const [
                                             BoxShadow(
-                                              color: Color.fromRGBO(16, 24, 40, 0.06),
+                                              color: Color.fromRGBO(
+                                                16,
+                                                24,
+                                                40,
+                                                0.06,
+                                              ),
                                               blurRadius: 10,
                                               offset: Offset(0, 4),
                                             ),
                                           ],
                                         ),
-                                        // 💡 O Segredo: ClipRRect + SingleChildScrollView para evitar o Overflow!
-                                        child: ClipRRect(
-                                          borderRadius: BorderRadius.circular(8),
-                                          child: SingleChildScrollView(
-                                            physics: const NeverScrollableScrollPhysics(),
-                                            child: Column(
-                                              crossAxisAlignment: CrossAxisAlignment.start,
-                                              mainAxisAlignment: MainAxisAlignment.center,
-                                              children: [
-                                                Text(
-                                                  item.studentName,
-                                                  maxLines: 1,
-                                                  overflow: TextOverflow.ellipsis,
-                                                  style: TextStyle(
-                                                    fontSize: 12,
-                                                    fontWeight: FontWeight.w700,
-                                                    color: palette.title,
-                                                  ),
-                                                ),
-                                                const SizedBox(height: 2),
-                                                Text(
-                                                  item.disciplinaName,
-                                                  maxLines: 1,
-                                                  overflow: TextOverflow.ellipsis,
-                                                  style: TextStyle(
-                                                    fontSize: 11,
-                                                    fontWeight: FontWeight.w500,
-                                                    color: palette.subtitle,
-                                                    height: 1.2,
-                                                  ),
-                                                ),
-                                                const SizedBox(height: 2),
-                                                Text(
-                                                  _formatTimeRange(
-                                                    item.startTime,
-                                                    item.endTime,
-                                                  ),
-                                                  maxLines: 1,
-                                                  overflow: TextOverflow.ellipsis,
-                                                  style: TextStyle(
-                                                    fontSize: 10,
-                                                    fontWeight: FontWeight.w600,
-                                                    color: palette.subtitle,
-                                                  ),
-                                                ),
-                                              ],
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
+                                          children: [
+                                            Text(
+                                              item.studentName,
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w700,
+                                                color: palette.title,
+                                              ),
                                             ),
-                                          ),
+                                            const SizedBox(height: 2),
+                                            Text(
+                                              item.disciplinaName,
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: TextStyle(
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w500,
+                                                color: palette.subtitle,
+                                                height: 1.2,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              _formatTimeRange(
+                                                item.startTime,
+                                                item.endTime,
+                                              ),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: TextStyle(
+                                                fontSize: 10,
+                                                fontWeight: FontWeight.w600,
+                                                color: palette.subtitle,
+                                              ),
+                                            ),
+                                          ],
                                         ),
                                       ),
                                     );

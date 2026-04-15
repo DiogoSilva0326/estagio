@@ -34,12 +34,15 @@ class MenuProfessorItems {
       label: 'Calendário',
       icon: Icons.calendar_month_rounded,
     ),
-    MenuProfessorItemData(label: 'Tarefas', icon: Icons.checklist_rounded),
     MenuProfessorItemData(label: 'Arquivos', icon: Icons.folder_rounded),
     MenuProfessorItemData(label: 'Chats', icon: Icons.chat_bubble_rounded),
     MenuProfessorItemData(
       label: 'Publicar Anúncio',
       icon: Icons.campaign_rounded,
+    ),
+    MenuProfessorItemData(
+      label: 'Os meus anúncios',
+      icon: Icons.view_agenda_rounded,
     ),
     MenuProfessorItemData(
       label: 'Disponibilidade',

@@ -2,6 +2,8 @@ import 'dart:convert';
 
 import 'package:aula_extra/core/data/http/api_config.dart';
 import 'package:aula_extra/core/data/reservations_calendar/dtos/professor_calendar_item_dto.dart';
+import 'package:aula_extra/core/data/reservations_calendar/dtos/reservation_payment_result_dto.dart';
+import 'package:aula_extra/core/data/reservations_calendar/dtos/reservation_payment_review_dto.dart';
 import 'package:aula_extra/core/data/reservations_calendar/dtos/student_area_summary_dto.dart';
 import 'package:aula_extra/core/data/reservations_calendar/dtos/student_calendar_item_dto.dart';
 import 'package:http/http.dart' as http;
@@ -189,9 +191,79 @@ class ReservationsCalendarApi {
     }
     if (res.statusCode < 200 || res.statusCode >= 300) {
       throw StudentCalendarException(
-        'Falha ao aceitar aula (${res.statusCode})',
+        _extractErrorMessage(
+          res.body,
+          'Falha ao aceitar aula (${res.statusCode})',
+        ),
       );
     }
+  }
+
+  Future<ReservationPaymentReviewDto> getReservationPaymentReview({
+    required String token,
+    required String reservationId,
+  }) async {
+    final res = await http.get(
+      ApiConfig.uri('/api/Reservations/$reservationId/payment-review'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    if (res.statusCode == 401) {
+      throw const StudentCalendarException('Sessão expirada');
+    }
+    if (res.statusCode == 404) {
+      throw const StudentCalendarException('A marcação já não está disponível.');
+    }
+    if (res.statusCode < 200 || res.statusCode >= 300) {
+      throw StudentCalendarException(
+        _extractErrorMessage(
+          res.body,
+          'Falha ao carregar pagamento da aula (${res.statusCode})',
+        ),
+      );
+    }
+
+    final obj = jsonDecode(res.body);
+    if (obj is! Map<String, dynamic>) {
+      throw const StudentCalendarException('Resposta inválida do servidor');
+    }
+
+    return ReservationPaymentReviewDto.fromJson(obj);
+  }
+
+  Future<ReservationPaymentResultDto> payAndAcceptReservation({
+    required String token,
+    required String reservationId,
+  }) async {
+    final res = await http.post(
+      ApiConfig.uri('/api/Reservations/$reservationId/pay-and-accept'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    if (res.statusCode == 401) {
+      throw const StudentCalendarException('Sessão expirada');
+    }
+    if (res.statusCode < 200 || res.statusCode >= 300) {
+      throw StudentCalendarException(
+        _extractErrorMessage(
+          res.body,
+          'Falha ao pagar e confirmar aula (${res.statusCode})',
+        ),
+      );
+    }
+
+    final obj = jsonDecode(res.body);
+    if (obj is! Map<String, dynamic>) {
+      throw const StudentCalendarException('Resposta inválida do servidor');
+    }
+
+    return ReservationPaymentResultDto.fromJson(obj);
   }
 
   Future<void> rejectReservation({
@@ -302,4 +374,49 @@ class ReservationsCalendarApi {
       );
     }
   }
+
+  Future<void> cancelReservationAsProfessor({
+    required String token,
+    required String reservationId,
+  }) async {
+    final res = await http.post(
+      ApiConfig.uri('/api/Reservations/$reservationId/cancel-by-professor'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    if (res.statusCode == 401) {
+      throw const ProfessorCalendarException('Sessão expirada');
+    }
+    if (res.statusCode < 200 || res.statusCode >= 300) {
+      throw ProfessorCalendarException(
+        _extractErrorMessage(
+          res.body,
+          'Falha ao cancelar aula (${res.statusCode})',
+        ),
+      );
+    }
+  }
+}
+
+String _extractErrorMessage(String body, String fallback) {
+  try {
+    final decoded = jsonDecode(body);
+    if (decoded is Map<String, dynamic>) {
+      final message = decoded['message'];
+      if (message is String && message.trim().isNotEmpty) {
+        return message.trim();
+      }
+      final error = decoded['error'];
+      if (error is String && error.trim().isNotEmpty) {
+        return error.trim();
+      }
+    }
+  } catch (_) {
+    // fallback below
+  }
+
+  return fallback;
 }

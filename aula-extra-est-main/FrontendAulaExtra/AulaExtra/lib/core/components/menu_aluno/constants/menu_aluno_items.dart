@@ -28,12 +28,15 @@ class MenuAlunoItems {
     MenuAlunoItemData(label: 'Minhas Áreas', icon: Icons.grid_view_rounded),
     MenuAlunoItemData(label: 'Meus Explicadores', icon: Icons.groups_rounded),
     MenuAlunoItemData(label: 'Calendário', icon: Icons.calendar_month_rounded),
-    MenuAlunoItemData(label: 'Tarefas', icon: Icons.checklist_rounded),
     MenuAlunoItemData(label: 'Arquivos', icon: Icons.folder_rounded),
     MenuAlunoItemData(label: 'Chats', icon: Icons.chat_bubble_rounded),
     MenuAlunoItemData(label: 'Pagamentos', icon: Icons.payments_rounded),
     MenuAlunoItemData(label: 'Avaliações', icon: Icons.star_rounded),
     MenuAlunoItemData(label: 'Perfil', icon: Icons.person_rounded),
-    MenuAlunoItemData(label: 'Notificações', icon: Icons.notifications_rounded, hasBadge: true),
+    MenuAlunoItemData(
+      label: 'Notificações',
+      icon: Icons.notifications_rounded,
+      hasBadge: true,
+    ),
   ];
 }

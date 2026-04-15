@@ -1,6 +1,9 @@
+import '../payment_status.dart';
+
 class PaymentHistoryItemDto {
   const PaymentHistoryItemDto({
     required this.id,
+    required this.paymentSource,
     required this.tutorName,
     required this.subject,
     required this.amount,
@@ -11,6 +14,7 @@ class PaymentHistoryItemDto {
   });
 
   final String id;
+  final String paymentSource;
   final String tutorName;
   final String subject;
   final DateTime? date;
@@ -20,12 +24,7 @@ class PaymentHistoryItemDto {
   final String? reference;
 
   bool get isPaid {
-    final normalized = status.trim().toLowerCase();
-    return normalized.contains('paid') ||
-        normalized.contains('pago') ||
-        normalized.contains('success') ||
-        normalized.contains('completed') ||
-        normalized.contains('conclu');
+    return isPaidPaymentStatus(status);
   }
 
   factory PaymentHistoryItemDto.fromJson(Map<String, dynamic> json) {
@@ -43,6 +42,9 @@ class PaymentHistoryItemDto {
 
     return PaymentHistoryItemDto(
       id: asString(json['id']),
+      paymentSource: asString(json['paymentSource']).trim().isEmpty
+          ? 'reservation_payment'
+          : asString(json['paymentSource']).trim(),
       tutorName: asString(json['tutorName']).trim(),
       subject: asString(json['subject']).trim(),
       date: asDate(json['date']),

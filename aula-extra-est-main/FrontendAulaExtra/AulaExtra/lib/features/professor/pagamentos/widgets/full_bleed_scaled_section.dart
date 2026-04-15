@@ -1,10 +1,7 @@
 import 'package:flutter/material.dart';
 
 class FullBleedScaledSection extends StatelessWidget {
-  const FullBleedScaledSection({
-    super.key,
-    required this.child,
-  });
+  const FullBleedScaledSection({super.key, required this.child});
 
   final Widget child;
 
@@ -20,10 +17,7 @@ class FullBleedScaledSection extends StatelessWidget {
             child: FittedBox(
               fit: BoxFit.scaleDown,
               alignment: Alignment.topCenter,
-              child: SizedBox(
-                width: designWidth,
-                child: child,
-              ),
+              child: SizedBox(width: designWidth, child: child),
             ),
           ),
         );

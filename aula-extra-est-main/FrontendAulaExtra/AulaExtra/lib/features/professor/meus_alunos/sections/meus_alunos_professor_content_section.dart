@@ -1,5 +1,7 @@
+import 'package:aula_extra/core/data/complaints/complaints_service.dart';
 import 'package:aula_extra/core/data/professors/dtos/professor_aluno_dto.dart';
 import 'package:aula_extra/core/data/professors/professors_service.dart';
+import 'package:aula_extra/features/shared/complaints/widgets/related_user_complaint_dialog.dart';
 import 'package:aula_extra/features/professor/core/widgets/professor_menu_nav.dart';
 import 'package:aula_extra/features/professor/meus_alunos/constants/meus_alunos_professor_colors.dart';
 import 'package:aula_extra/features/professor/meus_alunos/constants/meus_alunos_professor_layout.dart';
@@ -8,16 +10,17 @@ import 'package:aula_extra/features/professor/meus_alunos/widgets/full_bleed_sca
 import 'package:flutter/material.dart';
 
 class MeusAlunosProfessorContentSection extends StatefulWidget {
-  const MeusAlunosProfessorContentSection({
-    super.key,
-  });
+  const MeusAlunosProfessorContentSection({super.key});
 
   @override
-  State<MeusAlunosProfessorContentSection> createState() => _MeusAlunosProfessorContentSectionState();
+  State<MeusAlunosProfessorContentSection> createState() =>
+      _MeusAlunosProfessorContentSectionState();
 }
 
-class _MeusAlunosProfessorContentSectionState extends State<MeusAlunosProfessorContentSection> {
+class _MeusAlunosProfessorContentSectionState
+    extends State<MeusAlunosProfessorContentSection> {
   final ProfessorsService _professorsService = ProfessorsService();
+  final ComplaintsService _complaintsService = ComplaintsService();
   late Future<List<ProfessorAlunoDto>> _studentsFuture;
 
   @override
@@ -26,13 +29,34 @@ class _MeusAlunosProfessorContentSectionState extends State<MeusAlunosProfessorC
     _studentsFuture = _professorsService.fetchMeusAlunos();
   }
 
+  Future<void> _showComplaintDialog(ProfessorAlunoDto aluno) async {
+    final submitted = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => RelatedUserComplaintDialog(
+        targetUserId: aluno.id,
+        targetName: aluno.fullName,
+        targetRoleLabel: 'do aluno',
+        relationshipType: 'student',
+        onSubmit: _complaintsService.createRelatedUserComplaint,
+      ),
+    );
+
+    if (!mounted || submitted != true) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Reclamação submetida sobre ${aluno.fullName}.')),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final titleStyle = TextStyle(
       color: MeusAlunosProfessorColors.title,
       fontWeight: FontWeight.w800,
       fontSize: MeusAlunosProfessorLayout.titleFontSize,
-      height: MeusAlunosProfessorLayout.titleLineHeight / MeusAlunosProfessorLayout.titleFontSize,
+      height:
+          MeusAlunosProfessorLayout.titleLineHeight /
+          MeusAlunosProfessorLayout.titleFontSize,
     );
 
     return Container(
@@ -55,17 +79,22 @@ class _MeusAlunosProfessorContentSectionState extends State<MeusAlunosProfessorC
                 ganhosPendentes: '120€',
                 alunosAtivos: 12,
               ),
-              const SizedBox(width: MeusAlunosProfessorLayout.sidebarContentGap),
+              const SizedBox(
+                width: MeusAlunosProfessorLayout.sidebarContentGap,
+              ),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text('Meus Alunos', style: titleStyle),
-                    const SizedBox(height: MeusAlunosProfessorLayout.titleBottomGap),
+                    const SizedBox(
+                      height: MeusAlunosProfessorLayout.titleBottomGap,
+                    ),
                     FutureBuilder<List<ProfessorAlunoDto>>(
                       future: _studentsFuture,
                       builder: (context, snapshot) {
-                        if (snapshot.connectionState == ConnectionState.waiting) {
+                        if (snapshot.connectionState ==
+                            ConnectionState.waiting) {
                           return const Padding(
                             padding: EdgeInsets.all(40),
                             child: Center(child: CircularProgressIndicator()),
@@ -81,14 +110,18 @@ class _MeusAlunosProfessorContentSectionState extends State<MeusAlunosProfessorC
                           );
                         }
 
-                        final alunos = snapshot.data ?? const <ProfessorAlunoDto>[];
+                        final alunos =
+                            snapshot.data ?? const <ProfessorAlunoDto>[];
                         if (alunos.isEmpty) {
                           return const Center(
                             child: Text('Ainda não tens alunos associados.'),
                           );
                         }
 
-                        return AlunosGrid(alunos: alunos);
+                        return AlunosGrid(
+                          alunos: alunos,
+                          onComplaintTap: _showComplaintDialog,
+                        );
                       },
                     ),
                   ],

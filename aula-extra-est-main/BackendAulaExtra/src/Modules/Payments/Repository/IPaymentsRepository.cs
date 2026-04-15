@@ -52,6 +52,10 @@ namespace ConfidantPostgreSQL.Modules.Payments.Repository
         Task<IEnumerable<Topup>> GetTopupsAllAsync();
         Task<Topup?> GetTopupByIdAsync(Guid idTopup);
         Task<Guid> InsertTopupAsync(Topup topup);
+        Task SimulateStudentTopupAsync(Guid idUser, StudentTopupSimulationRequest request);
+        Task<ReservationPaymentReviewDto?> GetReservationPaymentReviewAsync(Guid idUser, Guid idReservation);
+        Task<ReservationPaymentProcessResultDto> ProcessReservationPaymentAsync(Guid idUser, Guid idReservation);
+        Task<ReservationPaymentRefundResultDto> RefundReservationPaymentAsync(Guid idReservation);
         Task<int> UpdateTopupAsync(Topup topup);
         Task<int> DeleteTopupAsync(Guid idTopup);
 
@@ -63,6 +67,7 @@ namespace ConfidantPostgreSQL.Modules.Payments.Repository
 
         Task<IEnumerable<Dispute>> GetDisputesAllAsync();
         Task<Dispute?> GetDisputeByIdAsync(Guid idDispute);
+        Task<PaymentDisputeContextDto?> ResolvePaymentDisputeContextAsync(Guid idUser, string paymentSource, Guid paymentRecordId);
         Task<Guid> InsertDisputeAsync(Dispute dispute);
         Task<int> UpdateDisputeAsync(Dispute dispute);
         Task<int> DeleteDisputeAsync(Guid idDispute);

@@ -1,5 +1,7 @@
 import 'package:aula_extra/core/data/reservations_calendar/dtos/student_area_summary_dto.dart';
 import 'package:aula_extra/core/data/reservations_calendar/dtos/professor_calendar_item_dto.dart';
+import 'package:aula_extra/core/data/reservations_calendar/dtos/reservation_payment_result_dto.dart';
+import 'package:aula_extra/core/data/reservations_calendar/dtos/reservation_payment_review_dto.dart';
 import 'package:aula_extra/core/data/reservations_calendar/dtos/student_calendar_item_dto.dart';
 import 'package:aula_extra/core/data/reservations_calendar/reservations_calendar_api.dart';
 import 'package:aula_extra/core/data/session/token_storage.dart';
@@ -74,6 +76,34 @@ class ReservationsCalendarService {
     await _api.acceptReservation(token: token, reservationId: reservationId);
   }
 
+  Future<ReservationPaymentReviewDto> getReservationPaymentReview({
+    required String reservationId,
+  }) async {
+    final token = await _tokenStorage.loadToken();
+    if (token == null || token.trim().isEmpty) {
+      throw const StudentCalendarException('Sessão expirada');
+    }
+
+    return _api.getReservationPaymentReview(
+      token: token,
+      reservationId: reservationId,
+    );
+  }
+
+  Future<ReservationPaymentResultDto> payAndAcceptReservation({
+    required String reservationId,
+  }) async {
+    final token = await _tokenStorage.loadToken();
+    if (token == null || token.trim().isEmpty) {
+      throw const StudentCalendarException('Sessão expirada');
+    }
+
+    return _api.payAndAcceptReservation(
+      token: token,
+      reservationId: reservationId,
+    );
+  }
+
   Future<void> rejectReservation({required String reservationId}) async {
     final token = await _tokenStorage.loadToken();
     if (token == null || token.trim().isEmpty) {
@@ -102,5 +132,19 @@ class ReservationsCalendarService {
     }
 
     await _api.cancelReservation(token: token, reservationId: reservationId);
+  }
+
+  Future<void> cancelReservationAsProfessor({
+    required String reservationId,
+  }) async {
+    final token = await _tokenStorage.loadToken();
+    if (token == null || token.trim().isEmpty) {
+      throw const ProfessorCalendarException('Sessão expirada');
+    }
+
+    await _api.cancelReservationAsProfessor(
+      token: token,
+      reservationId: reservationId,
+    );
   }
 }

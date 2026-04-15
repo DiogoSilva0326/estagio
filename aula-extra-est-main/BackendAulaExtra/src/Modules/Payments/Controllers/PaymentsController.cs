@@ -1,4 +1,5 @@
 using System;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using ConfidantPostgreSQL.Auth;
 using ConfidantPostgreSQL.Modules.Payments.Models;
@@ -343,6 +344,19 @@ namespace ConfidantPostgreSQL.Modules.Payments.Controllers
             return CreatedAtAction(nameof(GetTopup), new { idTopup = id }, topup);
         }
 
+        [HttpPost("me/topups/simulate")]
+        public async Task<IActionResult> SimulateMyTopup([FromBody] StudentTopupSimulationRequest request)
+        {
+            RequestContext.ApplyCultureFromHeader(Request);
+            if (!TryGetAuthenticatedUserId(out var userId)) return Unauthorized();
+            if (request == null) return BadRequest("Pedido inválido.");
+            if (request.CreditsAmount <= 0) return BadRequest("A quantidade de créditos tem de ser superior a zero.");
+            if (request.GetNormalizedPaymentAmount() <= 0) return BadRequest("O valor do top-up tem de ser superior a zero.");
+
+            var summary = await _service.SimulateStudentTopupAsync(userId, request);
+            return Ok(summary);
+        }
+
         [HttpPut("topups/{idTopup:guid}")]
         public async Task<IActionResult> UpdateTopup(Guid idTopup, [FromBody] Topup topup)
         {
@@ -425,6 +439,57 @@ namespace ConfidantPostgreSQL.Modules.Payments.Controllers
             var id = await _service.InsertDisputeAsync(dispute);
             dispute.IdDispute = id;
             return CreatedAtAction(nameof(GetDispute), new { idDispute = id }, dispute);
+        }
+
+        [HttpPost("me/disputes")]
+        public async Task<IActionResult> CreateMyDispute([FromBody] CreatePaymentDisputeRequest request)
+        {
+            RequestContext.ApplyCultureFromHeader(Request);
+            if (!TryGetAuthenticatedUserId(out var userId)) return Unauthorized();
+
+            if (request == null)
+            {
+                return BadRequest(new { message = "Pedido inválido." });
+            }
+
+            if (request.PaymentRecordId == Guid.Empty)
+            {
+                return BadRequest(new { message = "Seleciona um pagamento válido." });
+            }
+
+            if (!TryNormalizePaymentSource(request.PaymentSource, out var normalizedSource))
+            {
+                return BadRequest(new { message = "O pagamento selecionado é inválido." });
+            }
+
+            if (string.IsNullOrWhiteSpace(request.Name))
+            {
+                return BadRequest(new { message = "O nome é obrigatório." });
+            }
+
+            if (!IsValidEmail(request.Email))
+            {
+                return BadRequest(new { message = "O email é inválido." });
+            }
+
+            if (string.IsNullOrWhiteSpace(request.Subject))
+            {
+                return BadRequest(new { message = "O assunto é obrigatório." });
+            }
+
+            if (string.IsNullOrWhiteSpace(request.Message))
+            {
+                return BadRequest(new { message = "A mensagem é obrigatória." });
+            }
+
+            request.PaymentSource = normalizedSource;
+            var created = await _service.CreatePaymentDisputeAsync(userId, request);
+            if (created == null)
+            {
+                return BadRequest(new { message = "Não foi possível associar a reclamação ao pagamento selecionado." });
+            }
+
+            return Ok(created);
         }
 
         [HttpPut("disputes/{idDispute:guid}")]
@@ -610,6 +675,36 @@ namespace ConfidantPostgreSQL.Modules.Payments.Controllers
             RequestContext.ApplyCultureFromHeader(Request);
             var rows = await _service.DeletePayoutAsync(idPayout);
             return rows == 0 ? NotFound() : NoContent();
+        }
+
+        private static bool TryNormalizePaymentSource(string? value, out string normalized)
+        {
+            normalized = string.Empty;
+            var candidate = value?.Trim().ToLowerInvariant();
+            if (string.IsNullOrWhiteSpace(candidate))
+            {
+                return false;
+            }
+
+            if (candidate is "reservation_payment" or "reservationpayment" or "reservation-payment")
+            {
+                normalized = "reservation_payment";
+                return true;
+            }
+
+            if (candidate is "topup" or "top_up" or "top-up")
+            {
+                normalized = "topup";
+                return true;
+            }
+
+            return false;
+        }
+
+        private static bool IsValidEmail(string? value)
+        {
+            if (string.IsNullOrWhiteSpace(value)) return false;
+            return Regex.IsMatch(value.Trim(), @"^[^@\s]+@[^@\s]+\.[^@\s]+$");
         }
     }
 }

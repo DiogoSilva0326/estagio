@@ -3,23 +3,31 @@ class TutorBrowseItemDto {
     required this.idProfessor,
     required this.name,
     required this.subtitle,
+    this.photo,
+    this.primarySubject = '',
+    this.yearsExperience,
     required this.rating,
     required this.reviewCount,
     required this.description,
     required this.lessonsCount,
     required this.minPrice,
     required this.tags,
+    this.educationLevels = const [],
   });
 
   final String idProfessor;
   final String name;
   final String subtitle;
+  final String? photo;
+  final String primarySubject;
+  final int? yearsExperience;
   final double rating;
   final int reviewCount;
   final String description;
   final int lessonsCount;
   final double minPrice;
   final List<String> tags;
+  final List<String> educationLevels;
 
   static String _str(Map<String, dynamic> json, String key) {
     final v = json[key];
@@ -33,8 +41,10 @@ class TutorBrowseItemDto {
     return num.tryParse(v?.toString() ?? '') ?? 0;
   }
 
-  static int _int(Map<String, dynamic> json, String key) => _num(json, key).toInt();
-  static double _double(Map<String, dynamic> json, String key) => _num(json, key).toDouble();
+  static int _int(Map<String, dynamic> json, String key) =>
+      _num(json, key).toInt();
+  static double _double(Map<String, dynamic> json, String key) =>
+      _num(json, key).toDouble();
 
   factory TutorBrowseItemDto.fromJson(Map<String, dynamic> json) {
     // Backend serializes PascalCase by default; accept both.
@@ -50,21 +60,57 @@ class TutorBrowseItemDto {
     final desc = _str(json, 'description');
     final desc2 = desc.isNotEmpty ? desc : _str(json, 'Description');
 
+    final photo = _str(json, 'photo');
+    final photo2 = photo.isNotEmpty ? photo : _str(json, 'Photo');
+
+    final primarySubject = _str(json, 'primarySubject');
+    final primarySubject2 = primarySubject.isNotEmpty
+        ? primarySubject
+        : _str(json, 'PrimarySubject');
+
     final tagsRaw = json['tags'] ?? json['Tags'];
     final tags = (tagsRaw is List)
-        ? tagsRaw.map((e) => e?.toString() ?? '').where((s) => s.trim().isNotEmpty).toList(growable: false)
+        ? tagsRaw
+              .map((e) => e?.toString() ?? '')
+              .where((s) => s.trim().isNotEmpty)
+              .toList(growable: false)
+        : const <String>[];
+
+    final educationLevelsRaw =
+        json['educationLevels'] ?? json['EducationLevels'];
+    final educationLevels = (educationLevelsRaw is List)
+        ? educationLevelsRaw
+              .map((e) => e?.toString() ?? '')
+              .where((s) => s.trim().isNotEmpty)
+              .toList(growable: false)
         : const <String>[];
 
     return TutorBrowseItemDto(
       idProfessor: id2,
       name: name2,
       subtitle: subtitle2,
-      rating: _double(json, 'rating') != 0 ? _double(json, 'rating') : _double(json, 'Rating'),
-      reviewCount: _int(json, 'reviewCount') != 0 ? _int(json, 'reviewCount') : _int(json, 'ReviewCount'),
+      photo: photo2.isEmpty ? null : photo2,
+      primarySubject: primarySubject2,
+      yearsExperience: _int(json, 'yearsExperience') != 0
+          ? _int(json, 'yearsExperience')
+          : (_int(json, 'YearsExperience') != 0
+                ? _int(json, 'YearsExperience')
+                : null),
+      rating: _double(json, 'rating') != 0
+          ? _double(json, 'rating')
+          : _double(json, 'Rating'),
+      reviewCount: _int(json, 'reviewCount') != 0
+          ? _int(json, 'reviewCount')
+          : _int(json, 'ReviewCount'),
       description: desc2,
-      lessonsCount: _int(json, 'lessonsCount') != 0 ? _int(json, 'lessonsCount') : _int(json, 'LessonsCount'),
-      minPrice: _double(json, 'minPrice') != 0 ? _double(json, 'minPrice') : _double(json, 'MinPrice'),
+      lessonsCount: _int(json, 'lessonsCount') != 0
+          ? _int(json, 'lessonsCount')
+          : _int(json, 'LessonsCount'),
+      minPrice: _double(json, 'minPrice') != 0
+          ? _double(json, 'minPrice')
+          : _double(json, 'MinPrice'),
       tags: tags,
+      educationLevels: educationLevels,
     );
   }
 }

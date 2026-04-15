@@ -3,10 +3,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
 class TermsText extends StatelessWidget {
-  const TermsText({
-    super.key,
-    required this.onChanged,
-  });
+  const TermsText({super.key, required this.onChanged});
 
   final VoidCallback onChanged;
 

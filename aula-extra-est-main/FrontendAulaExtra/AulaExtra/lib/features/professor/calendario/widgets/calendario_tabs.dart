@@ -16,29 +16,34 @@ class CalendarioTabs extends StatelessWidget {
   Widget build(BuildContext context) {
     TextStyle tabTextStyle(bool selected) {
       return TextStyle(
-        color: selected ? CalendarioProfessorColors.tabSelectedText : CalendarioProfessorColors.tabSelectedText,
+        color: selected
+            ? CalendarioProfessorColors.tabSelectedText
+            : CalendarioProfessorColors.tabSelectedText,
         fontSize: CalendarioProfessorLayout.tabFontSize,
         fontWeight: FontWeight.w500,
-        height: CalendarioProfessorLayout.tabLineHeight / CalendarioProfessorLayout.tabFontSize,
+        height:
+            CalendarioProfessorLayout.tabLineHeight /
+            CalendarioProfessorLayout.tabFontSize,
       );
     }
 
-    Widget tab({
-      required int index,
-      required String label,
-    }) {
+    Widget tab({required int index, required String label}) {
       final isSelected = selectedIndex == index;
 
       return Expanded(
         child: InkWell(
           onTap: () => onChanged(index),
-          borderRadius: BorderRadius.circular(CalendarioProfessorLayout.tabRadius),
+          borderRadius: BorderRadius.circular(
+            CalendarioProfessorLayout.tabRadius,
+          ),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 120),
             height: CalendarioProfessorLayout.tabHeight,
             decoration: BoxDecoration(
               color: isSelected ? Colors.white : Colors.transparent,
-              borderRadius: BorderRadius.circular(CalendarioProfessorLayout.tabRadius),
+              borderRadius: BorderRadius.circular(
+                CalendarioProfessorLayout.tabRadius,
+              ),
               boxShadow: isSelected
                   ? const [
                       BoxShadow(
@@ -59,7 +64,12 @@ class CalendarioTabs extends StatelessWidget {
               horizontal: CalendarioProfessorLayout.tabPaddingH,
               vertical: CalendarioProfessorLayout.tabPaddingV,
             ),
-            child: Text(label, style: tabTextStyle(isSelected), maxLines: 1, overflow: TextOverflow.ellipsis),
+            child: Text(
+              label,
+              style: tabTextStyle(isSelected),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
         ),
       );
@@ -71,7 +81,9 @@ class CalendarioTabs extends StatelessWidget {
       child: DecoratedBox(
         decoration: BoxDecoration(
           color: CalendarioProfessorColors.tabsBackground,
-          borderRadius: BorderRadius.circular(CalendarioProfessorLayout.tabsRadius),
+          borderRadius: BorderRadius.circular(
+            CalendarioProfessorLayout.tabsRadius,
+          ),
         ),
         child: Padding(
           padding: const EdgeInsets.all(5.0),

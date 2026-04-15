@@ -16,6 +16,12 @@ import 'package:aula_extra/features/tutor_profile_view/models/tutor_profile_args
 import 'package:aula_extra/routes/routes.dart';
 import 'package:flutter/material.dart';
 
+class ExplicadoresScreenArgs {
+  const ExplicadoresScreenArgs({this.initialQuery = ''});
+
+  final String initialQuery;
+}
+
 class ExplicadoresScreen extends StatefulWidget {
   const ExplicadoresScreen({super.key});
 
@@ -50,13 +56,16 @@ class _ExplicadoresScreenState extends State<ExplicadoresScreen> {
             SliverPersistentHeader(
               pinned: true,
               delegate: PinnedHeaderDelegate(
-                height: AppHeader.height,
+                height: AppHeader.resolvedHeight(context),
                 child: AppHeader(
                   headerAlunoActiveItem: HeaderAlunoItem.maisExplicadores,
-                  onRegisterTap: () => Navigator.of(context).pushNamed(Routes.registerStudent),
-                  onLoginTap: () => Navigator.of(context).pushNamed(Routes.login),
-                  onLogoTap: () => Navigator.of(context)
-                      .pushNamedAndRemoveUntil(Routes.home, (route) => false),
+                  onRegisterTap: () =>
+                      Navigator.of(context).pushNamed(Routes.registerStudent),
+                  onLoginTap: () =>
+                      Navigator.of(context).pushNamed(Routes.login),
+                  onLogoTap: () => Navigator.of(
+                    context,
+                  ).pushNamedAndRemoveUntil(Routes.home, (route) => false),
                 ),
               ),
             ),
@@ -73,7 +82,9 @@ class _ExplicadoresScreenState extends State<ExplicadoresScreen> {
                           colors: [Color(0xFFFC9039), Color(0xFFF15C64)],
                         ),
                       ),
-                      child: FullBleedScaledSection(child: ExplicadoresHeroSection()),
+                      child: FullBleedScaledSection(
+                        child: ExplicadoresHeroSection(),
+                      ),
                     ),
                   ),
                   const ColoredBox(
@@ -127,6 +138,9 @@ class _MainAreaContentState extends State<_MainAreaContent> {
   final _browseService = TutorsBrowseService();
   final _educationService = EducationService();
   final _searchController = TextEditingController();
+  final _priceController = TextEditingController();
+  bool _didApplyRouteArgs = false;
+  bool _initialFetchTriggered = false;
 
   bool _loading = false;
   String? _error;
@@ -141,34 +155,110 @@ class _MainAreaContentState extends State<_MainAreaContent> {
   String? _selectedDisciplinaId;
   String? _selectedCicloId;
   Set<AvailabilityOption> _availability = <AvailabilityOption>{};
-  double _maxPrice = 80;
+  double? _maxPrice;
   double? _minRating;
 
   @override
   void initState() {
     super.initState();
     _loadLookups();
-    _fetch(page: 1, append: false);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _applyIncomingArgs();
+    _triggerInitialFetchIfNeeded();
   }
 
   @override
   void dispose() {
     _searchController.dispose();
+    _priceController.dispose();
     super.dispose();
   }
 
   Future<void> _loadLookups() async {
     try {
-      final ciclos = await _educationService.getCiclosEstudo();
-      final disciplinas = await _educationService.getCatalog();
+      final ciclos = await _educationService.getPublicCiclosEstudo();
+      final disciplinas = await _educationService
+          .getPublicDisciplinasWithProfessors();
       if (!mounted) return;
+      final matchedDisciplinaId = _didApplyRouteArgs
+          ? _findMatchingDisciplinaId(_searchController.text, disciplinas)
+          : null;
+
       setState(() {
         _ciclos = ciclos;
         _disciplinas = disciplinas;
+        if (matchedDisciplinaId != null) {
+          _selectedDisciplinaId = matchedDisciplinaId;
+        }
       });
+
+      if (matchedDisciplinaId != null && _initialFetchTriggered) {
+        _fetch(page: 1, append: false);
+      }
     } catch (_) {
       // Ignore lookup failures; tutors list still works (browse endpoint is public).
     }
+  }
+
+  void _applyIncomingArgs() {
+    if (_didApplyRouteArgs) return;
+
+    final args = ModalRoute.of(context)?.settings.arguments;
+    if (args is ExplicadoresScreenArgs) {
+      final query = args.initialQuery.trim();
+      _searchController.text = query;
+      _selectedDisciplinaId = _findMatchingDisciplinaId(query, _disciplinas);
+    }
+
+    _didApplyRouteArgs = true;
+  }
+
+  void _triggerInitialFetchIfNeeded() {
+    if (_initialFetchTriggered) return;
+    _initialFetchTriggered = true;
+    _fetch(page: 1, append: false);
+  }
+
+  String _normalizeText(String value) {
+    const source = 'áàâãäåéèêëíìîïóòôõöúùûüçñÁÀÂÃÄÅÉÈÊËÍÌÎÏÓÒÔÕÖÚÙÛÜÇÑ';
+    const target = 'aaaaaaeeeeiiiiooooouuuucnAAAAAAEEEEIIIIOOOOOUUUUCN';
+
+    final buffer = StringBuffer();
+    for (final rune in value.trim().toLowerCase().runes) {
+      final character = String.fromCharCode(rune);
+      final index = source.indexOf(character);
+      buffer.write(index >= 0 ? target[index].toLowerCase() : character);
+    }
+
+    return buffer.toString();
+  }
+
+  String? _findMatchingDisciplinaId(
+    String query,
+    List<DisciplinaDto> disciplinas,
+  ) {
+    final normalizedQuery = _normalizeText(query);
+    if (normalizedQuery.isEmpty) return null;
+
+    DisciplinaDto? partialMatch;
+
+    for (final disciplina in disciplinas) {
+      final normalizedName = _normalizeText(disciplina.nome);
+      if (normalizedName == normalizedQuery) {
+        return disciplina.idDisciplina;
+      }
+
+      if (normalizedName.contains(normalizedQuery) ||
+          normalizedQuery.contains(normalizedName)) {
+        partialMatch ??= disciplina;
+      }
+    }
+
+    return partialMatch?.idDisciplina;
   }
 
   List<String>? _availabilityQuery() {
@@ -198,7 +288,7 @@ class _MainAreaContentState extends State<_MainAreaContent> {
         q: q.isEmpty ? null : q,
         disciplinaId: _selectedDisciplinaId,
         cicloId: _selectedCicloId,
-        maxPrice: _maxPrice >= 80 ? null : _maxPrice,
+        maxPrice: _maxPrice,
         minRating: _minRating,
         availability: _availabilityQuery(),
         page: page,
@@ -232,11 +322,27 @@ class _MainAreaContentState extends State<_MainAreaContent> {
       _selectedDisciplinaId = null;
       _selectedCicloId = null;
       _availability = <AvailabilityOption>{};
-      _maxPrice = 80;
+      _maxPrice = null;
       _minRating = null;
       _searchController.clear();
+      _priceController.clear();
     });
     _fetch(page: 1, append: false);
+  }
+
+  void _onPriceChanged(String rawValue) {
+    final normalized = rawValue.trim().replaceAll(',', '.');
+    setState(() {
+      if (normalized.isEmpty) {
+        _maxPrice = null;
+        return;
+      }
+
+      final parsed = double.tryParse(normalized);
+      if (parsed != null && parsed > 0) {
+        _maxPrice = parsed;
+      }
+    });
   }
 
   void _applyFilters() {
@@ -265,7 +371,6 @@ class _MainAreaContentState extends State<_MainAreaContent> {
 
     final specializationOptions = _disciplinas
         .where((d) => d.idDisciplina.trim().isNotEmpty)
-        .take(10)
         .map((d) => FilterOption(id: d.idDisciplina, label: d.nome))
         .toList(growable: false);
 
@@ -276,15 +381,23 @@ class _MainAreaContentState extends State<_MainAreaContent> {
       children: [
         FiltersSidebarSection(
           maxPrice: _maxPrice,
-          onMaxPriceChanged: (v) => setState(() => _maxPrice = v),
+          priceController: _priceController,
+          onPriceTextChanged: _onPriceChanged,
+          onMaxPriceChanged: (v) {
+            setState(() {
+              _maxPrice = v;
+              _priceController.text = v.round().toString();
+            });
+          },
           levelOptions: levelOptions,
           selectedLevelId: _selectedCicloId,
           onLevelChanged: (id) => setState(() => _selectedCicloId = id),
           availability: _availability,
           onAvailabilityChanged: (v) => setState(() => _availability = v),
-          specializationOptions: specializationOptions,
-          selectedSpecializationId: _selectedDisciplinaId,
-          onSpecializationChanged: (id) => setState(() => _selectedDisciplinaId = id),
+          disciplinaOptions: specializationOptions,
+          selectedDisciplinaId: _selectedDisciplinaId,
+          onDisciplinaChanged: (id) =>
+              setState(() => _selectedDisciplinaId = id),
           minRating: _minRating,
           onMinRatingChanged: (v) => setState(() => _minRating = v),
           onClear: _clearFilters,
@@ -382,7 +495,9 @@ class _TutorsSection extends StatelessWidget {
                     arguments: TutorProfileArgs(
                       professorId: tutor.idProfessor,
                       name: tutor.name,
-                      country: tutor.subtitle.isNotEmpty ? tutor.subtitle : 'Online',
+                      country: tutor.subtitle.isNotEmpty
+                          ? tutor.subtitle
+                          : 'Online',
                       rating: tutor.rating,
                       reviewCount: tutor.reviewCount,
                       description: tutor.description,

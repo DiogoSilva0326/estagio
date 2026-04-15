@@ -5,6 +5,7 @@ import 'package:aula_extra/core/providers/user_provider.dart';
 import 'package:aula_extra/features/aluno/pagamentos/constants/pagamentos_constants.dart';
 import 'package:aula_extra/features/aluno/pagamentos/widgets/pagamentos_stat_card.dart';
 import 'package:aula_extra/features/aluno/pagamentos/widgets/pagamentos_table.dart';
+import 'package:aula_extra/features/shared/payments/widgets/payment_dispute_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -13,7 +14,8 @@ class PagamentosContentSection extends StatefulWidget {
   const PagamentosContentSection({super.key});
 
   @override
-  State<PagamentosContentSection> createState() => _PagamentosContentSectionState();
+  State<PagamentosContentSection> createState() =>
+      _PagamentosContentSectionState();
 }
 
 class _PagamentosContentSectionState extends State<PagamentosContentSection> {
@@ -42,7 +44,9 @@ class _PagamentosContentSectionState extends State<PagamentosContentSection> {
 
   String _formatAmount(double value, {String currency = 'EUR'}) {
     final symbol = currency.toUpperCase() == 'EUR' ? '€' : currency;
-    final fixed = value.toStringAsFixed(value.truncateToDouble() == value ? 0 : 2).replaceAll('.', ',');
+    final fixed = value
+        .toStringAsFixed(value.truncateToDouble() == value ? 0 : 2)
+        .replaceAll('.', ',');
     return symbol == '€' ? '$fixed$symbol' : '$fixed $symbol';
   }
 
@@ -51,16 +55,69 @@ class _PagamentosContentSectionState extends State<PagamentosContentSection> {
     if (receiptUrl == null || receiptUrl.isEmpty) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Este pagamento ainda não tem recibo disponível.')),
+        const SnackBar(
+          content: Text('Este pagamento ainda não tem recibo disponível.'),
+        ),
       );
       return;
     }
 
     final uri = Uri.tryParse(receiptUrl);
-    if (uri == null || !await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+    if (uri == null ||
+        !await launchUrl(uri, mode: LaunchMode.externalApplication)) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Não foi possível abrir o recibo.')),
+      );
+    }
+  }
+
+  List<PaymentDisputeOption> _buildDisputeOptions(
+    List<PaymentHistoryItemDto> history,
+    String currency,
+  ) {
+    return history
+        .map(
+          (item) => PaymentDisputeOption(
+            id: item.id,
+            paymentSource: item.paymentSource,
+            title: item.subject.isNotEmpty ? item.subject : 'Pagamento',
+            subtitle:
+                '${item.tutorName} • ${_formatAmount(item.amount, currency: currency)} • ${item.reference ?? item.id}',
+          ),
+        )
+        .toList(growable: false);
+  }
+
+  Future<void> _showDisputeDialog(PaymentSummaryDto summary) async {
+    if (summary.history.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Ainda não tens pagamentos para reclamar.'),
+        ),
+      );
+      return;
+    }
+
+    final account = context.read<UserProvider>().account;
+    final didSubmit = await showDialog<bool>(
+      context: context,
+      builder: (_) => PaymentDisputeDialog(
+        options: _buildDisputeOptions(summary.history, summary.currency),
+        initialName: account?.fullName?.trim().isNotEmpty == true
+            ? account!.fullName!.trim()
+            : (account?.username?.trim() ?? ''),
+        initialEmail: account?.email?.trim() ?? '',
+        onSubmit: _paymentsService.createMyDispute,
+      ),
+    );
+
+    if (didSubmit == true && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Reclamação submetida com sucesso.'),
+          backgroundColor: Color(0xFF16A34A),
+        ),
       );
     }
   }
@@ -75,28 +132,36 @@ class _PagamentosContentSectionState extends State<PagamentosContentSection> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const AlunoMenuNav(selectedIndex: 6),
+          const AlunoMenuNav(selectedIndex: 5),
           const SizedBox(width: 40),
           Expanded(
             child: FutureBuilder<PaymentSummaryDto>(
               future: _summaryFuture,
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: Padding(
-                    padding: EdgeInsets.symmetric(vertical: 64),
-                    child: CircularProgressIndicator(),
-                  ));
+                  return const Center(
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(vertical: 64),
+                      child: CircularProgressIndicator(),
+                    ),
+                  );
                 }
 
                 if (snapshot.hasError) {
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('Pagamentos', style: PagamentosConstants.titleStyle),
+                      const Text(
+                        'Pagamentos',
+                        style: PagamentosConstants.titleStyle,
+                      ),
                       const SizedBox(height: 16),
                       Text(
                         snapshot.error.toString(),
-                        style: const TextStyle(color: Color(0xFFB42318), fontSize: 16),
+                        style: const TextStyle(
+                          color: Color(0xFFB42318),
+                          fontSize: 16,
+                        ),
                       ),
                       const SizedBox(height: 16),
                       ElevatedButton(
@@ -116,18 +181,46 @@ class _PagamentosContentSectionState extends State<PagamentosContentSection> {
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Pagamentos', style: PagamentosConstants.titleStyle),
+                    const Text(
+                      'Pagamentos',
+                      style: PagamentosConstants.titleStyle,
+                    ),
                     const SizedBox(height: 10.955),
                     const Text(
                       'Gerencie seus pagamentos e pacotes de aulas',
                       style: PagamentosConstants.subtitleStyle,
+                    ),
+                    const SizedBox(height: 24),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: ElevatedButton.icon(
+                        onPressed: () => _showDisputeDialog(summary),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFF15C64),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 24,
+                            vertical: 18,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(18),
+                          ),
+                        ),
+                        icon: const Icon(Icons.report_problem_rounded),
+                        label: const Text(
+                          'Submeter reclamação sobre pagamentos',
+                        ),
+                      ),
                     ),
                     const SizedBox(height: 43.82),
                     Row(
                       children: [
                         Expanded(
                           child: PagamentosStatCard(
-                            value: _formatAmount(summary.availableCredits, currency: summary.currency),
+                            value: _formatAmount(
+                              summary.availableCredits,
+                              currency: summary.currency,
+                            ),
                             label: 'Créditos Disponíveis',
                             borderColor: const Color(0xFFFED7AA),
                             valueColor: const Color(0xFFEA580C),
@@ -142,7 +235,10 @@ class _PagamentosContentSectionState extends State<PagamentosContentSection> {
                         const SizedBox(width: 24),
                         Expanded(
                           child: PagamentosStatCard(
-                            value: _formatAmount(summary.totalSpent, currency: summary.currency),
+                            value: _formatAmount(
+                              summary.totalSpent,
+                              currency: summary.currency,
+                            ),
                             label: 'Total Gasto',
                             borderColor: const Color(0xFFBEDBFF),
                             valueColor: const Color(0xFF155DFC),
@@ -157,7 +253,10 @@ class _PagamentosContentSectionState extends State<PagamentosContentSection> {
                         const SizedBox(width: 24),
                         Expanded(
                           child: PagamentosStatCard(
-                            value: _formatAmount(summary.pendingAmount, currency: summary.currency),
+                            value: _formatAmount(
+                              summary.pendingAmount,
+                              currency: summary.currency,
+                            ),
                             label: 'Pendente',
                             borderColor: const Color(0xFFFFD6A7),
                             valueColor: const Color(0xFFF54900),
@@ -187,7 +286,10 @@ class _PagamentosContentSectionState extends State<PagamentosContentSection> {
                       ],
                     ),
                     const SizedBox(height: 43.82),
-                    const Text('Histórico de Pagamentos', style: PagamentosConstants.sectionTitleStyle),
+                    const Text(
+                      'Histórico de Pagamentos',
+                      style: PagamentosConstants.sectionTitleStyle,
+                    ),
                     const SizedBox(height: 21.91),
                     PagamentosTableCard(
                       rows: summary.history,

@@ -72,7 +72,7 @@ namespace ConfidantPostgreSQL.Modules.Lessons.Controllers
             return $"{start.ToString("dd/MM/yyyy HH:mm", culture)} até {end.ToString("dd/MM/yyyy HH:mm", culture)}";
         }
 
-        private static string BuildLessonRequestMetadata(Guid reservationId, string teacherName, string subject, DateTime? startTime, DateTime? endTime)
+        private static string BuildLessonRequestMetadata(Guid reservationId, string teacherName, string subject, DateTime? startTime, DateTime? endTime, decimal? amount, string? currency)
         {
             var query = string.Join("&", new[]
             {
@@ -80,7 +80,9 @@ namespace ConfidantPostgreSQL.Modules.Lessons.Controllers
                 $"teacherName={Uri.EscapeDataString(teacherName)}",
                 $"subject={Uri.EscapeDataString(subject)}",
                 $"start={Uri.EscapeDataString(startTime?.ToString("o") ?? string.Empty)}",
-                $"end={Uri.EscapeDataString(endTime?.ToString("o") ?? string.Empty)}"
+                $"end={Uri.EscapeDataString(endTime?.ToString("o") ?? string.Empty)}",
+                $"amount={Uri.EscapeDataString(amount?.ToString("0.00", CultureInfo.InvariantCulture) ?? string.Empty)}",
+                $"currency={Uri.EscapeDataString(string.IsNullOrWhiteSpace(currency) ? "EUR" : currency!)}"
             });
 
             return $"[[{query}]]";
@@ -314,6 +316,8 @@ namespace ConfidantPostgreSQL.Modules.Lessons.Controllers
                         }
                     }
 
+                    var priceAmount = lesson.BasePrice ?? 0m;
+                    var currency = "EUR";
                     var metadata = reservationId == Guid.Empty
                         ? string.Empty
                         : Environment.NewLine + BuildLessonRequestMetadata(
@@ -321,13 +325,19 @@ namespace ConfidantPostgreSQL.Modules.Lessons.Controllers
                             teacherName,
                             subject,
                             lesson.ScheduledStart,
-                            lesson.ScheduledEnd);
+                            lesson.ScheduledEnd,
+                            priceAmount,
+                            currency);
+
+                    var paymentSentence = priceAmount > 0m
+                        ? $" Valor a pagar antes da confirmação: {priceAmount.ToString("0.00", CultureInfo.InvariantCulture)} {currency}."
+                        : string.Empty;
 
                     await _communication.InsertNotificationAsync(new Notification
                     {
                         IdUser = enrollment.IdUser,
                         Type = "marcar_aula",
-                        Message = $"O professor {teacherName} enviou a marcação da aula {subject} para {FormatLessonWindow(lesson.ScheduledStart, lesson.ScheduledEnd)}. Aceita ou recusa para concluir o agendamento.{metadata}",
+                        Message = $"O professor {teacherName} enviou a marcação da aula {subject} para {FormatLessonWindow(lesson.ScheduledStart, lesson.ScheduledEnd)}.{paymentSentence} Paga e confirma ou recusa para concluir o agendamento.{metadata}",
                         WasRead = false,
                         CreatedAt = DateTime.UtcNow,
                         UpdatedAt = DateTime.UtcNow,

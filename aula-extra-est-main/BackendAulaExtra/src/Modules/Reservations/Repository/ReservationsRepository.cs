@@ -69,6 +69,29 @@ LIMIT 1;";
             return MapReservation(reader);
         }
 
+        public async Task<IEnumerable<Reservation>> GetReservationsByLessonAsync(Guid idLesson)
+        {
+            var list = new List<Reservation>();
+            await using var conn = new NpgsqlConnection(_connectionString);
+            await conn.OpenAsync();
+
+            await using var cmd = conn.CreateCommand();
+            cmd.CommandText = @"
+SELECT *
+FROM public.reservations
+WHERE id_lesson = @id_lesson
+ORDER BY created_at ASC, id_reservation ASC;";
+            cmd.Parameters.AddWithValue("id_lesson", idLesson);
+
+            await using var reader = await cmd.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+            {
+                list.Add(MapReservation(reader));
+            }
+
+            return list;
+        }
+
         public async Task<Guid> InsertReservationAsync(Reservation reservation)
         {
             await using var conn = new NpgsqlConnection(_connectionString);

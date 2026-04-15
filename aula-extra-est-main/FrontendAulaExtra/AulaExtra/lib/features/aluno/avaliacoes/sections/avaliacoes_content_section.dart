@@ -12,21 +12,20 @@ import 'package:aula_extra/features/aluno/avaliacoes/widgets/avaliar_ultima_aula
 import 'package:aula_extra/features/aluno/avaliacoes/widgets/avaliacoes_stats_row.dart';
 import 'package:flutter/material.dart';
 
-enum _AvaliacoesMode {
-  aulas,
-  professores,
-}
+enum _AvaliacoesMode { aulas, professores }
 
 class AvaliacoesContentSection extends StatefulWidget {
   const AvaliacoesContentSection({super.key});
 
   @override
-  State<AvaliacoesContentSection> createState() => _AvaliacoesContentSectionState();
+  State<AvaliacoesContentSection> createState() =>
+      _AvaliacoesContentSectionState();
 }
 
 class _AvaliacoesContentSectionState extends State<AvaliacoesContentSection> {
   final StudentEvaluationsService _service = StudentEvaluationsService();
-  final StudentProfessorEvaluationsService _profService = StudentProfessorEvaluationsService();
+  final StudentProfessorEvaluationsService _profService =
+      StudentProfessorEvaluationsService();
 
   _AvaliacoesMode _mode = _AvaliacoesMode.aulas;
   late Future<List<SubmittedEvaluationDto>> _submittedLessonsFuture;
@@ -61,13 +60,20 @@ class _AvaliacoesContentSectionState extends State<AvaliacoesContentSection> {
   }
 
   static AvaliacaoReview _toReview(SubmittedEvaluationDto dto) {
-    final tutorName = (dto.professorName == null || dto.professorName!.trim().isEmpty)
+    final tutorName =
+        (dto.professorName == null || dto.professorName!.trim().isEmpty)
         ? 'Explicador'
         : dto.professorName!.trim();
-    final subject = (dto.subject == null || dto.subject!.trim().isEmpty) ? '—' : dto.subject!.trim();
+    final subject = (dto.subject == null || dto.subject!.trim().isEmpty)
+        ? '—'
+        : dto.subject!.trim();
     final rating = (dto.rating ?? 0).toDouble();
-    final comment = (dto.comments == null || dto.comments!.trim().isEmpty) ? '—' : dto.comments!.trim();
-    final dateLabel = _formatDate(dto.createdAt ?? dto.lessonEnd ?? dto.lessonStart);
+    final comment = (dto.comments == null || dto.comments!.trim().isEmpty)
+        ? '—'
+        : dto.comments!.trim();
+    final dateLabel = _formatDate(
+      dto.createdAt ?? dto.lessonEnd ?? dto.lessonStart,
+    );
 
     return AvaliacaoReview(
       tutorName: tutorName,
@@ -78,10 +84,16 @@ class _AvaliacoesContentSectionState extends State<AvaliacoesContentSection> {
     );
   }
 
-  static AvaliacaoReview _toProfessorReview(SubmittedProfessorEvaluationDto dto) {
-    final tutorName = dto.professorName.trim().isEmpty ? 'Professor' : dto.professorName.trim();
+  static AvaliacaoReview _toProfessorReview(
+    SubmittedProfessorEvaluationDto dto,
+  ) {
+    final tutorName = dto.professorName.trim().isEmpty
+        ? 'Professor'
+        : dto.professorName.trim();
     final rating = (dto.rating ?? 0).toDouble();
-    final comment = (dto.comments == null || dto.comments!.trim().isEmpty) ? '—' : dto.comments!.trim();
+    final comment = (dto.comments == null || dto.comments!.trim().isEmpty)
+        ? '—'
+        : dto.comments!.trim();
     final dateLabel = _formatDate(dto.createdAt);
 
     return AvaliacaoReview(
@@ -115,7 +127,9 @@ class _AvaliacoesContentSectionState extends State<AvaliacoesContentSection> {
                   style: TextStyle(
                     fontSize: 22.404,
                     fontWeight: FontWeight.w500,
-                    color: selected ? CalendarioConstants.activeTabColor : CalendarioConstants.inactiveTabColor,
+                    color: selected
+                        ? CalendarioConstants.activeTabColor
+                        : CalendarioConstants.inactiveTabColor,
                     height: 33.607 / 22.404,
                   ),
                 ),
@@ -127,7 +141,9 @@ class _AvaliacoesContentSectionState extends State<AvaliacoesContentSection> {
                   bottom: 0,
                   child: SizedBox(
                     height: 2.801,
-                    child: ColoredBox(color: CalendarioConstants.activeTabColor),
+                    child: ColoredBox(
+                      color: CalendarioConstants.activeTabColor,
+                    ),
                   ),
                 ),
             ],
@@ -138,7 +154,12 @@ class _AvaliacoesContentSectionState extends State<AvaliacoesContentSection> {
 
     return DecoratedBox(
       decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: CalendarioConstants.dividerColor, width: 1.4)),
+        border: Border(
+          bottom: BorderSide(
+            color: CalendarioConstants.dividerColor,
+            width: 1.4,
+          ),
+        ),
       ),
       child: SizedBox(
         height: 71.414,
@@ -173,16 +194,13 @@ class _AvaliacoesContentSectionState extends State<AvaliacoesContentSection> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const AlunoMenuNav(selectedIndex: 7),
+          const AlunoMenuNav(selectedIndex: 6),
           const SizedBox(width: 40),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Avaliações',
-                  style: AvaliacoesConstants.titleStyle,
-                ),
+                const Text('Avaliações', style: AvaliacoesConstants.titleStyle),
                 const SizedBox(height: AvaliacoesConstants.gapSmall),
                 const Text(
                   'Avalie seus explicadores e ajude outros estudantes',
@@ -203,16 +221,26 @@ class _AvaliacoesContentSectionState extends State<AvaliacoesContentSection> {
                       }
 
                       if (snapshot.hasError) {
-                        final msg = snapshot.error?.toString() ?? 'Erro ao carregar avaliações';
+                        final msg =
+                            snapshot.error?.toString() ??
+                            'Erro ao carregar avaliações';
                         return Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             AvaliacoesStatsRow(media: 0, realizadas: 0),
-                            const SizedBox(height: AvaliacoesConstants.gapAfterStats),
-                            AvaliarUltimaAulaCard(onSubmitted: _refreshSubmittedLessons),
-                            const SizedBox(height: AvaliacoesConstants.gapLarge),
+                            const SizedBox(
+                              height: AvaliacoesConstants.gapAfterStats,
+                            ),
+                            AvaliarUltimaAulaCard(
+                              onSubmitted: _refreshSubmittedLessons,
+                            ),
+                            const SizedBox(
+                              height: AvaliacoesConstants.gapLarge,
+                            ),
                             _tabs(),
-                            const SizedBox(height: AvaliacoesConstants.gapSection),
+                            const SizedBox(
+                              height: AvaliacoesConstants.gapSection,
+                            ),
                             Text(
                               msg,
                               style: const TextStyle(color: Colors.red),
@@ -221,25 +249,41 @@ class _AvaliacoesContentSectionState extends State<AvaliacoesContentSection> {
                         );
                       }
 
-                      final items = snapshot.data ?? const <SubmittedEvaluationDto>[];
-                      final reviews = items.map(_toReview).toList(growable: false);
+                      final items =
+                          snapshot.data ?? const <SubmittedEvaluationDto>[];
+                      final reviews = items
+                          .map(_toReview)
+                          .toList(growable: false);
                       final count = reviews.length;
-                      final avg = count == 0 ? 0.0 : reviews.map((r) => r.rating).reduce((a, b) => a + b) / count;
+                      final avg = count == 0
+                          ? 0.0
+                          : reviews
+                                    .map((r) => r.rating)
+                                    .reduce((a, b) => a + b) /
+                                count;
 
                       return Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           AvaliacoesStatsRow(media: avg, realizadas: count),
-                          const SizedBox(height: AvaliacoesConstants.gapAfterStats),
-                          AvaliarUltimaAulaCard(onSubmitted: _refreshSubmittedLessons),
+                          const SizedBox(
+                            height: AvaliacoesConstants.gapAfterStats,
+                          ),
+                          AvaliarUltimaAulaCard(
+                            onSubmitted: _refreshSubmittedLessons,
+                          ),
                           const SizedBox(height: AvaliacoesConstants.gapLarge),
                           _tabs(),
-                          const SizedBox(height: AvaliacoesConstants.gapSection),
+                          const SizedBox(
+                            height: AvaliacoesConstants.gapSection,
+                          ),
                           const Text(
                             'Suas Avaliações',
                             style: AvaliacoesConstants.sectionTitleStyle,
                           ),
-                          const SizedBox(height: AvaliacoesConstants.gapSection),
+                          const SizedBox(
+                            height: AvaliacoesConstants.gapSection,
+                          ),
                           if (reviews.isEmpty)
                             const Text('Ainda não tem avaliações submetidas.')
                           else
@@ -247,7 +291,9 @@ class _AvaliacoesContentSectionState extends State<AvaliacoesContentSection> {
                               final review = reviews[index];
                               return Padding(
                                 padding: EdgeInsets.only(
-                                  bottom: index == reviews.length - 1 ? 0 : AvaliacoesConstants.gapSection,
+                                  bottom: index == reviews.length - 1
+                                      ? 0
+                                      : AvaliacoesConstants.gapSection,
                                 ),
                                 child: AvaliacaoReviewCard(review: review),
                               );
@@ -270,16 +316,26 @@ class _AvaliacoesContentSectionState extends State<AvaliacoesContentSection> {
                       }
 
                       if (snapshot.hasError) {
-                        final msg = snapshot.error?.toString() ?? 'Erro ao carregar avaliações';
+                        final msg =
+                            snapshot.error?.toString() ??
+                            'Erro ao carregar avaliações';
                         return Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             AvaliacoesStatsRow(media: 0, realizadas: 0),
-                            const SizedBox(height: AvaliacoesConstants.gapAfterStats),
-                            AvaliarProfessorCard(onSubmitted: _refreshSubmittedProfessors),
-                            const SizedBox(height: AvaliacoesConstants.gapLarge),
+                            const SizedBox(
+                              height: AvaliacoesConstants.gapAfterStats,
+                            ),
+                            AvaliarProfessorCard(
+                              onSubmitted: _refreshSubmittedProfessors,
+                            ),
+                            const SizedBox(
+                              height: AvaliacoesConstants.gapLarge,
+                            ),
                             _tabs(),
-                            const SizedBox(height: AvaliacoesConstants.gapSection),
+                            const SizedBox(
+                              height: AvaliacoesConstants.gapSection,
+                            ),
                             Text(
                               msg,
                               style: const TextStyle(color: Colors.red),
@@ -288,25 +344,42 @@ class _AvaliacoesContentSectionState extends State<AvaliacoesContentSection> {
                         );
                       }
 
-                      final items = snapshot.data ?? const <SubmittedProfessorEvaluationDto>[];
-                      final reviews = items.map(_toProfessorReview).toList(growable: false);
+                      final items =
+                          snapshot.data ??
+                          const <SubmittedProfessorEvaluationDto>[];
+                      final reviews = items
+                          .map(_toProfessorReview)
+                          .toList(growable: false);
                       final count = reviews.length;
-                      final avg = count == 0 ? 0.0 : reviews.map((r) => r.rating).reduce((a, b) => a + b) / count;
+                      final avg = count == 0
+                          ? 0.0
+                          : reviews
+                                    .map((r) => r.rating)
+                                    .reduce((a, b) => a + b) /
+                                count;
 
                       return Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           AvaliacoesStatsRow(media: avg, realizadas: count),
-                          const SizedBox(height: AvaliacoesConstants.gapAfterStats),
-                          AvaliarProfessorCard(onSubmitted: _refreshSubmittedProfessors),
+                          const SizedBox(
+                            height: AvaliacoesConstants.gapAfterStats,
+                          ),
+                          AvaliarProfessorCard(
+                            onSubmitted: _refreshSubmittedProfessors,
+                          ),
                           const SizedBox(height: AvaliacoesConstants.gapLarge),
                           _tabs(),
-                          const SizedBox(height: AvaliacoesConstants.gapSection),
+                          const SizedBox(
+                            height: AvaliacoesConstants.gapSection,
+                          ),
                           const Text(
                             'Suas Avaliações',
                             style: AvaliacoesConstants.sectionTitleStyle,
                           ),
-                          const SizedBox(height: AvaliacoesConstants.gapSection),
+                          const SizedBox(
+                            height: AvaliacoesConstants.gapSection,
+                          ),
                           if (reviews.isEmpty)
                             const Text('Ainda não tem avaliações submetidas.')
                           else
@@ -314,7 +387,9 @@ class _AvaliacoesContentSectionState extends State<AvaliacoesContentSection> {
                               final review = reviews[index];
                               return Padding(
                                 padding: EdgeInsets.only(
-                                  bottom: index == reviews.length - 1 ? 0 : AvaliacoesConstants.gapSection,
+                                  bottom: index == reviews.length - 1
+                                      ? 0
+                                      : AvaliacoesConstants.gapSection,
                                 ),
                                 child: AvaliacaoReviewCard(review: review),
                               );

@@ -42,25 +42,48 @@ class LabeledDropdown extends StatelessWidget {
           child: DropdownButtonFormField<String>(
             initialValue: value,
             onChanged: onChanged,
-            icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: Color(0xFF99A1AF)),
+            icon: const Icon(
+              Icons.keyboard_arrow_down_rounded,
+              size: 18,
+              color: Color(0xFF99A1AF),
+            ),
             decoration: InputDecoration(
               prefixIcon: const Padding(
                 padding: EdgeInsetsDirectional.only(start: 13.375, end: 10),
-                child: Icon(Icons.school_outlined, size: 16.719, color: Color(0xFF99A1AF)),
+                child: Icon(
+                  Icons.school_outlined,
+                  size: 16.719,
+                  color: Color(0xFF99A1AF),
+                ),
               ),
-              prefixIconConstraints: const BoxConstraints.tightFor(width: 40.125, height: 43.469),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 13.375, vertical: 10.031),
+              prefixIconConstraints: const BoxConstraints.tightFor(
+                width: 40.125,
+                height: 43.469,
+              ),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 13.375,
+                vertical: 10.031,
+              ),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(11.703),
-                borderSide: const BorderSide(color: RegisterColors.stroke, width: 1.672),
+                borderSide: const BorderSide(
+                  color: RegisterColors.stroke,
+                  width: 1.672,
+                ),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(11.703),
-                borderSide: const BorderSide(color: RegisterColors.stroke, width: 1.672),
+                borderSide: const BorderSide(
+                  color: RegisterColors.stroke,
+                  width: 1.672,
+                ),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(11.703),
-                borderSide: const BorderSide(color: RegisterColors.stroke, width: 1.672),
+                borderSide: const BorderSide(
+                  color: RegisterColors.stroke,
+                  width: 1.672,
+                ),
               ),
             ),
             hint: const Text(

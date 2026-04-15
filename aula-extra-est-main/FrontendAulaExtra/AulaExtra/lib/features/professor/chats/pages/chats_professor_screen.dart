@@ -22,14 +22,21 @@ class ChatsProfessorScreen extends StatelessWidget {
     final role = context.watch<UserProvider>().role;
     final isTeacher = role == Role.teacher;
     final rawArgs = ModalRoute.of(context)?.settings.arguments;
-    final args = rawArgs is Map ? Map<String, dynamic>.from(rawArgs) : const <String, dynamic>{};
-    final resolvedUsername = initialStudentUsername ?? args['studentUsername']?.toString() ?? args['studentId']?.toString();
+    final args = rawArgs is Map
+        ? Map<String, dynamic>.from(rawArgs)
+        : const <String, dynamic>{};
+    final resolvedUsername =
+        initialStudentUsername ??
+        args['studentUsername']?.toString() ??
+        args['studentId']?.toString();
     final resolvedName = initialStudentName ?? args['studentName']?.toString();
 
     if (!isTeacher) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!context.mounted) return;
-        Navigator.of(context).pushNamedAndRemoveUntil(Routes.home, (route) => false);
+        Navigator.of(
+          context,
+        ).pushNamedAndRemoveUntil(Routes.home, (route) => false);
       });
     }
 
@@ -39,8 +46,8 @@ class ChatsProfessorScreen extends StatelessWidget {
           SliverPersistentHeader(
             pinned: true,
             delegate: PinnedHeaderDelegate(
-              height: 90,
-                  child: const AppHeader(),
+              height: AppHeader.resolvedHeight(context),
+              child: const AppHeader(),
             ),
           ),
           SliverToBoxAdapter(

@@ -51,21 +51,29 @@ class DisponibilidadeTable extends StatelessWidget {
         final gap = DisponibilidadeProfessorLayout.tableCellGap;
         final minCell = DisponibilidadeProfessorLayout.tableCellSize;
 
-        final minContentWidth = hourWidth + (days.length - 1) * gap + days.length * minCell;
-        final canStretch = availableWidth.isFinite && availableWidth > minContentWidth;
+        final minContentWidth =
+            hourWidth + (days.length - 1) * gap + days.length * minCell;
+        final canStretch =
+            availableWidth.isFinite && availableWidth > minContentWidth;
 
         final dayWidth = canStretch
-            ? (availableWidth - hourWidth - (days.length - 1) * gap) / days.length
+            ? (availableWidth - hourWidth - (days.length - 1) * gap) /
+                  days.length
             : minCell;
 
-        final contentWidth = hourWidth + (days.length - 1) * gap + days.length * dayWidth;
-        final effectiveWidth = availableWidth.isFinite ? math.max(availableWidth, contentWidth) : contentWidth;
+        final contentWidth =
+            hourWidth + (days.length - 1) * gap + days.length * dayWidth;
+        final effectiveWidth = availableWidth.isFinite
+            ? math.max(availableWidth, contentWidth)
+            : contentWidth;
 
         final content = Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             ClipRRect(
-              borderRadius: BorderRadius.circular(DisponibilidadeProfessorLayout.tableCellRadius),
+              borderRadius: BorderRadius.circular(
+                DisponibilidadeProfessorLayout.tableCellRadius,
+              ),
               child: DecoratedBox(
                 decoration: const BoxDecoration(
                   color: DisponibilidadeProfessorColors.tableHeaderBackground,
@@ -77,7 +85,10 @@ class DisponibilidadeTable extends StatelessWidget {
                       SizedBox(
                         width: hourWidth,
                         child: Padding(
-                          padding: const EdgeInsets.only(left: DisponibilidadeProfessorLayout.tableHourPadding),
+                          padding: const EdgeInsets.only(
+                            left:
+                                DisponibilidadeProfessorLayout.tableHourPadding,
+                          ),
                           child: Align(
                             alignment: Alignment.centerLeft,
                             child: Text('Hora', style: hourHeaderStyle),
@@ -111,14 +122,20 @@ class DisponibilidadeTable extends StatelessWidget {
                     SizedBox(
                       width: hourWidth,
                       child: Padding(
-                        padding: const EdgeInsets.all(DisponibilidadeProfessorLayout.tableHourPadding),
+                        padding: const EdgeInsets.all(
+                          DisponibilidadeProfessorLayout.tableHourPadding,
+                        ),
                         child: Align(
                           alignment: Alignment.centerLeft,
                           child: Text(hours[hourIndex], style: hourTextStyle),
                         ),
                       ),
                     ),
-                    for (var dayIndex = 0; dayIndex < days.length; dayIndex++) ...[
+                    for (
+                      var dayIndex = 0;
+                      dayIndex < days.length;
+                      dayIndex++
+                    ) ...[
                       if (dayIndex > 0) SizedBox(width: gap),
                       _AvailabilityCell(
                         size: dayWidth,
@@ -135,7 +152,9 @@ class DisponibilidadeTable extends StatelessWidget {
         );
 
         return ClipRRect(
-          borderRadius: BorderRadius.circular(DisponibilidadeProfessorLayout.tableCellRadius),
+          borderRadius: BorderRadius.circular(
+            DisponibilidadeProfessorLayout.tableCellRadius,
+          ),
           child: DecoratedBox(
             decoration: BoxDecoration(
               border: Border.all(
@@ -145,10 +164,7 @@ class DisponibilidadeTable extends StatelessWidget {
             ),
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
-              child: SizedBox(
-                width: effectiveWidth,
-                child: content,
-              ),
+              child: SizedBox(width: effectiveWidth, child: content),
             ),
           ),
         );
@@ -175,10 +191,14 @@ class _AvailabilityCell extends StatelessWidget {
       height: DisponibilidadeProfessorLayout.tableCellSize,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(DisponibilidadeProfessorLayout.tableCellRadius),
+        borderRadius: BorderRadius.circular(
+          DisponibilidadeProfessorLayout.tableCellRadius,
+        ),
         child: DecoratedBox(
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(DisponibilidadeProfessorLayout.tableCellRadius),
+            borderRadius: BorderRadius.circular(
+              DisponibilidadeProfessorLayout.tableCellRadius,
+            ),
             border: Border.all(
               width: DisponibilidadeProfessorLayout.tableCellBorderWidth,
               color: selected

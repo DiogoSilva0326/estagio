@@ -46,5 +46,5 @@ class MeusExplicadoresConstants {
   static const gridSpacing = 33.191;
 
   /// Altura/extent do item de grelha (para manter proporção do card).
-  static const gridMainAxisExtent = 557.062;
+  static const gridMainAxisExtent = 636.0;
 }

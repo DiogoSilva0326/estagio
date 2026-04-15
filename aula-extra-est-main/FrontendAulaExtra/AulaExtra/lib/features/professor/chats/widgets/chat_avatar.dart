@@ -3,11 +3,7 @@ import 'package:aula_extra/features/professor/chats/constants/chats_professor_fo
 import 'package:flutter/material.dart';
 
 class ChatAvatar extends StatelessWidget {
-  const ChatAvatar({
-    super.key,
-    required this.initials,
-    required this.size,
-  });
+  const ChatAvatar({super.key, required this.initials, required this.size});
 
   final String initials;
   final double size;

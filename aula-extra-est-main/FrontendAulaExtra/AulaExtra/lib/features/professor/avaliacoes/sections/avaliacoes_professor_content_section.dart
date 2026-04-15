@@ -40,7 +40,8 @@ class _AvaliacoesProfessorContentSectionState
       color: AvaliacoesProfessorColors.title,
       fontSize: AvaliacoesProfessorLayout.titleFontSize,
       fontWeight: FontWeight.w700,
-      height: AvaliacoesProfessorLayout.titleLineHeight /
+      height:
+          AvaliacoesProfessorLayout.titleLineHeight /
           AvaliacoesProfessorLayout.titleFontSize,
     );
 
@@ -79,13 +80,15 @@ class _AvaliacoesProfessorContentSectionState
                       if (snapshot.hasError) {
                         return _ErrorState(
                           titleStyle: titleStyle,
-                          message: snapshot.error?.toString() ??
+                          message:
+                              snapshot.error?.toString() ??
                               'Erro ao carregar avaliações do professor',
                           onRetry: _refresh,
                         );
                       }
 
-                      final data = snapshot.data ??
+                      final data =
+                          snapshot.data ??
                           ProfessorEvaluationsOverviewDto(
                             professorSummary: ProfessorEvaluationSummaryDto(
                               averageRating: 0,
@@ -99,8 +102,8 @@ class _AvaliacoesProfessorContentSectionState
                             lessonReviews: const [],
                           );
 
-                      final activeSection = _selectedTab ==
-                              _AvaliacoesProfessorTab.professor
+                      final activeSection =
+                          _selectedTab == _AvaliacoesProfessorTab.professor
                           ? _SectionBlock(
                               title: 'Avaliações feitas ao professor',
                               emptyMessage:
@@ -117,7 +120,8 @@ class _AvaliacoesProfessorContentSectionState
                                         dateLabel: _formatDate(
                                           review.createdAt,
                                         ),
-                                        comment: review.comment ??
+                                        comment:
+                                            review.comment ??
                                             'Sem comentário adicional.',
                                       ),
                                     ),
@@ -140,7 +144,8 @@ class _AvaliacoesProfessorContentSectionState
                                         dateLabel: _formatDate(
                                           review.createdAt,
                                         ),
-                                        comment: review.comment ??
+                                        comment:
+                                            review.comment ??
                                             'Sem comentário adicional.',
                                         contextTitle: review.lessonTitle,
                                         contextSubtitle: _formatLessonWindow(
@@ -177,7 +182,8 @@ class _AvaliacoesProfessorContentSectionState
                                 return Column(
                                   children: [
                                     _SummaryCard(
-                                      average: data.professorSummary.averageRating,
+                                      average:
+                                          data.professorSummary.averageRating,
                                       totalLabel:
                                           '${data.professorSummary.totalReviews} avaliações',
                                       label: 'Avaliações feitas ao professor',
@@ -197,7 +203,8 @@ class _AvaliacoesProfessorContentSectionState
                                 children: [
                                   Expanded(
                                     child: _SummaryCard(
-                                      average: data.professorSummary.averageRating,
+                                      average:
+                                          data.professorSummary.averageRating,
                                       totalLabel:
                                           '${data.professorSummary.totalReviews} avaliações',
                                       label: 'Avaliações feitas ao professor',
@@ -242,10 +249,7 @@ class _AvaliacoesProfessorContentSectionState
 }
 
 class _ProfessorTabs extends StatelessWidget {
-  const _ProfessorTabs({
-    required this.selectedTab,
-    required this.onChanged,
-  });
+  const _ProfessorTabs({required this.selectedTab, required this.onChanged});
 
   final _AvaliacoesProfessorTab selectedTab;
   final ValueChanged<_AvaliacoesProfessorTab> onChanged;
@@ -254,9 +258,7 @@ class _ProfessorTabs extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: const BoxDecoration(
-        border: Border(
-          bottom: BorderSide(color: Color(0xFFE5E7EB), width: 1),
-        ),
+        border: Border(bottom: BorderSide(color: Color(0xFFE5E7EB), width: 1)),
       ),
       child: Row(
         children: [
@@ -421,7 +423,8 @@ class _SummaryCard extends StatelessWidget {
                       color: Colors.white,
                       fontSize: AvaliacoesProfessorLayout.summaryValueFontSize,
                       fontWeight: FontWeight.w700,
-                      height: AvaliacoesProfessorLayout.summaryValueLineHeight /
+                      height:
+                          AvaliacoesProfessorLayout.summaryValueLineHeight /
                           AvaliacoesProfessorLayout.summaryValueFontSize,
                     ),
                   ),
@@ -437,7 +440,8 @@ class _SummaryCard extends StatelessWidget {
                     color: Colors.white,
                     fontSize: AvaliacoesProfessorLayout.summaryLabelFontSize,
                     fontWeight: FontWeight.w400,
-                    height: AvaliacoesProfessorLayout.summaryLabelLineHeight /
+                    height:
+                        AvaliacoesProfessorLayout.summaryLabelLineHeight /
                         AvaliacoesProfessorLayout.summaryLabelFontSize,
                   ),
                 ),
@@ -449,12 +453,11 @@ class _SummaryCard extends StatelessWidget {
                   totalLabel,
                   style: const TextStyle(
                     color: Colors.white,
-                    fontSize:
-                        AvaliacoesProfessorLayout.summarySubLabelFontSize,
+                    fontSize: AvaliacoesProfessorLayout.summarySubLabelFontSize,
                     fontWeight: FontWeight.w400,
                     height:
                         AvaliacoesProfessorLayout.summarySubLabelLineHeight /
-                            AvaliacoesProfessorLayout.summarySubLabelFontSize,
+                        AvaliacoesProfessorLayout.summarySubLabelFontSize,
                   ),
                 ),
               ),
@@ -581,7 +584,8 @@ class _ReviewCard extends StatelessWidget {
                                 fontSize: AvaliacoesProfessorLayout
                                     .reviewerNameFontSize,
                                 fontWeight: FontWeight.w500,
-                                height: AvaliacoesProfessorLayout
+                                height:
+                                    AvaliacoesProfessorLayout
                                         .reviewerNameLineHeight /
                                     AvaliacoesProfessorLayout
                                         .reviewerNameFontSize,
@@ -602,7 +606,8 @@ class _ReviewCard extends StatelessWidget {
                     color: AvaliacoesProfessorColors.muted,
                     fontSize: AvaliacoesProfessorLayout.dateFontSize,
                     fontWeight: FontWeight.w400,
-                    height: AvaliacoesProfessorLayout.dateLineHeight /
+                    height:
+                        AvaliacoesProfessorLayout.dateLineHeight /
                         AvaliacoesProfessorLayout.dateFontSize,
                   ),
                 ),
@@ -615,7 +620,8 @@ class _ReviewCard extends StatelessWidget {
                 color: AvaliacoesProfessorColors.text,
                 fontSize: AvaliacoesProfessorLayout.commentFontSize,
                 fontWeight: FontWeight.w400,
-                height: AvaliacoesProfessorLayout.commentLineHeight /
+                height:
+                    AvaliacoesProfessorLayout.commentLineHeight /
                     AvaliacoesProfessorLayout.commentFontSize,
               ),
             ),
@@ -703,7 +709,8 @@ class _AvatarInitials extends StatelessWidget {
           color: Colors.white,
           fontSize: AvaliacoesProfessorLayout.avatarTextFontSize,
           fontWeight: FontWeight.w500,
-          height: AvaliacoesProfessorLayout.avatarTextLineHeight /
+          height:
+              AvaliacoesProfessorLayout.avatarTextLineHeight /
               AvaliacoesProfessorLayout.avatarTextFontSize,
         ),
       ),
@@ -787,8 +794,9 @@ String _formatDate(DateTime? dateTime) {
 
 String? _formatLessonWindow(DateTime? start, DateTime? end) {
   if (start == null && end == null) return null;
-  final startLabel =
-      start == null ? null : '${_formatDate(start)} • ${_formatTime(start)}';
+  final startLabel = start == null
+      ? null
+      : '${_formatDate(start)} • ${_formatTime(start)}';
   if (end == null) return startLabel;
   final endTime = _formatTime(end);
   return startLabel == null ? endTime : '$startLabel - $endTime';

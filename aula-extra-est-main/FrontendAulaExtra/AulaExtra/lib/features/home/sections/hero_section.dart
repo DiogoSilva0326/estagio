@@ -1,4 +1,7 @@
 import 'package:aula_extra/features/home/assets/home_assets.dart';
+import 'package:aula_extra/core/navigation/become_teacher_navigation.dart';
+import 'package:aula_extra/features/explicadores/pages/explicadores_screen.dart';
+import 'package:aula_extra/routes/routes.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
@@ -20,8 +23,29 @@ class HeroSection extends StatelessWidget {
   }
 }
 
-class _HeroLeft extends StatelessWidget {
+class _HeroLeft extends StatefulWidget {
   const _HeroLeft();
+
+  @override
+  State<_HeroLeft> createState() => _HeroLeftState();
+}
+
+class _HeroLeftState extends State<_HeroLeft> {
+  final TextEditingController _searchController = TextEditingController();
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _submitSearch() {
+    final query = _searchController.text.trim();
+    Navigator.of(context).pushNamed(
+      Routes.explicadores,
+      arguments: ExplicadoresScreenArgs(initialQuery: query),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -58,7 +82,10 @@ class _HeroLeft extends StatelessWidget {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                _SearchBar(),
+                _SearchBar(
+                  controller: _searchController,
+                  onSubmitted: (_) => _submitSearch(),
+                ),
                 const SizedBox(width: 22),
                 SizedBox(
                   width: 208,
@@ -70,7 +97,7 @@ class _HeroLeft extends StatelessWidget {
                       elevation: 0,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                     ),
-                    onPressed: () {},
+                    onPressed: _submitSearch,
                     child: const Text('Encontrar Explicador', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
                   ),
                 ),
@@ -89,6 +116,11 @@ class _HeroLeft extends StatelessWidget {
 }
 
 class _SearchBar extends StatelessWidget {
+  const _SearchBar({required this.controller, required this.onSubmitted});
+
+  final TextEditingController controller;
+  final ValueChanged<String> onSubmitted;
+
   @override
   Widget build(BuildContext context) {
     return SizedBox(
@@ -106,10 +138,22 @@ class _SearchBar extends StatelessWidget {
             children: [
               Image.asset(HomeAssets.searchIcon, width: 14, height: 15, fit: BoxFit.contain),
               const SizedBox(width: 10),
-              const Expanded(
-                child: Text(
-                  'Procurar disciplinas...',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w400, color: Color(0xFFBCBDBB)),
+              Expanded(
+                child: TextField(
+                  controller: controller,
+                  textInputAction: TextInputAction.search,
+                  onSubmitted: onSubmitted,
+                  decoration: const InputDecoration(
+                    isCollapsed: true,
+                    border: InputBorder.none,
+                    hintText: 'Procurar disciplinas...',
+                    hintStyle: TextStyle(fontSize: 16, fontWeight: FontWeight.w400, color: Color(0xFFBCBDBB)),
+                  ),
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w400,
+                    color: Color(0xFF0A0A0A),
+                  ),
                 ),
               ),
             ],
@@ -374,7 +418,7 @@ class _VerifiedCard extends StatelessWidget {
                     elevation: 0,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                   ),
-                  onPressed: () {},
+                  onPressed: () => navigateToBecomeTeacherFlow(context),
                   child: const Text('Tornar-me um Explicador', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
                 ),
               ),
@@ -464,7 +508,7 @@ class _FlexibleHoursCard extends StatelessWidget {
                     elevation: 0,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                   ),
-                  onPressed: () {},
+                  onPressed: () => Navigator.of(context).pushNamed(Routes.explicadores),
                   child: const Text('Marcar uma Sessão', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
                 ),
               ),

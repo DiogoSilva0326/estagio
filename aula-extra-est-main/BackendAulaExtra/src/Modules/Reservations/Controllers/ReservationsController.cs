@@ -9,6 +9,7 @@ using ConfidantPostgreSQL.Modules.Communication.Service;
 using ConfidantPostgreSQL.Modules.Reservations.Models;
 using ConfidantPostgreSQL.Modules.Reservations.Service;
 using ConfidantPostgreSQL.Modules.Lessons.Service;
+using ConfidantPostgreSQL.Modules.Payments.Service;
 using ConfidantPostgreSQL.Modules.Professors.Models;
 using ConfidantPostgreSQL.Modules.Professors.Service;
 using ConfidantPostgreSQL.Modules.Users.Service;
@@ -26,6 +27,7 @@ namespace ConfidantPostgreSQL.Modules.Reservations.Controllers
 
         private readonly IReservationsService _service;
         private readonly ILessonsService _lessons;
+        private readonly IPaymentsService _payments;
         private readonly IProfessorsService _professors;
         private readonly ICommunicationService _communication;
         private readonly IUserService _users;
@@ -35,6 +37,7 @@ namespace ConfidantPostgreSQL.Modules.Reservations.Controllers
         public ReservationsController(
             IReservationsService service,
             ILessonsService lessons,
+            IPaymentsService payments,
             IProfessorsService professors,
             ICommunicationService communication,
             IUserService users,
@@ -43,6 +46,7 @@ namespace ConfidantPostgreSQL.Modules.Reservations.Controllers
         {
             _service = service;
             _lessons = lessons;
+            _payments = payments;
             _professors = professors;
             _communication = communication;
             _users = users;
@@ -132,7 +136,7 @@ namespace ConfidantPostgreSQL.Modules.Reservations.Controllers
         private static bool IsPendingStatus(string? status)
         {
             var normalized = status?.Trim().ToLowerInvariant();
-            return normalized == "pending" || normalized == "waiting" || normalized == "requested";
+            return normalized == "pending" || normalized == "waiting" || normalized == "requested" || normalized == "pendingpayment" || normalized == "pending_payment" || normalized == "awaiting_payment";
         }
 
         private static bool IsAcceptedStatus(string? status)
@@ -159,6 +163,20 @@ namespace ConfidantPostgreSQL.Modules.Reservations.Controllers
             }
 
             return $"{start:dd/MM/yyyy HH:mm} até {end:dd/MM/yyyy HH:mm}";
+        }
+
+        private static string BuildNotificationMetadata(Guid reservationId, string teacherName, string subject, DateTime? startTime, DateTime? endTime)
+        {
+            var query = string.Join("&", new[]
+            {
+                $"reservationId={Uri.EscapeDataString(reservationId.ToString())}",
+                $"teacherName={Uri.EscapeDataString(teacherName)}",
+                $"subject={Uri.EscapeDataString(subject)}",
+                $"start={Uri.EscapeDataString(startTime?.ToString("o") ?? string.Empty)}",
+                $"end={Uri.EscapeDataString(endTime?.ToString("o") ?? string.Empty)}"
+            });
+
+            return $"[[{query}]]";
         }
 
         private static int ToAgoraUid(Guid reservationId, bool isHost)
@@ -565,6 +583,18 @@ namespace ConfidantPostgreSQL.Modules.Reservations.Controllers
                 return Conflict(new { error = "reservation_not_pending", status = reservation.Status });
             }
 
+            var paymentReview = await _payments.GetReservationPaymentReviewAsync(currentUserId, idReservation);
+            if (paymentReview != null && paymentReview.Amount > 0m && !paymentReview.AlreadyPaid)
+            {
+                return Conflict(new
+                {
+                    error = "payment_required",
+                    message = "É necessário pagar a aula antes de a confirmar.",
+                    amount = paymentReview.Amount,
+                    currency = paymentReview.Currency
+                });
+            }
+
             reservation.Status = "accepted";
             var reservationRows = await _service.UpdateReservationAsync(reservation);
             if (reservationRows == 0)
@@ -616,6 +646,114 @@ namespace ConfidantPostgreSQL.Modules.Reservations.Controllers
             }
 
             return NoContent();
+        }
+
+        [HttpGet("{idReservation:guid}/payment-review")]
+        public async Task<IActionResult> GetReservationPaymentReview(Guid idReservation)
+        {
+            RequestContext.ApplyCultureFromHeader(Request);
+            if (!TryGetCurrentUserId(out var currentUserId)) return Unauthorized(new { error = "token_invalid" });
+
+            var review = await _payments.GetReservationPaymentReviewAsync(currentUserId, idReservation);
+            return review == null ? NotFound(new { error = "reservation_not_found" }) : Ok(review);
+        }
+
+        [HttpPost("{idReservation:guid}/pay-and-accept")]
+        public async Task<IActionResult> PayAndAcceptReservation(Guid idReservation)
+        {
+            RequestContext.ApplyCultureFromHeader(Request);
+            if (!TryGetCurrentUserId(out var currentUserId)) return Unauthorized(new { error = "token_invalid" });
+
+            var reservation = await _service.GetReservationByIdAsync(idReservation);
+            if (reservation == null || reservation.IdReservation == Guid.Empty)
+            {
+                return NotFound(new { error = "reservation_not_found" });
+            }
+
+            if (reservation.IdUser != currentUserId)
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, new
+                {
+                    error = "reservation_access_denied",
+                    message = "Só o aluno desta explicação pode confirmá-la."
+                });
+            }
+
+            if (IsCancelledStatus(reservation.Status))
+            {
+                return Conflict(new { error = "reservation_cancelled", message = "Esta aula foi cancelada." });
+            }
+
+            if (!IsPendingStatus(reservation.Status) && !IsAcceptedStatus(reservation.Status))
+            {
+                return Conflict(new { error = "reservation_not_pending", status = reservation.Status });
+            }
+
+            ConfidantPostgreSQL.Modules.Payments.Models.ReservationPaymentProcessResultDto paymentResult;
+            try
+            {
+                paymentResult = await _payments.ProcessReservationPaymentAsync(currentUserId, idReservation);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Conflict(new { error = "payment_failed", message = ex.Message });
+            }
+
+            reservation.Status = "accepted";
+            var reservationRows = await _service.UpdateReservationAsync(reservation);
+            if (reservationRows == 0)
+            {
+                return NotFound(new { error = "reservation_not_found" });
+            }
+
+            await _users.MarkLessonRequestNotificationsAsReadAsync(currentUserId, reservation.IdReservation);
+
+            var lesson = await _lessons.GetLessonByIdAsync(reservation.IdLesson);
+            if (lesson != null)
+            {
+                var enrollment = await _lessons.GetEnrollmentByLessonAndUserAsync(reservation.IdLesson, reservation.IdUser);
+                if (enrollment != null)
+                {
+                    enrollment.Status = "Active";
+                    enrollment.PricePaid = paymentResult.Amount;
+                    await _lessons.UpdateEnrollmentAsync(enrollment);
+                }
+
+                if (lesson.IdProfessor != null && lesson.IdProfessor != Guid.Empty)
+                {
+                    var professor = await _professors.GetProfessorByIdAsync(lesson.IdProfessor.Value);
+                    if (professor != null && professor.IdUser != Guid.Empty)
+                    {
+                        try
+                        {
+                            var student = await _users.GetByIdAsync(currentUserId);
+                            var studentName = BuildDisplayName(
+                                student?.DisplayName,
+                                student?.FirstName,
+                                student?.LastName,
+                                student?.Username ?? "Aluno");
+                            var paymentSuffix = paymentResult.Amount > 0m
+                                ? $" O pagamento de {paymentResult.Amount:0.00} {paymentResult.Currency} foi confirmado."
+                                : string.Empty;
+                            await _communication.InsertNotificationAsync(new Notification
+                            {
+                                IdUser = professor.IdUser,
+                                Type = "aula",
+                                Message = $"O aluno {studentName} confirmou a aula {lesson.Title?.Trim() ?? "agendada"} marcada para {FormatLessonWindow(reservation.StartTime, reservation.EndTime)}.{paymentSuffix}",
+                                WasRead = false,
+                                CreatedAt = DateTime.UtcNow,
+                                UpdatedAt = DateTime.UtcNow,
+                            });
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogWarning(ex, "Failed to notify professor {ProfessorUserId} for paid reservation {ReservationId}", professor.IdUser, reservation.IdReservation);
+                        }
+                    }
+                }
+            }
+
+            return Ok(paymentResult);
         }
 
         [HttpPost("{idReservation:guid}/reject")]
@@ -707,6 +845,112 @@ namespace ConfidantPostgreSQL.Modules.Reservations.Controllers
             }
 
             return NoContent();
+        }
+
+        [HttpPost("{idReservation:guid}/cancel-by-professor")]
+        public async Task<IActionResult> CancelReservationByProfessor(Guid idReservation)
+        {
+            RequestContext.ApplyCultureFromHeader(Request);
+            if (!TryGetCurrentUserId(out var currentUserId)) return Unauthorized(new { error = "token_invalid" });
+
+            var reservation = await _service.GetReservationByIdAsync(idReservation);
+            if (reservation == null || reservation.IdReservation == Guid.Empty)
+            {
+                return NotFound(new { error = "reservation_not_found" });
+            }
+
+            var lesson = await _lessons.GetLessonByIdAsync(reservation.IdLesson);
+            if (lesson == null || lesson.IdLesson == Guid.Empty || lesson.IdProfessor == null || lesson.IdProfessor == Guid.Empty)
+            {
+                return NotFound(new { error = "lesson_not_found" });
+            }
+
+            var professor = await _professors.GetProfessorByIdAsync(lesson.IdProfessor.Value);
+            if (professor == null || professor.IdUser == Guid.Empty)
+            {
+                return NotFound(new { error = "professor_not_found" });
+            }
+
+            if (professor.IdUser != currentUserId)
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, new
+                {
+                    error = "reservation_access_denied",
+                    message = "Só o professor da aula pode cancelá-la."
+                });
+            }
+
+            var professorUser = await _users.GetByIdAsync(currentUserId);
+            var teacherName = BuildDisplayName(
+                professorUser?.DisplayName,
+                professorUser?.FirstName,
+                professorUser?.LastName,
+                professorUser?.Username ?? "Professor");
+
+            var lessonReservations = (await _service.GetReservationsByLessonAsync(lesson.IdLesson)).ToList();
+            var enrollments = (await _lessons.GetEnrollmentsByLessonAsync(lesson.IdLesson))
+                .GroupBy(item => item.IdUser)
+                .ToDictionary(group => group.Key, group => group.OrderByDescending(item => item.CreatedAt).First());
+
+            var affectedStudents = 0;
+            var refundedStudents = 0;
+            decimal refundedAmount = 0m;
+            var lessonTitle = lesson.Title?.Trim();
+            var subject = string.IsNullOrWhiteSpace(lessonTitle) ? "Explicação" : lessonTitle;
+
+            foreach (var lessonReservation in lessonReservations)
+            {
+                if (!IsCancelledStatus(lessonReservation.Status))
+                {
+                    lessonReservation.Status = "cancelled";
+                    await _service.UpdateReservationAsync(lessonReservation);
+                }
+
+                if (enrollments.TryGetValue(lessonReservation.IdUser, out var enrollment))
+                {
+                    enrollment.Status = "Cancelled";
+                    await _lessons.UpdateEnrollmentAsync(enrollment);
+                }
+
+                await _users.MarkLessonRequestNotificationsAsReadAsync(lessonReservation.IdUser, lessonReservation.IdReservation);
+
+                var refundResult = await _payments.RefundReservationPaymentAsync(lessonReservation.IdReservation);
+                if (refundResult.Refunded)
+                {
+                    refundedStudents++;
+                    refundedAmount += refundResult.RefundedAmount;
+                }
+
+                var refundSuffix = refundResult.Refunded && refundResult.RefundedAmount > 0m
+                    ? $" Os teus {refundResult.RefundedAmount:0.00} {refundResult.Currency} foram devolvidos automaticamente."
+                    : string.Empty;
+                var metadata = Environment.NewLine + BuildNotificationMetadata(
+                    lessonReservation.IdReservation,
+                    teacherName,
+                    subject,
+                    lessonReservation.StartTime,
+                    lessonReservation.EndTime);
+
+                await _communication.InsertNotificationAsync(new Notification
+                {
+                    IdUser = lessonReservation.IdUser,
+                    Type = "aula_cancelada_professor",
+                    Message = $"O professor {teacherName} cancelou a aula {subject} marcada para {FormatLessonWindow(lessonReservation.StartTime, lessonReservation.EndTime)}.{refundSuffix}{metadata}",
+                    WasRead = false,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow,
+                });
+
+                affectedStudents++;
+            }
+
+            return Ok(new
+            {
+                lessonId = lesson.IdLesson,
+                cancelledReservations = affectedStudents,
+                refundedStudents,
+                refundedAmount
+            });
         }
 
         [HttpDelete("{idReservation:guid}")]

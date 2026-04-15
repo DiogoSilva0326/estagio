@@ -76,16 +76,35 @@ CREATE TABLE IF NOT EXISTS refunds (
 
 CREATE TABLE IF NOT EXISTS disputes (
   id_dispute UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  transaction_id UUID NOT NULL REFERENCES transactions(id_transaction) ON DELETE CASCADE,
+  transaction_id UUID REFERENCES transactions(id_transaction) ON DELETE CASCADE,
   id_reservation UUID,
+  reservation_payment_id UUID,
+  topup_id UUID,
   raised_by_user_id UUID REFERENCES users(id_user),
+  reporter_name VARCHAR(160),
+  reporter_email VARCHAR(255),
+  reporter_role VARCHAR(20),
+  subject VARCHAR(160),
   reason TEXT,
+  payment_reference TEXT,
+  payment_source VARCHAR(40),
   status VARCHAR(20),
   resolution_note TEXT,
-  created_at TIMESTAMP DEFAULT now()
+  created_at TIMESTAMP DEFAULT now(),
+  updated_at TIMESTAMP DEFAULT now()
 );
 
 ALTER TABLE public.disputes ADD COLUMN IF NOT EXISTS id_reservation UUID;
+ALTER TABLE public.disputes ALTER COLUMN transaction_id DROP NOT NULL;
+ALTER TABLE public.disputes ADD COLUMN IF NOT EXISTS reservation_payment_id UUID;
+ALTER TABLE public.disputes ADD COLUMN IF NOT EXISTS topup_id UUID;
+ALTER TABLE public.disputes ADD COLUMN IF NOT EXISTS reporter_name VARCHAR(160);
+ALTER TABLE public.disputes ADD COLUMN IF NOT EXISTS reporter_email VARCHAR(255);
+ALTER TABLE public.disputes ADD COLUMN IF NOT EXISTS reporter_role VARCHAR(20);
+ALTER TABLE public.disputes ADD COLUMN IF NOT EXISTS subject VARCHAR(160);
+ALTER TABLE public.disputes ADD COLUMN IF NOT EXISTS payment_reference TEXT;
+ALTER TABLE public.disputes ADD COLUMN IF NOT EXISTS payment_source VARCHAR(40);
+ALTER TABLE public.disputes ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT now();
 
 CREATE TABLE IF NOT EXISTS commission_rules (
   id_commission_rule UUID PRIMARY KEY DEFAULT gen_random_uuid(),

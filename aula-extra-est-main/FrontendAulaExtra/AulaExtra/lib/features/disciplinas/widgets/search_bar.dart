@@ -2,7 +2,14 @@ import 'package:aula_extra/features/home/assets/home_assets.dart';
 import 'package:flutter/material.dart';
 
 class DisciplinasSearchBar extends StatelessWidget {
-  const DisciplinasSearchBar({super.key});
+  const DisciplinasSearchBar({
+    super.key,
+    required this.controller,
+    this.onChanged,
+  });
+
+  final TextEditingController controller;
+  final ValueChanged<String>? onChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -23,6 +30,8 @@ class DisciplinasSearchBar extends StatelessWidget {
                 padding: const EdgeInsets.only(left: 61.277, right: 20.426),
                 child: Center(
                   child: TextField(
+                    controller: controller,
+                    onChanged: onChanged,
                     decoration: const InputDecoration(
                       border: InputBorder.none,
                       hintText: 'Procurar disciplinas...',

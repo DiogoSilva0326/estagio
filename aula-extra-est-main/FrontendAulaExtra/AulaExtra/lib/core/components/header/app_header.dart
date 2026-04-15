@@ -1,6 +1,7 @@
 import 'package:aula_extra/core/components/header/sections/header_sem_login.dart';
 import 'package:aula_extra/core/components/header/variants/header_aluno.dart';
 import 'package:aula_extra/core/components/header/variants/header_explicador.dart';
+import 'package:aula_extra/core/components/header/widgets/mobile_app_header.dart';
 import 'package:aula_extra/core/data/payments/payments_service.dart';
 import 'package:aula_extra/core/providers/user_provider.dart';
 import 'package:aula_extra/routes/routes.dart';
@@ -18,6 +19,8 @@ class AppHeader extends StatelessWidget {
   });
 
   static const double height = 90;
+  static const double mobileHeight = MobileAppHeader.height;
+  static const double mobileBreakpoint = 768;
 
   final HeaderAlunoItem? headerAlunoActiveItem;
 
@@ -25,6 +28,12 @@ class AppHeader extends StatelessWidget {
   final VoidCallback? onLoginTap;
   final VoidCallback? onLogoTap;
   final VoidCallback? onProfileTap;
+
+  static double resolvedHeight(BuildContext context) {
+    return MediaQuery.sizeOf(context).width <= mobileBreakpoint
+        ? mobileHeight
+        : height;
+  }
 
   HeaderAlunoItem? _studentActiveItemFromRoute(String? routeName) {
     switch (routeName) {
@@ -73,47 +82,60 @@ class AppHeader extends StatelessWidget {
     final user = context.watch<UserProvider>();
     final userRole = user.role;
     final currentRouteName = ModalRoute.of(context)?.settings.name;
+    final isMobile = MediaQuery.sizeOf(context).width <= mobileBreakpoint;
 
     String? nonEmpty(String? value) {
       final v = value?.trim();
       return (v == null || v.isEmpty) ? null : v;
     }
 
-    final displayName = nonEmpty(user.account?.fullName) ??
-        nonEmpty(user.account?.username) ??
-        nonEmpty(user.account?.email);
+    final displayName =
+        nonEmpty(user.account?.fullName) ?? nonEmpty(user.account?.username);
     final profileImageUrl = nonEmpty(user.account?.profileImageUrl);
 
     final effectiveAlunoItem = userRole == Role.student
-        ? (_studentActiveItemFromRoute(currentRouteName) ?? headerAlunoActiveItem)
+        ? (_studentActiveItemFromRoute(currentRouteName) ??
+              headerAlunoActiveItem)
         : headerAlunoActiveItem;
 
     final effectiveTeacherItem = userRole == Role.teacher
         ? _teacherActiveItemFromRoute(currentRouteName)
         : null;
 
+    if (isMobile) {
+      return MobileAppHeader(
+        role: userRole,
+        onRegisterTap: onRegisterTap,
+        onLoginTap: onLoginTap,
+        onLogoTap: onLogoTap,
+        onProfileTap: onProfileTap,
+      );
+    }
+
     return userRole == Role.teacher
         ? HeaderExplicador(
             activeItem: effectiveTeacherItem,
             displayName: displayName,
-          profileImageUrl: profileImageUrl,
+            profileImageUrl: profileImageUrl,
             onLogoTap: onLogoTap,
             onProfileTap: onProfileTap,
-            onMeusAlunosTap: () => Navigator.of(context).pushNamed(Routes.professorMeusAlunos),
-            onRecursosTap: () => Navigator.of(context).pushNamed(Routes.professorMeusAlunos),
+            onMeusAlunosTap: () =>
+                Navigator.of(context).pushNamed(Routes.professorMeusAlunos),
+            onRecursosTap: () =>
+                Navigator.of(context).pushNamed(Routes.professorMeusAlunos),
           )
         : userRole == Role.student
-            ? _StudentHeaderWithCredits(
-                activeItem: effectiveAlunoItem,
-                displayName: displayName,
-                onLogoTap: onLogoTap,
-                onProfileTap: onProfileTap,
-              )
-            : HeaderSemLogin(
-                onRegisterTap: onRegisterTap,
-                onLoginTap: onLoginTap,
-                onLogoTap: onLogoTap,
-              );
+        ? _StudentHeaderWithCredits(
+            activeItem: effectiveAlunoItem,
+            displayName: displayName,
+            onLogoTap: onLogoTap,
+            onProfileTap: onProfileTap,
+          )
+        : HeaderSemLogin(
+            onRegisterTap: onRegisterTap,
+            onLoginTap: onLoginTap,
+            onLogoTap: onLogoTap,
+          );
   }
 }
 
@@ -131,7 +153,8 @@ class _StudentHeaderWithCredits extends StatefulWidget {
   final VoidCallback? onProfileTap;
 
   @override
-  State<_StudentHeaderWithCredits> createState() => _StudentHeaderWithCreditsState();
+  State<_StudentHeaderWithCredits> createState() =>
+      _StudentHeaderWithCreditsState();
 }
 
 class _StudentHeaderWithCreditsState extends State<_StudentHeaderWithCredits> {
@@ -189,8 +212,12 @@ class _StudentHeaderWithCreditsState extends State<_StudentHeaderWithCredits> {
 
   String? _formatCredits(double? balance, String? currency) {
     if (balance == null) return null;
-    final symbol = (currency ?? 'EUR').toUpperCase() == 'EUR' ? '€' : (currency ?? '').trim();
-    final fixed = balance.toStringAsFixed(balance.truncateToDouble() == balance ? 0 : 2).replaceAll('.', ',');
+    final symbol = (currency ?? 'EUR').toUpperCase() == 'EUR'
+        ? '€'
+        : (currency ?? '').trim();
+    final fixed = balance
+        .toStringAsFixed(balance.truncateToDouble() == balance ? 0 : 2)
+        .replaceAll('.', ',');
     return symbol.isEmpty ? fixed : '$fixed$symbol';
   }
 
@@ -200,7 +227,10 @@ class _StudentHeaderWithCreditsState extends State<_StudentHeaderWithCredits> {
     return HeaderAluno(
       activeItem: widget.activeItem,
       displayName: widget.displayName,
-      creditsText: _formatCredits(account?.creditsBalance, account?.creditsCurrency),
+      creditsText: _formatCredits(
+        account?.creditsBalance,
+        account?.creditsCurrency,
+      ),
       onLogoTap: widget.onLogoTap,
       onProfileTap: widget.onProfileTap,
     );

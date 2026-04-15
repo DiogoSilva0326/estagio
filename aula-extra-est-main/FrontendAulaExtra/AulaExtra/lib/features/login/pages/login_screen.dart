@@ -1,6 +1,7 @@
 import 'package:aula_extra/core/widgets/pinned_header_delegate.dart';
 import 'package:aula_extra/core/components/footer/sections/footer_section.dart';
 import 'package:aula_extra/core/components/header/app_header.dart';
+import 'package:aula_extra/features/login/pages/login_mobile_page.dart';
 import 'package:aula_extra/features/login/widgets/hero_panel.dart';
 import 'package:aula_extra/features/login/widgets/login_card.dart';
 import 'package:aula_extra/routes/routes.dart';
@@ -11,6 +12,12 @@ class LoginScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isMobile =
+        MediaQuery.sizeOf(context).width <= AppHeader.mobileBreakpoint;
+    if (isMobile) {
+      return const LoginMobilePage();
+    }
+
     return Scaffold(
       backgroundColor: Colors.white,
       body: CustomScrollView(
@@ -18,10 +25,14 @@ class LoginScreen extends StatelessWidget {
           SliverPersistentHeader(
             pinned: true,
             delegate: PinnedHeaderDelegate(
-              height: AppHeader.height,
+              height: AppHeader.resolvedHeight(context),
               child: AppHeader(
-                onRegisterTap: () => Navigator.pushReplacementNamed(context, Routes.registerStudent),
-                onLoginTap: () => Navigator.pushReplacementNamed(context, Routes.login),
+                onRegisterTap: () => Navigator.pushReplacementNamed(
+                  context,
+                  Routes.registerStudent,
+                ),
+                onLoginTap: () =>
+                    Navigator.pushReplacementNamed(context, Routes.login),
               ),
             ),
           ),
@@ -43,7 +54,11 @@ class LoginScreen extends StatelessWidget {
                           children: [
                             const SizedBox(width: 233),
                             LoginCard(
-                              onRegisterTap: () => Navigator.pushReplacementNamed(context, Routes.registerStudent),
+                              onRegisterTap: () =>
+                                  Navigator.pushReplacementNamed(
+                                    context,
+                                    Routes.registerStudent,
+                                  ),
                             ),
                             const SizedBox(width: 52),
                             const LoginHeroPanel(),

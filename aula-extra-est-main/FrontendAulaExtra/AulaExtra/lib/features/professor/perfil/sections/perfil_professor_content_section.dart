@@ -512,7 +512,9 @@ class _PerfilProfessorContentSectionState
     final uri = _buildCertificateDownloadUri(certificate.fileUrl);
     if (uri == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Este documento não tem ficheiro disponível.')),
+        const SnackBar(
+          content: Text('Este documento não tem ficheiro disponível.'),
+        ),
       );
       return;
     }
@@ -628,7 +630,9 @@ class _PerfilProfessorContentSectionState
                           onPressed: pickFile,
                           icon: const Icon(Icons.upload_file_outlined),
                           label: Text(
-                            initial == null ? 'Escolher ficheiro' : 'Substituir ficheiro',
+                            initial == null
+                                ? 'Escolher ficheiro'
+                                : 'Substituir ficheiro',
                           ),
                         ),
                         if (selectedFile != null)
@@ -658,7 +662,8 @@ class _PerfilProfessorContentSectionState
                 FilledButton(
                   onPressed: () {
                     final name = nameController.text.trim();
-                    final hasExistingFile = initial?.fileUrl?.trim().isNotEmpty == true;
+                    final hasExistingFile =
+                        initial?.fileUrl?.trim().isNotEmpty == true;
 
                     if (name.isEmpty) {
                       setDialogState(() {
@@ -675,9 +680,11 @@ class _PerfilProfessorContentSectionState
                     }
 
                     final bytes = selectedFile?.bytes;
-                    if (selectedFile != null && (bytes == null || bytes.isEmpty)) {
+                    if (selectedFile != null &&
+                        (bytes == null || bytes.isEmpty)) {
                       setDialogState(() {
-                        localError = 'Não foi possível ler o ficheiro selecionado.';
+                        localError =
+                            'Não foi possível ler o ficheiro selecionado.';
                       });
                       return;
                     }

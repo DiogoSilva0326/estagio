@@ -51,7 +51,10 @@ class RegisterHeroPanel extends StatelessWidget {
               ),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(57.701),
-                child: const AssetPicture(RegisterAssets.heroImage, fit: BoxFit.cover),
+                child: const AssetPicture(
+                  RegisterAssets.heroImage,
+                  fit: BoxFit.cover,
+                ),
               ),
             ),
           ),
@@ -63,7 +66,10 @@ class RegisterHeroPanel extends StatelessWidget {
               circleGradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
-                colors: [RegisterColors.gradientStart, RegisterColors.gradientEnd],
+                colors: [
+                  RegisterColors.gradientStart,
+                  RegisterColors.gradientEnd,
+                ],
               ),
               icon: Icon(Icons.groups_rounded, color: Colors.white, size: 22),
               value: '5000+',

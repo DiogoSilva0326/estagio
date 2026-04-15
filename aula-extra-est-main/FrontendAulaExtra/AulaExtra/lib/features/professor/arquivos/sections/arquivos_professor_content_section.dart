@@ -262,7 +262,7 @@ class _ArquivosProfessorContentSectionState
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const ProfessorMenuNav(
-                selectedIndex: 4,
+                selectedIndex: 3,
                 notificationCount: 2,
                 aulasEstaSemana: 8,
                 ganhosPendentes: '150€',

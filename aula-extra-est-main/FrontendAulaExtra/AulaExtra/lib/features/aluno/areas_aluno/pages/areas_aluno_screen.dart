@@ -16,12 +16,56 @@ class AreasAlunoScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final role = context.watch<UserProvider>().role;
     final isStudent = role == Role.student;
+    final isMobile =
+        MediaQuery.sizeOf(context).width <= AppHeader.mobileBreakpoint;
 
     if (!isStudent) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!context.mounted) return;
-        Navigator.of(context).pushNamedAndRemoveUntil(Routes.home, (route) => false);
+        Navigator.of(
+          context,
+        ).pushNamedAndRemoveUntil(Routes.home, (route) => false);
       });
+    }
+
+    if (isMobile) {
+      return Scaffold(
+        backgroundColor: const Color(0xFFF9F9F9),
+        body: Column(
+          children: [
+            AppHeader(
+              headerAlunoActiveItem: HeaderAlunoItem.recursos,
+              onRegisterTap: () =>
+                  Navigator.of(context).pushNamed(Routes.registerStudent),
+              onLoginTap: () => Navigator.of(context).pushNamed(Routes.login),
+              onLogoTap: () => Navigator.of(
+                context,
+              ).pushNamedAndRemoveUntil(Routes.home, (route) => false),
+            ),
+            const Expanded(
+              child: SingleChildScrollView(
+                child: Column(
+                  children: [
+                    ColoredBox(
+                      color: Color(0xFFF9F9F9),
+                      child: SizedBox(
+                        width: double.infinity,
+                        child: FullBleedScaledSection(
+                          child: AreasAlunoContentSection(),
+                        ),
+                      ),
+                    ),
+                    ColoredBox(
+                      color: Color(0xFFF9F9F9),
+                      child: FooterSection(),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
     }
 
     return Scaffold(
@@ -31,12 +75,15 @@ class AreasAlunoScreen extends StatelessWidget {
           SliverPersistentHeader(
             pinned: true,
             delegate: PinnedHeaderDelegate(
-              height: AppHeader.height,
+              height: AppHeader.resolvedHeight(context),
               child: AppHeader(
                 headerAlunoActiveItem: HeaderAlunoItem.recursos,
-                onRegisterTap: () => Navigator.of(context).pushNamed(Routes.registerStudent),
+                onRegisterTap: () =>
+                    Navigator.of(context).pushNamed(Routes.registerStudent),
                 onLoginTap: () => Navigator.of(context).pushNamed(Routes.login),
-                onLogoTap: () => Navigator.of(context).pushNamedAndRemoveUntil(Routes.home, (route) => false),
+                onLogoTap: () => Navigator.of(
+                  context,
+                ).pushNamedAndRemoveUntil(Routes.home, (route) => false),
               ),
             ),
           ),
@@ -47,13 +94,12 @@ class AreasAlunoScreen extends StatelessWidget {
                   color: Color(0xFFF9F9F9),
                   child: SizedBox(
                     width: double.infinity,
-                    child: FullBleedScaledSection(child: AreasAlunoContentSection()),
+                    child: FullBleedScaledSection(
+                      child: AreasAlunoContentSection(),
+                    ),
                   ),
                 ),
-                ColoredBox(
-                  color: Color(0xFFF9F9F9),
-                  child: FooterSection(),
-                ),
+                ColoredBox(color: Color(0xFFF9F9F9), child: FooterSection()),
               ],
             ),
           ),

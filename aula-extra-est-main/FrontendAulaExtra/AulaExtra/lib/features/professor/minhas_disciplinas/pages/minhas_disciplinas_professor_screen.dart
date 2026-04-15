@@ -30,7 +30,7 @@ class MinhasDisciplinasProfessorScreen extends StatelessWidget {
           SliverPersistentHeader(
             pinned: true,
             delegate: PinnedHeaderDelegate(
-              height: 90,
+              height: AppHeader.resolvedHeight(context),
               child: const AppHeader(),
             ),
           ),

@@ -2,8 +2,9 @@ import 'dart:convert';
 
 import 'package:aula_extra/core/data/communication/contacts_service.dart';
 import 'package:aula_extra/core/data/communication/dtos/contact_user_summary_dto.dart';
-import 'package:aula_extra/core/data/education/dtos/disciplina_dto.dart';
 import 'package:aula_extra/core/data/http/api_config.dart';
+import 'package:aula_extra/core/data/professor_ads/dtos/professor_ad_dto.dart';
+import 'package:aula_extra/core/data/professor_ads/professor_ads_service.dart';
 import 'package:aula_extra/core/data/professors/dtos/professor_aluno_dto.dart';
 import 'package:aula_extra/core/data/professors/professors_service.dart';
 import 'package:aula_extra/core/data/session/token_storage.dart';
@@ -38,16 +39,24 @@ class _StudentOption {
 
 class _SubjectOption {
   const _SubjectOption({
+    required this.professorAdId,
     required this.disciplinaId,
     required this.courseId,
     required this.title,
+    required this.tutoringTypeName,
+    required this.sessionPrice,
+    required this.statusLabel,
     this.subtitle,
     this.isAvailable = true,
   });
 
+  final String professorAdId;
   final String disciplinaId;
   final String courseId;
   final String title;
+  final String tutoringTypeName;
+  final double sessionPrice;
+  final String statusLabel;
   final String? subtitle;
   final bool isAvailable;
 }
@@ -55,16 +64,9 @@ class _SubjectOption {
 class _MarcarAulaDialogState extends State<MarcarAulaDialog> {
   final ContactsService _contactsService = ContactsService();
   final ProfessorsService _professorsService = ProfessorsService();
+  final ProfessorAdsService _professorAdsService = ProfessorAdsService();
 
-  static const _weekdays = [
-    'Seg',
-    'Ter',
-    'Qua',
-    'Qui',
-    'Sex',
-    'Sáb',
-    'Dom',
-  ];
+  static const _weekdays = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
   static const _months = [
     'Jan',
     'Fev',
@@ -129,23 +131,7 @@ class _MarcarAulaDialogState extends State<MarcarAulaDialog> {
       final professor = await _professorsService.getMyProfessor();
       final contacts = await _contactsService.getMyContacts();
       final meusAlunos = await _professorsService.fetchMeusAlunos();
-      final disciplinas = await _professorsService.getMyDisciplinas();
-      final coursesResponse = await http.get(
-        ApiConfig.uri('/api/Courses/courses'),
-        headers: {'Authorization': 'Bearer $token'},
-      );
-
-      if (coursesResponse.statusCode < 200 ||
-          coursesResponse.statusCode >= 300) {
-        throw Exception('Não foi possível carregar as disciplinas do professor.');
-      }
-
-      final decodedCourses = jsonDecode(coursesResponse.body);
-      final allCourses = decodedCourses is List
-          ? decodedCourses
-          : (decodedCourses['data'] ??
-                decodedCourses['items'] ??
-                const <dynamic>[]);
+      final adsData = await _professorAdsService.getMyData();
 
       final myProfessorId = professor?.idProfessor?.trim();
 
@@ -156,11 +142,7 @@ class _MarcarAulaDialogState extends State<MarcarAulaDialog> {
           contacts: contacts,
           meusAlunos: meusAlunos,
         );
-        _subjects = _buildSubjectOptions(
-          allCourses: allCourses,
-          disciplinas: disciplinas,
-          myProfessorId: myProfessorId,
-        );
+        _subjects = _buildSubjectOptions(ads: adsData.ads);
         _isLoading = false;
       });
     } catch (error) {
@@ -184,11 +166,13 @@ class _MarcarAulaDialogState extends State<MarcarAulaDialog> {
 
     final acceptedStatuses = <String>{'accepted', 'active', 'connected'};
 
-    final matchingContacts = contacts.where((contact) {
-      final username = contact.username?.trim().toLowerCase();
-      if (username == null || username.isEmpty) return false;
-      return studentsByUsername.containsKey(username);
-    }).toList(growable: false);
+    final matchingContacts = contacts
+        .where((contact) {
+          final username = contact.username?.trim().toLowerCase();
+          if (username == null || username.isEmpty) return false;
+          return studentsByUsername.containsKey(username);
+        })
+        .toList(growable: false);
 
     final source = matchingContacts.isNotEmpty ? matchingContacts : contacts;
 
@@ -230,79 +214,54 @@ class _MarcarAulaDialogState extends State<MarcarAulaDialog> {
   }
 
   List<_SubjectOption> _buildSubjectOptions({
-    required List<dynamic> allCourses,
-    required List<DisciplinaDto> disciplinas,
-    required String? myProfessorId,
+    required List<ProfessorAdDto> ads,
   }) {
-    final coursesByDisciplinaId = <String, List<Map<String, dynamic>>>{};
-    for (final dynamic rawCourse in allCourses) {
-      if (rawCourse is! Map) continue;
+    final options = ads
+        .map((ad) {
+          final normalizedStatus = ad.status.trim().toLowerCase();
+          final isAvailable =
+              ad.idCourse.trim().isNotEmpty &&
+              (normalizedStatus.isEmpty ||
+                  normalizedStatus == 'published' ||
+                  normalizedStatus == 'active');
+          final title = (ad.disciplinaNome ?? ad.courseName).trim().isEmpty
+              ? 'Explicação'
+              : (ad.disciplinaNome ?? ad.courseName).trim();
+          final tutoringTypeName = (ad.tutoringTypeName ?? '').trim().isEmpty
+              ? 'Modalidade'
+              : ad.tutoringTypeName!.trim();
+          final subtitleParts = <String>[
+            tutoringTypeName,
+            if ((ad.levelOfEducation ?? '').trim().isNotEmpty)
+              ad.levelOfEducation!.trim(),
+          ];
+          final price = ad.sessionPrice ?? 0;
 
-      final course = Map<String, dynamic>.from(rawCourse);
-      final professorId =
-          (course['idProfessor'] ??
-                  course['IdProfessor'] ??
-                  course['id_professor'] ??
-                  course['Id_Professor'])
-              ?.toString()
-              .trim();
-      if (myProfessorId != null &&
-          myProfessorId.isNotEmpty &&
-          professorId != myProfessorId) {
-        continue;
-      }
+          return _SubjectOption(
+            professorAdId: ad.idProfessorAd,
+            disciplinaId: ad.idDisciplina?.trim() ?? '',
+            courseId: ad.idCourse,
+            title: title,
+            tutoringTypeName: tutoringTypeName,
+            sessionPrice: price,
+            statusLabel: isAvailable ? _formatCurrency(price) : 'Indisponível',
+            subtitle: subtitleParts.join(' · '),
+            isAvailable: isAvailable,
+          );
+        })
+        .toList(growable: false);
 
-      final disciplinaId =
-          (course['idDisciplina'] ??
-                  course['IdDisciplina'] ??
-                  course['id_disciplina'])
-              ?.toString()
-              .trim();
-      if (disciplinaId == null || disciplinaId.isEmpty) continue;
-
-      (coursesByDisciplinaId[disciplinaId] ??= <Map<String, dynamic>>[])
-          .add(course);
-    }
-
-    final disciplinasOrdenadas = disciplinas
-      ..sort((left, right) =>
-          left.nome.trim().toLowerCase().compareTo(right.nome.trim().toLowerCase()));
-
-    return disciplinasOrdenadas.map((disciplina) {
-      final disciplinaId = disciplina.idDisciplina.trim();
-      final linkedCourses =
-          coursesByDisciplinaId[disciplinaId] ?? const <Map<String, dynamic>>[];
-      final firstCourse = linkedCourses.isEmpty ? null : linkedCourses.first;
-      final courseId =
-          (firstCourse?['idCourse'] ??
-                  firstCourse?['IdCourse'] ??
-                  firstCourse?['id_course'] ??
-                  firstCourse?['Id_Course'])
-              ?.toString()
-              .trim() ??
-          '';
-      final courseName = (firstCourse?['name'] ?? firstCourse?['Name'])
-          ?.toString()
-          .trim();
-
-      final subtitle = linkedCourses.isEmpty
-          ? 'Sem curso configurado para marcação'
-          : (courseName != null &&
-                courseName.isNotEmpty &&
-                courseName.toLowerCase() != disciplina.nome.trim().toLowerCase())
-          ? courseName
-          : linkedCourses.length > 1
-          ? '${linkedCourses.length} cursos associados'
-          : null;
-
-      return _SubjectOption(
-        disciplinaId: disciplinaId,
-        courseId: courseId,
-        title: disciplina.nome.trim().isEmpty ? 'Disciplina' : disciplina.nome.trim(),
-        subtitle: subtitle,
-        isAvailable: courseId.isNotEmpty,
+    options.sort((left, right) {
+      final titleCompare = left.title.toLowerCase().compareTo(
+        right.title.toLowerCase(),
       );
-    }).toList(growable: false);
+      if (titleCompare != 0) return titleCompare;
+      return left.tutoringTypeName.toLowerCase().compareTo(
+        right.tutoringTypeName.toLowerCase(),
+      );
+    });
+
+    return options;
   }
 
   TimeOfDay _addMinutes(TimeOfDay value, int minutesToAdd) {
@@ -403,6 +362,13 @@ class _MarcarAulaDialogState extends State<MarcarAulaDialog> {
     return '$hour:$minute';
   }
 
+  String _formatCurrency(double value) {
+    final text = value == value.roundToDouble()
+        ? value.toStringAsFixed(0)
+        : value.toStringAsFixed(2);
+    return '$text €';
+  }
+
   String _initials(String value) {
     final parts = value
         .trim()
@@ -445,7 +411,8 @@ class _MarcarAulaDialogState extends State<MarcarAulaDialog> {
         throw Exception('Sessão expirada');
       }
 
-      final lessonTitle = 'Explicação de ${_selectedSubject!.title}';
+      final lessonTitle =
+          'Explicação de ${_selectedSubject!.title} (${_selectedSubject!.tutoringTypeName})';
       final startStr = _startDateTime!.toIso8601String();
       final endStr = _endDateTime!.toIso8601String();
 
@@ -461,17 +428,24 @@ class _MarcarAulaDialogState extends State<MarcarAulaDialog> {
           'title': lessonTitle,
           'scheduledStart': startStr,
           'scheduledEnd': endStr,
-          'durationMinutes': _endDateTime!.difference(_startDateTime!).inMinutes,
-          'status': 'Pending',
+          'durationMinutes': _endDateTime!
+              .difference(_startDateTime!)
+              .inMinutes,
+          'basePrice': _selectedSubject!.sessionPrice,
+          'status': 'PendingPayment',
         }),
       );
 
       if (lessonResponse.statusCode < 200 || lessonResponse.statusCode >= 300) {
-        throw Exception('Não foi possível criar a aula (${lessonResponse.statusCode}).');
+        throw Exception(
+          'Não foi possível criar a aula (${lessonResponse.statusCode}).',
+        );
       }
 
-      final lessonData = jsonDecode(lessonResponse.body) as Map<String, dynamic>;
-      final lessonId = (lessonData['idLesson'] ?? lessonData['IdLesson'])?.toString();
+      final lessonData =
+          jsonDecode(lessonResponse.body) as Map<String, dynamic>;
+      final lessonId = (lessonData['idLesson'] ?? lessonData['IdLesson'])
+          ?.toString();
       if (lessonId == null || lessonId.isEmpty) {
         throw Exception('A resposta da criação da aula é inválida.');
       }
@@ -486,7 +460,7 @@ class _MarcarAulaDialogState extends State<MarcarAulaDialog> {
           'idEnrollment': '00000000-0000-0000-0000-000000000000',
           'idLesson': lessonId,
           'idUser': _selectedStudent!.userId,
-          'status': 'Pending',
+          'status': 'PendingPayment',
           'pricePaid': 0.0,
         }),
       );
@@ -500,14 +474,18 @@ class _MarcarAulaDialogState extends State<MarcarAulaDialog> {
             'Authorization': 'Bearer $token',
           },
         );
-        throw Exception('A aula foi criada, mas não foi possível associar o aluno.');
+        throw Exception(
+          'A aula foi criada, mas não foi possível associar o aluno.',
+        );
       }
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Pedido de aula enviado. Fica pendente até o aluno aceitar.'),
-          backgroundColor: Color(0xFFF59E0B),
+        SnackBar(
+          content: Text(
+            'Pedido enviado com ${_formatCurrency(_selectedSubject!.sessionPrice)}. Fica pendente até o aluno pagar e confirmar.',
+          ),
+          backgroundColor: const Color(0xFFF59E0B),
         ),
       );
       Navigator.of(context).pop(true);
@@ -548,21 +526,25 @@ class _MarcarAulaDialogState extends State<MarcarAulaDialog> {
                   switch (_step) {
                     _MarcarAulaStep.schedule => 'Criar Aula',
                     _MarcarAulaStep.student => 'Selecionar Aluno',
-                    _MarcarAulaStep.subject => 'Selecionar Disciplina',
+                    _MarcarAulaStep.subject => 'Selecionar Modalidade',
                     _MarcarAulaStep.summary => 'Resumo da Explicação',
                   },
-                  style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w700),
+                  style: const TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
                 const SizedBox(height: 6),
-                Text(
-                  switch (_step) {
-                    _MarcarAulaStep.schedule => 'Escolhe o dia e a hora da explicação.',
-                    _MarcarAulaStep.student => 'Seleciona o aluno que vai receber a aula.',
-                    _MarcarAulaStep.subject => 'Seleciona a disciplina associada.',
-                    _MarcarAulaStep.summary => 'Confirma antes de enviar ao aluno.',
-                  },
-                  style: TextStyle(color: _textMutedColor, fontSize: 14),
-                ),
+                Text(switch (_step) {
+                  _MarcarAulaStep.schedule =>
+                    'Escolhe o dia e a hora da explicação.',
+                  _MarcarAulaStep.student =>
+                    'Seleciona o aluno que vai receber a aula.',
+                  _MarcarAulaStep.subject =>
+                    'Escolhe o anúncio com modalidade e preço.',
+                  _MarcarAulaStep.summary =>
+                    'Confirma o resumo e o valor antes de enviar ao aluno.',
+                }, style: TextStyle(color: _textMutedColor, fontSize: 14)),
               ],
             ),
           ),
@@ -571,15 +553,15 @@ class _MarcarAulaDialogState extends State<MarcarAulaDialog> {
       content: SizedBox(
         width: 720,
         child: _isLoading
-            ? const SizedBox(height: 380, child: Center(child: CircularProgressIndicator()))
+            ? const SizedBox(
+                height: 380,
+                child: Center(child: CircularProgressIndicator()),
+              )
             : _loadingError != null
             ? SizedBox(
                 height: 380,
                 child: Center(
-                  child: Text(
-                    _loadingError!,
-                    textAlign: TextAlign.center,
-                  ),
+                  child: Text(_loadingError!, textAlign: TextAlign.center),
                 ),
               )
             : AnimatedSwitcher(
@@ -596,26 +578,41 @@ class _MarcarAulaDialogState extends State<MarcarAulaDialog> {
           ? const []
           : [
               TextButton(
-                onPressed: _isSubmitting ? null : () => Navigator.of(context).pop(false),
+                onPressed: _isSubmitting
+                    ? null
+                    : () => Navigator.of(context).pop(false),
                 child: const Text('Cancelar'),
               ),
               if (_step != _MarcarAulaStep.summary)
                 ElevatedButton(
                   onPressed: _canGoNext ? _goNext : null,
-                  style: ElevatedButton.styleFrom(backgroundColor: _primaryColor),
-                  child: const Text('Continuar', style: TextStyle(color: Colors.white)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _primaryColor,
+                  ),
+                  child: const Text(
+                    'Continuar',
+                    style: TextStyle(color: Colors.white),
+                  ),
                 )
               else
                 ElevatedButton(
                   onPressed: _isSubmitting ? null : _saveLesson,
-                  style: ElevatedButton.styleFrom(backgroundColor: _successColor),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _successColor,
+                  ),
                   child: _isSubmitting
                       ? const SizedBox(
                           width: 18,
                           height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
                         )
-                      : const Text('Enviar ao Aluno', style: TextStyle(color: Colors.white)),
+                      : const Text(
+                          'Enviar ao Aluno',
+                          style: TextStyle(color: Colors.white),
+                        ),
                 ),
             ],
     );
@@ -640,7 +637,9 @@ class _MarcarAulaDialogState extends State<MarcarAulaDialog> {
               child: _SelectorTile(
                 icon: Icons.event_outlined,
                 label: 'Data',
-                value: _selectedDate == null ? 'Selecionar data' : _formatDate(_selectedDate!),
+                value: _selectedDate == null
+                    ? 'Selecionar data'
+                    : _formatDate(_selectedDate!),
               ),
             ),
             const SizedBox(height: 16),
@@ -653,7 +652,9 @@ class _MarcarAulaDialogState extends State<MarcarAulaDialog> {
                     child: _SelectorTile(
                       icon: Icons.schedule_rounded,
                       label: 'Início',
-                      value: _startTime == null ? '--:--' : _formatTime(_startTime!),
+                      value: _startTime == null
+                          ? '--:--'
+                          : _formatTime(_startTime!),
                     ),
                   ),
                 ),
@@ -665,7 +666,9 @@ class _MarcarAulaDialogState extends State<MarcarAulaDialog> {
                     child: _SelectorTile(
                       icon: Icons.schedule_rounded,
                       label: 'Fim',
-                      value: _endTime == null ? '--:--' : _formatTime(_endTime!),
+                      value: _endTime == null
+                          ? '--:--'
+                          : _formatTime(_endTime!),
                     ),
                   ),
                 ),
@@ -677,9 +680,12 @@ class _MarcarAulaDialogState extends State<MarcarAulaDialog> {
               child: Text(
                 _startTime != null && _endTime != null && !_isScheduleValid
                     ? 'A hora de fim tem de ser depois da hora de início.'
-                    : 'A aula vai ser criada como pendente até o aluno aceitar.',
+                    : 'A aula vai ser criada como pendente até o aluno pagar e confirmar.',
                 style: TextStyle(
-                  color: _startTime != null && _endTime != null && !_isScheduleValid
+                  color:
+                      _startTime != null &&
+                          _endTime != null &&
+                          !_isScheduleValid
                       ? const Color(0xFFFB2C36)
                       : _textMutedColor,
                   fontSize: 13,
@@ -714,7 +720,8 @@ class _MarcarAulaDialogState extends State<MarcarAulaDialog> {
               )
             : ListView.separated(
                 itemCount: _students.length,
-                separatorBuilder: (context, index) => const SizedBox(height: 12),
+                separatorBuilder: (context, index) =>
+                    const SizedBox(height: 12),
                 itemBuilder: (context, index) {
                   final student = _students[index];
                   final isSelected = _selectedStudent?.userId == student.userId;
@@ -746,21 +753,25 @@ class _MarcarAulaDialogState extends State<MarcarAulaDialog> {
         child: _subjects.isEmpty
             ? Center(
                 child: Text(
-                  'Não foram encontradas disciplinas associadas ao professor.',
+                  'Não foram encontrados anúncios publicados para marcar aulas.',
                   textAlign: TextAlign.center,
                   style: TextStyle(color: _textMutedColor),
                 ),
               )
             : ListView.separated(
                 itemCount: _subjects.length,
-                separatorBuilder: (context, index) => const SizedBox(height: 12),
+                separatorBuilder: (context, index) =>
+                    const SizedBox(height: 12),
                 itemBuilder: (context, index) {
                   final subject = _subjects[index];
-                  final isSelected = _selectedSubject?.courseId == subject.courseId;
+                  final isSelected =
+                      _selectedSubject?.professorAdId == subject.professorAdId;
                   return _SelectableTile(
                     title: subject.title,
-                    subtitle: subject.subtitle ?? 'Disciplina disponível para marcação',
-                    badge: subject.isAvailable ? 'Disponível' : 'Indisponível',
+                    subtitle:
+                        subject.subtitle ??
+                        'Modalidade disponível para marcação',
+                    badge: subject.statusLabel,
                     initials: 'D',
                     selected: isSelected,
                     enabled: subject.isAvailable,
@@ -789,7 +800,9 @@ class _MarcarAulaDialogState extends State<MarcarAulaDialog> {
             _SummaryRow(
               icon: Icons.event_available_rounded,
               label: 'Data',
-              value: _startDateTime == null ? '-' : _formatDate(_startDateTime!),
+              value: _startDateTime == null
+                  ? '-'
+                  : _formatDate(_startDateTime!),
             ),
             const SizedBox(height: 14),
             _SummaryRow(
@@ -811,6 +824,20 @@ class _MarcarAulaDialogState extends State<MarcarAulaDialog> {
               label: 'Disciplina',
               value: _selectedSubject?.title ?? '-',
             ),
+            const SizedBox(height: 14),
+            _SummaryRow(
+              icon: Icons.video_camera_front_outlined,
+              label: 'Modalidade',
+              value: _selectedSubject?.tutoringTypeName ?? '-',
+            ),
+            const SizedBox(height: 14),
+            _SummaryRow(
+              icon: Icons.payments_outlined,
+              label: 'Preço',
+              value: _selectedSubject == null
+                  ? '-'
+                  : _formatCurrency(_selectedSubject!.sessionPrice),
+            ),
             const Spacer(),
             Container(
               width: double.infinity,
@@ -821,7 +848,7 @@ class _MarcarAulaDialogState extends State<MarcarAulaDialog> {
                 border: Border.all(color: const Color(0xFFF59E0B)),
               ),
               child: const Text(
-                'Depois de enviares, a aula fica pendente até o aluno aceitar. Quando aceitar, aparece confirmada nos calendários dos dois.',
+                'Depois de enviares, o aluno recebe o resumo com o preço. A aula só fica confirmada nos calendários quando o aluno pagar e confirmar.',
                 style: TextStyle(
                   color: Color(0xFFB45309),
                   fontSize: 14,
@@ -875,7 +902,10 @@ class _SelectorTile extends StatelessWidget {
               Expanded(
                 child: Text(
                   value,
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
             ],
@@ -953,13 +983,18 @@ class _SelectableTile extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w700,
-                      color: enabled ? const Color(0xFF101828) : const Color(0xFF9CA3AF),
+                      color: enabled
+                          ? const Color(0xFF101828)
+                          : const Color(0xFF9CA3AF),
                     ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     subtitle,
-                    style: const TextStyle(color: Color(0xFF64748B), fontSize: 13),
+                    style: const TextStyle(
+                      color: Color(0xFF64748B),
+                      fontSize: 13,
+                    ),
                   ),
                 ],
               ),

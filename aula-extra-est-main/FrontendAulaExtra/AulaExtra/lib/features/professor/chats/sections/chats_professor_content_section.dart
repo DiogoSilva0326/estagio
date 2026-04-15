@@ -974,7 +974,7 @@ class _ChatsProfessorContentSectionState
               Padding(
                 padding: const EdgeInsets.only(top: 28.864),
                 child: const ProfessorMenuNav(
-                  selectedIndex: 5,
+                  selectedIndex: 4,
                   notificationCount: 2,
                   aulasEstaSemana: 8,
                   ganhosPendentes: '150€',

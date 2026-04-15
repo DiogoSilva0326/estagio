@@ -50,5 +50,6 @@ namespace ConfidantPostgreSQL.Modules.Professors.Service
         Task<int> RemoveLanguageForProfessorAsync(Guid idProfessor, Guid idLanguage);
 
         Task<ProfessorStats> GetProfessorStatsAsync(Guid idProfessor);
+        Task<ProfessorGlobalRatingSummary> GetGlobalRatingSummaryAsync();
     }
 }

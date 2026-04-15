@@ -32,6 +32,10 @@ CREATE TABLE IF NOT EXISTS professor_feedback (
 CREATE UNIQUE INDEX IF NOT EXISTS ux_professor_feedback_professor_user
   ON public.professor_feedback (id_professor, id_user);
 
+CREATE INDEX IF NOT EXISTS ix_professor_feedback_valid_rating
+  ON public.professor_feedback (rating)
+  WHERE is_valid = TRUE AND rating IS NOT NULL;
+
 CREATE TABLE IF NOT EXISTS certificates (
   id_certificate UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   id_professor UUID NOT NULL REFERENCES professors(id_professor),

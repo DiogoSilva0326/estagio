@@ -73,5 +73,8 @@ namespace ConfidantPostgreSQL.Modules.Professors.Service
 
         public Task<ProfessorStats> GetProfessorStatsAsync(Guid idProfessor) =>
             _repo.GetProfessorStatsAsync(idProfessor);
+
+        public Task<ProfessorGlobalRatingSummary> GetGlobalRatingSummaryAsync() =>
+            _repo.GetGlobalRatingSummaryAsync();
     }
 }

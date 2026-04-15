@@ -1,11 +1,7 @@
 import 'package:flutter/material.dart';
 
 class DisciplinaBadge extends StatelessWidget {
-  const DisciplinaBadge({
-    super.key,
-    required this.label,
-    required this.color,
-  });
+  const DisciplinaBadge({super.key, required this.label, required this.color});
 
   final String label;
   final Color color;

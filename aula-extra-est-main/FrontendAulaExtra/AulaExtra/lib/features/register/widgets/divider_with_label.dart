@@ -14,10 +14,7 @@ class RegisterDividerWithLabel extends StatelessWidget {
             left: 0,
             right: 0,
             top: 7.94,
-            child: Container(
-              height: 0.836,
-              color: RegisterColors.stroke,
-            ),
+            child: Container(height: 0.836, color: RegisterColors.stroke),
           ),
           Align(
             alignment: Alignment.center,

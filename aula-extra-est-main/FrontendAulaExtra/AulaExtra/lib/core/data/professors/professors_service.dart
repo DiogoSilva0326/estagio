@@ -3,6 +3,7 @@ import 'package:aula_extra/core/data/education/dtos/disciplina_dto.dart';
 import 'package:aula_extra/core/data/professors/dtos/public_professor_profile_dto.dart';
 import 'package:aula_extra/core/data/professors/dtos/professor_certificate_dto.dart';
 import 'package:aula_extra/core/data/professors/dtos/professor_evaluations_overview_dto.dart';
+import 'package:aula_extra/core/data/professors/dtos/global_professor_rating_summary_dto.dart';
 import 'package:aula_extra/core/data/professors/dtos/professor_language_dto.dart';
 import 'package:aula_extra/core/data/professors/professors_api.dart';
 import 'package:aula_extra/core/data/professors/dtos/professor_aluno_dto.dart';
@@ -220,6 +221,10 @@ class ProfessorsService {
     }
 
     return _api.getMyStats(token: existingToken);
+  }
+
+  Future<GlobalProfessorRatingSummaryDto> getGlobalRatingSummary() {
+    return _api.getGlobalRatingSummary();
   }
 
   Future<ProfessorEvaluationsOverviewDto> getMyEvaluations() async {

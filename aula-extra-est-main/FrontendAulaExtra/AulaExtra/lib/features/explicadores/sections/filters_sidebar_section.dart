@@ -4,31 +4,35 @@ class FiltersSidebarSection extends StatelessWidget {
   const FiltersSidebarSection({
     super.key,
     required this.maxPrice,
+    required this.priceController,
+    required this.onPriceTextChanged,
     required this.onMaxPriceChanged,
     required this.levelOptions,
     required this.selectedLevelId,
     required this.onLevelChanged,
     required this.availability,
     required this.onAvailabilityChanged,
-    required this.specializationOptions,
-    required this.selectedSpecializationId,
-    required this.onSpecializationChanged,
+    required this.disciplinaOptions,
+    required this.selectedDisciplinaId,
+    required this.onDisciplinaChanged,
     required this.minRating,
     required this.onMinRatingChanged,
     required this.onClear,
     required this.onApply,
   });
 
-  final double maxPrice;
+  final double? maxPrice;
+  final TextEditingController priceController;
+  final ValueChanged<String> onPriceTextChanged;
   final ValueChanged<double> onMaxPriceChanged;
   final List<FilterOption> levelOptions;
   final String? selectedLevelId;
   final ValueChanged<String?> onLevelChanged;
   final Set<AvailabilityOption> availability;
   final ValueChanged<Set<AvailabilityOption>> onAvailabilityChanged;
-  final List<FilterOption> specializationOptions;
-  final String? selectedSpecializationId;
-  final ValueChanged<String?> onSpecializationChanged;
+  final List<FilterOption> disciplinaOptions;
+  final String? selectedDisciplinaId;
+  final ValueChanged<String?> onDisciplinaChanged;
   final double? minRating;
   final ValueChanged<double?> onMinRatingChanged;
   final VoidCallback onClear;
@@ -99,29 +103,42 @@ class FiltersSidebarSection extends StatelessWidget {
             children: [
               const SizedBox(width: 10.851),
               Container(
-                width: 47,
+                width: 110,
                 height: 38,
-                padding: const EdgeInsets.symmetric(horizontal: 8.889, vertical: 4.445),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 8.889,
+                  vertical: 4.445,
+                ),
                 decoration: BoxDecoration(
-                  border: Border.all(color: const Color(0xFFD1D5DC), width: 1.111),
+                  border: Border.all(
+                    color: const Color(0xFFD1D5DC),
+                    width: 1.111,
+                  ),
                   borderRadius: BorderRadius.circular(4.445),
                 ),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    '${maxPrice.round()}€',
-                    style: const TextStyle(
-                      fontSize: 17.779,
-                      height: 26.668 / 17.779,
-                      color: Color(0xFF0A0A0A),
-                    ),
+                child: TextField(
+                  controller: priceController,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  onChanged: onPriceTextChanged,
+                  decoration: const InputDecoration(
+                    isDense: true,
+                    border: InputBorder.none,
+                    hintText: 'Sem limite',
+                    suffixText: '€',
+                  ),
+                  style: const TextStyle(
+                    fontSize: 17.779,
+                    height: 26.668 / 17.779,
+                    color: Color(0xFF0A0A0A),
                   ),
                 ),
               ),
             ],
           ),
           const SizedBox(height: 13.334),
-          _PriceSlider(value: maxPrice, onChanged: onMaxPriceChanged),
+          _PriceSlider(value: maxPrice ?? 80, onChanged: onMaxPriceChanged),
           const SizedBox(height: 26.668),
           const _Divider(),
           const SizedBox(height: 13.334),
@@ -137,29 +154,20 @@ class FiltersSidebarSection extends StatelessWidget {
           const SizedBox(height: 13.334),
           const _Title('Disponibilidade'),
           const SizedBox(height: 13.334),
-          _AvailabilityList(value: availability, onChanged: onAvailabilityChanged),
-          const SizedBox(height: 26.668),
-          const _Divider(),
-          const SizedBox(height: 13.334),
-          const _Title('País de Origem'),
-          const SizedBox(height: 13.334),
-          Container(
-            height: 43.336,
-            width: double.infinity,
-            decoration: BoxDecoration(
-              border: Border.all(color: const Color(0xFFD1D5DC), width: 1.111),
-              borderRadius: BorderRadius.circular(11.112),
-            ),
+          _AvailabilityList(
+            value: availability,
+            onChanged: onAvailabilityChanged,
           ),
           const SizedBox(height: 26.668),
           const _Divider(),
           const SizedBox(height: 13.334),
-          const _Title('Especializações'),
+          const _Title('Disciplina'),
           const SizedBox(height: 13.334),
           _SingleSelectOptionList(
-            options: specializationOptions,
-            selectedId: selectedSpecializationId,
-            onChanged: onSpecializationChanged,
+            options: disciplinaOptions,
+            selectedId: selectedDisciplinaId,
+            onChanged: onDisciplinaChanged,
+            maxHeight: 220,
           ),
           const SizedBox(height: 26.668),
           const _Title('Avaliação Mínima'),
@@ -213,7 +221,11 @@ class _Divider extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(height: 1.111, width: double.infinity, color: const Color(0xFFE5E7EB));
+    return Container(
+      height: 1.111,
+      width: double.infinity,
+      color: const Color(0xFFE5E7EB),
+    );
   }
 }
 
@@ -269,23 +281,37 @@ class _SingleSelectOptionList extends StatelessWidget {
     required this.options,
     required this.selectedId,
     required this.onChanged,
+    this.maxHeight,
   });
 
   final List<FilterOption> options;
   final String? selectedId;
   final ValueChanged<String?> onChanged;
+  final double? maxHeight;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: options.map((o) {
-        final selected = o.id == selectedId;
-        return _SelectableRow(
-          label: o.label,
-          selected: selected,
-          onTap: () => onChanged(selected ? null : o.id),
-        );
-      }).toList(growable: false),
+    final content = Column(
+      children: options
+          .map((o) {
+            final selected = o.id == selectedId;
+            return _SelectableRow(
+              label: o.label,
+              selected: selected,
+              onTap: () => onChanged(selected ? null : o.id),
+            );
+          })
+          .toList(growable: false),
+    );
+
+    if (maxHeight == null) return content;
+
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxHeight: maxHeight!),
+      child: Scrollbar(
+        thumbVisibility: true,
+        child: SingleChildScrollView(child: content),
+      ),
     );
   }
 }
@@ -442,7 +468,10 @@ class _Dot extends StatelessWidget {
           height: 13.334,
           decoration: BoxDecoration(
             color: selected ? const Color(0xFFFC9039) : const Color(0xFF8F8F8F),
-            border: Border.all(color: const Color(0xFF8F8F8F), width: selected ? 0.87 : 0),
+            border: Border.all(
+              color: const Color(0xFF8F8F8F),
+              width: selected ? 0.87 : 0,
+            ),
             borderRadius: BorderRadius.circular(18642298),
           ),
         ),

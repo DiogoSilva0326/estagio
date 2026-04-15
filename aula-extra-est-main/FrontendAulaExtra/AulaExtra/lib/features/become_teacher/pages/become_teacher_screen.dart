@@ -47,10 +47,14 @@ class _BecomeTeacherScreenState extends State<BecomeTeacherScreen> {
           SliverPersistentHeader(
             pinned: true,
             delegate: PinnedHeaderDelegate(
-              height: AppHeader.height,
+              height: AppHeader.resolvedHeight(context),
               child: AppHeader(
-                onRegisterTap: () => Navigator.pushReplacementNamed(context, Routes.registerStudent),
-                onLoginTap: () => Navigator.pushReplacementNamed(context, Routes.login),
+                onRegisterTap: () => Navigator.pushReplacementNamed(
+                  context,
+                  Routes.registerStudent,
+                ),
+                onLoginTap: () =>
+                    Navigator.pushReplacementNamed(context, Routes.login),
               ),
             ),
           ),
@@ -60,7 +64,9 @@ class _BecomeTeacherScreenState extends State<BecomeTeacherScreen> {
                 const SizedBox(height: BecomeTeacherLayout.topSpacerHeight),
                 Center(
                   child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: BecomeTeacherLayout.maxContentWidth),
+                    constraints: const BoxConstraints(
+                      maxWidth: BecomeTeacherLayout.maxContentWidth,
+                    ),
                     child: FittedBox(
                       fit: BoxFit.scaleDown,
                       alignment: Alignment.topCenter,
@@ -69,11 +75,18 @@ class _BecomeTeacherScreenState extends State<BecomeTeacherScreen> {
                         child: Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const SizedBox(width: BecomeTeacherLayout.leftSpacerWidth),
-                            BecomeTeacherCard(
-                              onLoginTap: () => Navigator.pushReplacementNamed(context, Routes.login),
+                            const SizedBox(
+                              width: BecomeTeacherLayout.leftSpacerWidth,
                             ),
-                            const SizedBox(width: BecomeTeacherLayout.cardHeroGap),
+                            BecomeTeacherCard(
+                              onLoginTap: () => Navigator.pushReplacementNamed(
+                                context,
+                                Routes.login,
+                              ),
+                            ),
+                            const SizedBox(
+                              width: BecomeTeacherLayout.cardHeroGap,
+                            ),
                             const RegisterHeroPanelOffset(),
                           ],
                         ),
