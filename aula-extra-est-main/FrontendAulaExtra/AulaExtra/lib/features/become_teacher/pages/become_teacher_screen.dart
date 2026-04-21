@@ -1,7 +1,8 @@
 import 'package:aula_extra/core/components/footer/sections/footer_section.dart';
 import 'package:aula_extra/core/components/header/app_header.dart';
 import 'package:aula_extra/core/widgets/pinned_header_delegate.dart';
-import 'package:aula_extra/features/become_teacher/constants/become_teacher_constants.dart';
+import 'package:aula_extra/features/become_teacher/assets/become_teacher_assets.dart';
+import 'package:aula_extra/features/become_teacher/pages/become_teacher_mobile_page.dart';
 import 'package:aula_extra/features/become_teacher/widgets/become_teacher_card.dart';
 import 'package:aula_extra/features/register/widgets/hero_panel_offset.dart';
 import 'package:aula_extra/core/providers/user_provider.dart';
@@ -38,6 +39,12 @@ class _BecomeTeacherScreenState extends State<BecomeTeacherScreen> {
   Widget build(BuildContext context) {
     if (_redirected) {
       return const Scaffold(body: SizedBox.shrink());
+    }
+
+    final isMobile =
+        MediaQuery.sizeOf(context).width <= AppHeader.mobileBreakpoint;
+    if (isMobile) {
+      return const BecomeTeacherMobilePage();
     }
 
     return Scaffold(

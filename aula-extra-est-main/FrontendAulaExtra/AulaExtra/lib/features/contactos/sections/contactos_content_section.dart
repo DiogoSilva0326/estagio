@@ -1,7 +1,9 @@
 import 'package:aula_extra/core/data/contact_form/contact_form_api.dart';
 import 'package:aula_extra/core/data/contact_form/contact_form_service.dart';
 import 'package:aula_extra/core/data/contact_form/dtos/contact_form_category_dto.dart';
+import 'package:aula_extra/core/components/header/app_header.dart';
 import 'package:aula_extra/core/providers/user_provider.dart';
+import 'package:aula_extra/features/contactos/sections/contactos_mobile_content_section.dart';
 import 'package:aula_extra/features/contactos/widgets/contact_form_panel.dart';
 import 'package:aula_extra/features/contactos/widgets/contact_info_panel.dart';
 import 'package:flutter/material.dart';
@@ -156,6 +158,31 @@ class _ContactosContentSectionState extends State<ContactosContentSection> {
 
   @override
   Widget build(BuildContext context) {
+    final isMobile =
+        MediaQuery.sizeOf(context).width <= AppHeader.mobileBreakpoint;
+
+    if (isMobile) {
+      return ContactosMobileContentSection(
+        formKey: _formKey,
+        nameController: _nameController,
+        emailController: _emailController,
+        messageController: _messageController,
+        categories: _categories,
+        selectedCategoryId: _selectedCategoryId,
+        isLoadingCategories: _isLoadingCategories,
+        isSubmitting: _isSubmitting,
+        errorMessage: _errorMessage,
+        onCategoryChanged: (value) {
+          setState(() {
+            _selectedCategoryId = value;
+          });
+        },
+        onSubmit: _submit,
+        validateRequired: _validateRequired,
+        validateEmail: _validateEmail,
+      );
+    }
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(37.37, 84.39, 37.37, 53.0),
       child: SizedBox(

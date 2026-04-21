@@ -1,22 +1,31 @@
 import 'package:aula_extra/core/data/communication/chat_files_service.dart';
 import 'package:aula_extra/core/data/communication/dtos/chat_file_info_dto.dart';
+import 'package:aula_extra/core/components/header/app_header.dart';
 import 'package:aula_extra/core/data/users/users_service.dart';
 import 'package:aula_extra/core/providers/user_provider.dart';
+import 'package:aula_extra/features/aluno/arquivos/widgets/arquivos_mobile_intro.dart';
 import 'package:aula_extra/features/professor/core/widgets/professor_menu_nav.dart';
 import 'package:aula_extra/features/professor/arquivos/constants/arquivos_professor_colors.dart';
 import 'package:aula_extra/features/professor/arquivos/constants/arquivos_professor_font_sizes.dart';
 import 'package:aula_extra/features/professor/arquivos/widgets/arquivo_row.dart';
+import 'package:aula_extra/features/professor/arquivos/widgets/arquivos_professor_mobile_file_card.dart';
+import 'package:aula_extra/features/professor/arquivos/widgets/arquivos_professor_mobile_folder_card.dart';
+import 'package:aula_extra/features/professor/arquivos/widgets/arquivos_professor_mobile_search_upload.dart';
+import 'package:aula_extra/features/professor/arquivos/widgets/arquivos_professor_mobile_stats_card.dart';
 import 'package:aula_extra/features/professor/arquivos/widgets/arquivos_professor_search_field.dart';
 import 'package:aula_extra/features/professor/arquivos/widgets/arquivos_professor_upload_button.dart';
 import 'package:aula_extra/features/professor/arquivos/widgets/full_bleed_scaled_section.dart';
 import 'package:aula_extra/features/professor/arquivos/widgets/pasta_tile.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class ArquivosProfessorContentSection extends StatefulWidget {
-  const ArquivosProfessorContentSection({super.key});
+  const ArquivosProfessorContentSection({super.key, this.isMobile = false});
+
+  final bool isMobile;
 
   @override
   State<ArquivosProfessorContentSection> createState() =>
@@ -145,6 +154,14 @@ class _ArquivosProfessorContentSectionState
     }
   }
 
+  Future<void> _shareFile(ChatFileInfoDto file) async {
+    await Clipboard.setData(ClipboardData(text: file.downloadUrl));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Link de ${file.fileName} copiado.')),
+    );
+  }
+
   Future<void> _deleteFile(ChatFileInfoDto file) async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -215,6 +232,28 @@ class _ArquivosProfessorContentSectionState
         .toList(growable: false);
   }
 
+  List<_MobileFolderSummary> get _mobileFolders {
+    const palette = <_MobileFolderPalette>[
+      _MobileFolderPalette(color: Color(0xFF2B7FFF)),
+      _MobileFolderPalette(color: Color(0xFF00C950)),
+      _MobileFolderPalette(color: Color(0xFFFF6900)),
+      _MobileFolderPalette(color: Color(0xFF7A5AF8)),
+    ];
+
+    return _folders
+        .asMap()
+        .entries
+        .map((entry) {
+          final paletteEntry = palette[entry.key % palette.length];
+          return _MobileFolderSummary(
+            name: entry.value.name,
+            countLabel: '${entry.value.count} arquivos',
+            color: paletteEntry.color,
+          );
+        })
+        .toList(growable: false);
+  }
+
   String _guessContentType(String fileName) {
     final extension = fileName.split('.').last.toLowerCase();
     switch (extension) {
@@ -248,6 +287,14 @@ class _ArquivosProfessorContentSectionState
 
   @override
   Widget build(BuildContext context) {
+    final isMobile =
+        widget.isMobile ||
+        MediaQuery.sizeOf(context).width <= AppHeader.mobileBreakpoint;
+
+    if (isMobile) {
+      return _buildMobileContent();
+    }
+
     return Container(
       color: ArquivosProfessorColors.background,
       child: FullBleedScaledSection(
@@ -497,6 +544,135 @@ class _ArquivosProfessorContentSectionState
       ),
     );
   }
+
+  Widget _buildMobileContent() {
+    final recentFiles = _filteredFiles.take(3).toList(growable: false);
+
+    return Container(
+      width: double.infinity,
+      color: const Color(0xFFF9FAFB),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const ArquivosMobileIntro(
+            title: 'Arquivos',
+            subtitle: 'Gerencie seus documentos e materiais de estudo',
+          ),
+          const SizedBox(height: 16),
+          ArquivosProfessorMobileSearchUpload(
+            onChanged: (value) => setState(() => _query = value),
+            onUpload: _handleUpload,
+            isUploading: _isUploading,
+          ),
+          if (_errorMessage != null) ...[
+            const SizedBox(height: 12),
+            Text(
+              _errorMessage!,
+              style: const TextStyle(color: Colors.redAccent),
+            ),
+          ],
+          const SizedBox(height: 24),
+          const Text(
+            'Pastas',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w500,
+              color: Color(0xFF101828),
+              height: 28 / 18,
+            ),
+          ),
+          const SizedBox(height: 16),
+          if (_mobileFolders.isEmpty)
+            _buildEmptyMobileCard('Ainda não existem pastas disponíveis.')
+          else
+            Column(
+              children: [
+                for (var index = 0; index < _mobileFolders.length; index++) ...[
+                  ArquivosProfessorMobileFolderCard(
+                    color: _mobileFolders[index].color,
+                    title: _mobileFolders[index].name,
+                    subtitle: _mobileFolders[index].countLabel,
+                    onTap: () =>
+                        setState(() => _query = _mobileFolders[index].name),
+                  ),
+                  if (index != _mobileFolders.length - 1)
+                    const SizedBox(height: 12),
+                ],
+              ],
+            ),
+          const SizedBox(height: 24),
+          const Text(
+            'Arquivos Recentes',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w500,
+              color: Color(0xFF101828),
+              height: 28 / 18,
+            ),
+          ),
+          const SizedBox(height: 16),
+          if (_isLoading)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 48),
+              child: Center(child: CircularProgressIndicator()),
+            )
+          else if (recentFiles.isEmpty)
+            _buildEmptyMobileCard('Nenhum ficheiro encontrado.')
+          else
+            Column(
+              children: [
+                for (var index = 0; index < recentFiles.length; index++) ...[
+                  ArquivosProfessorMobileFileCard(
+                    fileName: recentFiles[index].fileName,
+                    fileTypeLabel: _mobileFileTypeLabel(recentFiles[index]),
+                    ownerLabel: recentFiles[index].uploadedByDisplayName,
+                    dateLabel: _mobileDateLabel(recentFiles[index].createdAt),
+                    sizeLabel: _formatFileSize(
+                      recentFiles[index].fileSizeBytes,
+                    ),
+                    onDeleteTap: () => _deleteFile(recentFiles[index]),
+                    onShareTap: () => _shareFile(recentFiles[index]),
+                    onDownloadTap: () => _openFile(recentFiles[index]),
+                  ),
+                  if (index != recentFiles.length - 1)
+                    const SizedBox(height: 12),
+                ],
+              ],
+            ),
+          const SizedBox(height: 16),
+          ArquivosProfessorMobileStatsCard(
+            firstLabel: 'Arquivos totais:',
+            firstValue: _files.length.toString(),
+            secondLabel: 'Ficheiros PDF:',
+            secondValue: _pdfFileCount.toString(),
+            thirdLabel: 'Armazenamento:',
+            thirdValue: _formatStorageTotal(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyMobileCard(String message) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: ArquivosProfessorColors.cardBorder),
+      ),
+      child: Text(
+        message,
+        style: const TextStyle(
+          fontSize: 14,
+          height: 20 / 14,
+          color: ArquivosProfessorColors.textSecondary,
+        ),
+      ),
+    );
+  }
 }
 
 class _FolderSummary {
@@ -506,6 +682,24 @@ class _FolderSummary {
   final int count;
 }
 
+class _MobileFolderPalette {
+  const _MobileFolderPalette({required this.color});
+
+  final Color color;
+}
+
+class _MobileFolderSummary {
+  const _MobileFolderSummary({
+    required this.name,
+    required this.countLabel,
+    required this.color,
+  });
+
+  final String name;
+  final String countLabel;
+  final Color color;
+}
+
 Color _fileBackground(String contentType) {
   final normalized = contentType.toLowerCase();
   if (normalized.contains('pdf')) return ArquivosProfessorColors.fileTypeRedBg;
@@ -513,16 +707,19 @@ Color _fileBackground(String contentType) {
       normalized.contains('powerpoint')) {
     return ArquivosProfessorColors.fileTypeOrangeBg;
   }
-  if (normalized.contains('image'))
+  if (normalized.contains('image')) {
     return ArquivosProfessorColors.fileTypeGreenBg;
+  }
   return ArquivosProfessorColors.fileTypeBlueBg;
 }
 
 IconData _fileIcon(String contentType) {
   final normalized = contentType.toLowerCase();
   if (normalized.contains('pdf')) return Icons.picture_as_pdf_rounded;
-  if (normalized.contains('presentation') || normalized.contains('powerpoint'))
+  if (normalized.contains('presentation') ||
+      normalized.contains('powerpoint')) {
     return Icons.slideshow_rounded;
+  }
   if (normalized.contains('image')) return Icons.image_rounded;
   if (normalized.contains('audio')) return Icons.audio_file_rounded;
   if (normalized.contains('video')) return Icons.video_file_rounded;
@@ -540,6 +737,52 @@ String _formatFileSize(int bytes) {
   }
   final decimals = size >= 10 || unitIndex == 0 ? 0 : 1;
   return '${size.toStringAsFixed(decimals)} ${units[unitIndex]}';
+}
+
+String _formatStorageTotalFromFiles(List<ChatFileInfoDto> files) {
+  final totalBytes = files.fold<int>(
+    0,
+    (sum, file) => sum + file.fileSizeBytes,
+  );
+  if (totalBytes <= 0) return '0 B';
+  return _formatFileSize(totalBytes);
+}
+
+extension on _ArquivosProfessorContentSectionState {
+  int get _pdfFileCount =>
+      _files.where((file) => _mobileFileTypeLabel(file) == 'PDF').length;
+
+  String _formatStorageTotal() => _formatStorageTotalFromFiles(_files);
+
+  String _mobileDateLabel(DateTime value) {
+    const months = <String>[
+      'Jan',
+      'Fev',
+      'Mar',
+      'Abr',
+      'Mai',
+      'Jun',
+      'Jul',
+      'Ago',
+      'Set',
+      'Out',
+      'Nov',
+      'Dez',
+    ];
+    final local = value.toLocal();
+    final month = months[(local.month - 1).clamp(0, months.length - 1)];
+    return '${local.day.toString().padLeft(2, '0')} $month ${local.year}';
+  }
+
+  String _mobileFileTypeLabel(ChatFileInfoDto file) {
+    final nameParts = file.fileName.split('.');
+    final extension = nameParts.length > 1 ? nameParts.last.toUpperCase() : '';
+    if (extension.isNotEmpty) return extension;
+    if (file.contentType.contains('/')) {
+      return file.contentType.split('/').last.toUpperCase();
+    }
+    return file.contentType.toUpperCase();
+  }
 }
 
 String _formatDate(DateTime value) {

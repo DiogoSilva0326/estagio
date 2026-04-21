@@ -8,31 +8,39 @@ class PerfilPillOption extends StatelessWidget {
     required this.selected,
     this.onTap,
     this.width,
+    this.isMobile = false,
   });
 
   final String label;
   final bool selected;
   final VoidCallback? onTap;
   final double? width;
+  final bool isMobile;
 
   @override
   Widget build(BuildContext context) {
     final child = Container(
-      height: PerfilConstants.pillHeight,
+      height: isMobile
+          ? PerfilConstants.mobilePillHeight
+          : PerfilConstants.pillHeight,
       width: width,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(9999),
         gradient: selected ? PerfilConstants.gradientOrange : null,
-        color: selected ? null : PerfilConstants.softFill,
+        color: selected
+            ? null
+            : (isMobile
+                  ? PerfilConstants.mobileSoftFill
+                  : PerfilConstants.softFill),
       ),
       alignment: Alignment.center,
       child: Text(
         label,
         style: TextStyle(
-          fontSize: 22.247,
-          fontWeight: FontWeight.w400,
+          fontSize: isMobile ? 14 : 22.247,
+          fontWeight: isMobile ? FontWeight.w500 : FontWeight.w400,
           color: selected ? Colors.white : const Color(0xFF364153),
-          height: 33.371 / 22.247,
+          height: isMobile ? 20 / 14 : 33.371 / 22.247,
         ),
       ),
     );

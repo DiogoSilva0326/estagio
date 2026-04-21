@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'package:aula_extra/features/tutor_profile_view/constants/tutor_profile_layout.dart';
+
 class ReviewCard extends StatelessWidget {
   const ReviewCard({
     super.key,
@@ -18,9 +20,15 @@ class ReviewCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isMobile =
+        MediaQuery.sizeOf(context).width <= kTutorProfileMobileBreakpoint;
+
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 21.702, vertical: 21.702),
+      padding: EdgeInsets.symmetric(
+        horizontal: isMobile ? 16 : 21.702,
+        vertical: isMobile ? 16 : 21.702,
+      ),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12.766),
@@ -29,14 +37,18 @@ class ReviewCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   Container(
-                    width: 51.064,
-                    height: 51.064,
+                    width: isMobile ? 44 : 51.064,
+                    height: isMobile ? 44 : 51.064,
                     decoration: const BoxDecoration(
                       shape: BoxShape.circle,
                       color: Color(0xFFF3F4F6),
@@ -46,41 +58,48 @@ class ReviewCard extends StatelessWidget {
                           ? Image.network(
                               avatarUrl!.trim(),
                               fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) => Center(
-                                child: Text(
-                                  _initials(name),
-                                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
-                                ),
-                              ),
+                              errorBuilder: (context, error, stackTrace) =>
+                                  Center(
+                                    child: Text(
+                                      _initials(name),
+                                      style: TextStyle(
+                                        fontSize: isMobile ? 16 : 20,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ),
                             )
                           : Center(
                               child: Text(
                                 _initials(name),
-                                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+                                style: TextStyle(
+                                  fontSize: isMobile ? 16 : 20,
+                                  fontWeight: FontWeight.w700,
+                                ),
                               ),
                             ),
                     ),
                   ),
-                  const SizedBox(width: 15.319),
+                  SizedBox(width: isMobile ? 12 : 15.319),
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         name,
-                        style: const TextStyle(
-                          fontSize: 20.426,
-                          height: 30.638 / 20.426,
+                        style: TextStyle(
+                          fontSize: isMobile ? 16 : 20.426,
+                          height: isMobile ? 1.35 : 30.638 / 20.426,
                           fontWeight: FontWeight.w700,
-                          color: Color(0xFF0A0A0A),
+                          color: const Color(0xFF0A0A0A),
                         ),
                       ),
                       Text(
                         when,
-                        style: const TextStyle(
-                          fontSize: 17.872,
-                          height: 25.532 / 17.872,
+                        style: TextStyle(
+                          fontSize: isMobile ? 13 : 17.872,
+                          height: isMobile ? 1.35 : 25.532 / 17.872,
                           fontWeight: FontWeight.w400,
-                          color: Color(0xFF6A7282),
+                          color: const Color(0xFF6A7282),
                         ),
                       ),
                     ],
@@ -92,21 +111,21 @@ class ReviewCard extends StatelessWidget {
                   5,
                   (i) => Icon(
                     i < rating ? Icons.star : Icons.star_border,
-                    size: 17.872,
+                    size: isMobile ? 16 : 17.872,
                     color: const Color(0xFFFC9039),
                   ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 10.213),
+          SizedBox(height: isMobile ? 12 : 10.213),
           Text(
             text,
-            style: const TextStyle(
-              fontSize: 20.426,
-              height: 30.638 / 20.426,
+            style: TextStyle(
+              fontSize: isMobile ? 15 : 20.426,
+              height: isMobile ? 1.6 : 30.638 / 20.426,
               fontWeight: FontWeight.w400,
-              color: Color(0xFF364153),
+              color: const Color(0xFF364153),
             ),
           ),
         ],

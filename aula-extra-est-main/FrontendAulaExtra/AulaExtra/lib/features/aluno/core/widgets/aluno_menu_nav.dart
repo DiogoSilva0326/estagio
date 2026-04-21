@@ -1,10 +1,13 @@
 import 'package:aula_extra/core/components/menu_aluno/menu_aluno.dart';
 import 'package:aula_extra/core/data/notifications/dtos/user_notification_dto.dart';
 import 'package:aula_extra/core/data/notifications/notifications_service.dart';
+import 'package:aula_extra/core/data/payments/payments_service.dart';
 import 'package:aula_extra/core/data/reservations_calendar/dtos/student_calendar_item_dto.dart';
 import 'package:aula_extra/core/data/reservations_calendar/reservations_calendar_service.dart';
+import 'package:aula_extra/core/providers/user_provider.dart';
 import 'package:aula_extra/routes/routes.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 class AlunoMenuNav extends StatefulWidget {
   const AlunoMenuNav({
@@ -33,13 +36,27 @@ class AlunoMenuNav extends StatefulWidget {
 class _AlunoMenuNavState extends State<AlunoMenuNav> {
   final _calendarService = ReservationsCalendarService();
   final _notificationsService = NotificationsService();
+  final _paymentsService = PaymentsService();
 
   late final Future<_AlunoMenuStats> _statsFuture;
+  bool _isLoadingCredits = false;
 
   @override
   void initState() {
     super.initState();
     _statsFuture = _loadStats();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _maybeLoadCredits();
+  }
+
+  @override
+  void didUpdateWidget(covariant AlunoMenuNav oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _maybeLoadCredits();
   }
 
   Future<_AlunoMenuStats> _loadStats() async {
@@ -75,6 +92,53 @@ class _AlunoMenuNavState extends State<AlunoMenuNav> {
         upcomingLessons.isEmpty ? null : upcomingLessons.first,
       ),
     );
+  }
+
+  void _maybeLoadCredits() {
+    if (_isLoadingCredits) return;
+
+    final account = context.read<UserProvider>().account;
+    if (account == null || account.creditsBalance != null) return;
+
+    _loadCredits();
+  }
+
+  Future<void> _loadCredits() async {
+    _isLoadingCredits = true;
+    try {
+      final summary = await _paymentsService.fetchMySummary();
+      if (!mounted) return;
+      final provider = context.read<UserProvider>();
+      provider.setAccount(
+        (provider.account ?? const UserAccount()).copyWith(
+          creditsBalance: summary.availableCredits,
+          creditsCurrency: summary.currency,
+        ),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      final provider = context.read<UserProvider>();
+      provider.setAccount(
+        (provider.account ?? const UserAccount()).copyWith(
+          creditsBalance: 0,
+          creditsCurrency: 'EUR',
+        ),
+      );
+    } finally {
+      _isLoadingCredits = false;
+    }
+  }
+
+  String? _formatCredits(double? balance, String? currency) {
+    if (balance == null) return null;
+
+    final symbol = (currency ?? 'EUR').toUpperCase() == 'EUR'
+        ? '€'
+        : (currency ?? '').trim();
+    final fixed = balance
+        .toStringAsFixed(balance.truncateToDouble() == balance ? 0 : 2)
+        .replaceAll('.', ',');
+    return symbol.isEmpty ? fixed : '$fixed$symbol';
   }
 
   static bool _isActiveLesson(StudentCalendarItemDto item) {
@@ -171,6 +235,8 @@ class _AlunoMenuNavState extends State<AlunoMenuNav> {
 
   @override
   Widget build(BuildContext context) {
+    final account = context.watch<UserProvider>().account;
+
     return FutureBuilder<_AlunoMenuStats>(
       future: _statsFuture,
       builder: (context, snapshot) {
@@ -178,6 +244,10 @@ class _AlunoMenuNavState extends State<AlunoMenuNav> {
 
         return MenuAluno(
           selectedIndex: _resolveSelectedIndex(context),
+          creditsText: _formatCredits(
+            account?.creditsBalance,
+            account?.creditsCurrency,
+          ),
           notificationCount:
               widget.notificationCount ?? stats.notificationCount,
           aulasEstaSemana: widget.aulasEstaSemana ?? stats.aulasEstaSemana,

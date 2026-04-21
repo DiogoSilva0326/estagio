@@ -81,17 +81,20 @@ class ComprarCreditosData {
   static const steps = [
     CreditStepData(
       title: 'Escolhe um pacote',
-      description: 'Seleciona a quantidade de créditos que faz mais sentido para o teu ritmo.',
+      description:
+          'Seleciona a quantidade de créditos que faz mais sentido para o teu ritmo.',
       icon: Icons.wallet_rounded,
     ),
     CreditStepData(
       title: 'Conclui o pagamento',
-      description: 'Finaliza o checkout de forma rápida e segura em poucos passos.',
+      description:
+          'Finaliza o checkout de forma rápida e segura em poucos passos.',
       icon: Icons.lock_rounded,
     ),
     CreditStepData(
       title: 'Marca as tuas aulas',
-      description: 'Usa o saldo para reservar explicações sempre que precisares.',
+      description:
+          'Usa o saldo para reservar explicações sempre que precisares.',
       icon: Icons.calendar_month_rounded,
     ),
   ];

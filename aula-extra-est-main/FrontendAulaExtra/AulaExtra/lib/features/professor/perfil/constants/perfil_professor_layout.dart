@@ -6,6 +6,24 @@
 class PerfilProfessorLayout {
   const PerfilProfessorLayout._();
 
+  static const double mobilePageHorizontalPadding = 20;
+  static const double mobilePageTopPadding = 24;
+  static const double mobilePageBottomPadding = 32;
+  static const double mobileCardsGap = 16;
+  static const double mobileCardPadding = 20;
+  static const double mobileTitleFontSize = 30;
+  static const double mobileTitleLineHeight = 36;
+  static const double mobileSectionTitleFontSize = 19;
+  static const double mobileSectionTitleLineHeight = 28;
+  static const double mobileAvatarSize = 132;
+  static const double mobileAvatarTextFontSize = 36;
+  static const double mobileAvatarActionSize = 42;
+  static const double mobileInputFontSize = 15;
+  static const double mobileInputLineHeight = 22;
+  static const double mobileLabelFontSize = 15;
+  static const double mobileLabelLineHeight = 20;
+  static const double mobileSaveButtonHeight = 48;
+
   static const double pageLeftPadding = 54;
   static const double pageRightPadding = 23.148;
   static const double pageTopPadding = 90;

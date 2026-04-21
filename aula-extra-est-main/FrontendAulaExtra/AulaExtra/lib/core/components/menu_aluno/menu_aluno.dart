@@ -5,6 +5,7 @@ class MenuAluno extends StatelessWidget {
   const MenuAluno({
     super.key,
     this.selectedIndex,
+    this.creditsText,
     this.notificationCount = 0,
     this.aulasEstaSemana = 0,
     this.tarefasPendentes = 0,
@@ -13,6 +14,7 @@ class MenuAluno extends StatelessWidget {
   });
 
   final int? selectedIndex;
+  final String? creditsText;
   final int notificationCount;
 
   final int aulasEstaSemana;
@@ -25,6 +27,7 @@ class MenuAluno extends StatelessWidget {
   Widget build(BuildContext context) {
     return MenuAlunoSection(
       selectedIndex: selectedIndex,
+      creditsText: creditsText,
       notificationCount: notificationCount,
       aulasEstaSemana: aulasEstaSemana,
       tarefasPendentes: tarefasPendentes,

@@ -6,6 +6,20 @@
 class DisponibilidadeProfessorLayout {
   const DisponibilidadeProfessorLayout._();
 
+  static const double mobileHorizontalPadding = 16;
+  static const double mobileTopPadding = 20;
+  static const double mobileBottomPadding = 32;
+  static const double mobileSectionGap = 18;
+  static const double mobileCardRadius = 20;
+  static const double mobileDayHeaderRadius = 16;
+  static const double mobileSlotRadius = 12;
+  static const double mobileDayCardPadding = 14;
+  static const double mobileClearButtonHeight = 28;
+  static const double mobileWeekNavHeight = 48;
+  static const double mobileSaveButtonHeight = 40;
+  static const double mobileActionRadius = 14;
+  static const double mobileLegendDotSize = 14;
+
   /// Padding esquerdo do conteúdo (após menu lateral).
   static const double pageLeftPadding = 54;
 

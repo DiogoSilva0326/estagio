@@ -11,6 +11,17 @@ class ProfessorAdsService {
   final ProfessorAdsApi _api;
   final TokenStorage _tokenStorage;
 
+  Future<List<ProfessorAdDto>> getProfessorAdsForProfessor({
+    required String professorId,
+  }) async {
+    final token = await _tokenStorage.loadToken();
+    if (token == null || token.trim().isEmpty) {
+      throw const ProfessorAdsException('Sessão expirada');
+    }
+
+    return _api.getProfessorAds(token: token, professorId: professorId);
+  }
+
   Future<ProfessorAdsFormDataDto> getMyData() async {
     final token = await _tokenStorage.loadToken();
     if (token == null || token.trim().isEmpty) {

@@ -4,10 +4,13 @@ import 'package:aula_extra/core/components/menu_aluno/widgets/menu_aluno_nav_ite
 import 'package:aula_extra/core/components/menu_aluno/widgets/menu_aluno_stat_row.dart';
 import 'package:aula_extra/core/data/notifications/dtos/user_notification_dto.dart';
 import 'package:aula_extra/core/data/notifications/notifications_service.dart';
+import 'package:aula_extra/core/data/payments/payments_service.dart';
 import 'package:aula_extra/core/data/reservations_calendar/dtos/student_calendar_item_dto.dart';
 import 'package:aula_extra/core/data/reservations_calendar/reservations_calendar_service.dart';
+import 'package:aula_extra/core/providers/user_provider.dart';
 import 'package:aula_extra/routes/routes.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 class StudentMobileMenuDrawer extends StatefulWidget {
   const StudentMobileMenuDrawer({
@@ -27,13 +30,21 @@ class StudentMobileMenuDrawer extends StatefulWidget {
 class _StudentMobileMenuDrawerState extends State<StudentMobileMenuDrawer> {
   final _calendarService = ReservationsCalendarService();
   final _notificationsService = NotificationsService();
+  final _paymentsService = PaymentsService();
 
   late final Future<_StudentMenuStats> _statsFuture;
+  bool _isLoadingCredits = false;
 
   @override
   void initState() {
     super.initState();
     _statsFuture = _loadStats();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _maybeLoadCredits();
   }
 
   Future<_StudentMenuStats> _loadStats() async {
@@ -69,6 +80,64 @@ class _StudentMobileMenuDrawerState extends State<StudentMobileMenuDrawer> {
         upcomingLessons.isEmpty ? null : upcomingLessons.first,
       ),
     );
+  }
+
+  void _maybeLoadCredits() {
+    if (_isLoadingCredits) return;
+
+    final account = context.read<UserProvider>().account;
+    if (account == null || account.creditsBalance != null) return;
+
+    _loadCredits();
+  }
+
+  Future<void> _loadCredits() async {
+    _isLoadingCredits = true;
+    try {
+      final summary = await _paymentsService.fetchMySummary();
+      if (!mounted) return;
+
+      final provider = context.read<UserProvider>();
+      provider.setAccount(
+        (provider.account ?? const UserAccount()).copyWith(
+          creditsBalance: summary.availableCredits,
+          creditsCurrency: summary.currency,
+        ),
+      );
+    } catch (_) {
+      if (!mounted) return;
+
+      final provider = context.read<UserProvider>();
+      provider.setAccount(
+        (provider.account ?? const UserAccount()).copyWith(
+          creditsBalance: 0,
+          creditsCurrency: 'EUR',
+        ),
+      );
+    } finally {
+      _isLoadingCredits = false;
+    }
+  }
+
+  String? _formatCredits(double? balance, String? currency) {
+    if (balance == null) return null;
+
+    final symbol = (currency ?? 'EUR').toUpperCase() == 'EUR'
+        ? '€'
+        : (currency ?? '').trim();
+    final fixed = balance
+        .toStringAsFixed(balance.truncateToDouble() == balance ? 0 : 2)
+        .replaceAll('.', ',');
+    return symbol.isEmpty ? fixed : '$fixed$symbol';
+  }
+
+  String? _creditsBadgeText(double? balance, String? currency) {
+    final value = _formatCredits(balance, currency)?.trim();
+    if (value == null || value.isEmpty) return null;
+
+    final digitsOnly = value.replaceAll(RegExp(r'[^0-9,]'), '').trim();
+    if (digitsOnly.isEmpty) return '$value créditos';
+    return '$digitsOnly créditos';
   }
 
   static bool _isActiveLesson(StudentCalendarItemDto item) {
@@ -160,6 +229,12 @@ class _StudentMobileMenuDrawerState extends State<StudentMobileMenuDrawer> {
 
   @override
   Widget build(BuildContext context) {
+    final account = context.watch<UserProvider>().account;
+    final creditsText = _creditsBadgeText(
+      account?.creditsBalance,
+      account?.creditsCurrency,
+    );
+
     return Material(
       color: Colors.white,
       borderRadius: const BorderRadius.only(
@@ -221,6 +296,37 @@ class _StudentMobileMenuDrawerState extends State<StudentMobileMenuDrawer> {
                               color: MenuAlunoColors.textHeading,
                             ),
                           ),
+                          if (creditsText != null) ...[
+                            const SizedBox(height: 16),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 8,
+                              ),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFFFF7ED),
+                                borderRadius: BorderRadius.circular(999),
+                                border: Border.all(
+                                  color: const Color(0xFFFFD6A7),
+                                ),
+                                boxShadow: const [
+                                  BoxShadow(
+                                    color: Color.fromRGBO(15, 23, 42, 0.06),
+                                    blurRadius: 8,
+                                    offset: Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              child: Text(
+                                creditsText,
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFFCA3500),
+                                ),
+                              ),
+                            ),
+                          ],
                           const SizedBox(height: 24),
                           ...List.generate(MenuAlunoItems.all.length, (index) {
                             final item = MenuAlunoItems.all[index];

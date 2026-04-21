@@ -1,17 +1,23 @@
 import 'dart:async';
 
 import 'package:aula_extra/core/data/communication/chat_files_service.dart';
+import 'package:aula_extra/core/data/communication/dtos/contact_user_summary_dto.dart';
 import 'package:aula_extra/core/data/communication/contacts_service.dart';
 import 'package:aula_extra/core/data/communication/realtime_chat_service.dart';
 import 'package:aula_extra/core/data/professors/professors_service.dart';
 import 'package:aula_extra/core/data/users/users_service.dart';
+import 'package:aula_extra/core/components/header/app_header.dart';
 import 'package:aula_extra/core/providers/user_provider.dart';
 import 'package:aula_extra/features/aluno/chats/constants/chats_constants.dart';
+import 'package:aula_extra/features/aluno/chats/widgets/chats_mobile_intro.dart';
+import 'package:aula_extra/features/professor/chats/pages/chat_professor_mobile_conversation_screen.dart';
 import 'package:aula_extra/features/professor/chats/constants/chats_professor_colors.dart';
 import 'package:aula_extra/features/professor/chats/constants/chats_professor_font_sizes.dart';
 import 'package:aula_extra/features/professor/chats/widgets/chat_avatar.dart';
 import 'package:aula_extra/features/professor/chats/widgets/chat_bubble.dart';
 import 'package:aula_extra/features/professor/chats/widgets/chat_list_item.dart';
+import 'package:aula_extra/features/professor/chats/widgets/chats_professor_mobile_conversation_tile.dart';
+import 'package:aula_extra/features/professor/chats/widgets/chats_professor_mobile_search_bar.dart';
 import 'package:aula_extra/features/professor/chats/widgets/full_bleed_scaled_section.dart';
 import 'package:aula_extra/features/professor/core/widgets/professor_menu_nav.dart';
 import 'package:file_picker/file_picker.dart';
@@ -24,10 +30,12 @@ class ChatsProfessorContentSection extends StatefulWidget {
     super.key,
     this.initialStudentUsername,
     this.initialStudentName,
+    this.isMobile = false,
   });
 
   final String? initialStudentUsername;
   final String? initialStudentName;
+  final bool isMobile;
 
   @override
   State<ChatsProfessorContentSection> createState() =>
@@ -539,6 +547,15 @@ class _ChatsProfessorContentSectionState
   }
 
   void _handleSelectConversation(int id) {
+    _setSelectedConversation(id);
+
+    final selected = _selectedConversation;
+    if (selected != null) {
+      _joinConversation(selected);
+    }
+  }
+
+  void _setSelectedConversation(int id) {
     setState(() {
       _selectedConversationId = id;
       final idx = _conversations.indexWhere((c) => c.id == id);
@@ -546,11 +563,30 @@ class _ChatsProfessorContentSectionState
         _conversations[idx] = _conversations[idx].copyWith(unreadCount: 0);
       }
     });
+  }
 
-    final selected = _selectedConversation;
-    if (selected != null) {
-      _joinConversation(selected);
-    }
+  ContactUserSummaryDto _contactForConversation(
+    _ConversationData conversation,
+  ) {
+    return ContactUserSummaryDto(
+      contactId: conversation.id.toString(),
+      contactUserId: conversation.username,
+      status: 'accepted',
+      username: conversation.username,
+      displayName: conversation.name,
+    );
+  }
+
+  Future<void> _openMobileConversation(_ConversationData conversation) async {
+    _setSelectedConversation(conversation.id);
+
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => ProfessorChatMobileConversationScreen(
+          contact: _contactForConversation(conversation),
+        ),
+      ),
+    );
   }
 
   void _onChatEvent(RealtimeChatEvent event) {
@@ -834,8 +870,9 @@ class _ChatsProfessorContentSectionState
     var changed = false;
     for (var i = 0; i < full.length; i++) {
       final message = full[i];
-      if (!message.isOutgoing || message.isRead || !ids.contains(message.id))
+      if (!message.isOutgoing || message.isRead || !ids.contains(message.id)) {
         continue;
+      }
 
       full[i] = _MessageData(
         id: message.id,
@@ -887,8 +924,9 @@ class _ChatsProfessorContentSectionState
 
     final conversation = _conversations[conversationIndex];
     if (conversation.username.trim().toLowerCase() !=
-        userId.trim().toLowerCase())
+        userId.trim().toLowerCase()) {
       return;
+    }
 
     _setConversationPresence(conversationIndex, isOnline);
   }
@@ -913,8 +951,9 @@ class _ChatsProfessorContentSectionState
       selected.username,
     );
     if (expectedChannel.trim().toLowerCase() !=
-        channelName.trim().toLowerCase())
+        channelName.trim().toLowerCase()) {
       return;
+    }
 
     _realtimeChatService.markDirectMessagesRead(channelName: channelName);
   }
@@ -956,6 +995,14 @@ class _ChatsProfessorContentSectionState
 
   @override
   Widget build(BuildContext context) {
+    final isMobile =
+        widget.isMobile ||
+        MediaQuery.sizeOf(context).width <= AppHeader.mobileBreakpoint;
+
+    if (isMobile) {
+      return _buildMobileContent();
+    }
+
     final selectedConversation = _selectedConversation;
 
     return Container(
@@ -1084,6 +1131,99 @@ class _ChatsProfessorContentSectionState
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildMobileContent() {
+    final conversations = _filteredConversations;
+
+    return Container(
+      width: double.infinity,
+      color: const Color(0xFFF9FAFB),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const ChatsMobileIntro(
+            title: 'Chats',
+            subtitle: 'Converse com seus alunos',
+          ),
+          const SizedBox(height: 16),
+          ChatsProfessorMobileSearchBar(
+            controller: _searchController,
+            onChanged: (value) => setState(() => _query = value),
+          ),
+          const SizedBox(height: 16),
+          if (_errorMessage != null && _conversations.isEmpty) ...[
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: const Color(0xFFE5E7EB)),
+              ),
+              child: Text(
+                _errorMessage!,
+                style: const TextStyle(
+                  fontSize: 14,
+                  height: 20 / 14,
+                  color: ChatsProfessorColors.mutedText,
+                ),
+              ),
+            ),
+          ] else if (_isLoading)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 48),
+              child: Center(child: CircularProgressIndicator()),
+            )
+          else
+            Container(
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(17),
+                border: Border.all(color: const Color(0xFFF3F4F6)),
+              ),
+              child: conversations.isEmpty
+                  ? Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: Text(
+                        _query.trim().isEmpty
+                            ? 'Ainda não tem conversas disponíveis.'
+                            : 'Nenhuma conversa corresponde à sua pesquisa.',
+                        style: const TextStyle(
+                          fontSize: 14,
+                          height: 20 / 14,
+                          color: ChatsProfessorColors.mutedText,
+                        ),
+                      ),
+                    )
+                  : Column(
+                      children: [
+                        for (
+                          var index = 0;
+                          index < conversations.length;
+                          index++
+                        )
+                          ChatsProfessorMobileConversationTile(
+                            initials: conversations[index].initials,
+                            name: conversations[index].name,
+                            timeLabel: conversations[index].timeLabel,
+                            preview: conversations[index].preview,
+                            unreadCount: conversations[index].unreadCount,
+                            selected:
+                                conversations[index].id ==
+                                _selectedConversationId,
+                            showDivider: index != conversations.length - 1,
+                            onTap: () =>
+                                _openMobileConversation(conversations[index]),
+                          ),
+                      ],
+                    ),
+            ),
+        ],
       ),
     );
   }

@@ -1,5 +1,6 @@
 import 'package:aula_extra/features/aluno/areas_aluno/constants/areas_aluno_constants.dart';
 import 'package:aula_extra/core/data/education/dtos/disciplina_dto.dart';
+import 'package:aula_extra/core/components/header/app_header.dart';
 import 'package:flutter/material.dart';
 
 Future<List<String>?> showAreaDisciplineSelectionDialog(
@@ -11,6 +12,42 @@ Future<List<String>?> showAreaDisciplineSelectionDialog(
   required List<DisciplinaDto> disciplinas,
   List<String> initialSelectedIds = const [],
 }) {
+  final isMobile =
+      MediaQuery.sizeOf(context).width <= AppHeader.mobileBreakpoint;
+  if (isMobile) {
+    return showGeneralDialog<List<String>>(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: 'Selecionar disciplinas',
+      barrierColor: Colors.black54,
+      transitionDuration: const Duration(milliseconds: 220),
+      pageBuilder: (_, __, ___) => _AreaDisciplineSelectionMobileDialog(
+        areaName: areaName,
+        imageAsset: imageAsset,
+        gradientStart: gradientStart,
+        gradientEnd: gradientEnd,
+        disciplinas: disciplinas,
+        initialSelectedIds: initialSelectedIds,
+      ),
+      transitionBuilder: (context, animation, _, child) {
+        final curved = CurvedAnimation(
+          parent: animation,
+          curve: Curves.easeOutCubic,
+        );
+        return FadeTransition(
+          opacity: curved,
+          child: SlideTransition(
+            position: Tween<Offset>(
+              begin: const Offset(0, 0.08),
+              end: Offset.zero,
+            ).animate(curved),
+            child: child,
+          ),
+        );
+      },
+    );
+  }
+
   return showDialog<List<String>>(
     context: context,
     barrierDismissible: true,
@@ -69,7 +106,8 @@ class _AreaDisciplineSelectionDialogState
   }
 
   bool get _allSelected =>
-      _selected.length == widget.disciplinas.length && widget.disciplinas.isNotEmpty;
+      _selected.length == widget.disciplinas.length &&
+      widget.disciplinas.isNotEmpty;
 
   void _toggleDiscipline(String disciplinaId) {
     final id = disciplinaId.trim();
@@ -140,11 +178,11 @@ class _AreaDisciplineSelectionDialogState
                         physics: const NeverScrollableScrollPhysics(),
                         gridDelegate:
                             const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 2,
-                          crossAxisSpacing: 15.894,
-                          mainAxisSpacing: 15.894,
-                          mainAxisExtent: 84,
-                        ),
+                              crossAxisCount: 2,
+                              crossAxisSpacing: 15.894,
+                              mainAxisSpacing: 15.894,
+                              mainAxisExtent: 84,
+                            ),
                         itemCount: total + 1,
                         itemBuilder: (context, index) {
                           if (index == total) {
@@ -192,13 +230,360 @@ class _AreaDisciplineSelectionDialogState
                   ),
                   _ConfirmButton(
                     enabled: true,
-                    onPressed: () =>
-                        Navigator.of(context).pop(_selected.toList(growable: false)),
+                    onPressed: () => Navigator.of(
+                      context,
+                    ).pop(_selected.toList(growable: false)),
                   ),
                 ],
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _AreaDisciplineSelectionMobileDialog extends StatefulWidget {
+  const _AreaDisciplineSelectionMobileDialog({
+    required this.areaName,
+    required this.imageAsset,
+    required this.gradientStart,
+    required this.gradientEnd,
+    required this.disciplinas,
+    this.initialSelectedIds = const [],
+  });
+
+  final String areaName;
+  final String imageAsset;
+  final Color gradientStart;
+  final Color gradientEnd;
+  final List<DisciplinaDto> disciplinas;
+  final List<String> initialSelectedIds;
+
+  @override
+  State<_AreaDisciplineSelectionMobileDialog> createState() =>
+      _AreaDisciplineSelectionMobileDialogState();
+}
+
+class _AreaDisciplineSelectionMobileDialogState
+    extends State<_AreaDisciplineSelectionMobileDialog> {
+  final Set<String> _selected = <String>{};
+  final TextEditingController _searchController = TextEditingController();
+  String _query = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _selected.addAll(
+      widget.initialSelectedIds
+          .map((id) => id.trim())
+          .where((id) => id.isNotEmpty),
+    );
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  List<DisciplinaDto> get _filtered {
+    final query = _query.trim().toLowerCase();
+    if (query.isEmpty) return widget.disciplinas;
+    return widget.disciplinas
+        .where((d) => d.nome.toLowerCase().contains(query))
+        .toList(growable: false);
+  }
+
+  bool get _allSelected =>
+      widget.disciplinas.isNotEmpty &&
+      _selected.length == widget.disciplinas.length;
+
+  void _toggleDiscipline(String disciplinaId) {
+    final id = disciplinaId.trim();
+    if (id.isEmpty) return;
+    setState(() {
+      if (_selected.contains(id)) {
+        _selected.remove(id);
+      } else {
+        _selected.add(id);
+      }
+    });
+  }
+
+  void _toggleAll() {
+    setState(() {
+      if (_allSelected) {
+        _selected.clear();
+      } else {
+        _selected
+          ..clear()
+          ..addAll(
+            widget.disciplinas
+                .map((item) => item.idDisciplina.trim())
+                .where((id) => id.isNotEmpty),
+          );
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final filtered = _filtered;
+    return Material(
+      color: Colors.white,
+      child: SafeArea(
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  IconButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: const Icon(Icons.arrow_back_rounded),
+                    color: const Color(0xFF364153),
+                  ),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 52,
+                          height: 52,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(14),
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [
+                                widget.gradientStart,
+                                widget.gradientEnd,
+                              ],
+                            ),
+                          ),
+                          child: Center(
+                            child: Image.asset(
+                              widget.imageAsset,
+                              width: 42,
+                              height: 42,
+                              fit: BoxFit.contain,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                widget.areaName,
+                                style: const TextStyle(
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xFF101828),
+                                  height: 1.2,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              const Text(
+                                'Selecione as disciplinas desejadas',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500,
+                                  color: Color(0xFF4A5565),
+                                  height: 1.4,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: const Icon(Icons.close_rounded),
+                    color: const Color(0xFF364153),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1, color: Color(0xFFE5E7EB)),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+              child: TextField(
+                controller: _searchController,
+                onChanged: (value) => setState(() => _query = value),
+                decoration: InputDecoration(
+                  hintText: 'Pesquisar disciplinas',
+                  prefixIcon: const Icon(Icons.search_rounded),
+                  suffixText: '${widget.disciplinas.length}',
+                  filled: true,
+                  fillColor: Colors.white,
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(18),
+                    borderSide: const BorderSide(color: Color(0xFFD1D5DC)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(18),
+                    borderSide: const BorderSide(
+                      color: Color(0xFFFC9039),
+                      width: 1.4,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            Expanded(
+              child: ListView.separated(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+                itemCount: filtered.length + 1,
+                separatorBuilder: (_, _) => const SizedBox(height: 12),
+                itemBuilder: (context, index) {
+                  if (index == 0) {
+                    return _MobileDisciplineTile(
+                      label: 'Selecionar Todas',
+                      selected: _allSelected,
+                      onTap: _toggleAll,
+                      emphasized: true,
+                    );
+                  }
+
+                  final disciplina = filtered[index - 1];
+                  final id = disciplina.idDisciplina.trim();
+                  return _MobileDisciplineTile(
+                    label: disciplina.nome,
+                    selected: _selected.contains(id),
+                    onTap: () => _toggleDiscipline(id),
+                  );
+                },
+              ),
+            ),
+            Container(
+              decoration: const BoxDecoration(
+                color: Color(0xFFF9FAFB),
+                border: Border(top: BorderSide(color: Color(0xFFE5E7EB))),
+              ),
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    '${_selected.length} de ${widget.disciplinas.length} disciplinas selecionadas',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: Color(0xFF4A5565),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    height: 52,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: AreasAlunoConstants.orangeGradient,
+                        borderRadius: BorderRadius.circular(18),
+                      ),
+                      child: TextButton(
+                        onPressed: () => Navigator.of(
+                          context,
+                        ).pop(_selected.toList(growable: false)),
+                        style: TextButton.styleFrom(
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(18),
+                          ),
+                        ),
+                        child: const Text(
+                          'Confirmar Seleção',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            height: 1.3,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _MobileDisciplineTile extends StatelessWidget {
+  const _MobileDisciplineTile({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+    this.emphasized = false,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+  final bool emphasized;
+
+  @override
+  Widget build(BuildContext context) {
+    final borderColor = selected
+        ? const Color(0xFFFC9039)
+        : const Color(0xFFE5E7EB);
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(18),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: borderColor, width: selected ? 2 : 1.4),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 24,
+                height: 24,
+                decoration: BoxDecoration(
+                  color: selected ? const Color(0xFFFC9039) : Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: const Color(0xFFD1D5DC),
+                    width: 1.6,
+                  ),
+                ),
+                child: selected
+                    ? const Icon(
+                        Icons.check_rounded,
+                        size: 16,
+                        color: Colors.white,
+                      )
+                    : null,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: emphasized ? 17 : 16,
+                    fontWeight: emphasized ? FontWeight.w700 : FontWeight.w500,
+                    color: const Color(0xFF364153),
+                    height: 1.35,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -249,7 +634,11 @@ class _Header extends StatelessWidget {
                     borderRadius: BorderRadius.circular(999),
                     onTap: onBack,
                     child: const Center(
-                      child: Icon(Icons.arrow_back, color: _iconColor, size: 24),
+                      child: Icon(
+                        Icons.arrow_back,
+                        color: _iconColor,
+                        size: 24,
+                      ),
                     ),
                   ),
                 ),
@@ -455,10 +844,7 @@ class _DisciplineTile extends StatelessWidget {
 }
 
 class _ConfirmButton extends StatelessWidget {
-  const _ConfirmButton({
-    required this.enabled,
-    required this.onPressed,
-  });
+  const _ConfirmButton({required this.enabled, required this.onPressed});
 
   final bool enabled;
   final VoidCallback onPressed;

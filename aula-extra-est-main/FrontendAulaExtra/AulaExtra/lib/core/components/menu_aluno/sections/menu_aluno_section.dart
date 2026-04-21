@@ -8,6 +8,7 @@ class MenuAlunoSection extends StatelessWidget {
   const MenuAlunoSection({
     super.key,
     this.selectedIndex,
+    this.creditsText,
     required this.notificationCount,
     required this.aulasEstaSemana,
     required this.tarefasPendentes,
@@ -16,6 +17,7 @@ class MenuAlunoSection extends StatelessWidget {
   });
 
   final int? selectedIndex;
+  final String? creditsText;
   final int notificationCount;
 
   final int aulasEstaSemana;
@@ -23,6 +25,15 @@ class MenuAlunoSection extends StatelessWidget {
   final String proximaAulaEm;
 
   final ValueChanged<int>? onItemTap;
+
+  String? get _normalizedCreditsText {
+    final value = creditsText?.trim();
+    if (value == null || value.isEmpty) return null;
+
+    final digitsOnly = value.replaceAll(RegExp(r'[^0-9,]'), '').trim();
+    if (digitsOnly.isEmpty) return value;
+    return '$digitsOnly créditos';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -47,6 +58,35 @@ class MenuAlunoSection extends StatelessWidget {
                   color: MenuAlunoColors.textHeading,
                 ),
               ),
+              if (_normalizedCreditsText != null) ...[
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFF7ED),
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(color: const Color(0xFFFFD6A7)),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Color.fromRGBO(15, 23, 42, 0.06),
+                        blurRadius: 8,
+                        offset: Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Text(
+                    _normalizedCreditsText!,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFFCA3500),
+                    ),
+                  ),
+                ),
+              ],
               const SizedBox(height: 24),
               ...List.generate(MenuAlunoItems.all.length, (index) {
                 final item = MenuAlunoItems.all[index];
@@ -68,7 +108,9 @@ class MenuAlunoSection extends StatelessWidget {
                 width: double.infinity,
                 padding: const EdgeInsets.fromLTRB(0, 25, 0, 0),
                 decoration: const BoxDecoration(
-                  border: Border(top: BorderSide(color: MenuAlunoColors.divider)),
+                  border: Border(
+                    top: BorderSide(color: MenuAlunoColors.divider),
+                  ),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,

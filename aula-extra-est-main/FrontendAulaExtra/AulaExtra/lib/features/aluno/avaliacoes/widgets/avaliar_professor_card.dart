@@ -2,10 +2,7 @@ import 'package:aula_extra/features/aluno/avaliacoes/widgets/avaliar_professor_d
 import 'package:flutter/material.dart';
 
 class AvaliarProfessorCard extends StatelessWidget {
-  const AvaliarProfessorCard({
-    super.key,
-    required this.onSubmitted,
-  });
+  const AvaliarProfessorCard({super.key, required this.onSubmitted});
 
   final VoidCallback onSubmitted;
 

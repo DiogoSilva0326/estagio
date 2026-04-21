@@ -5,6 +5,7 @@ import 'package:aula_extra/core/components/footer/widgets/footer_contacts_block.
 import 'package:aula_extra/core/components/footer/widgets/footer_newsletter_block.dart';
 import 'package:aula_extra/core/components/footer/widgets/footer_text_link_list.dart';
 import 'package:aula_extra/core/components/footer/widgets/footer_top_decoration.dart';
+import 'package:aula_extra/core/components/footer/widgets/footer_legal_block.dart';
 import 'package:flutter/material.dart';
 
 class FooterDesktopSection extends StatelessWidget {
@@ -87,12 +88,18 @@ class FooterDesktopSection extends StatelessWidget {
                             Positioned(
                               left: s(600),
                               top: s(56),
-                              width: s(262),
+                              width: s(200), // Ajustado para não colidir
                               height: s(176),
                               child: FooterContactsBlock(scale: scale),
                             ),
+                            // Novo Bloco Adicionado
                             Positioned(
-                              left: s(1178),
+                              left: s(850), // Posição após os contactos
+                              top: s(56),
+                              child: FooterLegalBlock(scale: scale),
+                            ),
+                            Positioned(
+                              left: s(1100), // Ajustado para a direita do Legal
                               top: s(56),
                               child: FooterNewsletterBlock(scale: scale),
                             ),

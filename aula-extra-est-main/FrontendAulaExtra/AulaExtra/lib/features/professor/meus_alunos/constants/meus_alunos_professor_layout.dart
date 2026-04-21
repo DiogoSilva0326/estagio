@@ -6,6 +6,16 @@
 class MeusAlunosProfessorLayout {
   const MeusAlunosProfessorLayout._();
 
+  static const double mobileHorizontalPadding = 16;
+  static const double mobileTopPadding = 18;
+  static const double mobileBottomPadding = 32;
+  static const double mobileSectionGap = 16;
+  static const double mobileCardRadius = 20;
+  static const double mobileCardPadding = 16;
+  static const double mobileAvatarSize = 56;
+  static const double mobileActionButtonHeight = 40;
+  static const double mobileStatGap = 12;
+
   /// Largura do design (Figma) usada como referência.
   static const double designWidth = 1440.0;
 

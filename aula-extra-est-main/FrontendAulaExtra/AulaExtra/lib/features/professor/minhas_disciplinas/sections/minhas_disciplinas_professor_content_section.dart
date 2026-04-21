@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:aula_extra/core/components/header/app_header.dart';
 import 'package:aula_extra/core/data/education/dtos/area_dto.dart';
 import 'package:aula_extra/core/data/education/dtos/ciclo_estudo_dto.dart';
 import 'package:aula_extra/core/data/education/dtos/disciplina_dto.dart';
@@ -10,6 +11,10 @@ import 'package:aula_extra/features/professor/core/widgets/professor_menu_nav.da
 import 'package:aula_extra/features/professor/minhas_disciplinas/constants/minhas_disciplinas_professor_colors.dart';
 import 'package:aula_extra/features/professor/minhas_disciplinas/constants/minhas_disciplinas_professor_layout.dart';
 import 'package:aula_extra/features/professor/minhas_disciplinas/widgets/disciplina_card.dart';
+import 'package:aula_extra/features/professor/minhas_disciplinas/widgets/minhas_disciplinas_professor_mobile_card.dart';
+import 'package:aula_extra/features/professor/minhas_disciplinas/widgets/minhas_disciplinas_professor_mobile_empty_state.dart';
+import 'package:aula_extra/features/professor/minhas_disciplinas/widgets/minhas_disciplinas_professor_mobile_intro.dart';
+import 'package:aula_extra/features/professor/minhas_disciplinas/widgets/minhas_disciplinas_professor_mobile_stat_card.dart';
 import 'package:aula_extra/features/professor/minhas_disciplinas/widgets/minhas_disciplinas_empty_state_card.dart';
 import 'package:aula_extra/features/professor/minhas_disciplinas/widgets/minhas_disciplinas_section_header.dart';
 import 'package:aula_extra/features/professor/minhas_disciplinas/widgets/minhas_disciplinas_summary_box.dart';
@@ -17,7 +22,12 @@ import 'package:aula_extra/features/professor/minhas_disciplinas/widgets/profess
 import 'package:flutter/material.dart';
 
 class MinhasDisciplinasProfessorContentSection extends StatefulWidget {
-  const MinhasDisciplinasProfessorContentSection({super.key});
+  const MinhasDisciplinasProfessorContentSection({
+    super.key,
+    this.isMobile = false,
+  });
+
+  final bool isMobile;
 
   @override
   State<MinhasDisciplinasProfessorContentSection> createState() =>
@@ -269,6 +279,111 @@ class _MinhasDisciplinasProfessorContentSectionState
     return palette[hash % palette.length];
   }
 
+  Widget _buildMobileContent() {
+    return Container(
+      width: double.infinity,
+      color: MinhasDisciplinasProfessorColors.background,
+      padding: const EdgeInsets.fromLTRB(
+        MinhasDisciplinasProfessorLayout.mobileHorizontalPadding,
+        MinhasDisciplinasProfessorLayout.mobileTopPadding,
+        MinhasDisciplinasProfessorLayout.mobileHorizontalPadding,
+        MinhasDisciplinasProfessorLayout.mobileBottomPadding,
+      ),
+      child: FutureBuilder<List<DisciplinaDto>>(
+        future: _disciplinasFuture,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Padding(
+              padding: EdgeInsets.symmetric(vertical: 48),
+              child: Center(child: CircularProgressIndicator()),
+            );
+          }
+
+          if (snapshot.hasError) {
+            return MinhasDisciplinasProfessorMobileEmptyState(
+              title: 'Não foi possível carregar as disciplinas.',
+              message: 'Erro: ${snapshot.error}',
+              buttonLabel: 'Tentar novamente',
+              onTap: _refresh,
+            );
+          }
+
+          final disciplinas = snapshot.data ?? const <DisciplinaDto>[];
+          _disciplinas = disciplinas;
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              MinhasDisciplinasProfessorMobileIntro(
+                title: 'Minhas Disciplinas',
+                subtitle:
+                    'Crie, edite e organize as disciplinas que leciona no formato mobile.',
+                onCreate: _openDisciplinaDialog,
+              ),
+              const SizedBox(
+                height: MinhasDisciplinasProfessorLayout.mobileSectionGap,
+              ),
+              Row(
+                children: [
+                  Expanded(
+                    child: MinhasDisciplinasProfessorMobileStatCard(
+                      label: 'Disciplinas',
+                      value: '${disciplinas.length}',
+                      helper: 'ativas',
+                    ),
+                  ),
+                  const SizedBox(
+                    width: MinhasDisciplinasProfessorLayout.mobileStatsGap,
+                  ),
+                  Expanded(
+                    child: MinhasDisciplinasProfessorMobileStatCard(
+                      label: 'Alunos',
+                      value: '${_totalStudents(disciplinas)}',
+                      helper: 'ativos',
+                    ),
+                  ),
+                  const SizedBox(
+                    width: MinhasDisciplinasProfessorLayout.mobileStatsGap,
+                  ),
+                  Expanded(
+                    child: MinhasDisciplinasProfessorMobileStatCard(
+                      label: 'Média',
+                      value: '${_averageStudents(disciplinas)}',
+                      helper: 'por disciplina',
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              if (disciplinas.isEmpty)
+                MinhasDisciplinasProfessorMobileEmptyState(
+                  title: 'Ainda não tem disciplinas configuradas.',
+                  message:
+                      'Adicione disciplinas ao seu perfil com área e ciclo de estudos para geri-las aqui.',
+                  buttonLabel: 'Adicionar disciplina',
+                  onTap: _openDisciplinaDialog,
+                )
+              else
+                for (var index = 0; index < disciplinas.length; index++) ...[
+                  MinhasDisciplinasProfessorMobileCard(
+                    disciplina: disciplinas[index],
+                    color: _disciplineColor(disciplinas[index].nome),
+                    onEdit: () =>
+                        _openDisciplinaDialog(disciplina: disciplinas[index]),
+                    onDelete: () => _removeDisciplina(disciplinas[index]),
+                  ),
+                  if (index != disciplinas.length - 1)
+                    const SizedBox(
+                      height: MinhasDisciplinasProfessorLayout.mobileSectionGap,
+                    ),
+                ],
+            ],
+          );
+        },
+      ),
+    );
+  }
+
   Widget _buildMainContent(double width) {
     return SizedBox(
       width: width,
@@ -422,6 +537,14 @@ class _MinhasDisciplinasProfessorContentSectionState
 
   @override
   Widget build(BuildContext context) {
+    final isMobile =
+        widget.isMobile ||
+        MediaQuery.sizeOf(context).width <= AppHeader.mobileBreakpoint;
+
+    if (isMobile) {
+      return _buildMobileContent();
+    }
+
     return Container(
       color: MinhasDisciplinasProfessorColors.background,
       child: LayoutBuilder(

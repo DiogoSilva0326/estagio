@@ -1,38 +1,50 @@
 import 'package:aula_extra/core/data/education/dtos/disciplina_dto.dart';
 import 'package:aula_extra/core/data/education/education_service.dart';
+import 'package:aula_extra/core/data/reservations_calendar/dtos/student_area_summary_dto.dart';
+import 'package:aula_extra/core/data/reservations_calendar/reservations_calendar_service.dart';
+import 'package:aula_extra/core/components/header/app_header.dart';
 import 'package:aula_extra/features/aluno/core/widgets/aluno_menu_nav.dart';
 import 'package:aula_extra/features/aluno/areas_aluno/constants/areas_aluno_assets.dart';
 import 'package:aula_extra/features/aluno/areas_aluno/constants/areas_aluno_constants.dart';
 import 'package:aula_extra/features/aluno/areas_aluno/models/area_overview.dart';
+import 'package:aula_extra/features/aluno/areas_aluno/sections/areas_aluno_mobile_content_section.dart';
 import 'package:aula_extra/features/aluno/areas_aluno/widgets/disciplina_card.dart';
 import 'package:aula_extra/features/aluno/areas_aluno/widgets/areas_filter_chip.dart';
 import 'package:aula_extra/features/aluno/areas_aluno/widgets/dialogs/add_area_dialog.dart';
 import 'package:aula_extra/features/aluno/areas_aluno/widgets/dialogs/area_details_dialog.dart';
 import 'package:aula_extra/features/aluno/areas_aluno/widgets/dialogs/area_mark_lesson_dialog.dart';
 import 'package:aula_extra/core/data/education/dtos/area_dto.dart';
+import 'package:aula_extra/routes/routes.dart';
 import 'package:flutter/material.dart';
 
 class AreasAlunoContentSection extends StatefulWidget {
   const AreasAlunoContentSection({super.key});
 
   @override
-  State<AreasAlunoContentSection> createState() => _AreasAlunoContentSectionState();
+  State<AreasAlunoContentSection> createState() =>
+      _AreasAlunoContentSectionState();
 }
 
 class _AreasAlunoContentSectionState extends State<AreasAlunoContentSection> {
   final EducationService _education = EducationService();
+  final ReservationsCalendarService _calendar = ReservationsCalendarService();
 
   static const _gridPageSize = 4;
   var _gridPagesShown = 1;
 
   final ScrollController _filterScrollController = ScrollController();
+  final TextEditingController _popularSearchController =
+      TextEditingController();
 
   bool _loading = true;
   String? _error;
   String? _removingDisciplinaId;
+  String _popularFilter = 'Todos';
+  String _popularSearch = '';
 
   List<DisciplinaDto> _myDisciplinas = const [];
   List<AreaDto> _areasCatalog = const [];
+  Map<String, StudentAreaSummaryDto> _areaSummaries = const {};
   String _filterName = 'Todas';
 
   Map<String, String> get _areaNameById {
@@ -62,11 +74,22 @@ class _AreasAlunoContentSectionState extends State<AreasAlunoContentSection> {
 
   String _assetForAreaName(String name) {
     final n = name.trim().toLowerCase();
-    if (n.contains('matem') || n.contains('álgebra') || n.contains('algebra') || n.contains('geometr') || n.contains('trigonom') || n.contains('cálculo') || n.contains('calculo') || n.contains('estat')) {
+    if (n.contains('matem') ||
+        n.contains('álgebra') ||
+        n.contains('algebra') ||
+        n.contains('geometr') ||
+        n.contains('trigonom') ||
+        n.contains('cálculo') ||
+        n.contains('calculo') ||
+        n.contains('estat')) {
       return AreasAlunoAssets.matematica;
     }
 
-    if (n.contains('ingl') || n.contains('portugu') || n.contains('espan') || n.contains('franc') || n.contains('alem')) {
+    if (n.contains('ingl') ||
+        n.contains('portugu') ||
+        n.contains('espan') ||
+        n.contains('franc') ||
+        n.contains('alem')) {
       return AreasAlunoAssets.linguas;
     }
 
@@ -77,13 +100,90 @@ class _AreasAlunoContentSectionState extends State<AreasAlunoContentSection> {
     final byId = _areaNameById;
     final idArea = (d.idArea ?? '').trim();
     if (idArea.isEmpty) return 'Sem área';
-    return byId[idArea]?.trim().isNotEmpty == true ? byId[idArea]!.trim() : 'Sem área';
+    return byId[idArea]?.trim().isNotEmpty == true
+        ? byId[idArea]!.trim()
+        : 'Sem área';
   }
 
   List<DisciplinaDto> get _filteredDisciplinas {
     if (_filterName == 'Todas') return _myDisciplinas;
     return _myDisciplinas
         .where((d) => _areaNameForDisciplina(d) == _filterName)
+        .toList(growable: false);
+  }
+
+  List<AreaOverview> get _areaOverviews {
+    final byArea = <String, List<DisciplinaDto>>{};
+    for (final disciplina in _myDisciplinas) {
+      final idArea = (disciplina.idArea ?? '').trim();
+      if (idArea.isEmpty) continue;
+      (byArea[idArea] ??= <DisciplinaDto>[]).add(disciplina);
+    }
+
+    final result = <AreaOverview>[];
+    byArea.forEach((idArea, disciplinas) {
+      final areaName = _areaNameById[idArea] ?? 'Sem área';
+      final summary = _areaSummaries[idArea];
+      result.add(
+        AreaOverview(
+          idArea: idArea,
+          name: areaName,
+          imageAsset: _assetForAreaName(areaName),
+          selectedDisciplinaIds: disciplinas
+              .map((item) => item.idDisciplina.trim())
+              .where((item) => item.isNotEmpty)
+              .toList(growable: false),
+          selectedDisciplinaNames: disciplinas
+              .map((item) => item.nome.trim())
+              .where((item) => item.isNotEmpty)
+              .toList(growable: false),
+          scheduledLessons: summary?.completedLessons ?? 0,
+          pendingTasks: 0,
+          nextLessonText: _formatNextLesson(summary) ?? 'nenhuma',
+          nextLessonColor: summary?.nextLessonStart != null
+              ? const Color(0xFF00A63E)
+              : const Color(0xFF4A5565),
+        ),
+      );
+    });
+
+    result.sort((left, right) => left.name.compareTo(right.name));
+    return result;
+  }
+
+  List<String> get _popularAreaFilters {
+    final ordered = <String>['Todos'];
+    final seen = <String>{};
+    for (final area in _areasCatalog) {
+      final name = area.nome.trim();
+      if (name.isEmpty) continue;
+      if (seen.add(name.toLowerCase())) {
+        ordered.add(name);
+      }
+      if (ordered.length >= 4) break;
+    }
+    return ordered;
+  }
+
+  List<AreasAlunoMobileCatalogItem> get _popularAreas {
+    final query = _popularSearch.trim().toLowerCase();
+    return _areasCatalog
+        .where((area) {
+          final name = area.nome.trim();
+          if (name.isEmpty) return false;
+          final matchesFilter =
+              _popularFilter == 'Todos' || name == _popularFilter;
+          final matchesSearch =
+              query.isEmpty || name.toLowerCase().contains(query);
+          return matchesFilter && matchesSearch;
+        })
+        .map((area) {
+          return AreasAlunoMobileCatalogItem(
+            id: area.idArea,
+            name: area.nome.trim(),
+            imageAsset: _assetForAreaName(area.nome),
+          );
+        })
         .toList(growable: false);
   }
 
@@ -125,11 +225,30 @@ class _AreasAlunoContentSectionState extends State<AreasAlunoContentSection> {
     try {
       final mine = await _education.getMyDisciplinas();
       final areas = await _education.getAreas();
+      final areaIds = mine
+          .map((item) => (item.idArea ?? '').trim())
+          .where((item) => item.isNotEmpty)
+          .toSet()
+          .toList(growable: false);
+      final summaryEntries = await Future.wait(
+        areaIds.map((idArea) async {
+          try {
+            final summary = await _calendar.getMyAreaSummary(areaId: idArea);
+            return MapEntry(idArea, summary);
+          } catch (_) {
+            return null;
+          }
+        }),
+      );
 
       if (!mounted) return;
       setState(() {
         _myDisciplinas = mine;
         _areasCatalog = areas;
+        _areaSummaries = {
+          for (final entry in summaryEntries)
+            if (entry != null) entry.key: entry.value,
+        };
         _loading = false;
 
         // Keep filter valid.
@@ -137,7 +256,9 @@ class _AreasAlunoContentSectionState extends State<AreasAlunoContentSection> {
         final currentAreaNames = _myDisciplinas
             .map((d) => byId[(d.idArea ?? '').trim()] ?? 'Sem área')
             .toSet();
-        if (_filterName != 'Todas' && !currentAreaNames.contains(_filterName)) _filterName = 'Todas';
+        if (_filterName != 'Todas' && !currentAreaNames.contains(_filterName)) {
+          _filterName = 'Todas';
+        }
       });
     } catch (e) {
       if (!mounted) return;
@@ -164,9 +285,7 @@ class _AreasAlunoContentSectionState extends State<AreasAlunoContentSection> {
 
     current.removeWhere(areaIds.contains);
     current.addAll(
-      selectedIdsInArea
-          .map((id) => id.trim())
-          .where((id) => id.isNotEmpty),
+      selectedIdsInArea.map((id) => id.trim()).where((id) => id.isNotEmpty),
     );
 
     setState(() {
@@ -175,7 +294,9 @@ class _AreasAlunoContentSectionState extends State<AreasAlunoContentSection> {
     });
 
     try {
-      final updated = await _education.setMyDisciplinas(ids: current.toList(growable: false));
+      final updated = await _education.setMyDisciplinas(
+        ids: current.toList(growable: false),
+      );
       if (!mounted) return;
       setState(() {
         _myDisciplinas = updated;
@@ -185,7 +306,8 @@ class _AreasAlunoContentSectionState extends State<AreasAlunoContentSection> {
         final currentAreaNames = _myDisciplinas
             .map((d) => byId[(d.idArea ?? '').trim()] ?? 'Sem área')
             .toSet();
-        if (_filterName != 'Todas' && !currentAreaNames.contains(_filterName)) _filterName = 'Todas';
+        if (_filterName != 'Todas' && !currentAreaNames.contains(_filterName))
+          _filterName = 'Todas';
       });
     } catch (e) {
       if (!mounted) return;
@@ -204,7 +326,9 @@ class _AreasAlunoContentSectionState extends State<AreasAlunoContentSection> {
     setState(() => _removingDisciplinaId = idDisciplina);
 
     try {
-      final updated = await _education.removeMyDisciplina(idDisciplina: idDisciplina);
+      final updated = await _education.removeMyDisciplina(
+        idDisciplina: idDisciplina,
+      );
       if (!mounted) return;
       setState(() {
         _myDisciplinas = updated;
@@ -214,7 +338,8 @@ class _AreasAlunoContentSectionState extends State<AreasAlunoContentSection> {
         final currentAreaNames = _myDisciplinas
             .map((d) => byId[(d.idArea ?? '').trim()] ?? 'Sem área')
             .toSet();
-        if (_filterName != 'Todas' && !currentAreaNames.contains(_filterName)) _filterName = 'Todas';
+        if (_filterName != 'Todas' && !currentAreaNames.contains(_filterName))
+          _filterName = 'Todas';
       });
     } catch (e) {
       if (!mounted) return;
@@ -228,6 +353,7 @@ class _AreasAlunoContentSectionState extends State<AreasAlunoContentSection> {
   @override
   void dispose() {
     _filterScrollController.dispose();
+    _popularSearchController.dispose();
     super.dispose();
   }
 
@@ -242,14 +368,85 @@ class _AreasAlunoContentSectionState extends State<AreasAlunoContentSection> {
     );
   }
 
+  String? _formatNextLesson(StudentAreaSummaryDto? summary) {
+    final start = summary?.nextLessonStart;
+    if (start == null) return null;
+
+    const weekdays = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
+    final weekday = weekdays[start.weekday - 1];
+    final day = start.day.toString().padLeft(2, '0');
+    final month = start.month.toString().padLeft(2, '0');
+    final hour = start.hour.toString().padLeft(2, '0');
+    final minute = start.minute.toString().padLeft(2, '0');
+    return '$weekday, $day/$month • $hour:$minute';
+  }
+
+  void _openAddAreaDialog() {
+    showAddAreaDialog(
+      context,
+      areas: _areasCatalog,
+      selectedAreaIds: _myDisciplinas
+          .map((d) => (d.idArea ?? '').trim())
+          .where((id) => id.isNotEmpty)
+          .toSet(),
+      selectedDisciplinaIds: _myDisciplinas
+          .map((d) => d.idDisciplina.trim())
+          .where((id) => id.isNotEmpty)
+          .toSet(),
+      selectedDisciplinaNamesByAreaId: _selectedDisciplinaNamesByAreaId,
+      loadDisciplinasByAreaId: (idArea) =>
+          _education.getDisciplinasByArea(idArea: idArea),
+      onAreaSelectionConfirmed: (idArea, allIdsInArea, selectedIds) =>
+          _setDisciplinesForArea(
+            idArea: idArea,
+            allDisciplinaIdsInArea: allIdsInArea,
+            selectedIdsInArea: selectedIds,
+          ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final isMobile =
+        MediaQuery.sizeOf(context).width <= AppHeader.mobileBreakpoint;
     final disciplinas = _filteredDisciplinas;
     final filterOptions = _filterOptions;
 
-    final visibleCount = (_gridPagesShown * _gridPageSize).clamp(0, disciplinas.length);
-    final visibleDisciplinas = disciplinas.take(visibleCount).toList(growable: false);
+    final visibleCount = (_gridPagesShown * _gridPageSize).clamp(
+      0,
+      disciplinas.length,
+    );
+    final visibleDisciplinas = disciplinas
+        .take(visibleCount)
+        .toList(growable: false);
     final hasMoreCards = visibleCount < disciplinas.length;
+
+    if (isMobile) {
+      return AreasAlunoMobileContentSection(
+        loading: _loading,
+        error: _error,
+        overviews: _areaOverviews,
+        popularAreas: _popularAreas,
+        popularFilterOptions: _popularAreaFilters,
+        selectedPopularFilter: _popularFilter,
+        searchController: _popularSearchController,
+        onRetry: _bootstrap,
+        onViewDetails: (area) => showAreaDetailsDialog(context, area: area),
+        onMarkLesson: (area) => showAreaMarkLessonDialog(context, area: area),
+        onAddArea: _loading ? () {} : _openAddAreaDialog,
+        onPopularFilterChanged: (value) =>
+            setState(() => _popularFilter = value),
+        onPopularSearchChanged: (value) =>
+            setState(() => _popularSearch = value),
+        onPopularAreaTap: (_) {
+          if (!_loading) _openAddAreaDialog();
+        },
+        onExploreTutors: () =>
+            Navigator.of(context).pushNamed(Routes.explicadores),
+        onBecomeTeacher: () =>
+            Navigator.of(context).pushNamed(Routes.becomeTeacher),
+      );
+    }
 
     return Padding(
       padding: const EdgeInsets.symmetric(
@@ -287,7 +484,10 @@ class _AreasAlunoContentSectionState extends State<AreasAlunoContentSection> {
                         color: AreasAlunoConstants.labelColor,
                         tooltip: 'Anterior',
                         padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints.tightFor(width: 40, height: 58.085),
+                        constraints: const BoxConstraints.tightFor(
+                          width: 40,
+                          height: 58.085,
+                        ),
                       ),
                       Expanded(
                         child: SingleChildScrollView(
@@ -295,9 +495,15 @@ class _AreasAlunoContentSectionState extends State<AreasAlunoContentSection> {
                           scrollDirection: Axis.horizontal,
                           child: Row(
                             children: [
-                              for (var i = 0; i < filterOptions.length; i++) ...[
+                              for (
+                                var i = 0;
+                                i < filterOptions.length;
+                                i++
+                              ) ...[
                                 if (i > 0)
-                                  const SizedBox(width: AreasAlunoConstants.filterChipGap),
+                                  const SizedBox(
+                                    width: AreasAlunoConstants.filterChipGap,
+                                  ),
                                 AreasFilterChip(
                                   label: filterOptions[i],
                                   selected: _filterName == filterOptions[i],
@@ -317,7 +523,10 @@ class _AreasAlunoContentSectionState extends State<AreasAlunoContentSection> {
                         color: AreasAlunoConstants.labelColor,
                         tooltip: 'Seguinte',
                         padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints.tightFor(width: 40, height: 58.085),
+                        constraints: const BoxConstraints.tightFor(
+                          width: 40,
+                          height: 58.085,
+                        ),
                       ),
                     ],
                   ),
@@ -354,12 +563,16 @@ class _AreasAlunoContentSectionState extends State<AreasAlunoContentSection> {
                       GridView.builder(
                         shrinkWrap: true,
                         physics: const NeverScrollableScrollPhysics(),
-                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 2,
-                          crossAxisSpacing: AreasAlunoConstants.gridCrossAxisSpacing,
-                          mainAxisSpacing: AreasAlunoConstants.gridMainAxisSpacing,
-                          mainAxisExtent: AreasAlunoConstants.gridMainAxisExtent,
-                        ),
+                        gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 2,
+                              crossAxisSpacing:
+                                  AreasAlunoConstants.gridCrossAxisSpacing,
+                              mainAxisSpacing:
+                                  AreasAlunoConstants.gridMainAxisSpacing,
+                              mainAxisExtent:
+                                  AreasAlunoConstants.gridMainAxisExtent,
+                            ),
                         itemCount: visibleDisciplinas.length,
                         itemBuilder: (context, index) {
                           final d = visibleDisciplinas[index];
@@ -367,8 +580,12 @@ class _AreasAlunoContentSectionState extends State<AreasAlunoContentSection> {
                           final asset = _assetForAreaName(areaName);
 
                           final idArea = (d.idArea ?? '').trim();
-                          final selectedIds = _selectedDisciplinaIdsByAreaId[idArea] ?? const <String>[];
-                          final selectedNames = _selectedDisciplinaNamesByAreaId[idArea] ?? const <String>[];
+                          final selectedIds =
+                              _selectedDisciplinaIdsByAreaId[idArea] ??
+                              const <String>[];
+                          final selectedNames =
+                              _selectedDisciplinaNamesByAreaId[idArea] ??
+                              const <String>[];
                           final overview = AreaOverview(
                             idArea: idArea,
                             name: areaName,
@@ -385,8 +602,12 @@ class _AreasAlunoContentSectionState extends State<AreasAlunoContentSection> {
                             disciplina: d,
                             areaName: areaName,
                             imageAsset: asset,
-                            onViewDetails: () => showAreaDetailsDialog(context, area: overview),
-                            onMarkLesson: () => showAreaMarkLessonDialog(context, area: overview),
+                            onViewDetails: () =>
+                                showAreaDetailsDialog(context, area: overview),
+                            onMarkLesson: () => showAreaMarkLessonDialog(
+                              context,
+                              area: overview,
+                            ),
                             onRemove: () => _removeDisciplina(d),
                             scheduledLessons: overview.scheduledLessons,
                             pendingTasks: overview.pendingTasks,
@@ -395,29 +616,36 @@ class _AreasAlunoContentSectionState extends State<AreasAlunoContentSection> {
                           );
                         },
                       ),
-                      if (hasMoreCards)
-                        const SizedBox(height: 18),
+                      if (hasMoreCards) const SizedBox(height: 18),
                       if (hasMoreCards)
                         Align(
                           alignment: Alignment.centerRight,
                           child: OutlinedButton(
-                            onPressed: () => setState(() => _gridPagesShown += 1),
+                            onPressed: () =>
+                                setState(() => _gridPagesShown += 1),
                             style: OutlinedButton.styleFrom(
                               side: const BorderSide(
                                 color: AreasAlunoConstants.orangeStart,
-                                width: AreasAlunoConstants.addAreaButtonBorderWidth,
+                                width: AreasAlunoConstants
+                                    .addAreaButtonBorderWidth,
                               ),
                               shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(AreasAlunoConstants.addAreaButtonRadius),
+                                borderRadius: BorderRadius.circular(
+                                  AreasAlunoConstants.addAreaButtonRadius,
+                                ),
                               ),
-                              padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 28,
+                                vertical: 16,
+                              ),
                               minimumSize: const Size(0, 56),
                               foregroundColor: AreasAlunoConstants.orangeStart,
-                              textStyle: AreasAlunoConstants.addAreaTextStyle.copyWith(
-                                color: AreasAlunoConstants.orangeStart,
-                                fontSize: 20,
-                                height: 28 / 20,
-                              ),
+                              textStyle: AreasAlunoConstants.addAreaTextStyle
+                                  .copyWith(
+                                    color: AreasAlunoConstants.orangeStart,
+                                    fontSize: 20,
+                                    height: 28 / 20,
+                                  ),
                             ),
                             child: const Text('Ver mais'),
                           ),
@@ -429,27 +657,7 @@ class _AreasAlunoContentSectionState extends State<AreasAlunoContentSection> {
                   width: 311.581,
                   height: 71.915,
                   child: OutlinedButton.icon(
-                    onPressed: _loading
-                        ? null
-                        : () => showAddAreaDialog(
-                              context,
-                              areas: _areasCatalog,
-                              selectedAreaIds: _myDisciplinas
-                                  .map((d) => (d.idArea ?? '').trim())
-                                  .where((id) => id.isNotEmpty)
-                                  .toSet(),
-                              selectedDisciplinaIds: _myDisciplinas
-                                  .map((d) => d.idDisciplina.trim())
-                                  .where((id) => id.isNotEmpty)
-                                  .toSet(),
-                              selectedDisciplinaNamesByAreaId: _selectedDisciplinaNamesByAreaId,
-                              loadDisciplinasByAreaId: (idArea) => _education.getDisciplinasByArea(idArea: idArea),
-                              onAreaSelectionConfirmed: (idArea, allIdsInArea, selectedIds) => _setDisciplinesForArea(
-                                idArea: idArea,
-                                allDisciplinaIdsInArea: allIdsInArea,
-                                selectedIdsInArea: selectedIds,
-                              ),
-                            ),
+                    onPressed: _loading ? null : _openAddAreaDialog,
                     icon: const Icon(
                       Icons.add_circle_outline_rounded,
                       size: AreasAlunoConstants.addAreaIconSize,
@@ -465,9 +673,13 @@ class _AreasAlunoContentSectionState extends State<AreasAlunoContentSection> {
                         width: AreasAlunoConstants.addAreaButtonBorderWidth,
                       ),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(AreasAlunoConstants.addAreaButtonRadius),
+                        borderRadius: BorderRadius.circular(
+                          AreasAlunoConstants.addAreaButtonRadius,
+                        ),
                       ),
-                      padding: const EdgeInsets.all(AreasAlunoConstants.addAreaButtonBorderWidth),
+                      padding: const EdgeInsets.all(
+                        AreasAlunoConstants.addAreaButtonBorderWidth,
+                      ),
                       alignment: Alignment.center,
                     ),
                   ),
@@ -480,4 +692,3 @@ class _AreasAlunoContentSectionState extends State<AreasAlunoContentSection> {
     );
   }
 }
-

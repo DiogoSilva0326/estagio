@@ -1,10 +1,12 @@
 import 'package:aula_extra/core/data/payments/dtos/student_topup_simulation_request_dto.dart';
 import 'package:aula_extra/core/data/payments/payments_api.dart';
 import 'package:aula_extra/core/data/payments/payments_service.dart';
+import 'package:aula_extra/core/components/header/app_header.dart';
 import 'package:aula_extra/core/providers/user_provider.dart';
 import 'package:aula_extra/core/widgets/asset_picture.dart';
 import 'package:aula_extra/features/comprar_creditos/constants/comprar_creditos_constants.dart';
 import 'package:aula_extra/features/comprar_creditos/constants/comprar_creditos_data.dart';
+import 'package:aula_extra/features/comprar_creditos/sections/comprar_creditos_mobile_content_section.dart';
 import 'package:aula_extra/features/comprar_creditos/widgets/comprar_creditos_benefit_chip.dart';
 import 'package:aula_extra/features/comprar_creditos/widgets/comprar_creditos_package_card.dart';
 import 'package:aula_extra/features/comprar_creditos/widgets/comprar_creditos_step_card.dart';
@@ -41,7 +43,9 @@ class _ComprarCreditosContentSectionState
   }
 
   double _parsePriceAmount(String priceLabel) {
-    final normalized = priceLabel.replaceAll(',', '.').replaceAll(RegExp(r'[^0-9.]'), '');
+    final normalized = priceLabel
+        .replaceAll(',', '.')
+        .replaceAll(RegExp(r'[^0-9.]'), '');
     return double.tryParse(normalized) ?? 0;
   }
 
@@ -91,9 +95,9 @@ class _ComprarCreditosContentSectionState
         Navigator.of(context).pushNamed(Routes.pagamentos);
       } on PaymentsException catch (error) {
         if (!context.mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(error.message)),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(error.message)));
       } catch (_) {
         if (!context.mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
@@ -134,7 +138,8 @@ class _ComprarCreditosContentSectionState
       _CustomCreditsCard(
         credits: _customCredits.round(),
         onChanged: (value) => setState(() => _customCredits = value),
-        buttonLabel: _isSubmitting && _submittingPackageName == 'Pack Personalizado'
+        buttonLabel:
+            _isSubmitting && _submittingPackageName == 'Pack Personalizado'
             ? 'A processar...'
             : 'Comprar agora',
         isLoading: _isSubmitting,
@@ -206,6 +211,34 @@ class _ComprarCreditosContentSectionState
     final primaryLabel = isStudent
         ? 'Comprar créditos'
         : 'Criar conta para comprar';
+    final isMobile =
+        MediaQuery.sizeOf(context).width <= AppHeader.mobileBreakpoint;
+
+    if (isMobile) {
+      return ComprarCreditosMobileContentSection(
+        primaryLabel: primaryLabel,
+        packagesSectionKey: _packagesSectionKey,
+        customCredits: _customCredits.round(),
+        isSubmitting: _isSubmitting,
+        submittingPackageName: _submittingPackageName,
+        onPrimaryTap: _scrollToPackagesSection,
+        onFaqTap: () => Navigator.of(context).pushNamed(Routes.faq),
+        onCustomCreditsChanged: (value) =>
+            setState(() => _customCredits = value),
+        onPackageTap: (package) => _goToCheckout(
+          context,
+          credits: package.credits,
+          packageName: package.title,
+          paymentAmount: _parsePriceAmount(package.priceLabel),
+        ),
+        onCustomPackageTap: () => _goToCheckout(
+          context,
+          credits: _customCredits.round(),
+          packageName: 'Pack Personalizado',
+          paymentAmount: _customCredits.roundToDouble(),
+        ),
+      );
+    }
 
     return Container(
       color: ComprarCreditosConstants.pageBackground,

@@ -16,6 +16,8 @@ class CalendarioScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final role = context.watch<UserProvider>().role;
     final isStudent = role == Role.student;
+    final isMobile =
+        MediaQuery.sizeOf(context).width <= AppHeader.mobileBreakpoint;
 
     if (!isStudent) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -24,6 +26,44 @@ class CalendarioScreen extends StatelessWidget {
           context,
         ).pushNamedAndRemoveUntil(Routes.home, (route) => false);
       });
+    }
+
+    if (isMobile) {
+      return Scaffold(
+        backgroundColor: const Color(0xFFF9F9F9),
+        body: Column(
+          children: [
+            AppHeader(
+              headerAlunoActiveItem: HeaderAlunoItem.calendario,
+              onRegisterTap: () =>
+                  Navigator.of(context).pushNamed(Routes.registerStudent),
+              onLoginTap: () => Navigator.of(context).pushNamed(Routes.login),
+              onLogoTap: () => Navigator.of(
+                context,
+              ).pushNamedAndRemoveUntil(Routes.home, (route) => false),
+            ),
+            const Expanded(
+              child: SingleChildScrollView(
+                child: Column(
+                  children: [
+                    ColoredBox(
+                      color: Color(0xFFF9F9F9),
+                      child: SizedBox(
+                        width: double.infinity,
+                        child: CalendarioContentSection(),
+                      ),
+                    ),
+                    ColoredBox(
+                      color: Color(0xFFF9F9F9),
+                      child: FooterSection(),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
     }
 
     return Scaffold(

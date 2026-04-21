@@ -2,6 +2,7 @@ import 'package:aula_extra/core/components/footer/sections/footer_section.dart';
 import 'package:aula_extra/core/components/header/app_header.dart';
 import 'package:aula_extra/core/providers/user_provider.dart';
 import 'package:aula_extra/core/widgets/pinned_header_delegate.dart';
+import 'package:aula_extra/features/professor/meus_alunos/pages/meus_alunos_professor_mobile_page.dart';
 import 'package:aula_extra/features/professor/meus_alunos/sections/meus_alunos_professor_content_section.dart';
 import 'package:aula_extra/routes/routes.dart';
 import 'package:flutter/material.dart';
@@ -27,23 +28,7 @@ class MeusAlunosProfessorScreen extends StatelessWidget {
     }
 
     if (isMobile) {
-      return Scaffold(
-        body: Column(
-          children: const [
-            AppHeader(),
-            Expanded(
-              child: SingleChildScrollView(
-                child: Column(
-                  children: [
-                    MeusAlunosProfessorContentSection(),
-                    FooterSection(),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-      );
+      return const MeusAlunosProfessorMobilePage();
     }
 
     return Scaffold(

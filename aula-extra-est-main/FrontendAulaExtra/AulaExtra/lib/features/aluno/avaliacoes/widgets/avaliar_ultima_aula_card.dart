@@ -2,10 +2,7 @@ import 'package:aula_extra/features/aluno/avaliacoes/widgets/avaliar_aula_dialog
 import 'package:flutter/material.dart';
 
 class AvaliarUltimaAulaCard extends StatelessWidget {
-  const AvaliarUltimaAulaCard({
-    super.key,
-    required this.onSubmitted,
-  });
+  const AvaliarUltimaAulaCard({super.key, required this.onSubmitted});
 
   final VoidCallback onSubmitted;
 

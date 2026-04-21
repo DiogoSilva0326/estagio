@@ -1,4 +1,5 @@
 import 'package:aula_extra/features/tutor_profile_view/sections/section_container.dart';
+import 'package:aula_extra/features/tutor_profile_view/constants/tutor_profile_layout.dart';
 import 'package:aula_extra/core/data/education/dtos/disciplina_dto.dart';
 import 'package:aula_extra/core/data/professors/dtos/professor_certificate_dto.dart';
 import 'package:aula_extra/core/data/professors/dtos/professor_language_dto.dart';
@@ -99,9 +100,18 @@ class ProfileContentSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final formationItems = _buildFormationItems();
+    final width = MediaQuery.sizeOf(context).width;
+    final isMobile = width <= kTutorProfileMobileBreakpoint;
+    final horizontalPadding = isMobile ? 20.0 : 30.638;
+    final verticalPadding = isMobile ? 24.0 : 30.638;
+    final sectionSpacing = isMobile ? 28.0 : 40.851;
+    final chipWidth = isMobile ? double.infinity : 431.0;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 30.638, vertical: 30.638),
+      padding: EdgeInsets.symmetric(
+        horizontal: horizontalPadding,
+        vertical: verticalPadding,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -109,27 +119,27 @@ class ProfileContentSection extends StatelessWidget {
             title: 'Sobre mim',
             child: Text(
               description,
-              style: const TextStyle(
-                fontSize: 20.426,
-                height: 33.191 / 20.426,
+              style: TextStyle(
+                fontSize: isMobile ? 15 : 20.426,
+                height: isMobile ? 1.7 : 33.191 / 20.426,
                 color: Color(0xFF364153),
               ),
             ),
           ),
-          const SizedBox(height: 40.851),
+          SizedBox(height: sectionSpacing),
           SectionContainer(
             title: 'Idiomas que falo',
             child: languages.isEmpty
                 ? const _EmptyStateText(
                     'Este professor ainda não indicou idiomas no perfil.',
                   )
-                : Wrap(
+                : _ResponsiveWrapList(
                     spacing: 15.319,
                     runSpacing: 15.319,
                     children: [
                       for (final language in languages)
                         SizedBox(
-                          width: 431,
+                          width: chipWidth,
                           child: Pill(
                             text:
                                 language.proficiencyLevel?.trim().isNotEmpty ==
@@ -141,26 +151,26 @@ class ProfileContentSection extends StatelessWidget {
                     ],
                   ),
           ),
-          const SizedBox(height: 40.851),
+          SizedBox(height: sectionSpacing),
           SectionContainer(
             title: 'Disciplinas',
             child: disciplinas.isEmpty
                 ? const _EmptyStateText(
                     'Este professor ainda não indicou disciplinas no perfil.',
                   )
-                : Wrap(
+                : _ResponsiveWrapList(
                     spacing: 15.319,
                     runSpacing: 15.319,
                     children: [
                       for (final disciplina in disciplinas)
                         SizedBox(
-                          width: 431,
+                          width: chipWidth,
                           child: GradientTag(text: disciplina.nome),
                         ),
                     ],
                   ),
           ),
-          const SizedBox(height: 40.851),
+          SizedBox(height: sectionSpacing),
           SectionContainer(
             title: 'Formação',
             child: formationItems.isEmpty
@@ -184,13 +194,13 @@ class ProfileContentSection extends StatelessWidget {
                     ],
                   ),
           ),
-          const SizedBox(height: 40.851),
+          SizedBox(height: sectionSpacing),
           SectionContainer(
             title: 'Horários Disponíveis',
             leadingIcon: Icons.calendar_month_outlined,
             child: ScheduleGrid(availability: availability),
           ),
-          const SizedBox(height: 40.851),
+          SizedBox(height: sectionSpacing),
           SectionContainer(
             title: 'Avaliações',
             child: ReviewsList(reviews: reviews),
@@ -198,6 +208,38 @@ class ProfileContentSection extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+class _ResponsiveWrapList extends StatelessWidget {
+  const _ResponsiveWrapList({
+    required this.spacing,
+    required this.runSpacing,
+    required this.children,
+  });
+
+  final double spacing;
+  final double runSpacing;
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    final isMobile =
+        MediaQuery.sizeOf(context).width <= kTutorProfileMobileBreakpoint;
+
+    if (isMobile) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (var index = 0; index < children.length; index++) ...[
+            children[index],
+            if (index < children.length - 1) SizedBox(height: runSpacing),
+          ],
+        ],
+      );
+    }
+
+    return Wrap(spacing: spacing, runSpacing: runSpacing, children: children);
   }
 }
 

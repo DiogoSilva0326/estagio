@@ -29,7 +29,7 @@ class ComprarCreditosStepCard extends StatelessWidget {
         children: [
           Row(
             // Alinha os itens verticalmente ao centro da linha
-            crossAxisAlignment: CrossAxisAlignment.center, 
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Container(
                 width: 58,
@@ -43,7 +43,7 @@ class ComprarCreditosStepCard extends StatelessWidget {
                 child: Icon(data.icon, color: Colors.white, size: 28),
               ),
               // Troquei height por width para dar o espaçamento horizontal
-              const SizedBox(width: 22), 
+              const SizedBox(width: 22),
               Text(
                 '0$index',
                 style: const TextStyle(

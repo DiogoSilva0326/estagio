@@ -46,14 +46,16 @@ class AvaliacoesMockData {
       tutorName: 'Maria Santos',
       subject: 'Física',
       rating: 4.5,
-      comment: 'Ótimas aulas, explica muito bem. Só acho que poderia disponibilizar mais exercícios.',
+      comment:
+          'Ótimas aulas, explica muito bem. Só acho que poderia disponibilizar mais exercícios.',
       dateLabel: '22 Jan 2026',
     ),
     AvaliacaoReview(
       tutorName: 'Pedro Costa',
       subject: 'Inglês',
       rating: 5.0,
-      comment: 'Perfeito! Melhorei muito meu inglês com as aulas dele. Recomendo muito!',
+      comment:
+          'Perfeito! Melhorei muito meu inglês com as aulas dele. Recomendo muito!',
       dateLabel: '23 Jan 2026',
     ),
   ];

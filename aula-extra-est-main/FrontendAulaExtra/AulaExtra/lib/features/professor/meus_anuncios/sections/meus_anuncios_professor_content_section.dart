@@ -18,7 +18,9 @@ import 'package:provider/provider.dart';
 enum _AdsFilter { active, inactive }
 
 class MeusAnunciosProfessorContentSection extends StatefulWidget {
-  const MeusAnunciosProfessorContentSection({super.key});
+  const MeusAnunciosProfessorContentSection({super.key, this.isMobile = false});
+
+  final bool isMobile;
 
   @override
   State<MeusAnunciosProfessorContentSection> createState() =>
@@ -204,6 +206,10 @@ class _MeusAnunciosProfessorContentSectionState
         ? account!.username!.trim()
         : 'Professor';
     final filteredAds = _filteredAds;
+
+    if (widget.isMobile) {
+      return _buildMobileContent(displayName, filteredAds);
+    }
 
     return Container(
       color: MeusAnunciosProfessorColors.pageBackground,
@@ -415,6 +421,192 @@ class _MeusAnunciosProfessorContentSectionState
     );
   }
 
+  Widget _buildMobileContent(
+    String displayName,
+    List<ProfessorAdDto> filteredAds,
+  ) {
+    return Container(
+      width: double.infinity,
+      color: MeusAnunciosProfessorColors.pageBackground,
+      padding: const EdgeInsets.fromLTRB(
+        MeusAnunciosProfessorLayout.mobileHorizontalPadding,
+        MeusAnunciosProfessorLayout.mobileTopPadding,
+        MeusAnunciosProfessorLayout.mobileHorizontalPadding,
+        MeusAnunciosProfessorLayout.mobileBottomPadding,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Os meus anúncios',
+            style: TextStyle(
+              fontSize: 30,
+              fontWeight: FontWeight.w700,
+              color: MeusAnunciosProfessorColors.title,
+              height: 1.15,
+            ),
+          ),
+          const SizedBox(height: 10),
+          const Text(
+            'Consulte os anúncios publicados, veja o estado de cada um e faça alterações rapidamente no telemóvel.',
+            style: TextStyle(
+              fontSize: 14,
+              color: MeusAnunciosProfessorColors.mutedText,
+              height: 1.5,
+            ),
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            child: _NewAdButton(onPressed: _openCreate),
+          ),
+          const SizedBox(height: 16),
+          if (_loading)
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.all(32),
+                child: CircularProgressIndicator(),
+              ),
+            )
+          else if (_error != null)
+            MeusAnunciosPanelCard(
+              padding: const EdgeInsets.all(
+                MeusAnunciosProfessorLayout.mobileCardPadding,
+              ),
+              radius: MeusAnunciosProfessorLayout.mobileCardRadius,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Não foi possível carregar os anúncios.',
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w700,
+                      color: MeusAnunciosProfessorColors.title,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    _error!,
+                    style: const TextStyle(
+                      color: MeusAnunciosProfessorColors.mutedText,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton(
+                      onPressed: _load,
+                      child: const Text('Tentar novamente'),
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else ...[
+            _buildStatsRow(),
+            const SizedBox(height: 16),
+            _buildMobileFilterRow(),
+            const SizedBox(height: 16),
+            if (_ads.isEmpty)
+              MeusAnunciosPanelCard(
+                padding: const EdgeInsets.all(
+                  MeusAnunciosProfessorLayout.mobileCardPadding,
+                ),
+                radius: MeusAnunciosProfessorLayout.mobileCardRadius,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Ainda não tem anúncios publicados.',
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w700,
+                        color: MeusAnunciosProfessorColors.title,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    const Text(
+                      'Crie o seu primeiro anúncio para começar a aparecer aos alunos.',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: MeusAnunciosProfessorColors.mutedText,
+                        height: 1.5,
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton.icon(
+                        onPressed: _openCreate,
+                        icon: const Icon(Icons.campaign_rounded),
+                        label: const Text('Publicar anúncio'),
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            else if (filteredAds.isEmpty)
+              MeusAnunciosPanelCard(
+                padding: const EdgeInsets.all(
+                  MeusAnunciosProfessorLayout.mobileCardPadding,
+                ),
+                radius: MeusAnunciosProfessorLayout.mobileCardRadius,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _selectedFilter == _AdsFilter.active
+                          ? 'Não tem anúncios ativos neste momento.'
+                          : 'Não tem anúncios inativos neste momento.',
+                      style: const TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w700,
+                        color: MeusAnunciosProfessorColors.title,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      _selectedFilter == _AdsFilter.active
+                          ? 'Pode criar um novo anúncio ou reativar um anúncio inativo.'
+                          : 'Quando desativar anúncios, eles aparecem aqui para poder reativá-los mais tarde.',
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: MeusAnunciosProfessorColors.mutedText,
+                        height: 1.5,
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            else
+              Column(
+                children: [
+                  for (var index = 0; index < filteredAds.length; index++) ...[
+                    MeusAnunciosAdCard(
+                      ad: filteredAds[index],
+                      displayName: displayName,
+                      isMobile: true,
+                      onEdit: () => _openEditor(filteredAds[index]),
+                      onToggleStatus: () =>
+                          _handleStatusAction(filteredAds[index]),
+                      onViewProfile: () =>
+                          _openPublicProfile(filteredAds[index], displayName),
+                      processingStatus: _statusLoadingIds.contains(
+                        filteredAds[index].idProfessorAd,
+                      ),
+                    ),
+                    if (index != filteredAds.length - 1)
+                      const SizedBox(height: 16),
+                  ],
+                ],
+              ),
+          ],
+        ],
+      ),
+    );
+  }
+
   Widget _buildStatsRow() {
     final published = _ads.where((ad) => ad.status == 'published').length;
     final inactive = _ads
@@ -487,6 +679,7 @@ class _MeusAnunciosProfessorContentSectionState
           label: 'Ativos',
           count: activeCount,
           selected: _selectedFilter == _AdsFilter.active,
+          expand: false,
           onTap: () {
             setState(() {
               _selectedFilter = _AdsFilter.active;
@@ -497,11 +690,53 @@ class _MeusAnunciosProfessorContentSectionState
           label: 'Inativos',
           count: inactiveCount,
           selected: _selectedFilter == _AdsFilter.inactive,
+          expand: false,
           onTap: () {
             setState(() {
               _selectedFilter = _AdsFilter.inactive;
             });
           },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMobileFilterRow() {
+    final activeCount = _ads
+        .where((ad) => ad.status.trim().toLowerCase() != 'inactive')
+        .length;
+    final inactiveCount = _ads
+        .where((ad) => ad.status.trim().toLowerCase() == 'inactive')
+        .length;
+
+    return Row(
+      children: [
+        Expanded(
+          child: _FilterChipButton(
+            label: 'Ativos',
+            count: activeCount,
+            selected: _selectedFilter == _AdsFilter.active,
+            expand: true,
+            onTap: () {
+              setState(() {
+                _selectedFilter = _AdsFilter.active;
+              });
+            },
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _FilterChipButton(
+            label: 'Inativos',
+            count: inactiveCount,
+            selected: _selectedFilter == _AdsFilter.inactive,
+            expand: true,
+            onTap: () {
+              setState(() {
+                _selectedFilter = _AdsFilter.inactive;
+              });
+            },
+          ),
         ),
       ],
     );
@@ -553,12 +788,14 @@ class _FilterChipButton extends StatelessWidget {
     required this.label,
     required this.count,
     required this.selected,
+    this.expand = false,
     required this.onTap,
   });
 
   final String label;
   final int count;
   final bool selected;
+  final bool expand;
   final VoidCallback onTap;
 
   @override
@@ -568,7 +805,11 @@ class _FilterChipButton extends StatelessWidget {
       borderRadius: BorderRadius.circular(999),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        width: expand ? double.infinity : null,
+        padding: EdgeInsets.symmetric(
+          horizontal: expand ? 14 : 16,
+          vertical: 12,
+        ),
         decoration: BoxDecoration(
           color: selected ? const Color(0xFFFFF7ED) : Colors.white,
           borderRadius: BorderRadius.circular(999),
@@ -579,7 +820,10 @@ class _FilterChipButton extends StatelessWidget {
           ),
         ),
         child: Row(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisSize: expand ? MainAxisSize.max : MainAxisSize.min,
+          mainAxisAlignment: expand
+              ? MainAxisAlignment.center
+              : MainAxisAlignment.start,
           children: [
             Text(
               label,

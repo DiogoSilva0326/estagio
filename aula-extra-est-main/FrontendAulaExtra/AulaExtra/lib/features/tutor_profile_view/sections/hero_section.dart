@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:native_web_embeds/native_web_embeds.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import 'package:aula_extra/core/components/header/app_header.dart';
+import 'package:aula_extra/features/tutor_profile_view/constants/tutor_profile_layout.dart';
 
-class HeroSection extends StatelessWidget {
+class HeroSection extends StatefulWidget {
   const HeroSection({
     super.key,
     required this.name,
@@ -18,6 +18,11 @@ class HeroSection extends StatelessWidget {
   final String? presentationVideoUrl;
   final bool isVerified;
 
+  @override
+  State<HeroSection> createState() => _HeroSectionState();
+}
+
+class _HeroSectionState extends State<HeroSection> {
   String? _extractYoutubeVideoId(String rawUrl) {
     final url = rawUrl.trim();
     if (url.isEmpty) return null;
@@ -46,29 +51,133 @@ class HeroSection extends StatelessWidget {
     return null;
   }
 
-  String? _buildYoutubeEmbedUrl(String? rawUrl) {
+  String? _buildYoutubeEmbedUrl(
+    String? rawUrl, {
+    required bool autoplay,
+    required bool muted,
+    required bool controls,
+    required bool loop,
+  }) {
     final normalized = rawUrl?.trim() ?? '';
     if (normalized.isEmpty) return null;
     final videoId = _extractYoutubeVideoId(normalized);
     if (videoId == null) return null;
-    return 'https://www.youtube.com/embed/$videoId?autoplay=1&mute=1&controls=0&loop=1&playlist=$videoId&rel=0&modestbranding=1&playsinline=1';
+    final params = <String, String>{
+      'autoplay': autoplay ? '1' : '0',
+      'mute': muted ? '1' : '0',
+      'controls': controls ? '1' : '0',
+      'rel': '0',
+      'modestbranding': '1',
+      'playsinline': '1',
+    };
+    if (loop) {
+      params['loop'] = '1';
+      params['playlist'] = videoId;
+    }
+    return Uri(
+      scheme: 'https',
+      host: 'www.youtube.com',
+      path: '/embed/$videoId',
+      queryParameters: params,
+    ).toString();
   }
 
-  Future<void> _openVideo(BuildContext context, String rawUrl) async {
-    final uri = Uri.tryParse(rawUrl.trim());
-    if (uri == null || !await launchUrl(uri, mode: LaunchMode.externalApplication)) {
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Não foi possível abrir o vídeo.')),
-      );
-    }
+  Future<void> _openVideoDialog(BuildContext context, String playerUrl) {
+    final screenSize = MediaQuery.sizeOf(context);
+    final dialogWidth = screenSize.width > 1100
+        ? 960.0
+        : screenSize.width > 820
+        ? 760.0
+        : screenSize.width - 24;
+
+    return showDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      barrierColor: const Color.fromRGBO(15, 23, 42, 0.82),
+      builder: (dialogContext) {
+        return Dialog(
+          insetPadding: const EdgeInsets.all(12),
+          backgroundColor: Colors.transparent,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: dialogWidth),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(24),
+              child: ColoredBox(
+                color: const Color(0xFF020817),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 14, 10, 14),
+                      child: Row(
+                        children: [
+                          const Expanded(
+                            child: Text(
+                              'Vídeo de Apresentação',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                          IconButton(
+                            onPressed: () => Navigator.of(dialogContext).pop(),
+                            icon: const Icon(Icons.close, color: Colors.white),
+                          ),
+                        ],
+                      ),
+                    ),
+                    AspectRatio(
+                      aspectRatio: 16 / 9,
+                      child: NativeIframe(
+                        src: playerUrl,
+                        fill: true,
+                        backgroundColor: Colors.black,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final embedUrl = _buildYoutubeEmbedUrl(presentationVideoUrl);
+    final previewUrl = _buildYoutubeEmbedUrl(
+      widget.presentationVideoUrl,
+      autoplay: true,
+      muted: true,
+      controls: false,
+      loop: true,
+    );
+    final playerUrl = _buildYoutubeEmbedUrl(
+      widget.presentationVideoUrl,
+      autoplay: true,
+      muted: false,
+      controls: true,
+      loop: false,
+    );
     final isCurrentRoute = ModalRoute.of(context)?.isCurrent ?? true;
-    final canOpenVideo = presentationVideoUrl?.trim().isNotEmpty == true;
+    final hasVideo =
+        widget.presentationVideoUrl?.trim().isNotEmpty == true &&
+        playerUrl != null;
+    final isMobile =
+        MediaQuery.sizeOf(context).width <= kTutorProfileMobileBreakpoint;
+
+    if (isMobile) {
+      return _MobileHeroSection(
+        name: widget.name,
+        photoUrl: widget.photoUrl,
+        previewUrl: previewUrl,
+        hasVideo: hasVideo,
+        onPlayTap: hasVideo ? () => _openVideoDialog(context, playerUrl) : null,
+      );
+    }
 
     return SizedBox(
       height: 408.511,
@@ -87,22 +196,23 @@ class HeroSection extends StatelessWidget {
               ),
             ),
           ),
-          if (photoUrl?.trim().isNotEmpty == true)
+          if (widget.photoUrl?.trim().isNotEmpty == true)
             Positioned.fill(
               child: Opacity(
-                opacity: embedUrl != null && isCurrentRoute ? 0.18 : 0.30,
+                opacity: previewUrl != null && isCurrentRoute ? 0.18 : 0.30,
                 child: Image.network(
-                  photoUrl!.trim(),
+                  widget.photoUrl!.trim(),
                   fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) => const SizedBox.shrink(),
+                  errorBuilder: (context, error, stackTrace) =>
+                      const SizedBox.shrink(),
                 ),
               ),
             ),
-          if (embedUrl != null && isCurrentRoute)
+          if (previewUrl != null && isCurrentRoute)
             Positioned.fill(
               child: IgnorePointer(
                 child: NativeIframe(
-                  src: embedUrl,
+                  src: previewUrl,
                   fill: true,
                   backgroundColor: Colors.black,
                   clipTop: AppHeader.height,
@@ -112,9 +222,7 @@ class HeroSection extends StatelessWidget {
               ),
             ),
           Positioned.fill(
-            child: Container(
-              color: const Color.fromRGBO(16, 24, 40, 0.45),
-            ),
+            child: Container(color: const Color.fromRGBO(16, 24, 40, 0.45)),
           ),
           Positioned(
             left: 291.06,
@@ -125,8 +233,8 @@ class HeroSection extends StatelessWidget {
               child: Column(
                 children: [
                   InkWell(
-                    onTap: canOpenVideo
-                        ? () => _openVideo(context, presentationVideoUrl!)
+                    onTap: hasVideo
+                        ? () => _openVideoDialog(context, playerUrl)
                         : null,
                     borderRadius: BorderRadius.circular(21417702),
                     child: Container(
@@ -158,7 +266,7 @@ class HeroSection extends StatelessWidget {
                   ),
                   const SizedBox(height: 20),
                   Text(
-                    'Olá! Sou $name',
+                    'Olá! Sou ${widget.name}',
                     textAlign: TextAlign.center,
                     style: const TextStyle(
                       fontSize: 38.298,
@@ -198,7 +306,11 @@ class HeroSection extends StatelessWidget {
               child: const Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.videocam_outlined, size: 20.426, color: Colors.white),
+                  Icon(
+                    Icons.videocam_outlined,
+                    size: 20.426,
+                    color: Colors.white,
+                  ),
                   SizedBox(width: 10.213),
                   Text(
                     'Vídeo de Apresentação',
@@ -236,17 +348,18 @@ class HeroSection extends StatelessWidget {
                     ],
                   ),
                   child: ClipOval(
-                    child: photoUrl?.trim().isNotEmpty == true
+                    child: widget.photoUrl?.trim().isNotEmpty == true
                         ? Image.network(
-                            photoUrl!.trim(),
+                            widget.photoUrl!.trim(),
                             fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) => const Center(
-                              child: Icon(
-                                Icons.person,
-                                size: 90,
-                                color: Color(0xFF6A7282),
-                              ),
-                            ),
+                            errorBuilder: (context, error, stackTrace) =>
+                                const Center(
+                                  child: Icon(
+                                    Icons.person,
+                                    size: 90,
+                                    color: Color(0xFF6A7282),
+                                  ),
+                                ),
                           )
                         : const Center(
                             child: Icon(
@@ -257,7 +370,7 @@ class HeroSection extends StatelessWidget {
                           ),
                   ),
                 ),
-                if (isVerified)
+                if (widget.isVerified)
                   Positioned(
                     right: -5,
                     bottom: -5,
@@ -285,10 +398,194 @@ class HeroSection extends StatelessWidget {
                         ],
                       ),
                       child: const Center(
-                        child: Icon(Icons.verified, size: 30.638, color: Colors.white),
+                        child: Icon(
+                          Icons.verified,
+                          size: 30.638,
+                          color: Colors.white,
+                        ),
                       ),
                     ),
                   ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MobileHeroSection extends StatelessWidget {
+  const _MobileHeroSection({
+    required this.name,
+    required this.photoUrl,
+    required this.previewUrl,
+    required this.hasVideo,
+    required this.onPlayTap,
+  });
+
+  final String name;
+  final String? photoUrl;
+  final String? previewUrl;
+  final bool hasVideo;
+  final VoidCallback? onPlayTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF1E2939), Color(0xFF101828)],
+        ),
+      ),
+      child: Column(
+        children: [
+          Container(
+            width: double.infinity,
+            constraints: const BoxConstraints(maxWidth: 420),
+            child: Column(
+              children: [
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color.fromRGBO(0, 0, 0, 0.35),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.videocam_outlined,
+                          size: 16,
+                          color: Colors.white,
+                        ),
+                        SizedBox(width: 8),
+                        Text(
+                          'Vídeo de Apresentação',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                AspectRatio(
+                  aspectRatio: 16 / 9,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(24),
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        DecoratedBox(
+                          decoration: const BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [Color(0xFF243247), Color(0xFF101828)],
+                            ),
+                          ),
+                          child: photoUrl?.trim().isNotEmpty == true
+                              ? Opacity(
+                                  opacity: 0.28,
+                                  child: Image.network(
+                                    photoUrl!.trim(),
+                                    fit: BoxFit.cover,
+                                    errorBuilder:
+                                        (context, error, stackTrace) =>
+                                            const SizedBox.shrink(),
+                                  ),
+                                )
+                              : const SizedBox.shrink(),
+                        ),
+                        if (previewUrl != null)
+                          IgnorePointer(
+                            child: NativeIframe(
+                              src: previewUrl!,
+                              fill: true,
+                              backgroundColor: Colors.black,
+                            ),
+                          ),
+                        Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [
+                                Colors.black.withValues(alpha: 0.12),
+                                Colors.black.withValues(alpha: 0.42),
+                              ],
+                            ),
+                          ),
+                        ),
+                        Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            onTap: hasVideo ? onPlayTap : null,
+                            child: Center(
+                              child: Container(
+                                width: 74,
+                                height: 74,
+                                decoration: const BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  gradient: LinearGradient(
+                                    begin: Alignment.topCenter,
+                                    end: Alignment.bottomCenter,
+                                    colors: [
+                                      Color(0xFFFC9039),
+                                      Color(0xFFF15C64),
+                                    ],
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Color.fromRGBO(0, 0, 0, 0.25),
+                                      blurRadius: 30,
+                                      offset: Offset(0, 16),
+                                    ),
+                                  ],
+                                ),
+                                child: const Icon(
+                                  Icons.play_arrow_rounded,
+                                  size: 42,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        Positioned(
+                          left: 16,
+                          right: 16,
+                          bottom: 16,
+                          child: Text(
+                            hasVideo
+                                ? 'Carrega para ver o vídeo de apresentação do $name.'
+                                : 'Vídeo de apresentação indisponível de momento.',
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              height: 1.45,
+                              fontWeight: FontWeight.w500,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               ],
             ),
           ),

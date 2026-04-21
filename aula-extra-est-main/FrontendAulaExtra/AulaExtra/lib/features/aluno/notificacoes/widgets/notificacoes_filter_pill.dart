@@ -7,20 +7,28 @@ class NotificacoesFilterPill extends StatelessWidget {
     required this.label,
     required this.selected,
     required this.onTap,
+    this.isMobile = false,
   });
 
   final String label;
   final bool selected;
   final VoidCallback onTap;
+  final bool isMobile;
 
   @override
   Widget build(BuildContext context) {
+    final height = isMobile ? NotificacoesConstants.mobileFilterHeight : 59.027;
+    final horizontalPadding = isMobile ? 18.0 : 24.0;
+    final fontSize = isMobile
+        ? NotificacoesConstants.mobileFilterFontSize
+        : 22.486;
+
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(9999),
       child: Container(
-        height: 59.027,
-        padding: const EdgeInsets.symmetric(horizontal: 24),
+        height: height,
+        padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
         decoration: BoxDecoration(
           color: selected ? null : Colors.white,
           gradient: selected ? NotificacoesConstants.iconOrangeGradient : null,
@@ -35,9 +43,9 @@ class NotificacoesFilterPill extends StatelessWidget {
         child: Text(
           label,
           style: TextStyle(
-            fontSize: 22.486,
-            fontWeight: FontWeight.w400,
-            height: 33.73 / 22.486,
+            fontSize: fontSize,
+            fontWeight: isMobile ? FontWeight.w500 : FontWeight.w400,
+            height: 1.35,
             color: selected ? Colors.white : const Color(0xFF364153),
           ),
         ),

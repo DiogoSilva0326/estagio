@@ -14,4 +14,16 @@ class MeusAnunciosProfessorColors {
   static const warningText = Color(0xFFEA580C);
   static const danger = Color(0xFFDC2626);
   static const mutedSurface = Color(0xFFF3F4F6);
+  static const activeBackground = Color(0xFFECFDF3);
+  static const activeText = Color(0xFF15803D);
+}
+
+class MeusAnunciosProfessorLayout {
+  const MeusAnunciosProfessorLayout._();
+
+  static const double mobileHorizontalPadding = 16;
+  static const double mobileTopPadding = 18;
+  static const double mobileBottomPadding = 32;
+  static const double mobileCardPadding = 16;
+  static const double mobileCardRadius = 20;
 }

@@ -60,6 +60,56 @@ class _AvaliarAulaDialogState extends State<AvaliarAulaDialog> {
     return '$d/$m/$y';
   }
 
+  String _lessonDropdownSubtitle(PendingEvaluationDto pending) {
+    final subject = (pending.subject == null || pending.subject!.trim().isEmpty)
+        ? null
+        : pending.subject!.trim();
+    final end = _formatDate(pending.lessonEnd ?? pending.lessonStart);
+
+    if (subject != null && end.isNotEmpty) {
+      return '$subject • $end';
+    }
+    if (end.isNotEmpty) {
+      return end;
+    }
+    return subject ?? 'Sem data disponível';
+  }
+
+  Widget _buildDropdownLabel({
+    required String title,
+    required String subtitle,
+  }) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.w500,
+            color: Color(0xFF101828),
+            height: 22 / 15,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          subtitle,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w400,
+            color: Color(0xFF667085),
+            height: 16 / 12,
+          ),
+        ),
+      ],
+    );
+  }
+
   PendingEvaluationDto? _selectedPending() {
     final id = _selectedLessonId;
     if (id == null) return null;
@@ -112,13 +162,19 @@ class _AvaliarAulaDialogState extends State<AvaliarAulaDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final dialogHorizontalInset = screenWidth < 420 ? 12.0 : 24.0;
+
     return Dialog(
       backgroundColor: Colors.transparent,
-      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+      insetPadding: EdgeInsets.symmetric(
+        horizontal: dialogHorizontalInset,
+        vertical: 24,
+      ),
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 600),
+        constraints: const BoxConstraints(maxWidth: 640),
         child: Container(
-          padding: const EdgeInsets.fromLTRB(25, 25, 25, 1),
+          padding: const EdgeInsets.fromLTRB(18, 25, 18, 1),
           decoration: BoxDecoration(
             color: Colors.white,
             border: Border.all(color: const Color(0xFFF3F4F6)),
@@ -190,6 +246,8 @@ class _AvaliarAulaDialogState extends State<AvaliarAulaDialog> {
                   DropdownButtonFormField<String>(
                     key: ValueKey(_selectedLessonId ?? 'pending'),
                     initialValue: _selectedLessonId,
+                    isExpanded: true,
+                    itemHeight: null,
                     decoration: InputDecoration(
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(14),
@@ -199,20 +257,32 @@ class _AvaliarAulaDialogState extends State<AvaliarAulaDialog> {
                         borderRadius: BorderRadius.circular(14),
                         borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
                       ),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 14,
+                      ),
                     ),
-                    items: _pending
+                    selectedItemBuilder: (context) => _pending
                         .map(
-                          (p) {
-                            final subject = (p.subject == null || p.subject!.trim().isEmpty) ? '—' : p.subject!.trim();
-                            final end = _formatDate(p.lessonEnd ?? p.lessonStart);
-                            final label = end.isEmpty ? '${p.professorName} • $subject' : '${p.professorName} • $subject • $end';
-                            return DropdownMenuItem<String>(
-                              value: p.lessonId,
-                              child: Text(label, overflow: TextOverflow.ellipsis),
-                            );
-                          },
+                          (p) => Align(
+                            alignment: Alignment.centerLeft,
+                            child: _buildDropdownLabel(
+                              title: p.professorName,
+                              subtitle: _lessonDropdownSubtitle(p),
+                            ),
+                          ),
                         )
+                        .toList(growable: false),
+                    items: _pending
+                        .map((p) {
+                          return DropdownMenuItem<String>(
+                            value: p.lessonId,
+                            child: _buildDropdownLabel(
+                              title: p.professorName,
+                              subtitle: _lessonDropdownSubtitle(p),
+                            ),
+                          );
+                        })
                         .toList(growable: false),
                     onChanged: (v) => setState(() => _selectedLessonId = v),
                   ),
@@ -223,7 +293,9 @@ class _AvaliarAulaDialogState extends State<AvaliarAulaDialog> {
                       if (selected == null) return const SizedBox.shrink();
                       final start = _formatDate(selected.lessonStart);
                       final end = _formatDate(selected.lessonEnd);
-                      final date = (start.isNotEmpty && end.isNotEmpty) ? '$start - $end' : (end.isNotEmpty ? end : start);
+                      final date = (start.isNotEmpty && end.isNotEmpty)
+                          ? '$start - $end'
+                          : (end.isNotEmpty ? end : start);
                       if (date.isEmpty) return const SizedBox.shrink();
                       return Text(
                         'Aula: $date',
@@ -256,10 +328,15 @@ class _AvaliarAulaDialogState extends State<AvaliarAulaDialog> {
                         height: 32,
                         child: IconButton(
                           padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints.tightFor(width: 32, height: 32),
+                          constraints: const BoxConstraints.tightFor(
+                            width: 32,
+                            height: 32,
+                          ),
                           onPressed: () => setState(() => _rating = i),
                           icon: Icon(
-                            i <= _rating ? Icons.star_rounded : Icons.star_border_rounded,
+                            i <= _rating
+                                ? Icons.star_rounded
+                                : Icons.star_border_rounded,
                             color: const Color(0xFFFFB800),
                             size: 32,
                           ),
@@ -296,7 +373,8 @@ class _AvaliarAulaDialogState extends State<AvaliarAulaDialog> {
                         decoration: const InputDecoration(
                           isCollapsed: true,
                           border: InputBorder.none,
-                          hintText: 'Compartilhe sua experiência com este explicador...',
+                          hintText:
+                              'Compartilhe sua experiência com este explicador...',
                           hintStyle: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w400,
@@ -337,7 +415,13 @@ class _AvaliarAulaDialogState extends State<AvaliarAulaDialog> {
                                 borderRadius: BorderRadius.circular(14),
                               ),
                             ),
-                            onPressed: (_loading || _pending.isEmpty || _loadError != null || _submitting) ? null : _submit,
+                            onPressed:
+                                (_loading ||
+                                    _pending.isEmpty ||
+                                    _loadError != null ||
+                                    _submitting)
+                                ? null
+                                : _submit,
                             child: Text(
                               _submitting ? 'Enviando...' : 'Enviar Avaliação',
                               style: TextStyle(

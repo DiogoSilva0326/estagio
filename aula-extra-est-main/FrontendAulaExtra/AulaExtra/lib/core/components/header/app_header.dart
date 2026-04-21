@@ -20,7 +20,7 @@ class AppHeader extends StatelessWidget {
 
   static const double height = 90;
   static const double mobileHeight = MobileAppHeader.height;
-  static const double mobileBreakpoint = 768;
+  static const double mobileBreakpoint = 1400;
 
   final HeaderAlunoItem? headerAlunoActiveItem;
 

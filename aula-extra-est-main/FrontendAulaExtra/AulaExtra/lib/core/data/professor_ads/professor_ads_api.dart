@@ -6,6 +6,44 @@ import 'package:aula_extra/core/data/professor_ads/dtos/professor_ads_form_data_
 import 'package:http/http.dart' as http;
 
 class ProfessorAdsApi {
+  Future<List<ProfessorAdDto>> getProfessorAds({
+    required String token,
+    required String professorId,
+  }) async {
+    final res = await http.get(
+      ApiConfig.uri('/api/ProfessorAds/professor/$professorId'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    if (res.statusCode == 401) {
+      throw const ProfessorAdsException('Sessão expirada');
+    }
+    if (res.statusCode == 404) {
+      return const <ProfessorAdDto>[];
+    }
+    if (res.statusCode < 200 || res.statusCode >= 300) {
+      throw ProfessorAdsException(
+        _extractErrorMessage(
+          res.body,
+          'Falha ao carregar anúncios do professor (${res.statusCode})',
+        ),
+      );
+    }
+
+    final obj = jsonDecode(res.body);
+    if (obj is! List) {
+      throw const ProfessorAdsException('Resposta inválida do servidor');
+    }
+
+    return obj
+        .whereType<Map<String, dynamic>>()
+        .map(ProfessorAdDto.fromJson)
+        .toList(growable: false);
+  }
+
   Future<ProfessorAdsFormDataDto> getMyData({required String token}) async {
     final res = await http.get(
       ApiConfig.uri('/api/ProfessorAds/me'),

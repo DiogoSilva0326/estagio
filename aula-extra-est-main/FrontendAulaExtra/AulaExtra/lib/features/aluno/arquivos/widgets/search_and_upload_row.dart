@@ -1,11 +1,7 @@
 import 'package:flutter/material.dart';
 
 class SearchAndUploadRow extends StatelessWidget {
-  const SearchAndUploadRow({
-    super.key,
-    this.onChanged,
-    this.onUpload,
-  });
+  const SearchAndUploadRow({super.key, this.onChanged, this.onUpload});
 
   final ValueChanged<String>? onChanged;
   final VoidCallback? onUpload;
@@ -16,7 +12,11 @@ class SearchAndUploadRow extends StatelessWidget {
       children: [
         Expanded(child: _SearchField(onChanged: onChanged)),
         const SizedBox(width: 22.292),
-        _GradientButton(label: 'Fazer Upload', icon: Icons.upload_rounded, onTap: onUpload ?? () {}),
+        _GradientButton(
+          label: 'Fazer Upload',
+          icon: Icons.upload_rounded,
+          onTap: onUpload ?? () {},
+        ),
       ],
     );
   }

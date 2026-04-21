@@ -42,11 +42,16 @@ class FooterTopDecoration extends StatelessWidget {
       builder: (context, constraints) {
         if (compactMobile) {
           final containerWidth = constraints.maxWidth;
-          final symbolWidth = (containerWidth / 4.6).clamp(64.0, 88.0);
-          final symbolHeight = s(66);
-          final innerGap = ((containerWidth - (symbolWidth * 4)) / 3)
-              .clamp(0.0, containerWidth)
-              .toDouble();
+          final availableHeight = constraints.maxHeight > 0
+              ? constraints.maxHeight
+              : s(74);
+          final symbolHeight = availableHeight.clamp(s(58), s(74)).toDouble();
+          final symbolCount = containerWidth >= 700
+              ? 6
+              : containerWidth >= 520
+              ? 4
+              : 4;
+          final itemWidth = containerWidth / (symbolCount - 1);
 
           return SizedBox(
             width: containerWidth,
@@ -55,24 +60,19 @@ class FooterTopDecoration extends StatelessWidget {
               clipBehavior: Clip.none,
               children: [
                 Positioned(
-                  left: 0,
                   bottom: 0,
-                  child: _buildSymbol(width: symbolWidth, height: symbolHeight),
-                ),
-                Positioned(
-                  left: symbolWidth + innerGap,
-                  bottom: 0,
-                  child: _buildSymbol(width: symbolWidth, height: symbolHeight),
-                ),
-                Positioned(
-                  left: (symbolWidth * 2) + (innerGap * 2),
-                  bottom: 0,
-                  child: _buildSymbol(width: symbolWidth, height: symbolHeight),
-                ),
-                Positioned(
-                  right: 0,
-                  bottom: 0,
-                  child: _buildSymbol(width: symbolWidth, height: symbolHeight),
+                  left: -itemWidth / 2,
+                  right: -itemWidth / 2,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: List.generate(symbolCount, (_) {
+                      return _buildSymbol(
+                        width: itemWidth,
+                        height: symbolHeight,
+                        horizontalPadding: s(3),
+                      );
+                    }),
+                  ),
                 ),
               ],
             ),

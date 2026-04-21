@@ -28,7 +28,11 @@ class AvaliacoesStatsRow extends StatelessWidget {
             ),
             child: Row(
               children: [
-                const Icon(Icons.star_rounded, size: 65.954, color: Color(0xFFA65F00)),
+                const Icon(
+                  Icons.star_rounded,
+                  size: 65.954,
+                  color: Color(0xFFA65F00),
+                ),
                 const SizedBox(width: 21.985),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,

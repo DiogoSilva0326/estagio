@@ -2,14 +2,19 @@ import 'package:aula_extra/core/data/professors/dtos/professor_evaluations_overv
 import 'package:aula_extra/core/data/professors/professors_service.dart';
 import 'package:aula_extra/features/professor/avaliacoes/constants/avaliacoes_professor_colors.dart';
 import 'package:aula_extra/features/professor/avaliacoes/constants/avaliacoes_professor_layout.dart';
+import 'package:aula_extra/features/professor/avaliacoes/constants/avaliacoes_professor_tabs.dart';
+import 'package:aula_extra/features/professor/avaliacoes/widgets/avaliacoes_professor_mobile_intro.dart';
+import 'package:aula_extra/features/professor/avaliacoes/widgets/avaliacoes_professor_mobile_mode_tabs.dart';
+import 'package:aula_extra/features/professor/avaliacoes/widgets/avaliacoes_professor_mobile_review_card.dart';
+import 'package:aula_extra/features/professor/avaliacoes/widgets/avaliacoes_professor_mobile_stat_card.dart';
 import 'package:aula_extra/features/professor/avaliacoes/widgets/full_bleed_scaled_section.dart';
 import 'package:aula_extra/features/professor/core/widgets/professor_menu_nav.dart';
 import 'package:flutter/material.dart';
 
-enum _AvaliacoesProfessorTab { professor, aulas }
-
 class AvaliacoesProfessorContentSection extends StatefulWidget {
-  const AvaliacoesProfessorContentSection({super.key});
+  const AvaliacoesProfessorContentSection({super.key, this.isMobile = false});
+
+  final bool isMobile;
 
   @override
   State<AvaliacoesProfessorContentSection> createState() =>
@@ -20,7 +25,7 @@ class _AvaliacoesProfessorContentSectionState
     extends State<AvaliacoesProfessorContentSection> {
   final ProfessorsService _service = ProfessorsService();
   late Future<ProfessorEvaluationsOverviewDto> _future;
-  _AvaliacoesProfessorTab _selectedTab = _AvaliacoesProfessorTab.professor;
+  AvaliacoesProfessorTab _selectedTab = AvaliacoesProfessorTab.professor;
 
   @override
   void initState() {
@@ -34,6 +39,281 @@ class _AvaliacoesProfessorContentSectionState
     });
   }
 
+  ProfessorEvaluationsOverviewDto get _emptyData =>
+      ProfessorEvaluationsOverviewDto(
+        professorSummary: ProfessorEvaluationSummaryDto(
+          averageRating: 0,
+          totalReviews: 0,
+        ),
+        lessonSummary: ProfessorEvaluationSummaryDto(
+          averageRating: 0,
+          totalReviews: 0,
+        ),
+        professorReviews: const [],
+        lessonReviews: const [],
+      );
+
+  ProfessorEvaluationSummaryDto _summaryForTab(
+    ProfessorEvaluationsOverviewDto data,
+  ) {
+    switch (_selectedTab) {
+      case AvaliacoesProfessorTab.professor:
+        return data.professorSummary;
+      case AvaliacoesProfessorTab.aulas:
+        return data.lessonSummary;
+    }
+  }
+
+  String _emptyMessageForTab() {
+    switch (_selectedTab) {
+      case AvaliacoesProfessorTab.professor:
+        return 'Ainda não existem avaliações submetidas diretamente ao seu perfil.';
+      case AvaliacoesProfessorTab.aulas:
+        return 'Ainda não existem avaliações submetidas às suas aulas.';
+    }
+  }
+
+  List<Widget> _reviewCards(
+    ProfessorEvaluationsOverviewDto data, {
+    required bool isMobile,
+  }) {
+    if (_selectedTab == AvaliacoesProfessorTab.professor) {
+      return data.professorReviews
+          .map((review) {
+            final normalizedName = _normalizeName(review.studentName);
+            if (isMobile) {
+              return AvaliacoesProfessorMobileReviewCard(
+                review: AvaliacoesProfessorMobileReviewCardData(
+                  name: normalizedName,
+                  avatarUrl: review.studentAvatarUrl,
+                  rating: review.rating,
+                  dateLabel: _formatDate(review.createdAt),
+                  comment: review.comment ?? 'Sem comentário adicional.',
+                  subtitle: 'Avaliação ao professor',
+                ),
+              );
+            }
+
+            return _ReviewCard(
+              review: _ReviewCardData(
+                name: normalizedName,
+                avatarUrl: review.studentAvatarUrl,
+                rating: review.rating,
+                dateLabel: _formatDate(review.createdAt),
+                comment: review.comment ?? 'Sem comentário adicional.',
+              ),
+            );
+          })
+          .toList(growable: false);
+    }
+
+    return data.lessonReviews
+        .map((review) {
+          final normalizedName = _normalizeName(review.studentName);
+          final lessonWindow = _formatLessonWindow(
+            review.scheduledStart,
+            review.scheduledEnd,
+          );
+          if (isMobile) {
+            final lessonTitle = review.lessonTitle.trim();
+
+            return AvaliacoesProfessorMobileReviewCard(
+              review: AvaliacoesProfessorMobileReviewCardData(
+                name: normalizedName,
+                avatarUrl: review.studentAvatarUrl,
+                rating: review.rating,
+                dateLabel: _formatDate(review.createdAt),
+                comment: review.comment ?? 'Sem comentário adicional.',
+                subtitle: lessonTitle.isNotEmpty
+                    ? lessonTitle
+                    : (lessonWindow ?? 'Avaliação da aula'),
+              ),
+            );
+          }
+
+          return _ReviewCard(
+            review: _ReviewCardData(
+              name: normalizedName,
+              avatarUrl: review.studentAvatarUrl,
+              rating: review.rating,
+              dateLabel: _formatDate(review.createdAt),
+              comment: review.comment ?? 'Sem comentário adicional.',
+              contextTitle: review.lessonTitle,
+              contextSubtitle: lessonWindow,
+            ),
+          );
+        })
+        .toList(growable: false);
+  }
+
+  Widget _buildDesktopContent(
+    ProfessorEvaluationsOverviewDto data,
+    TextStyle titleStyle,
+  ) {
+    final activeSection = _SectionBlock(
+      title: _selectedTab.sectionTitle,
+      emptyMessage: _emptyMessageForTab(),
+      children: _reviewCards(data, isMobile: false),
+    );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          height: AvaliacoesProfessorLayout.titleLineHeight,
+          child: Text('Avaliações', style: titleStyle),
+        ),
+        const SizedBox(height: 12),
+        const Text(
+          'Consulte as avaliações recebidas no seu perfil e nas aulas dadas.',
+          style: TextStyle(
+            color: AvaliacoesProfessorColors.text,
+            fontSize: 16,
+            fontWeight: FontWeight.w400,
+          ),
+        ),
+        const SizedBox(height: 28.868),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final stack = constraints.maxWidth < 980;
+            if (stack) {
+              return Column(
+                children: [
+                  _SummaryCard(
+                    average: data.professorSummary.averageRating,
+                    totalLabel:
+                        '${data.professorSummary.totalReviews} avaliações',
+                    label: 'Avaliações feitas ao professor',
+                  ),
+                  const SizedBox(height: 16),
+                  _SummaryCard(
+                    average: data.lessonSummary.averageRating,
+                    totalLabel: '${data.lessonSummary.totalReviews} avaliações',
+                    label: 'Avaliações submetidas às aulas',
+                  ),
+                ],
+              );
+            }
+
+            return Row(
+              children: [
+                Expanded(
+                  child: _SummaryCard(
+                    average: data.professorSummary.averageRating,
+                    totalLabel:
+                        '${data.professorSummary.totalReviews} avaliações',
+                    label: 'Avaliações feitas ao professor',
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: _SummaryCard(
+                    average: data.lessonSummary.averageRating,
+                    totalLabel: '${data.lessonSummary.totalReviews} avaliações',
+                    label: 'Avaliações submetidas às aulas',
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
+        const SizedBox(height: 28.868),
+        _ProfessorTabs(
+          selectedTab: _selectedTab,
+          onChanged: (tab) {
+            setState(() {
+              _selectedTab = tab;
+            });
+          },
+        ),
+        const SizedBox(height: 28.868),
+        activeSection,
+      ],
+    );
+  }
+
+  Widget _buildMobileContent(ProfessorEvaluationsOverviewDto data) {
+    final summary = _summaryForTab(data);
+    final cards = _reviewCards(data, isMobile: true);
+
+    return Container(
+      width: double.infinity,
+      color: AvaliacoesProfessorColors.background,
+      padding: const EdgeInsets.fromLTRB(
+        AvaliacoesProfessorLayout.mobileHorizontalPadding,
+        AvaliacoesProfessorLayout.mobileTopPadding,
+        AvaliacoesProfessorLayout.mobileHorizontalPadding,
+        AvaliacoesProfessorLayout.mobileBottomPadding,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const AvaliacoesProfessorMobileIntro(
+            title: 'Avaliações',
+            subtitle:
+                'Consulte as avaliações recebidas no seu perfil e nas aulas dadas.',
+          ),
+          const SizedBox(height: AvaliacoesProfessorLayout.mobileSectionGap),
+          AvaliacoesProfessorMobileModeTabs(
+            selectedTab: _selectedTab,
+            onChanged: (tab) {
+              setState(() {
+                _selectedTab = tab;
+              });
+            },
+          ),
+          const SizedBox(height: AvaliacoesProfessorLayout.mobileSectionGap),
+          AvaliacoesProfessorMobileStatCard(
+            value: summary.averageRating.toStringAsFixed(1),
+            label: _selectedTab.mobileSummaryLabel,
+          ),
+          const SizedBox(height: 12),
+          Text(
+            '${summary.totalReviews} ${_selectedTab.mobileCountLabel}',
+            style: const TextStyle(
+              color: AvaliacoesProfessorColors.title,
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              height: 20 / 14,
+            ),
+          ),
+          const SizedBox(height: 12),
+          if (cards.isEmpty)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(
+                  AvaliacoesProfessorLayout.mobileCardRadius,
+                ),
+                border: Border.all(color: AvaliacoesProfessorColors.cardBorder),
+              ),
+              child: Text(
+                _emptyMessageForTab(),
+                style: const TextStyle(
+                  color: AvaliacoesProfessorColors.muted,
+                  fontSize: 14,
+                  height: 20 / 14,
+                ),
+              ),
+            )
+          else
+            Column(
+              children: List.generate(cards.length, (index) {
+                return Padding(
+                  padding: EdgeInsets.only(
+                    bottom: index == cards.length - 1 ? 0 : 14,
+                  ),
+                  child: cards[index],
+                );
+              }),
+            ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final titleStyle = TextStyle(
@@ -44,6 +324,42 @@ class _AvaliacoesProfessorContentSectionState
           AvaliacoesProfessorLayout.titleLineHeight /
           AvaliacoesProfessorLayout.titleFontSize,
     );
+
+    if (widget.isMobile) {
+      return FutureBuilder<ProfessorEvaluationsOverviewDto>(
+        future: _future,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return Container(
+              color: AvaliacoesProfessorColors.background,
+              padding: const EdgeInsets.symmetric(vertical: 64),
+              child: const Center(child: CircularProgressIndicator()),
+            );
+          }
+
+          if (snapshot.hasError) {
+            return Container(
+              color: AvaliacoesProfessorColors.background,
+              padding: const EdgeInsets.fromLTRB(16, 24, 16, 32),
+              child: _ErrorState(
+                titleStyle: const TextStyle(
+                  color: AvaliacoesProfessorColors.title,
+                  fontSize: 32,
+                  fontWeight: FontWeight.w700,
+                ),
+                message:
+                    snapshot.error?.toString() ??
+                    'Erro ao carregar avaliações do professor',
+                onRetry: _refresh,
+                isMobile: true,
+              ),
+            );
+          }
+
+          return _buildMobileContent(snapshot.data ?? _emptyData);
+        },
+      );
+    }
 
     return Container(
       color: AvaliacoesProfessorColors.background,
@@ -87,155 +403,9 @@ class _AvaliacoesProfessorContentSectionState
                         );
                       }
 
-                      final data =
-                          snapshot.data ??
-                          ProfessorEvaluationsOverviewDto(
-                            professorSummary: ProfessorEvaluationSummaryDto(
-                              averageRating: 0,
-                              totalReviews: 0,
-                            ),
-                            lessonSummary: ProfessorEvaluationSummaryDto(
-                              averageRating: 0,
-                              totalReviews: 0,
-                            ),
-                            professorReviews: const [],
-                            lessonReviews: const [],
-                          );
+                      final data = snapshot.data ?? _emptyData;
 
-                      final activeSection =
-                          _selectedTab == _AvaliacoesProfessorTab.professor
-                          ? _SectionBlock(
-                              title: 'Avaliações feitas ao professor',
-                              emptyMessage:
-                                  'Ainda não existem avaliações submetidas diretamente ao seu perfil.',
-                              children: data.professorReviews
-                                  .map(
-                                    (review) => _ReviewCard(
-                                      review: _ReviewCardData(
-                                        name: _normalizeName(
-                                          review.studentName,
-                                        ),
-                                        avatarUrl: review.studentAvatarUrl,
-                                        rating: review.rating,
-                                        dateLabel: _formatDate(
-                                          review.createdAt,
-                                        ),
-                                        comment:
-                                            review.comment ??
-                                            'Sem comentário adicional.',
-                                      ),
-                                    ),
-                                  )
-                                  .toList(growable: false),
-                            )
-                          : _SectionBlock(
-                              title: 'Avaliações submetidas às aulas',
-                              emptyMessage:
-                                  'Ainda não existem avaliações submetidas às suas aulas.',
-                              children: data.lessonReviews
-                                  .map(
-                                    (review) => _ReviewCard(
-                                      review: _ReviewCardData(
-                                        name: _normalizeName(
-                                          review.studentName,
-                                        ),
-                                        avatarUrl: review.studentAvatarUrl,
-                                        rating: review.rating,
-                                        dateLabel: _formatDate(
-                                          review.createdAt,
-                                        ),
-                                        comment:
-                                            review.comment ??
-                                            'Sem comentário adicional.',
-                                        contextTitle: review.lessonTitle,
-                                        contextSubtitle: _formatLessonWindow(
-                                          review.scheduledStart,
-                                          review.scheduledEnd,
-                                        ),
-                                      ),
-                                    ),
-                                  )
-                                  .toList(growable: false),
-                            );
-
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          SizedBox(
-                            height: AvaliacoesProfessorLayout.titleLineHeight,
-                            child: Text('Avaliações', style: titleStyle),
-                          ),
-                          const SizedBox(height: 12),
-                          const Text(
-                            'Consulte as avaliações recebidas no seu perfil e nas aulas dadas.',
-                            style: TextStyle(
-                              color: AvaliacoesProfessorColors.text,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w400,
-                            ),
-                          ),
-                          const SizedBox(height: 28.868),
-                          LayoutBuilder(
-                            builder: (context, constraints) {
-                              final stack = constraints.maxWidth < 980;
-                              if (stack) {
-                                return Column(
-                                  children: [
-                                    _SummaryCard(
-                                      average:
-                                          data.professorSummary.averageRating,
-                                      totalLabel:
-                                          '${data.professorSummary.totalReviews} avaliações',
-                                      label: 'Avaliações feitas ao professor',
-                                    ),
-                                    const SizedBox(height: 16),
-                                    _SummaryCard(
-                                      average: data.lessonSummary.averageRating,
-                                      totalLabel:
-                                          '${data.lessonSummary.totalReviews} avaliações',
-                                      label: 'Avaliações submetidas às aulas',
-                                    ),
-                                  ],
-                                );
-                              }
-
-                              return Row(
-                                children: [
-                                  Expanded(
-                                    child: _SummaryCard(
-                                      average:
-                                          data.professorSummary.averageRating,
-                                      totalLabel:
-                                          '${data.professorSummary.totalReviews} avaliações',
-                                      label: 'Avaliações feitas ao professor',
-                                    ),
-                                  ),
-                                  const SizedBox(width: 16),
-                                  Expanded(
-                                    child: _SummaryCard(
-                                      average: data.lessonSummary.averageRating,
-                                      totalLabel:
-                                          '${data.lessonSummary.totalReviews} avaliações',
-                                      label: 'Avaliações submetidas às aulas',
-                                    ),
-                                  ),
-                                ],
-                              );
-                            },
-                          ),
-                          const SizedBox(height: 28.868),
-                          _ProfessorTabs(
-                            selectedTab: _selectedTab,
-                            onChanged: (tab) {
-                              setState(() {
-                                _selectedTab = tab;
-                              });
-                            },
-                          ),
-                          const SizedBox(height: 28.868),
-                          activeSection,
-                        ],
-                      );
+                      return _buildDesktopContent(data, titleStyle);
                     },
                   ),
                 ),
@@ -251,8 +421,8 @@ class _AvaliacoesProfessorContentSectionState
 class _ProfessorTabs extends StatelessWidget {
   const _ProfessorTabs({required this.selectedTab, required this.onChanged});
 
-  final _AvaliacoesProfessorTab selectedTab;
-  final ValueChanged<_AvaliacoesProfessorTab> onChanged;
+  final AvaliacoesProfessorTab selectedTab;
+  final ValueChanged<AvaliacoesProfessorTab> onChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -264,14 +434,14 @@ class _ProfessorTabs extends StatelessWidget {
         children: [
           _ProfessorTabButton(
             label: 'Professor',
-            selected: selectedTab == _AvaliacoesProfessorTab.professor,
-            onTap: () => onChanged(_AvaliacoesProfessorTab.professor),
+            selected: selectedTab == AvaliacoesProfessorTab.professor,
+            onTap: () => onChanged(AvaliacoesProfessorTab.professor),
           ),
           const SizedBox(width: 28),
           _ProfessorTabButton(
             label: 'Aulas',
-            selected: selectedTab == _AvaliacoesProfessorTab.aulas,
-            onTap: () => onChanged(_AvaliacoesProfessorTab.aulas),
+            selected: selectedTab == AvaliacoesProfessorTab.aulas,
+            onTap: () => onChanged(AvaliacoesProfessorTab.aulas),
           ),
         ],
       ),
@@ -333,21 +503,26 @@ class _ErrorState extends StatelessWidget {
     required this.titleStyle,
     required this.message,
     required this.onRetry,
+    this.isMobile = false,
   });
 
   final TextStyle titleStyle;
   final String message;
   final VoidCallback onRetry;
+  final bool isMobile;
 
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SizedBox(
-          height: AvaliacoesProfessorLayout.titleLineHeight,
-          child: Text('Avaliações', style: titleStyle),
-        ),
+        if (isMobile)
+          Text('Avaliações', style: titleStyle)
+        else
+          SizedBox(
+            height: AvaliacoesProfessorLayout.titleLineHeight,
+            child: Text('Avaliações', style: titleStyle),
+          ),
         const SizedBox(height: 16),
         Text(message, style: const TextStyle(color: Colors.red)),
         const SizedBox(height: 8),

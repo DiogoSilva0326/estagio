@@ -6,6 +6,21 @@
 class AvaliacoesProfessorLayout {
   const AvaliacoesProfessorLayout._();
 
+  static const double mobileHorizontalPadding = 16;
+  static const double mobileTopPadding = 24;
+  static const double mobileBottomPadding = 32;
+  static const double mobileSectionGap = 20;
+  static const double mobileCardRadius = 16;
+  static const double mobileTabHeight = 44;
+  static const double mobileSummaryCardRadius = 19.25;
+  static const double mobileSummaryCardHeight = 166;
+  static const double mobileSummaryIconSize = 56;
+  static const double mobileSummaryValueFontSize = 70.01;
+  static const double mobileSummaryLabelFontSize = 21;
+  static const double mobileReviewCardRadius = 16;
+  static const double mobileAvatarSize = 38;
+  static const double mobileStarSize = 12;
+
   static const double pageLeftPadding = 54;
   static const double pageRightPadding = 23.148;
   static const double pageTopPadding = 90;

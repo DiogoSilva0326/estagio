@@ -1,3 +1,4 @@
+import 'package:aula_extra/core/components/header/app_header.dart';
 import 'package:aula_extra/features/aluno/core/widgets/aluno_menu_nav.dart';
 import 'package:aula_extra/core/data/education/dtos/ciclo_estudo_dto.dart';
 import 'package:aula_extra/core/data/education/dtos/disciplina_dto.dart';
@@ -314,6 +315,133 @@ class _PerfilContentSectionState extends State<PerfilContentSection> {
 
   @override
   Widget build(BuildContext context) {
+    final isMobile =
+        MediaQuery.sizeOf(context).width <= AppHeader.mobileBreakpoint;
+
+    final content = _loadingProfile
+        ? const Center(
+            child: Padding(
+              padding: EdgeInsets.all(16),
+              child: CircularProgressIndicator(),
+            ),
+          )
+        : _profileError != null
+        ? Row(
+            children: [
+              Expanded(
+                child: Text(
+                  _profileError!,
+                  style: const TextStyle(color: Colors.red),
+                ),
+              ),
+              const SizedBox(width: 12),
+              OutlinedButton(
+                onPressed: _loadProfile,
+                child: const Text('Tentar novamente'),
+              ),
+            ],
+          )
+        : _PerfilFormCard(
+            isMobile: isMobile,
+            profileImageUrl: _profileImageUrl,
+            avatarUrlController: _avatarUrlController,
+            imageBusy: _savingProfileImage,
+            onPickProfileImage: _pickProfileImage,
+            onApplyAvatarUrl: _applyAvatarUrl,
+            onRemoveProfileImage: _removeProfileImage,
+            usernameController: _usernameController,
+            primeiroNomeController: _primeiroNomeController,
+            ultimoNomeController: _ultimoNomeController,
+            emailController: _emailController,
+            telefoneController: _telefoneController,
+            biografiaController: _biografiaController,
+            nivelEnsino: _nivelEnsino,
+            onNivelEnsinoChanged: (value) =>
+                setState(() => _nivelEnsino = value),
+            ciclosLoading: _loadingCiclos,
+            ciclosError: _ciclosError,
+            ciclos: _ciclos,
+            onReloadCiclos: _loadCiclos,
+            disciplinasLoading: _loadingDisciplinas,
+            disciplinasError: _disciplinasError,
+            disciplinas: _myDisciplinas,
+            interessesPageSize: _interessesPageSize,
+            interessesPagesShown: _interessesPagesShown,
+            onInteressesVerMais: () =>
+                setState(() => _interessesPagesShown += 1),
+            onReloadDisciplinas: _loadMyDisciplinas,
+            onRemoveDisciplina: _removeDisciplina,
+            onSalvar: () async {
+              try {
+                final username = _usernameController.text.trim();
+                if (username.isEmpty) {
+                  throw const UsersException('Username é obrigatório');
+                }
+
+                final computedDisplayName =
+                    '${_primeiroNomeController.text.trim()} ${_ultimoNomeController.text.trim()}'
+                        .trim();
+                await _users.updateMe(
+                  username: username,
+                  displayName: computedDisplayName,
+                  educationLevel: _nivelEnsino,
+                  biography: _biografiaController.text,
+                  mobileNumber: _telefoneController.text,
+                  phoneNumber: _telefoneController.text,
+                  website: _website,
+                );
+                await _loadProfile();
+                if (!context.mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Perfil guardado')),
+                );
+              } catch (e) {
+                if (!context.mounted) return;
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(SnackBar(content: Text(e.toString())));
+              }
+            },
+          );
+
+    if (isMobile) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: PerfilConstants.mobileHorizontalPadding,
+          vertical: PerfilConstants.mobileVerticalPadding,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Perfil', style: PerfilConstants.mobileTitleStyle),
+            const SizedBox(height: 8),
+            const Text(
+              'Gerencie as suas informações pessoais.',
+              style: PerfilConstants.mobileSubtitleStyle,
+            ),
+            const SizedBox(height: PerfilConstants.mobileSectionSpacing),
+            content,
+            const SizedBox(height: PerfilConstants.mobileSectionSpacing),
+            PerfilActionCard(
+              isMobile: true,
+              title: 'Alterar Senha',
+              buttonLabel: 'Alterar Senha',
+              onPressed: () {},
+            ),
+            const SizedBox(height: 14),
+            PerfilActionCard(
+              isMobile: true,
+              title: 'Excluir Conta',
+              buttonLabel: 'Excluir Conta',
+              onPressed: () {},
+              buttonBorderColor: const Color(0xFFFFC9C9),
+              buttonTextColor: const Color(0xFFE7000B),
+            ),
+          ],
+        ),
+      );
+    }
+
     return Padding(
       padding: const EdgeInsets.symmetric(
         horizontal: PerfilConstants.horizontalPadding,
@@ -335,91 +463,7 @@ class _PerfilContentSectionState extends State<PerfilContentSection> {
                   style: PerfilConstants.subtitleStyle,
                 ),
                 const SizedBox(height: PerfilConstants.cardGap),
-                if (_loadingProfile)
-                  const Center(
-                    child: Padding(
-                      padding: EdgeInsets.all(16),
-                      child: CircularProgressIndicator(),
-                    ),
-                  )
-                else if (_profileError != null)
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          _profileError!,
-                          style: const TextStyle(color: Colors.red),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      OutlinedButton(
-                        onPressed: _loadProfile,
-                        child: const Text('Tentar novamente'),
-                      ),
-                    ],
-                  )
-                else
-                  _PerfilFormCard(
-                    profileImageUrl: _profileImageUrl,
-                    avatarUrlController: _avatarUrlController,
-                    imageBusy: _savingProfileImage,
-                    onPickProfileImage: _pickProfileImage,
-                    onApplyAvatarUrl: _applyAvatarUrl,
-                    onRemoveProfileImage: _removeProfileImage,
-                    usernameController: _usernameController,
-                    primeiroNomeController: _primeiroNomeController,
-                    ultimoNomeController: _ultimoNomeController,
-                    emailController: _emailController,
-                    telefoneController: _telefoneController,
-                    biografiaController: _biografiaController,
-                    nivelEnsino: _nivelEnsino,
-                    onNivelEnsinoChanged: (value) =>
-                        setState(() => _nivelEnsino = value),
-                    ciclosLoading: _loadingCiclos,
-                    ciclosError: _ciclosError,
-                    ciclos: _ciclos,
-                    onReloadCiclos: _loadCiclos,
-                    disciplinasLoading: _loadingDisciplinas,
-                    disciplinasError: _disciplinasError,
-                    disciplinas: _myDisciplinas,
-                    interessesPageSize: _interessesPageSize,
-                    interessesPagesShown: _interessesPagesShown,
-                    onInteressesVerMais: () =>
-                        setState(() => _interessesPagesShown += 1),
-                    onReloadDisciplinas: _loadMyDisciplinas,
-                    onRemoveDisciplina: _removeDisciplina,
-                    onSalvar: () async {
-                      try {
-                        final username = _usernameController.text.trim();
-                        if (username.isEmpty) {
-                          throw const UsersException('Username é obrigatório');
-                        }
-
-                        final computedDisplayName =
-                            '${_primeiroNomeController.text.trim()} ${_ultimoNomeController.text.trim()}'
-                                .trim();
-                        await _users.updateMe(
-                          username: username,
-                          displayName: computedDisplayName,
-                          educationLevel: _nivelEnsino,
-                          biography: _biografiaController.text,
-                          mobileNumber: _telefoneController.text,
-                          phoneNumber: _telefoneController.text,
-                          website: _website,
-                        );
-                        await _loadProfile();
-                        if (!context.mounted) return;
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Perfil guardado')),
-                        );
-                      } catch (e) {
-                        if (!context.mounted) return;
-                        ScaffoldMessenger.of(
-                          context,
-                        ).showSnackBar(SnackBar(content: Text(e.toString())));
-                      }
-                    },
-                  ),
+                content,
                 const SizedBox(height: PerfilConstants.cardGap),
                 Row(
                   children: [
@@ -453,6 +497,7 @@ class _PerfilContentSectionState extends State<PerfilContentSection> {
 
 class _PerfilFormCard extends StatelessWidget {
   const _PerfilFormCard({
+    this.isMobile = false,
     required this.profileImageUrl,
     required this.avatarUrlController,
     required this.imageBusy,
@@ -481,6 +526,8 @@ class _PerfilFormCard extends StatelessWidget {
     required this.onRemoveDisciplina,
     required this.onSalvar,
   });
+
+  final bool isMobile;
 
   final String? profileImageUrl;
   final TextEditingController avatarUrlController;
@@ -538,73 +585,142 @@ class _PerfilFormCard extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(
-        PerfilConstants.horizontalCardPadding,
-        PerfilConstants.verticalCardPadding,
-        PerfilConstants.horizontalCardPadding,
-        1.39,
+      padding: EdgeInsets.fromLTRB(
+        isMobile ? 18 : PerfilConstants.horizontalCardPadding,
+        isMobile ? 22 : PerfilConstants.verticalCardPadding,
+        isMobile ? 18 : PerfilConstants.horizontalCardPadding,
+        isMobile ? 18 : 1.39,
       ),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(PerfilConstants.cardRadius),
-        border: Border.all(color: PerfilConstants.cardBorderColor, width: 1.39),
-        boxShadow: PerfilConstants.cardShadow,
+        borderRadius: BorderRadius.circular(
+          isMobile
+              ? PerfilConstants.mobileCardRadius
+              : PerfilConstants.cardRadius,
+        ),
+        border: Border.all(
+          color: isMobile
+              ? PerfilConstants.mobileCardBorderColor
+              : PerfilConstants.cardBorderColor,
+          width: 1.39,
+        ),
+        boxShadow: isMobile
+            ? PerfilConstants.mobileShadow
+            : PerfilConstants.cardShadow,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _PerfilHeader(
+            isMobile: isMobile,
             initials: headerInitials,
             name: headerName,
             email: headerEmail,
             imageUrl: profileImageUrl,
             onEditTap: imageBusy ? null : onPickProfileImage,
           ),
-          const SizedBox(height: PerfilConstants.cardGap),
-          Text('Foto de Perfil', style: PerfilConstants.sectionHeadingStyle),
-          const SizedBox(height: PerfilConstants.smallGap),
-          const Text(
+          SizedBox(
+            height: isMobile
+                ? PerfilConstants.mobileCardGap
+                : PerfilConstants.cardGap,
+          ),
+          Text(
+            'Foto de Perfil',
+            style: isMobile
+                ? PerfilConstants.mobileSectionHeadingStyle
+                : PerfilConstants.sectionHeadingStyle,
+          ),
+          SizedBox(
+            height: isMobile
+                ? PerfilConstants.mobileSmallGap
+                : PerfilConstants.smallGap,
+          ),
+          Text(
             'Pode carregar uma foto sua ou usar um avatar por URL. A imagem fica guardada no Cloudflare.',
-            style: TextStyle(
-              fontSize: 16,
-              color: Color(0xFF4A5565),
-              height: 24 / 16,
+            style: isMobile
+                ? PerfilConstants.mobileBodyStyle
+                : const TextStyle(
+                    fontSize: 16,
+                    color: Color(0xFF4A5565),
+                    height: 24 / 16,
+                  ),
+          ),
+          SizedBox(
+            height: isMobile
+                ? PerfilConstants.mobileSmallGap
+                : PerfilConstants.smallGap,
+          ),
+          if (isMobile)
+            Column(
+              children: [
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: imageBusy ? null : onPickProfileImage,
+                    icon: imageBusy
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.upload_outlined),
+                    label: const Text('Carregar imagem'),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: imageBusy ? null : onRemoveProfileImage,
+                    icon: const Icon(Icons.delete_outline),
+                    label: const Text('Remover'),
+                  ),
+                ),
+              ],
+            )
+          else
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: imageBusy ? null : onPickProfileImage,
+                    icon: imageBusy
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.upload_outlined),
+                    label: const Text('Carregar imagem'),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: imageBusy ? null : onRemoveProfileImage,
+                    icon: const Icon(Icons.delete_outline),
+                    label: const Text('Remover'),
+                  ),
+                ),
+              ],
             ),
+          SizedBox(
+            height: isMobile
+                ? PerfilConstants.mobileFieldGap
+                : PerfilConstants.fieldGap,
           ),
-          const SizedBox(height: PerfilConstants.smallGap),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: imageBusy ? null : onPickProfileImage,
-                  icon: imageBusy
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.upload_outlined),
-                  label: const Text('Carregar imagem'),
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: imageBusy ? null : onRemoveProfileImage,
-                  icon: const Icon(Icons.delete_outline),
-                  label: const Text('Remover'),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: PerfilConstants.fieldGap),
           PerfilLabeledField(
+            isMobile: isMobile,
             label: 'Avatar por URL',
             controller: avatarUrlController,
             keyboardType: TextInputType.url,
             hintText: 'https://.../avatar.png',
           ),
-          const SizedBox(height: PerfilConstants.smallGap),
+          SizedBox(
+            height: isMobile
+                ? PerfilConstants.mobileSmallGap
+                : PerfilConstants.smallGap,
+          ),
           Align(
             alignment: Alignment.centerRight,
             child: OutlinedButton.icon(
@@ -613,42 +729,94 @@ class _PerfilFormCard extends StatelessWidget {
               label: const Text('Usar avatar da internet'),
             ),
           ),
-          const SizedBox(height: PerfilConstants.cardGap),
-          PerfilLabeledField(label: 'Username', controller: usernameController),
-          const SizedBox(height: PerfilConstants.fieldGap),
-          Row(
-            children: [
-              Expanded(
-                child: PerfilLabeledField(
+          SizedBox(
+            height: isMobile
+                ? PerfilConstants.mobileCardGap
+                : PerfilConstants.cardGap,
+          ),
+          PerfilLabeledField(
+            isMobile: isMobile,
+            label: 'Username',
+            controller: usernameController,
+          ),
+          SizedBox(
+            height: isMobile
+                ? PerfilConstants.mobileFieldGap
+                : PerfilConstants.fieldGap,
+          ),
+          if (isMobile)
+            Column(
+              children: [
+                PerfilLabeledField(
+                  isMobile: true,
                   label: 'Primeiro nome',
                   controller: primeiroNomeController,
                 ),
-              ),
-              const SizedBox(width: 16.685),
-              Expanded(
-                child: PerfilLabeledField(
+                const SizedBox(height: PerfilConstants.mobileFieldGap),
+                PerfilLabeledField(
+                  isMobile: true,
                   label: 'Último nome',
                   controller: ultimoNomeController,
                 ),
-              ),
-            ],
+              ],
+            )
+          else
+            Row(
+              children: [
+                Expanded(
+                  child: PerfilLabeledField(
+                    label: 'Primeiro nome',
+                    controller: primeiroNomeController,
+                  ),
+                ),
+                const SizedBox(width: 16.685),
+                Expanded(
+                  child: PerfilLabeledField(
+                    label: 'Último nome',
+                    controller: ultimoNomeController,
+                  ),
+                ),
+              ],
+            ),
+          SizedBox(
+            height: isMobile
+                ? PerfilConstants.mobileFieldGap
+                : PerfilConstants.fieldGap,
           ),
-          const SizedBox(height: PerfilConstants.fieldGap),
           PerfilLabeledField(
+            isMobile: isMobile,
             label: 'Email',
             controller: emailController,
             keyboardType: TextInputType.emailAddress,
             readOnly: true,
           ),
-          const SizedBox(height: PerfilConstants.fieldGap),
+          SizedBox(
+            height: isMobile
+                ? PerfilConstants.mobileFieldGap
+                : PerfilConstants.fieldGap,
+          ),
           PerfilLabeledField(
+            isMobile: isMobile,
             label: 'Telefone',
             controller: telefoneController,
             keyboardType: TextInputType.phone,
           ),
-          const SizedBox(height: PerfilConstants.fieldGap),
-          Text('Nível de Ensino', style: PerfilConstants.labelStyle),
-          const SizedBox(height: PerfilConstants.smallGap),
+          SizedBox(
+            height: isMobile
+                ? PerfilConstants.mobileFieldGap
+                : PerfilConstants.fieldGap,
+          ),
+          Text(
+            'Nível de Ensino',
+            style: isMobile
+                ? PerfilConstants.mobileLabelStyle
+                : PerfilConstants.labelStyle,
+          ),
+          SizedBox(
+            height: isMobile
+                ? PerfilConstants.mobileSmallGap
+                : PerfilConstants.smallGap,
+          ),
           if (ciclosLoading)
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 8),
@@ -675,33 +843,54 @@ class _PerfilFormCard extends StatelessWidget {
             )
           else
             SizedBox(
-              height: PerfilConstants.pillHeight,
+              height: isMobile
+                  ? PerfilConstants.mobilePillHeight
+                  : PerfilConstants.pillHeight,
               child: SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 child: Row(
                   children: [
                     for (final c in ciclos) ...[
                       PerfilPillOption(
+                        isMobile: isMobile,
                         label: c.nome,
                         selected: nivelEnsino == c.nome,
-                        width: 190,
+                        width: isMobile ? null : 190,
                         onTap: () => onNivelEnsinoChanged(c.nome),
                       ),
-                      const SizedBox(width: 16.685),
+                      SizedBox(width: isMobile ? 10 : 16.685),
                     ],
                   ],
                 ),
               ),
             ),
-          const SizedBox(height: PerfilConstants.fieldGap),
+          SizedBox(
+            height: isMobile
+                ? PerfilConstants.mobileFieldGap
+                : PerfilConstants.fieldGap,
+          ),
           PerfilLabeledField(
+            isMobile: isMobile,
             label: 'Biografia',
             controller: biografiaController,
             maxLines: 5,
           ),
-          const SizedBox(height: PerfilConstants.fieldGap),
-          Text('Disciplinas de Interesse', style: PerfilConstants.labelStyle),
-          const SizedBox(height: PerfilConstants.smallGap),
+          SizedBox(
+            height: isMobile
+                ? PerfilConstants.mobileFieldGap
+                : PerfilConstants.fieldGap,
+          ),
+          Text(
+            'Disciplinas de Interesse',
+            style: isMobile
+                ? PerfilConstants.mobileLabelStyle
+                : PerfilConstants.labelStyle,
+          ),
+          SizedBox(
+            height: isMobile
+                ? PerfilConstants.mobileSmallGap
+                : PerfilConstants.smallGap,
+          ),
           if (disciplinasLoading)
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 16),
@@ -728,11 +917,12 @@ class _PerfilFormCard extends StatelessWidget {
             )
           else
             Wrap(
-              spacing: 11.124,
-              runSpacing: 11.124,
+              spacing: isMobile ? 8 : 11.124,
+              runSpacing: isMobile ? 8 : 11.124,
               children: [
                 for (final d in visibleInteresses)
                   PerfilInterestChip(
+                    isMobile: isMobile,
                     label: d.nome,
                     onRemove: () => onRemoveDisciplina(d),
                   ),
@@ -754,15 +944,15 @@ class _PerfilFormCard extends StatelessWidget {
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16),
                   ),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 28,
-                    vertical: 16,
+                  padding: EdgeInsets.symmetric(
+                    horizontal: isMobile ? 18 : 28,
+                    vertical: isMobile ? 12 : 16,
                   ),
-                  minimumSize: const Size(0, 56),
+                  minimumSize: Size(0, isMobile ? 44 : 56),
                   foregroundColor: PerfilConstants.orange,
-                  textStyle: const TextStyle(
-                    fontSize: 20,
-                    height: 28 / 20,
+                  textStyle: TextStyle(
+                    fontSize: isMobile ? 14 : 20,
+                    height: isMobile ? 20 / 14 : 28 / 20,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -770,27 +960,39 @@ class _PerfilFormCard extends StatelessWidget {
               ),
             ),
           ],
-          const SizedBox(height: PerfilConstants.fieldGap),
+          SizedBox(
+            height: isMobile
+                ? PerfilConstants.mobileFieldGap
+                : PerfilConstants.fieldGap,
+          ),
           InkWell(
             onTap: onSalvar,
-            borderRadius: BorderRadius.circular(PerfilConstants.fieldRadius),
+            borderRadius: BorderRadius.circular(
+              isMobile
+                  ? PerfilConstants.mobileFieldRadius
+                  : PerfilConstants.fieldRadius,
+            ),
             child: Container(
-              height: 66.742,
+              height: isMobile ? 44 : 66.742,
               width: double.infinity,
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(
-                  PerfilConstants.fieldRadius,
+                  isMobile
+                      ? PerfilConstants.mobileFieldRadius
+                      : PerfilConstants.fieldRadius,
                 ),
                 gradient: PerfilConstants.gradientOrange,
               ),
               alignment: Alignment.center,
-              child: const Text(
+              child: Text(
                 'Salvar Perfil',
-                style: PerfilConstants.buttonTextStyle,
+                style: isMobile
+                    ? PerfilConstants.mobileButtonTextStyle
+                    : PerfilConstants.buttonTextStyle,
               ),
             ),
           ),
-          const SizedBox(height: 28),
+          SizedBox(height: isMobile ? 0 : 28),
         ],
       ),
     );
@@ -799,6 +1001,7 @@ class _PerfilFormCard extends StatelessWidget {
 
 class _PerfilHeader extends StatelessWidget {
   const _PerfilHeader({
+    this.isMobile = false,
     required this.initials,
     required this.name,
     required this.email,
@@ -811,24 +1014,25 @@ class _PerfilHeader extends StatelessWidget {
   final String email;
   final String? imageUrl;
   final VoidCallback? onEditTap;
+  final bool isMobile;
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 266.966,
+      height: isMobile ? 176 : 266.966,
       width: double.infinity,
       child: Stack(
         children: [
           Align(
             alignment: Alignment.topCenter,
             child: SizedBox(
-              width: 177.978,
-              height: 177.978,
+              width: isMobile ? 117.341 : 177.978,
+              height: isMobile ? 117.341 : 177.978,
               child: Stack(
                 children: [
                   Container(
-                    width: 177.978,
-                    height: 177.978,
+                    width: isMobile ? 117.341 : 177.978,
+                    height: isMobile ? 117.341 : 177.978,
                     decoration: const BoxDecoration(
                       shape: BoxShape.circle,
                       gradient: PerfilConstants.gradientOrange,
@@ -839,37 +1043,37 @@ class _PerfilHeader extends StatelessWidget {
                         ? Image.network(
                             imageUrl!.trim(),
                             fit: BoxFit.cover,
-                            width: 177.978,
-                            height: 177.978,
+                            width: isMobile ? 117.341 : 177.978,
+                            height: isMobile ? 117.341 : 177.978,
                             errorBuilder: (context, error, stackTrace) => Text(
                               initials,
-                              style: const TextStyle(
-                                fontSize: 50.056,
+                              style: TextStyle(
+                                fontSize: isMobile ? 32 : 50.056,
                                 fontWeight: FontWeight.w500,
                                 color: Colors.white,
-                                height: 55.618 / 50.056,
+                                height: isMobile ? 38 / 32 : 55.618 / 50.056,
                               ),
                             ),
                           )
                         : Text(
                             initials,
-                            style: const TextStyle(
-                              fontSize: 50.056,
+                            style: TextStyle(
+                              fontSize: isMobile ? 32 : 50.056,
                               fontWeight: FontWeight.w500,
                               color: Colors.white,
-                              height: 55.618 / 50.056,
+                              height: isMobile ? 38 / 32 : 55.618 / 50.056,
                             ),
                           ),
                   ),
                   Positioned(
-                    left: 122.36,
-                    top: 122.36,
+                    left: isMobile ? 80.67 : 122.36,
+                    top: isMobile ? 80.67 : 122.36,
                     child: InkWell(
                       onTap: onEditTap,
                       customBorder: const CircleBorder(),
                       child: Container(
-                        width: 55.618,
-                        height: 55.618,
+                        width: isMobile ? 36.669 : 55.618,
+                        height: isMobile ? 36.669 : 55.618,
                         padding: const EdgeInsets.all(2.781),
                         decoration: BoxDecoration(
                           color: Colors.white,
@@ -881,11 +1085,7 @@ class _PerfilHeader extends StatelessWidget {
                           boxShadow: PerfilConstants.floatingShadow,
                         ),
                         child: const Center(
-                          child: Icon(
-                            Icons.edit,
-                            size: 27.809,
-                            color: Color(0xFF364153),
-                          ),
+                          child: Icon(Icons.edit, color: Color(0xFF364153)),
                         ),
                       ),
                     ),
@@ -903,22 +1103,22 @@ class _PerfilHeader extends StatelessWidget {
                 children: [
                   Text(
                     name,
-                    style: const TextStyle(
-                      fontSize: 27.809,
+                    style: TextStyle(
+                      fontSize: isMobile ? 18 : 27.809,
                       fontWeight: FontWeight.w500,
                       color: Color(0xFF101828),
-                      height: 38.933 / 27.809,
+                      height: isMobile ? 26 / 18 : 38.933 / 27.809,
                     ),
                     textAlign: TextAlign.center,
                   ),
-                  const SizedBox(height: 6),
+                  SizedBox(height: isMobile ? 4 : 6),
                   Text(
                     email,
-                    style: const TextStyle(
-                      fontSize: 19.466,
+                    style: TextStyle(
+                      fontSize: isMobile ? 13 : 19.466,
                       fontWeight: FontWeight.w400,
                       color: Color(0xFF4A5565),
-                      height: 27.809 / 19.466,
+                      height: isMobile ? 18 / 13 : 27.809 / 19.466,
                     ),
                     textAlign: TextAlign.center,
                   ),

@@ -10,6 +10,7 @@ import 'package:aula_extra/features/home/widgets/full_bleed_scaled_section.dart'
 import 'package:aula_extra/features/professor/core/widgets/professor_menu_nav.dart';
 import 'package:aula_extra/features/professor/publicar_anuncio/constants/publicar_anuncio_professor_constants.dart';
 import 'package:aula_extra/features/professor/publicar_anuncio/widgets/publicar_anuncio_form_card.dart';
+import 'package:aula_extra/features/professor/publicar_anuncio/widgets/publicar_anuncio_mobile_mode_tabs.dart';
 import 'package:aula_extra/features/professor/publicar_anuncio/widgets/publicar_anuncio_preview_card.dart';
 import 'package:aula_extra/features/professor/publicar_anuncio/widgets/publicar_anuncio_shared_widgets.dart';
 import 'package:aula_extra/features/tutor_profile_view/models/tutor_profile_args.dart';
@@ -19,9 +20,14 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 class PublicarAnuncioProfessorContentSection extends StatefulWidget {
-  const PublicarAnuncioProfessorContentSection({super.key, this.initialAd});
+  const PublicarAnuncioProfessorContentSection({
+    super.key,
+    this.initialAd,
+    this.isMobile = false,
+  });
 
   final ProfessorAdDto? initialAd;
+  final bool isMobile;
 
   @override
   State<PublicarAnuncioProfessorContentSection> createState() =>
@@ -44,6 +50,8 @@ class _PublicarAnuncioProfessorContentSectionState
   String? _selectedDisciplinaId;
   String? _selectedTutoringTypeId;
   String? _photoUrl;
+  PublicarAnuncioMobileTab _selectedMobileTab =
+      PublicarAnuncioMobileTab.informacoes;
 
   bool get _isEditing => widget.initialAd != null;
 
@@ -381,6 +389,10 @@ class _PublicarAnuncioProfessorContentSectionState
         ? account!.username!.trim()
         : 'Professor';
 
+    if (widget.isMobile) {
+      return _buildMobileShell(displayName);
+    }
+
     return Container(
       color: PublicarAnuncioProfessorColors.pageBackground,
       child: FullBleedScaledSection(
@@ -411,6 +423,141 @@ class _PublicarAnuncioProfessorContentSectionState
             },
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildMobileShell(String displayName) {
+    if (_loading) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(32),
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
+    if (_error != null) {
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
+        child: PublicarAnuncioStateCard(
+          padding: const EdgeInsets.all(
+            PublicarAnuncioProfessorLayout.mobileCardPadding,
+          ),
+          radius: PublicarAnuncioProfessorLayout.mobileCardRadius,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Não foi possível carregar a página.',
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w700,
+                  color: PublicarAnuncioProfessorColors.title,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                _error!,
+                style: const TextStyle(
+                  color: PublicarAnuncioProfessorColors.mutedText,
+                ),
+              ),
+              const SizedBox(height: 20),
+              OutlinedButton(
+                onPressed: _load,
+                child: const Text('Tentar novamente'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final data = _data;
+    if (data == null) {
+      return const SizedBox.shrink();
+    }
+
+    if (data.disciplinas.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
+        child: PublicarAnuncioStateCard(
+          padding: const EdgeInsets.all(
+            PublicarAnuncioProfessorLayout.mobileCardPadding,
+          ),
+          radius: PublicarAnuncioProfessorLayout.mobileCardRadius,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Primeiro adicione uma disciplina.',
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w700,
+                  color: PublicarAnuncioProfessorColors.title,
+                ),
+              ),
+              const SizedBox(height: 10),
+              const Text(
+                'Só pode publicar anúncios para disciplinas já configuradas em Minhas Disciplinas.',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: PublicarAnuncioProfessorColors.mutedText,
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 24),
+              FilledButton(
+                onPressed: () => Navigator.of(
+                  context,
+                ).pushNamed(Routes.professorMinhasDisciplinas),
+                child: const Text('Ir para Minhas Disciplinas'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      width: double.infinity,
+      color: PublicarAnuncioProfessorColors.pageBackground,
+      padding: const EdgeInsets.fromLTRB(
+        PublicarAnuncioProfessorLayout.mobileHorizontalPadding,
+        PublicarAnuncioProfessorLayout.mobileTopPadding,
+        PublicarAnuncioProfessorLayout.mobileHorizontalPadding,
+        PublicarAnuncioProfessorLayout.mobileBottomPadding,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            _isEditing ? 'Editar Anúncio' : 'Publicar Anúncio',
+            style: const TextStyle(
+              fontSize: 30,
+              fontWeight: FontWeight.w700,
+              color: PublicarAnuncioProfessorColors.title,
+              height: 36 / 30,
+            ),
+          ),
+          const SizedBox(height: 8),
+          PublicarAnuncioMobileModeTabs(
+            selectedTab: _selectedMobileTab,
+            onChanged: (tab) {
+              setState(() {
+                _selectedMobileTab = tab;
+              });
+            },
+          ),
+          const SizedBox(
+            height: PublicarAnuncioProfessorLayout.mobileSectionGap,
+          ),
+          if (_selectedMobileTab == PublicarAnuncioMobileTab.informacoes)
+            _buildFormCard(isMobile: true)
+          else
+            _buildPreviewCard(displayName, isMobile: true),
+        ],
       ),
     );
   }
@@ -546,7 +693,7 @@ class _PublicarAnuncioProfessorContentSectionState
     );
   }
 
-  Widget _buildFormCard() {
+  Widget _buildFormCard({bool isMobile = false}) {
     final data = _data;
     return PublicarAnuncioFormCard(
       formKey: _formKey,
@@ -561,6 +708,7 @@ class _PublicarAnuncioProfessorContentSectionState
       photoUrl: _photoUrl,
       saving: _saving,
       isEditing: _isEditing,
+      isMobile: isMobile,
       inputDecoration: _inputDecoration,
       parsePrice: _parsePrice,
       onDisciplinaChanged: (value) {
@@ -576,7 +724,7 @@ class _PublicarAnuncioProfessorContentSectionState
     );
   }
 
-  Widget _buildPreviewCard(String displayName) {
+  Widget _buildPreviewCard(String displayName, {bool isMobile = false}) {
     final selectedDisciplina = _selectedDisciplina;
     final selectedType = _selectedTutoringType;
     final selectedAd = _selectedAd;
@@ -593,6 +741,7 @@ class _PublicarAnuncioProfessorContentSectionState
       description: description,
       formattedPrice: price == null ? '—€' : '${_formatPrice(price)}€',
       photoUrl: _photoUrl,
+      isMobile: isMobile,
       onViewProfile: () => _openPublicProfile(displayName),
     );
   }

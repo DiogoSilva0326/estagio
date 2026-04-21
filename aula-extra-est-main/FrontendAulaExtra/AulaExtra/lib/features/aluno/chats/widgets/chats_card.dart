@@ -599,7 +599,10 @@ class _ChatsCardState extends State<ChatsCard> {
 
     final channelName = _activeChannelName;
     final username = _myUsername;
-    if (channelName == null || channelName.isEmpty || username == null || username.isEmpty) {
+    if (channelName == null ||
+        channelName.isEmpty ||
+        username == null ||
+        username.isEmpty) {
       return;
     }
 
@@ -660,7 +663,8 @@ class _ChatsCardState extends State<ChatsCard> {
       return;
     }
 
-    if (!await launchUrl(uri, mode: LaunchMode.externalApplication) && mounted) {
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication) &&
+        mounted) {
       setState(() {
         _contactsError = 'Não foi possível abrir o ficheiro.';
       });
@@ -673,7 +677,9 @@ class _ChatsCardState extends State<ChatsCard> {
       senderId: message.senderId,
       text: message.content,
       timestamp: message.timestamp.toLocal(),
-      isOutgoing: message.senderId.trim().toLowerCase() == myUsername.trim().toLowerCase(),
+      isOutgoing:
+          message.senderId.trim().toLowerCase() ==
+          myUsername.trim().toLowerCase(),
       isRead: message.isRead,
       attachment: message.attachment,
     );
@@ -1210,8 +1216,8 @@ class _ChatsCardState extends State<ChatsCard> {
                       ? null
                       : () => _rejectInvite(selected),
                   onSend: _handleSendMessage,
-                    onPickFile: _pickAndSendFile,
-                    onOpenAttachment: _openExternalUrl,
+                  onPickFile: _pickAndSendFile,
+                  onOpenAttachment: _openExternalUrl,
                 ),
               ),
             ],
@@ -1947,8 +1953,10 @@ class _ChatMessage extends StatelessWidget {
             ),
           );
 
-    final hasVisibleText = text.trim().isNotEmpty &&
-        (attachment == null || text.trim() != '[Ficheiro: ${attachment!.fileName}]');
+    final hasVisibleText =
+        text.trim().isNotEmpty &&
+        (attachment == null ||
+            text.trim() != '[Ficheiro: ${attachment!.fileName}]');
 
     return Column(
       crossAxisAlignment: isOutgoing
@@ -2055,7 +2063,10 @@ class _ChatComposer extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(22.309, 23.703, 22.309, 22.309),
           child: Row(
             children: [
-              _IconSquareButton(icon: Icons.attach_file_rounded, onTap: enabled ? onPickFile : () {}),
+              _IconSquareButton(
+                icon: Icons.attach_file_rounded,
+                onTap: enabled ? onPickFile : () {},
+              ),
               const SizedBox(width: 16.731),
               _IconSquareButton(icon: Icons.image_outlined, onTap: () {}),
               const SizedBox(width: 16.731),
@@ -2228,7 +2239,8 @@ class _MessageData {
   final bool isRead;
   final RealtimeChatAttachment? attachment;
 
-  String get previewText => attachment != null ? '📎 ${attachment!.fileName}' : text;
+  String get previewText =>
+      attachment != null ? '📎 ${attachment!.fileName}' : text;
 }
 
 class _ChatAttachmentCard extends StatelessWidget {
@@ -2245,7 +2257,9 @@ class _ChatAttachmentCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final foreground = isOutgoing ? Colors.white : const Color(0xFF101828);
-    final secondary = isOutgoing ? Colors.white.withValues(alpha: 0.8) : const Color(0xFF6A7282);
+    final secondary = isOutgoing
+        ? Colors.white.withValues(alpha: 0.8)
+        : const Color(0xFF6A7282);
 
     return InkWell(
       onTap: onTap,
@@ -2254,10 +2268,14 @@ class _ChatAttachmentCard extends StatelessWidget {
         width: double.infinity,
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: isOutgoing ? Colors.white.withValues(alpha: 0.14) : Colors.white,
+          color: isOutgoing
+              ? Colors.white.withValues(alpha: 0.14)
+              : Colors.white,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: isOutgoing ? Colors.white.withValues(alpha: 0.22) : const Color(0xFFE5E7EB),
+            color: isOutgoing
+                ? Colors.white.withValues(alpha: 0.22)
+                : const Color(0xFFE5E7EB),
           ),
         ),
         child: Row(

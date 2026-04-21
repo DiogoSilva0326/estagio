@@ -9,12 +9,14 @@ class NotificacaoCard extends StatelessWidget {
     required this.onMarkAsRead,
     this.onPrimaryAction,
     this.primaryActionLabel,
+    this.isMobile = false,
   });
 
   final UserNotificationDto item;
   final VoidCallback? onMarkAsRead;
   final VoidCallback? onPrimaryAction;
   final String? primaryActionLabel;
+  final bool isMobile;
 
   String _timeLabel() {
     final when = item.effectiveDate;
@@ -40,13 +42,47 @@ class NotificacaoCard extends StatelessWidget {
         item.unread &&
         onPrimaryAction != null &&
         (primaryActionLabel?.trim().isNotEmpty ?? false);
+    final containerPadding = isMobile
+        ? const EdgeInsets.fromLTRB(16, 16, 16, 16)
+        : const EdgeInsets.fromLTRB(29.514, 29.514, 29.514, 29.514);
+    final iconSize = isMobile ? 48.0 : 67.459;
+    final iconRadius = isMobile ? 14.0 : 19.676;
+    final iconGlyphSize = isMobile ? 24.0 : 33.73;
+    final titleStyle = TextStyle(
+      fontSize: isMobile ? 16 : 22.486,
+      fontWeight: FontWeight.w600,
+      color: const Color(0xFF101828),
+      height: isMobile ? 1.35 : 33.73 / 22.486,
+    );
+    final messageStyle = TextStyle(
+      fontSize: isMobile ? 13 : 19.676,
+      fontWeight: FontWeight.w400,
+      color: const Color(0xFF4A5565),
+      height: isMobile ? 1.45 : 28.108 / 19.676,
+    );
+    final metadataStyle = TextStyle(
+      fontSize: isMobile ? 12 : 16.865,
+      fontWeight: FontWeight.w400,
+      color: const Color(0xFF6A7282),
+      height: isMobile ? 1.35 : 22.486 / 16.865,
+    );
+    final actionStyle = TextStyle(
+      fontSize: isMobile ? 12 : 16.865,
+      fontWeight: isMobile ? FontWeight.w600 : FontWeight.w400,
+      color: NotificacoesConstants.orange,
+      height: isMobile ? 1.35 : 22.486 / 16.865,
+    );
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(29.514, 29.514, 29.514, 29.514),
+      padding: containerPadding,
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(NotificacoesConstants.cardRadius),
+        borderRadius: BorderRadius.circular(
+          isMobile
+              ? NotificacoesConstants.mobileCardRadius
+              : NotificacoesConstants.cardRadius,
+        ),
         border: Border.all(
           color: item.unread
               ? const Color(0xFFFFD6A7)
@@ -59,16 +95,16 @@ class NotificacaoCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            width: 67.459,
-            height: 67.459,
+            width: iconSize,
+            height: iconSize,
             decoration: BoxDecoration(
               color: item.iconBackground,
-              borderRadius: BorderRadius.circular(19.676),
+              borderRadius: BorderRadius.circular(iconRadius),
             ),
             alignment: Alignment.center,
-            child: Icon(item.icon, color: Colors.white, size: 33.73),
+            child: Icon(item.icon, color: Colors.white, size: iconGlyphSize),
           ),
-          const SizedBox(width: 22.486),
+          SizedBox(width: isMobile ? 12 : 22.486),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -76,21 +112,11 @@ class NotificacaoCard extends StatelessWidget {
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(
-                      child: Text(
-                        item.title,
-                        style: const TextStyle(
-                          fontSize: 22.486,
-                          fontWeight: FontWeight.w500,
-                          color: Color(0xFF101828),
-                          height: 33.73 / 22.486,
-                        ),
-                      ),
-                    ),
+                    Expanded(child: Text(item.title, style: titleStyle)),
                     if (item.unread)
                       Container(
-                        width: 11.243,
-                        height: 11.243,
+                        width: isMobile ? 10 : 11.243,
+                        height: isMobile ? 10 : 11.243,
                         decoration: const BoxDecoration(
                           color: NotificacoesConstants.orange,
                           shape: BoxShape.circle,
@@ -98,31 +124,19 @@ class NotificacaoCard extends StatelessWidget {
                       ),
                   ],
                 ),
-                const SizedBox(height: 5.622),
-                Text(
-                  item.displayMessage,
-                  style: const TextStyle(
-                    fontSize: 19.676,
-                    fontWeight: FontWeight.w400,
-                    color: Color(0xFF4A5565),
-                    height: 28.108 / 19.676,
-                  ),
-                ),
-                const SizedBox(height: 5.622),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                SizedBox(height: isMobile ? 6 : 5.622),
+                Text(item.displayMessage, style: messageStyle),
+                SizedBox(height: isMobile ? 10 : 5.622),
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 8,
+                  alignment: WrapAlignment.spaceBetween,
+                  crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
-                    Text(
-                      _timeLabel(),
-                      style: const TextStyle(
-                        fontSize: 16.865,
-                        fontWeight: FontWeight.w400,
-                        color: Color(0xFF6A7282),
-                        height: 22.486 / 16.865,
-                      ),
-                    ),
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
+                    Text(_timeLabel(), style: metadataStyle),
+                    Wrap(
+                      spacing: 12,
+                      runSpacing: 8,
                       children: [
                         if (showPrimaryAction)
                           InkWell(
@@ -134,33 +148,23 @@ class NotificacaoCard extends StatelessWidget {
                               ),
                               child: Text(
                                 primaryActionLabel!,
-                                style: const TextStyle(
-                                  fontSize: 16.865,
+                                style: actionStyle.copyWith(
                                   fontWeight: FontWeight.w600,
-                                  color: NotificacoesConstants.orange,
-                                  height: 22.486 / 16.865,
                                 ),
                               ),
                             ),
                           ),
-                        if (showPrimaryAction && showMarkRead)
-                          const SizedBox(width: 12),
                         if (showMarkRead)
                           InkWell(
                             onTap: onMarkAsRead,
-                            child: const Padding(
-                              padding: EdgeInsets.symmetric(
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
                                 horizontal: 4,
                                 vertical: 2,
                               ),
                               child: Text(
                                 'Marcar como lida',
-                                style: TextStyle(
-                                  fontSize: 16.865,
-                                  fontWeight: FontWeight.w400,
-                                  color: NotificacoesConstants.orange,
-                                  height: 22.486 / 16.865,
-                                ),
+                                style: actionStyle,
                               ),
                             ),
                           ),

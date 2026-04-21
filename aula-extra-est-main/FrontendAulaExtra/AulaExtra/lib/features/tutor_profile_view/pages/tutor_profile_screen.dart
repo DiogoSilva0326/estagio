@@ -5,6 +5,7 @@ import 'package:aula_extra/core/data/professors/professors_service.dart';
 import 'package:aula_extra/core/widgets/pinned_header_delegate.dart';
 import 'package:aula_extra/features/tutor_profile_view/models/tutor_profile_args.dart';
 import 'package:aula_extra/features/tutor_profile_view/sections/back_bar_section.dart';
+import 'package:aula_extra/features/tutor_profile_view/constants/tutor_profile_layout.dart';
 import 'package:aula_extra/features/tutor_profile_view/sections/hero_section.dart';
 import 'package:aula_extra/features/tutor_profile_view/sections/profile_content_section.dart';
 import 'package:aula_extra/features/tutor_profile_view/sections/profile_summary_section.dart';
@@ -95,6 +96,8 @@ class _TutorProfileScreenState extends State<TutorProfileScreen> {
         ? routeArgs
         : TutorProfileScreen.fallbackArgs;
     final profile = _profile;
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final isMobileLayout = screenWidth <= kTutorProfileMobileBreakpoint;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF9FAFB),
@@ -121,18 +124,22 @@ class _TutorProfileScreenState extends State<TutorProfileScreen> {
             SliverToBoxAdapter(
               child: Column(
                 children: [
-                  const ColoredBox(
+                  ColoredBox(
                     color: Colors.white,
                     child: SizedBox(
                       width: double.infinity,
-                      child: FullBleedScaledSection(child: BackBarSection()),
+                      child: _ResponsiveSection(
+                        isMobile: isMobileLayout,
+                        child: const BackBarSection(),
+                      ),
                     ),
                   ),
                   ColoredBox(
                     color: const Color(0xFF101828),
                     child: SizedBox(
                       width: double.infinity,
-                      child: FullBleedScaledSection(
+                      child: _ResponsiveSection(
+                        isMobile: isMobileLayout,
                         child: HeroSection(
                           name: profile?.displayName ?? args.name,
                           photoUrl: profile?.photo,
@@ -142,43 +149,85 @@ class _TutorProfileScreenState extends State<TutorProfileScreen> {
                       ),
                     ),
                   ),
-                  ClipPath(
-                    clipper: const _ProfileSummaryBackgroundClipper(),
-                    child: DecoratedBox(
-                      decoration: const BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.centerLeft,
-                          end: Alignment.centerRight,
-                          colors: [
-                            Color.fromRGBO(252, 144, 57, 0.05),
-                            Color.fromRGBO(241, 92, 100, 0.05),
-                          ],
-                        ),
-                      ),
-                      child: SizedBox(
-                        width: double.infinity,
-                        child: FullBleedScaledSection(
-                          child: ProfileSummarySection(
-                            name: profile?.displayName ?? args.name,
-                            country: args.country,
-                            rating: profile?.stats.avgRating ?? args.rating,
-                            reviewCount:
-                                profile?.stats.reviewCount ?? args.reviewCount,
-                            lessonsText: (profile?.stats.lessonsCount ?? 0) > 0
-                                ? '${profile!.stats.lessonsCount} aulas dadas'
-                                : args.lessonsText,
-                            pricePerHour: args.pricePerHour,
-                            tags: _buildTags(profile, args),
+                  isMobileLayout
+                      ? DecoratedBox(
+                          decoration: const BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.centerLeft,
+                              end: Alignment.centerRight,
+                              colors: [
+                                Color.fromRGBO(252, 144, 57, 0.05),
+                                Color.fromRGBO(241, 92, 100, 0.05),
+                              ],
+                            ),
+                          ),
+                          child: SizedBox(
+                            width: double.infinity,
+                            child: _ResponsiveSection(
+                              isMobile: true,
+                              child: ProfileSummarySection(
+                                name: profile?.displayName ?? args.name,
+                                photoUrl: profile?.photo,
+                                isVerified: profile?.isVerified ?? false,
+                                country: args.country,
+                                rating: profile?.stats.avgRating ?? args.rating,
+                                reviewCount:
+                                    profile?.stats.reviewCount ??
+                                    args.reviewCount,
+                                lessonsText:
+                                    (profile?.stats.lessonsCount ?? 0) > 0
+                                    ? '${profile!.stats.lessonsCount} aulas dadas'
+                                    : args.lessonsText,
+                                pricePerHour: args.pricePerHour,
+                                tags: _buildTags(profile, args),
+                              ),
+                            ),
+                          ),
+                        )
+                      : ClipPath(
+                          clipper: const _ProfileSummaryBackgroundClipper(),
+                          child: DecoratedBox(
+                            decoration: const BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.centerLeft,
+                                end: Alignment.centerRight,
+                                colors: [
+                                  Color.fromRGBO(252, 144, 57, 0.05),
+                                  Color.fromRGBO(241, 92, 100, 0.05),
+                                ],
+                              ),
+                            ),
+                            child: SizedBox(
+                              width: double.infinity,
+                              child: _ResponsiveSection(
+                                isMobile: false,
+                                child: ProfileSummarySection(
+                                  name: profile?.displayName ?? args.name,
+                                  photoUrl: profile?.photo,
+                                  isVerified: profile?.isVerified ?? false,
+                                  country: args.country,
+                                  rating:
+                                      profile?.stats.avgRating ?? args.rating,
+                                  reviewCount:
+                                      profile?.stats.reviewCount ??
+                                      args.reviewCount,
+                                  lessonsText:
+                                      (profile?.stats.lessonsCount ?? 0) > 0
+                                      ? '${profile!.stats.lessonsCount} aulas dadas'
+                                      : args.lessonsText,
+                                  pricePerHour: args.pricePerHour,
+                                  tags: _buildTags(profile, args),
+                                ),
+                              ),
+                            ),
                           ),
                         ),
-                      ),
-                    ),
-                  ),
                   ColoredBox(
                     color: const Color(0xFFF9FAFB),
                     child: SizedBox(
                       width: double.infinity,
-                      child: FullBleedScaledSection(
+                      child: _ResponsiveSection(
+                        isMobile: isMobileLayout,
                         child: ProfileContentSection(
                           description:
                               profile?.biography?.trim().isNotEmpty == true
@@ -237,6 +286,29 @@ class _TutorProfileScreenState extends State<TutorProfileScreen> {
         .where((item) => item.isNotEmpty && seen.add(item.toLowerCase()))
         .take(2)
         .toList(growable: false);
+  }
+}
+
+class _ResponsiveSection extends StatelessWidget {
+  const _ResponsiveSection({required this.isMobile, required this.child});
+
+  final bool isMobile;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!isMobile) {
+      return FullBleedScaledSection(child: child);
+    }
+
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(
+          maxWidth: kTutorProfileMobileContentMaxWidth,
+        ),
+        child: child,
+      ),
+    );
   }
 }
 

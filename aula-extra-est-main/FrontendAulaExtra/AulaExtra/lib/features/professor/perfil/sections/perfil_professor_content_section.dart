@@ -28,7 +28,9 @@ const List<String> _languageLevels = <String>[
 ];
 
 class PerfilProfessorContentSection extends StatefulWidget {
-  const PerfilProfessorContentSection({super.key});
+  const PerfilProfessorContentSection({super.key, this.isMobile = false});
+
+  final bool isMobile;
 
   @override
   State<PerfilProfessorContentSection> createState() =>
@@ -716,12 +718,111 @@ class _PerfilProfessorContentSectionState
   Widget build(BuildContext context) {
     final titleStyle = TextStyle(
       color: PerfilProfessorColors.title,
-      fontSize: PerfilProfessorLayout.titleFontSize,
+      fontSize: widget.isMobile
+          ? PerfilProfessorLayout.mobileTitleFontSize
+          : PerfilProfessorLayout.titleFontSize,
       fontWeight: FontWeight.w700,
       height:
-          PerfilProfessorLayout.titleLineHeight /
-          PerfilProfessorLayout.titleFontSize,
+          (widget.isMobile
+              ? PerfilProfessorLayout.mobileTitleLineHeight
+              : PerfilProfessorLayout.titleLineHeight) /
+          (widget.isMobile
+              ? PerfilProfessorLayout.mobileTitleFontSize
+              : PerfilProfessorLayout.titleFontSize),
     );
+
+    if (widget.isMobile) {
+      return Container(
+        width: double.infinity,
+        color: PerfilProfessorColors.background,
+        padding: const EdgeInsets.fromLTRB(
+          PerfilProfessorLayout.mobilePageHorizontalPadding,
+          PerfilProfessorLayout.mobilePageTopPadding,
+          PerfilProfessorLayout.mobilePageHorizontalPadding,
+          PerfilProfessorLayout.mobilePageBottomPadding,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text('Meu Perfil', style: titleStyle),
+            const SizedBox(height: 16),
+            _SaveProfileButton(
+              isSaving: _saving,
+              onTap: _saving ? null : _saveProfile,
+              isMobile: true,
+            ),
+            const SizedBox(height: 20),
+            if (_loading)
+              const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(24),
+                  child: CircularProgressIndicator(),
+                ),
+              )
+            else if (_error != null)
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(_error!, style: const TextStyle(color: Colors.red)),
+                  const SizedBox(height: 12),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: OutlinedButton(
+                      onPressed: _loadProfile,
+                      child: const Text('Tentar novamente'),
+                    ),
+                  ),
+                ],
+              )
+            else
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _LeftProfileCard(
+                    profileImageUrl: _profileImageUrl,
+                    presentationVideoController:
+                        _presentationVideoUrlController,
+                    memberSince: _memberSince,
+                    stats: _stats,
+                    imageBusy: _savingProfileImage,
+                    onPickProfileImage: _pickProfileImage,
+                    onRemoveProfileImage: _removeProfileImage,
+                    isMobile: true,
+                  ),
+                  const SizedBox(height: PerfilProfessorLayout.mobileCardsGap),
+                  _RightInfoCard(
+                    displayNameController: _displayNameController,
+                    usernameController: _usernameController,
+                    emailController: _emailController,
+                    phoneController: _phoneController,
+                    nifController: _nifController,
+                    websiteController: _websiteController,
+                    currentSchoolController: _currentSchoolController,
+                    yearsExperienceController: _yearsExperienceController,
+                    biographyController: _biographyController,
+                    disciplinasCatalog: _disciplinasCatalog,
+                    disciplinasLecionadas: _disciplinasLecionadas,
+                    languagesCatalog: _languagesCatalog,
+                    languagesFalados: _languagesFalados,
+                    certificates: _certificates,
+                    documentsBusy: _documentsBusy,
+                    onAddDisciplina: _addDisciplina,
+                    onRemoveDisciplina: _removeDisciplina,
+                    onAddLanguage: _addLanguage,
+                    onRemoveLanguage: _removeLanguage,
+                    onUpdateLanguageLevel: _updateLanguageLevel,
+                    onAddCertificate: _addCertificate,
+                    onEditCertificate: _editCertificate,
+                    onDeleteCertificate: _deleteCertificate,
+                    onDownloadCertificate: _downloadCertificate,
+                    isMobile: true,
+                  ),
+                ],
+              ),
+          ],
+        ),
+      );
+    }
 
     return Container(
       color: PerfilProfessorColors.background,
@@ -799,6 +900,7 @@ class _PerfilProfessorContentSectionState
                                 imageBusy: _savingProfileImage,
                                 onPickProfileImage: _pickProfileImage,
                                 onRemoveProfileImage: _removeProfileImage,
+                                isMobile: false,
                               ),
                               const SizedBox(
                                 width: PerfilProfessorLayout.cardsGap,
@@ -831,6 +933,7 @@ class _PerfilProfessorContentSectionState
                                   onEditCertificate: _editCertificate,
                                   onDeleteCertificate: _deleteCertificate,
                                   onDownloadCertificate: _downloadCertificate,
+                                  isMobile: false,
                                 ),
                               ),
                             ],
@@ -849,15 +952,23 @@ class _PerfilProfessorContentSectionState
 }
 
 class _SaveProfileButton extends StatelessWidget {
-  const _SaveProfileButton({required this.isSaving, required this.onTap});
+  const _SaveProfileButton({
+    required this.isSaving,
+    required this.onTap,
+    this.isMobile = false,
+  });
 
   final bool isSaving;
   final VoidCallback? onTap;
+  final bool isMobile;
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: PerfilProfessorLayout.saveButtonHeight,
+      width: isMobile ? double.infinity : null,
+      height: isMobile
+          ? PerfilProfessorLayout.mobileSaveButtonHeight
+          : PerfilProfessorLayout.saveButtonHeight,
       child: DecoratedBox(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(
@@ -878,9 +989,10 @@ class _SaveProfileButton extends StatelessWidget {
             PerfilProfessorLayout.saveButtonRadius,
           ),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14.614),
+            padding: EdgeInsets.symmetric(horizontal: isMobile ? 18 : 14.614),
             child: Row(
-              mainAxisSize: MainAxisSize.min,
+              mainAxisSize: isMobile ? MainAxisSize.max : MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 if (isSaving)
                   const SizedBox(
@@ -919,10 +1031,15 @@ class _SaveProfileButton extends StatelessWidget {
 }
 
 class _CardShell extends StatelessWidget {
-  const _CardShell({required this.width, required this.child});
+  const _CardShell({
+    required this.width,
+    required this.child,
+    this.isMobile = false,
+  });
 
   final double width;
   final Widget child;
+  final bool isMobile;
 
   @override
   Widget build(BuildContext context) {
@@ -950,10 +1067,16 @@ class _CardShell extends StatelessWidget {
           ],
         ),
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(
-            PerfilProfessorLayout.cardPadding,
-            PerfilProfessorLayout.cardPadding,
-            PerfilProfessorLayout.cardPadding,
+          padding: EdgeInsets.fromLTRB(
+            isMobile
+                ? PerfilProfessorLayout.mobileCardPadding
+                : PerfilProfessorLayout.cardPadding,
+            isMobile
+                ? PerfilProfessorLayout.mobileCardPadding
+                : PerfilProfessorLayout.cardPadding,
+            isMobile
+                ? PerfilProfessorLayout.mobileCardPadding
+                : PerfilProfessorLayout.cardPadding,
             0,
           ),
           child: child,
@@ -972,6 +1095,7 @@ class _LeftProfileCard extends StatelessWidget {
     required this.imageBusy,
     required this.onPickProfileImage,
     required this.onRemoveProfileImage,
+    this.isMobile = false,
   });
 
   final String? profileImageUrl;
@@ -981,6 +1105,7 @@ class _LeftProfileCard extends StatelessWidget {
   final bool imageBusy;
   final VoidCallback onPickProfileImage;
   final VoidCallback onRemoveProfileImage;
+  final bool isMobile;
 
   String _formatDate(DateTime value) {
     String two(int n) => n.toString().padLeft(2, '0');
@@ -1052,16 +1177,21 @@ class _LeftProfileCard extends StatelessWidget {
     final isCurrentRoute = ModalRoute.of(context)?.isCurrent ?? true;
 
     return _CardShell(
-      width: PerfilProfessorLayout.leftCardWidth,
+      width: isMobile ? double.infinity : PerfilProfessorLayout.leftCardWidth,
+      isMobile: isMobile,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const _SectionTitle('Foto de Perfil'),
+          _SectionTitle('Foto de Perfil', isMobile: isMobile),
           const SizedBox(height: 19.486),
-          _AvatarBlock(
-            imageUrl: profileImageUrl,
-            busy: imageBusy,
-            onPickProfileImage: onPickProfileImage,
+          Align(
+            alignment: Alignment.center,
+            child: _AvatarBlock(
+              imageUrl: profileImageUrl,
+              busy: imageBusy,
+              onPickProfileImage: onPickProfileImage,
+              isMobile: isMobile,
+            ),
           ),
           const SizedBox(height: 30.447),
           if (profileImageUrl != null && profileImageUrl!.isNotEmpty)
@@ -1101,11 +1231,13 @@ class _LeftProfileCard extends StatelessWidget {
                   _InfoRow(
                     label: 'Total de aulas',
                     value: _formatLessons(stats),
+                    isMobile: isMobile,
                   ),
                   const SizedBox(height: 14.614),
                   _InfoRow(
                     label: 'Avaliação',
                     value: _formatRating(stats),
+                    isMobile: isMobile,
                     valueStyle: const TextStyle(
                       color: PerfilProfessorColors.warningStarText,
                       fontSize: 19.49,
@@ -1120,6 +1252,7 @@ class _LeftProfileCard extends StatelessWidget {
                     value: memberSince == null
                         ? '—'
                         : _formatDate(memberSince!),
+                    isMobile: isMobile,
                   ),
                   const SizedBox(height: 30.447),
                   _LabeledField(
@@ -1127,6 +1260,7 @@ class _LeftProfileCard extends StatelessWidget {
                     controller: presentationVideoController,
                     hintText: 'https://...',
                     height: 42,
+                    isMobile: isMobile,
                   ),
                   ValueListenableBuilder<TextEditingValue>(
                     valueListenable: presentationVideoController,
@@ -1226,24 +1360,33 @@ class _AvatarBlock extends StatelessWidget {
     required this.imageUrl,
     required this.busy,
     required this.onPickProfileImage,
+    this.isMobile = false,
   });
 
   final String? imageUrl;
   final bool busy;
   final VoidCallback onPickProfileImage;
+  final bool isMobile;
 
   @override
   Widget build(BuildContext context) {
+    final avatarSize = isMobile
+        ? PerfilProfessorLayout.mobileAvatarSize
+        : PerfilProfessorLayout.avatarSize;
+    final avatarActionSize = isMobile
+        ? PerfilProfessorLayout.mobileAvatarActionSize
+        : PerfilProfessorLayout.avatarActionSize;
+
     return SizedBox(
-      height: 199.729,
+      height: isMobile ? 172 : 199.729,
       child: Column(
         children: [
           Stack(
             clipBehavior: Clip.none,
             children: [
               Container(
-                width: PerfilProfessorLayout.avatarSize,
-                height: PerfilProfessorLayout.avatarSize,
+                width: avatarSize,
+                height: avatarSize,
                 decoration: const BoxDecoration(
                   shape: BoxShape.circle,
                   gradient: LinearGradient(
@@ -1259,8 +1402,8 @@ class _AvatarBlock extends StatelessWidget {
                   child: imageUrl != null && imageUrl!.isNotEmpty
                       ? Image.network(
                           imageUrl!,
-                          width: PerfilProfessorLayout.avatarSize,
-                          height: PerfilProfessorLayout.avatarSize,
+                          width: avatarSize,
+                          height: avatarSize,
                           fit: BoxFit.cover,
                           errorBuilder: (context, error, stackTrace) =>
                               const _AvatarFallback(),
@@ -1298,8 +1441,8 @@ class _AvatarBlock extends StatelessWidget {
                       onTap: busy ? null : onPickProfileImage,
                       customBorder: const CircleBorder(),
                       child: SizedBox(
-                        width: PerfilProfessorLayout.avatarActionSize,
-                        height: PerfilProfessorLayout.avatarActionSize,
+                        width: avatarActionSize,
+                        height: avatarActionSize,
                         child: busy
                             ? const Padding(
                                 padding: EdgeInsets.all(10),
@@ -1359,11 +1502,17 @@ class _AvatarFallback extends StatelessWidget {
 }
 
 class _InfoRow extends StatelessWidget {
-  const _InfoRow({required this.label, required this.value, this.valueStyle});
+  const _InfoRow({
+    required this.label,
+    required this.value,
+    this.valueStyle,
+    this.isMobile = false,
+  });
 
   final String label;
   final String value;
   final TextStyle? valueStyle;
+  final bool isMobile;
 
   @override
   Widget build(BuildContext context) {
@@ -1425,6 +1574,7 @@ class _RightInfoCard extends StatelessWidget {
     required this.onEditCertificate,
     required this.onDeleteCertificate,
     required this.onDownloadCertificate,
+    this.isMobile = false,
   });
 
   final TextEditingController displayNameController;
@@ -1453,9 +1603,49 @@ class _RightInfoCard extends StatelessWidget {
   final ValueChanged<ProfessorCertificateDto> onEditCertificate;
   final ValueChanged<ProfessorCertificateDto> onDeleteCertificate;
   final ValueChanged<ProfessorCertificateDto> onDownloadCertificate;
+  final bool isMobile;
 
   @override
   Widget build(BuildContext context) {
+    final fieldGap = isMobile ? 16.0 : 24.357;
+    final pairGap = isMobile ? 16.0 : 19.486;
+
+    Widget buildFieldPair(Widget left, Widget right) {
+      if (isMobile) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            left,
+            SizedBox(height: fieldGap),
+            right,
+          ],
+        );
+      }
+
+      return Row(
+        children: [
+          Expanded(child: left),
+          SizedBox(width: pairGap),
+          Expanded(child: right),
+        ],
+      );
+    }
+
+    Widget buildSectionHeader(String title, Widget trailing) {
+      if (isMobile) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _SectionTitle(title, isMobile: true),
+            const SizedBox(height: 12),
+            Align(alignment: Alignment.centerLeft, child: trailing),
+          ],
+        );
+      }
+
+      return Row(children: [_SectionTitle(title), const Spacer(), trailing]);
+    }
+
     final selectedIds = disciplinasLecionadas
         .map((d) => d.idDisciplina)
         .toSet();
@@ -1470,106 +1660,86 @@ class _RightInfoCard extends StatelessWidget {
         .toList(growable: false);
 
     return _CardShell(
-      width: PerfilProfessorLayout.rightCardWidth,
+      width: isMobile ? double.infinity : PerfilProfessorLayout.rightCardWidth,
+      isMobile: isMobile,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const _SectionTitle('Informações Pessoais'),
+          _SectionTitle('Informações Pessoais', isMobile: isMobile),
           const SizedBox(height: 29.229),
-          Row(
-            children: [
-              Expanded(
-                child: _LabeledField(
-                  label: 'Nome Completo',
-                  controller: displayNameController,
-                ),
-              ),
-              const SizedBox(width: 19.486),
-              Expanded(
-                child: _LabeledField(
-                  label: 'Email',
-                  controller: emailController,
-                  readOnly: true,
-                ),
-              ),
-            ],
+          buildFieldPair(
+            _LabeledField(
+              label: 'Nome Completo',
+              controller: displayNameController,
+              isMobile: isMobile,
+            ),
+            _LabeledField(
+              label: 'Email',
+              controller: emailController,
+              readOnly: true,
+              isMobile: isMobile,
+            ),
           ),
-          const SizedBox(height: 24.357),
-          Row(
-            children: [
-              Expanded(
-                child: _LabeledField(
-                  label: 'Username',
-                  controller: usernameController,
-                ),
-              ),
-              const SizedBox(width: 19.486),
-              Expanded(
-                child: _LabeledField(
-                  label: 'Telefone',
-                  controller: phoneController,
-                  keyboardType: TextInputType.phone,
-                ),
-              ),
-            ],
+          SizedBox(height: fieldGap),
+          buildFieldPair(
+            _LabeledField(
+              label: 'Username',
+              controller: usernameController,
+              isMobile: isMobile,
+            ),
+            _LabeledField(
+              label: 'Telefone',
+              controller: phoneController,
+              keyboardType: TextInputType.phone,
+              isMobile: isMobile,
+            ),
           ),
-          const SizedBox(height: 24.357),
-          Row(
-            children: [
-              Expanded(
-                child: _LabeledField(
-                  label: 'NIF',
-                  controller: nifController,
-                  keyboardType: TextInputType.number,
-                ),
-              ),
-              const SizedBox(width: 19.486),
-              Expanded(
-                child: _LabeledField(
-                  label: 'Website / Página de Perfil',
-                  controller: websiteController,
-                  hintText: 'https://...',
-                ),
-              ),
-            ],
+          SizedBox(height: fieldGap),
+          buildFieldPair(
+            _LabeledField(
+              label: 'NIF',
+              controller: nifController,
+              keyboardType: TextInputType.number,
+              isMobile: isMobile,
+            ),
+            _LabeledField(
+              label: 'Website / Página de Perfil',
+              controller: websiteController,
+              hintText: 'https://...',
+              isMobile: isMobile,
+            ),
           ),
-          const SizedBox(height: 24.357),
-          Row(
-            children: [
-              Expanded(
-                child: _LabeledField(
-                  label: 'Escola Atual',
-                  controller: currentSchoolController,
-                ),
-              ),
-              const SizedBox(width: 19.486),
-              Expanded(
-                child: _LabeledField(
-                  label: 'Anos de Experiência',
-                  controller: yearsExperienceController,
-                  keyboardType: TextInputType.number,
-                ),
-              ),
-            ],
+          SizedBox(height: fieldGap),
+          buildFieldPair(
+            _LabeledField(
+              label: 'Escola Atual',
+              controller: currentSchoolController,
+              isMobile: isMobile,
+            ),
+            _LabeledField(
+              label: 'Anos de Experiência',
+              controller: yearsExperienceController,
+              keyboardType: TextInputType.number,
+              isMobile: isMobile,
+            ),
           ),
-          const SizedBox(height: 24.357),
+          SizedBox(height: fieldGap),
           _LabeledField(
             label: 'Biografia',
             controller: biographyController,
             maxLines: 5,
             height: 120,
+            isMobile: isMobile,
           ),
-          const SizedBox(height: 24.357),
-          Row(
-            children: [
-              const _SectionTitle('Disciplinas Lecionadas'),
-              const Spacer(),
-              _AddDisciplinaMenuButton(
-                enabled: available.isNotEmpty,
-                items: available,
-                onSelected: onAddDisciplina,
-              ),
-            ],
+          SizedBox(height: fieldGap),
+          buildSectionHeader(
+            'Disciplinas Lecionadas',
+            _AddDisciplinaMenuButton(
+              enabled: available.isNotEmpty,
+              items: available,
+              onSelected: onAddDisciplina,
+              isMobile: isMobile,
+            ),
           ),
           const SizedBox(height: 12),
           Wrap(
@@ -1580,20 +1750,19 @@ class _RightInfoCard extends StatelessWidget {
                 _DisciplinaChip(
                   label: d.nome,
                   onRemove: () => onRemoveDisciplina(d.idDisciplina),
+                  isMobile: isMobile,
                 ),
             ],
           ),
-          const SizedBox(height: 24.357),
-          Row(
-            children: [
-              const _SectionTitle('Idiomas que Falo'),
-              const Spacer(),
-              _AddLanguageMenuButton(
-                enabled: availableLanguages.isNotEmpty,
-                items: availableLanguages,
-                onSelected: onAddLanguage,
-              ),
-            ],
+          SizedBox(height: fieldGap),
+          buildSectionHeader(
+            'Idiomas que Falo',
+            _AddLanguageMenuButton(
+              enabled: availableLanguages.isNotEmpty,
+              items: availableLanguages,
+              onSelected: onAddLanguage,
+              isMobile: isMobile,
+            ),
           ),
           const SizedBox(height: 12),
           Wrap(
@@ -1607,26 +1776,24 @@ class _RightInfoCard extends StatelessWidget {
                   onRemove: () => onRemoveLanguage(language.idLanguage),
                   onLevelChanged: (value) =>
                       onUpdateLanguageLevel(language.idLanguage, value),
+                  isMobile: isMobile,
                 ),
             ],
           ),
-          const SizedBox(height: 24.357),
-          Row(
-            children: [
-              const _SectionTitle('Documentos e Certificados'),
-              const Spacer(),
-              OutlinedButton.icon(
-                onPressed: documentsBusy ? null : onAddCertificate,
-                icon: documentsBusy
-                    ? const SizedBox(
-                        width: 14,
-                        height: 14,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.add_circle_outline),
-                label: const Text('Adicionar documento'),
-              ),
-            ],
+          SizedBox(height: fieldGap),
+          buildSectionHeader(
+            'Documentos e Certificados',
+            OutlinedButton.icon(
+              onPressed: documentsBusy ? null : onAddCertificate,
+              icon: documentsBusy
+                  ? const SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.add_circle_outline),
+              label: const Text('Adicionar documento'),
+            ),
           ),
           const SizedBox(height: 12),
           if (certificates.isEmpty)
@@ -1803,11 +1970,13 @@ class _AddLanguageMenuButton extends StatelessWidget {
     required this.enabled,
     required this.items,
     required this.onSelected,
+    this.isMobile = false,
   });
 
   final bool enabled;
   final List<ProfessorLanguageDto> items;
   final ValueChanged<String> onSelected;
+  final bool isMobile;
 
   @override
   Widget build(BuildContext context) {
@@ -1874,11 +2043,13 @@ class _AddDisciplinaMenuButton extends StatelessWidget {
     required this.enabled,
     required this.items,
     required this.onSelected,
+    this.isMobile = false,
   });
 
   final bool enabled;
   final List<DisciplinaDto> items;
   final ValueChanged<String> onSelected;
+  final bool isMobile;
 
   @override
   Widget build(BuildContext context) {
@@ -1941,10 +2112,15 @@ class _AddDisciplinaMenuButton extends StatelessWidget {
 }
 
 class _DisciplinaChip extends StatelessWidget {
-  const _DisciplinaChip({required this.label, required this.onRemove});
+  const _DisciplinaChip({
+    required this.label,
+    required this.onRemove,
+    this.isMobile = false,
+  });
 
   final String label;
   final VoidCallback onRemove;
+  final bool isMobile;
 
   @override
   Widget build(BuildContext context) {
@@ -1959,13 +2135,13 @@ class _DisciplinaChip extends StatelessWidget {
         children: [
           Text(
             label,
-            style: const TextStyle(
+            style: TextStyle(
               color: Colors.white,
-              fontSize: PerfilProfessorLayout.badgeFontSize,
+              fontSize: isMobile ? 13 : PerfilProfessorLayout.badgeFontSize,
               fontWeight: FontWeight.w500,
               height:
                   PerfilProfessorLayout.badgeLineHeight /
-                  PerfilProfessorLayout.badgeFontSize,
+                  (isMobile ? 13 : PerfilProfessorLayout.badgeFontSize),
               fontFamily: AppTypography.fontFamily,
             ),
           ),
@@ -1986,12 +2162,14 @@ class _LanguageChip extends StatelessWidget {
     required this.levels,
     required this.onRemove,
     required this.onLevelChanged,
+    this.isMobile = false,
   });
 
   final ProfessorLanguageDto item;
   final List<String> levels;
   final VoidCallback onRemove;
   final ValueChanged<String> onLevelChanged;
+  final bool isMobile;
 
   @override
   Widget build(BuildContext context) {
@@ -2011,9 +2189,9 @@ class _LanguageChip extends StatelessWidget {
         children: [
           Text(
             item.nome,
-            style: const TextStyle(
+            style: TextStyle(
               color: PerfilProfessorColors.title,
-              fontSize: PerfilProfessorLayout.badgeFontSize,
+              fontSize: isMobile ? 13 : PerfilProfessorLayout.badgeFontSize,
               fontWeight: FontWeight.w500,
               fontFamily: AppTypography.fontFamily,
             ),
@@ -2058,21 +2236,28 @@ class _LanguageChip extends StatelessWidget {
 }
 
 class _SectionTitle extends StatelessWidget {
-  const _SectionTitle(this.text);
+  const _SectionTitle(this.text, {this.isMobile = false});
 
   final String text;
+  final bool isMobile;
 
   @override
   Widget build(BuildContext context) {
     return Text(
       text,
-      style: const TextStyle(
+      style: TextStyle(
         color: PerfilProfessorColors.title,
-        fontSize: PerfilProfessorLayout.sectionTitleFontSize,
+        fontSize: isMobile
+            ? PerfilProfessorLayout.mobileSectionTitleFontSize
+            : PerfilProfessorLayout.sectionTitleFontSize,
         fontWeight: FontWeight.w500,
         height:
-            PerfilProfessorLayout.sectionTitleLineHeight /
-            PerfilProfessorLayout.sectionTitleFontSize,
+            (isMobile
+                ? PerfilProfessorLayout.mobileSectionTitleLineHeight
+                : PerfilProfessorLayout.sectionTitleLineHeight) /
+            (isMobile
+                ? PerfilProfessorLayout.mobileSectionTitleFontSize
+                : PerfilProfessorLayout.sectionTitleFontSize),
       ),
     );
   }
@@ -2087,6 +2272,7 @@ class _LabeledField extends StatelessWidget {
     this.height,
     this.readOnly = false,
     this.keyboardType,
+    this.isMobile = false,
   });
 
   final String label;
@@ -2096,6 +2282,7 @@ class _LabeledField extends StatelessWidget {
   final double? height;
   final bool readOnly;
   final TextInputType? keyboardType;
+  final bool isMobile;
 
   @override
   Widget build(BuildContext context) {
@@ -2110,11 +2297,17 @@ class _LabeledField extends StatelessWidget {
         hintText: hintText,
         hintStyle: TextStyle(
           color: PerfilProfessorColors.title,
-          fontSize: PerfilProfessorLayout.inputFontSize,
+          fontSize: isMobile
+              ? PerfilProfessorLayout.mobileInputFontSize
+              : PerfilProfessorLayout.inputFontSize,
           fontWeight: FontWeight.w400,
           height:
-              PerfilProfessorLayout.inputLineHeight /
-              PerfilProfessorLayout.inputFontSize,
+              (isMobile
+                  ? PerfilProfessorLayout.mobileInputLineHeight
+                  : PerfilProfessorLayout.inputLineHeight) /
+              (isMobile
+                  ? PerfilProfessorLayout.mobileInputFontSize
+                  : PerfilProfessorLayout.inputFontSize),
         ),
         border: OutlineInputBorder(
           borderSide: BorderSide.none,
@@ -2124,18 +2317,24 @@ class _LabeledField extends StatelessWidget {
         ),
         filled: true,
         fillColor: PerfilProfessorColors.inputFill,
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 14.614,
-          vertical: 10.961,
+        contentPadding: EdgeInsets.symmetric(
+          horizontal: isMobile ? 14 : 14.614,
+          vertical: isMobile ? 12 : 10.961,
         ),
       ),
-      style: const TextStyle(
+      style: TextStyle(
         color: PerfilProfessorColors.title,
-        fontSize: PerfilProfessorLayout.inputFontSize,
+        fontSize: isMobile
+            ? PerfilProfessorLayout.mobileInputFontSize
+            : PerfilProfessorLayout.inputFontSize,
         fontWeight: FontWeight.w400,
         height:
-            PerfilProfessorLayout.inputLineHeight /
-            PerfilProfessorLayout.inputFontSize,
+            (isMobile
+                ? PerfilProfessorLayout.mobileInputLineHeight
+                : PerfilProfessorLayout.inputLineHeight) /
+            (isMobile
+                ? PerfilProfessorLayout.mobileInputFontSize
+                : PerfilProfessorLayout.inputFontSize),
       ),
     );
 
@@ -2144,18 +2343,27 @@ class _LabeledField extends StatelessWidget {
       children: [
         Text(
           label,
-          style: const TextStyle(
+          style: TextStyle(
             color: Color(0xFF0A0A0A),
-            fontSize: PerfilProfessorLayout.labelFontSize,
+            fontSize: isMobile
+                ? PerfilProfessorLayout.mobileLabelFontSize
+                : PerfilProfessorLayout.labelFontSize,
             fontWeight: FontWeight.w500,
             height:
-                PerfilProfessorLayout.labelLineHeight /
-                PerfilProfessorLayout.labelFontSize,
+                (isMobile
+                    ? PerfilProfessorLayout.mobileLabelLineHeight
+                    : PerfilProfessorLayout.labelLineHeight) /
+                (isMobile
+                    ? PerfilProfessorLayout.mobileLabelFontSize
+                    : PerfilProfessorLayout.labelFontSize),
           ),
         ),
         const SizedBox(height: 4.871),
         if (height == null)
-          SizedBox(height: PerfilProfessorLayout.inputHeight, child: field)
+          SizedBox(
+            height: isMobile ? 48 : PerfilProfessorLayout.inputHeight,
+            child: field,
+          )
         else
           SizedBox(height: height, child: field),
       ],

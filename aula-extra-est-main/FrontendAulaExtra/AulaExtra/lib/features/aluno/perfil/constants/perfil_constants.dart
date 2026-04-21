@@ -8,6 +8,87 @@ import 'package:flutter/material.dart';
 class PerfilConstants {
   const PerfilConstants._();
 
+  static const backgroundColor = Color(0xFFF9F9F9);
+  static const mobileHorizontalPadding = 19.0;
+  static const mobileVerticalPadding = 16.0;
+  static const mobileSectionSpacing = 18.0;
+  static const mobileCardRadius = 20.0;
+  static const mobileFieldRadius = 14.0;
+  static const mobileBorderColor = Color(0xFFE5E7EB);
+  static const mobileCardBorderColor = Color(0xFFE9EAEB);
+  static const mobileSoftFill = Color(0xFFF3F4F6);
+  static const mobileMutedColor = Color(0xFF667085);
+  static const mobileTextColor = Color(0xFF101828);
+  static const mobileShadow = [
+    BoxShadow(
+      color: Color.fromRGBO(16, 24, 40, 0.08),
+      offset: Offset(0, 8),
+      blurRadius: 24,
+    ),
+  ];
+
+  static const mobileTitleStyle = TextStyle(
+    fontSize: 30,
+    fontWeight: FontWeight.w600,
+    color: mobileTextColor,
+    height: 36 / 30,
+  );
+
+  static const mobileSubtitleStyle = TextStyle(
+    fontSize: 14,
+    fontWeight: FontWeight.w400,
+    color: mobileMutedColor,
+    height: 20 / 14,
+  );
+
+  static const mobileSectionHeadingStyle = TextStyle(
+    fontSize: 18,
+    fontWeight: FontWeight.w600,
+    color: mobileTextColor,
+    height: 24 / 18,
+  );
+
+  static const mobileLabelStyle = TextStyle(
+    fontSize: 14,
+    fontWeight: FontWeight.w500,
+    color: Color(0xFF364153),
+    height: 20 / 14,
+  );
+
+  static const mobileFieldTextStyle = TextStyle(
+    fontSize: 16,
+    fontWeight: FontWeight.w400,
+    color: Color(0xFF0A0A0A),
+    height: 24 / 16,
+  );
+
+  static const mobileHintStyle = TextStyle(
+    fontSize: 16,
+    fontWeight: FontWeight.w400,
+    color: Color(0x800A0A0A),
+    height: 24 / 16,
+  );
+
+  static const mobileButtonTextStyle = TextStyle(
+    fontSize: 16,
+    fontWeight: FontWeight.w600,
+    color: Colors.white,
+    height: 24 / 16,
+  );
+
+  static const mobileBodyStyle = TextStyle(
+    fontSize: 14,
+    fontWeight: FontWeight.w400,
+    color: Color(0xFF4A5565),
+    height: 20 / 14,
+  );
+
+  static const mobileSmallGap = 8.0;
+  static const mobileFieldGap = 16.0;
+  static const mobileCardGap = 18.0;
+  static const mobilePillHeight = 40.0;
+  static const mobileInterestChipHeight = 34.0;
+
   /// Padding horizontal padrão do conteúdo do ecrã de perfil.
   static const horizontalPadding = 40.85;
 
@@ -92,14 +173,30 @@ class PerfilConstants {
 
   /// Sombra padrão de cards do perfil (elevação leve).
   static const cardShadow = [
-    BoxShadow(color: Color(0x1A000000), blurRadius: 4.171, offset: Offset(0, 1.39)),
-    BoxShadow(color: Color(0x1A000000), blurRadius: 2.781, offset: Offset(0, 1.39)),
+    BoxShadow(
+      color: Color(0x1A000000),
+      blurRadius: 4.171,
+      offset: Offset(0, 1.39),
+    ),
+    BoxShadow(
+      color: Color(0x1A000000),
+      blurRadius: 2.781,
+      offset: Offset(0, 1.39),
+    ),
   ];
 
   /// Sombra “flutuante” para elementos com mais destaque (elevação maior).
   static const floatingShadow = [
-    BoxShadow(color: Color(0x1A000000), blurRadius: 20.857, offset: Offset(0, 13.904)),
-    BoxShadow(color: Color(0x1A000000), blurRadius: 8.343, offset: Offset(0, 5.562)),
+    BoxShadow(
+      color: Color(0x1A000000),
+      blurRadius: 20.857,
+      offset: Offset(0, 13.904),
+    ),
+    BoxShadow(
+      color: Color(0x1A000000),
+      blurRadius: 8.343,
+      offset: Offset(0, 5.562),
+    ),
   ];
 
   /// Padding vertical interno padrão dentro de cards do perfil.

@@ -11,6 +11,46 @@ class DisciplinasScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isMobile =
+        MediaQuery.sizeOf(context).width <= AppHeader.mobileBreakpoint;
+
+    if (isMobile) {
+      return Scaffold(
+        backgroundColor: const Color(0xFFF9FAFB),
+        body: Column(
+          children: [
+            AppHeader(
+              onRegisterTap: () =>
+                  Navigator.of(context).pushNamed(Routes.registerStudent),
+              onLoginTap: () => Navigator.of(context).pushNamed(Routes.login),
+              onLogoTap: () => Navigator.of(
+                context,
+              ).pushNamedAndRemoveUntil(Routes.home, (route) => false),
+            ),
+            const Expanded(
+              child: SingleChildScrollView(
+                child: Column(
+                  children: [
+                    ColoredBox(
+                      color: Color(0xFFF9FAFB),
+                      child: SizedBox(
+                        width: double.infinity,
+                        child: DisciplinasContentSection(),
+                      ),
+                    ),
+                    ColoredBox(
+                      color: Color(0xFFF9FAFB),
+                      child: FooterSection(),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: const Color(0xFFF9FAFB),
       body: CustomScrollView(

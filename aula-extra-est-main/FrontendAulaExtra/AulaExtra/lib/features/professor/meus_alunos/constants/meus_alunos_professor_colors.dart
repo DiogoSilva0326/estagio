@@ -14,6 +14,33 @@ class MeusAlunosProfessorColors {
   /// Alias para manter compatibilidade com nomes usados nos widgets.
   static const Color background = pageBackground;
 
+  /// Superfície branca base dos cartões mobile.
+  static const Color mobileSurface = Colors.white;
+
+  /// Cor de texto secundário em mobile.
+  static const Color mobileMutedText = Color(0xFF667085);
+
+  /// Cor da borda suave dos cartões mobile.
+  static const Color mobileBorder = Color(0xFFE5E7EB);
+
+  /// Fundo do cartão de estatísticas.
+  static const Color mobileSoftSurface = Color(0xFFFFF7ED);
+
+  /// Cor usada para ações de alerta.
+  static const Color danger = Color(0xFFFB2C36);
+
+  /// Cor usada no destaque de progresso.
+  static const Color success = Color(0xFF00A63E);
+
+  /// Sombra base usada nos cartões mobile.
+  static const List<BoxShadow> mobileShadow = [
+    BoxShadow(
+      color: Color.fromRGBO(16, 24, 40, 0.08),
+      offset: Offset(0, 8),
+      blurRadius: 24,
+    ),
+  ];
+
   /// Cor do título principal.
   static const Color title = Color(0xFF1E2939);
 

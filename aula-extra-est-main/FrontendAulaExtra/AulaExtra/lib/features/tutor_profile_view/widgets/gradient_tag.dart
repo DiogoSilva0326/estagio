@@ -1,26 +1,28 @@
 import 'package:flutter/material.dart';
 
 class GradientTag extends StatelessWidget {
-  const GradientTag({
-    super.key,
-    required this.text,
-  });
+  const GradientTag({super.key, required this.text});
 
   final String text;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 61.277,
+      constraints: const BoxConstraints(minHeight: 61.277),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12.766),
         gradient: const LinearGradient(
           begin: Alignment.centerLeft,
           end: Alignment.centerRight,
-          colors: [Color.fromRGBO(252, 144, 57, 0.1), Color.fromRGBO(241, 92, 100, 0.1)],
+          colors: [
+            Color.fromRGBO(252, 144, 57, 0.1),
+            Color.fromRGBO(241, 92, 100, 0.1),
+          ],
         ),
       ),
-      child: Center(
+      child: Align(
+        alignment: Alignment.centerLeft,
         child: Text(
           text,
           style: const TextStyle(

@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:aula_extra/core/components/header/app_header.dart';
 import 'package:aula_extra/core/data/notifications/notifications_service.dart';
 import 'package:aula_extra/core/data/lesson_classroom/lesson_classroom_service.dart';
 import 'package:aula_extra/core/data/reservations_calendar/calendar_status.dart';
@@ -10,6 +11,10 @@ import 'package:aula_extra/core/data/reservations_calendar/dtos/student_calendar
 import 'package:aula_extra/core/data/reservations_calendar/reservations_calendar_service.dart';
 import 'package:aula_extra/core/data/users/users_service.dart';
 import 'package:aula_extra/features/aluno/calendario/state/student_calendar_refresh_bus.dart';
+import 'package:aula_extra/features/aluno/calendario/widgets/calendario_mobile_cta_button.dart';
+import 'package:aula_extra/features/aluno/calendario/widgets/calendario_mobile_intro.dart';
+import 'package:aula_extra/features/aluno/calendario/widgets/calendario_mode_tabs.dart';
+import 'package:aula_extra/features/aluno/calendario/widgets/mobile_upcoming_lesson_card.dart';
 import 'package:aula_extra/features/aluno/calendario/widgets/pending_lesson_review_dialog.dart';
 import 'package:aula_extra/features/classroom/pages/live_classroom_page.dart';
 import 'package:aula_extra/routes/routes.dart';
@@ -20,6 +25,41 @@ class CalendarioContentSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isMobile =
+        MediaQuery.sizeOf(context).width <= AppHeader.mobileBreakpoint;
+
+    void onWeeklyTap() {
+      Navigator.of(context).pushReplacementNamed(Routes.calendarioSemanal);
+    }
+
+    if (isMobile) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: CalendarioConstants.mobileHorizontalPadding,
+          vertical: CalendarioConstants.mobileVerticalPadding,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const CalendarioMobileIntro(
+              title: 'Calendário',
+              subtitle:
+                  'Escolhe uma área ou disciplina específica para encontrar as tuas próximas aulas.',
+            ),
+            const SizedBox(height: CalendarioConstants.mobileSectionSpacing),
+            CalendarioModeTabs(
+              activeMode: CalendarioMode.upcoming,
+              onUpcomingTap: () {},
+              onWeeklyTap: onWeeklyTap,
+              isMobile: true,
+            ),
+            const SizedBox(height: CalendarioConstants.mobileSectionSpacing),
+            const _UpcomingLessonsList(isMobile: true),
+          ],
+        ),
+      );
+    }
+
     return Padding(
       padding: const EdgeInsets.symmetric(
         horizontal: CalendarioConstants.horizontalPadding,
@@ -46,13 +86,14 @@ class CalendarioContentSection extends StatelessWidget {
                     style: CalendarioConstants.subtitleStyle,
                   ),
                   const SizedBox(height: 33.607),
-                  _CalendarTabs(
-                    onWeeklyTap: () => Navigator.of(
-                      context,
-                    ).pushReplacementNamed(Routes.calendarioSemanal),
+                  CalendarioModeTabs(
+                    activeMode: CalendarioMode.upcoming,
+                    onUpcomingTap: () {},
+                    onWeeklyTap: onWeeklyTap,
+                    isMobile: false,
                   ),
                   const SizedBox(height: 22.404),
-                  const _UpcomingLessonsList(),
+                  const _UpcomingLessonsList(isMobile: false),
                 ],
               ),
             ),
@@ -63,106 +104,14 @@ class CalendarioContentSection extends StatelessWidget {
   }
 }
 
-class _CalendarTabs extends StatelessWidget {
-  const _CalendarTabs({required this.onWeeklyTap});
-
-  final VoidCallback onWeeklyTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: const BoxDecoration(
-        border: Border(
-          bottom: BorderSide(
-            color: CalendarioConstants.dividerColor,
-            width: 1.4,
-          ),
-        ),
-      ),
-      child: SizedBox(
-        height: 71.414,
-        child: Row(
-          children: [
-            _TabItem(
-              width: 223.837,
-              text: 'Próximas Aulas',
-              selected: true,
-              onTap: () {},
-            ),
-            const SizedBox(width: 22.404),
-            _TabItem(
-              width: 268.154,
-              text: 'Calendário Semanal',
-              selected: false,
-              onTap: onWeeklyTap,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _TabItem extends StatelessWidget {
-  const _TabItem({
-    required this.width,
-    required this.text,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final double width;
-  final String text;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      child: SizedBox(
-        width: width,
-        height: 70.014,
-        child: Stack(
-          children: [
-            Align(
-              alignment: Alignment.center,
-              child: Text(
-                text,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 22.404,
-                  fontWeight: FontWeight.w500,
-                  color: selected
-                      ? CalendarioConstants.activeTabColor
-                      : CalendarioConstants.inactiveTabColor,
-                  height: 33.607 / 22.404,
-                ),
-              ),
-            ),
-            if (selected)
-              const Positioned(
-                left: 0,
-                right: 0,
-                bottom: 0,
-                child: SizedBox(
-                  height: 2.801,
-                  child: ColoredBox(color: CalendarioConstants.activeTabColor),
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 enum _PrimaryActionStyle { enterClass, viewDetails }
 
 enum _LateCancellationAction { cancelWithoutJustification, justify }
 
 class _UpcomingLessonsList extends StatefulWidget {
-  const _UpcomingLessonsList();
+  const _UpcomingLessonsList({required this.isMobile});
+
+  final bool isMobile;
 
   @override
   State<_UpcomingLessonsList> createState() => _UpcomingLessonsListState();
@@ -636,6 +585,20 @@ class _UpcomingLessonsListState extends State<_UpcomingLessonsList> {
             )
             .toList(growable: false);
         if (items.isEmpty) {
+          if (widget.isMobile) {
+            return Column(
+              children: [
+                const _MobileUpcomingLessonsEmptyState(),
+                const SizedBox(height: 16),
+                CalendarioMobileCtaButton(
+                  label: 'Marcar Nova Aula',
+                  onTap: () =>
+                      Navigator.of(context).pushNamed(Routes.explicadores),
+                ),
+              ],
+            );
+          }
+
           return const _UpcomingLessonsEmptyState();
         }
 
@@ -679,6 +642,46 @@ class _UpcomingLessonsListState extends State<_UpcomingLessonsList> {
                     ? (isPending ? palette.text : const Color(0xFF008236))
                     : null;
 
+                if (widget.isMobile) {
+                  final canShowCancel = !isPending;
+                  final primaryGradient = canEnter || isPending
+                      ? null
+                      : CalendarioConstants.orangeGradient;
+                  final primaryBackgroundColor = canEnter
+                      ? CalendarioConstants.mobileSuccessColor
+                      : isPending
+                      ? CalendarioConstants.mobilePendingColor
+                      : null;
+
+                  return MobileUpcomingLessonCard(
+                    accentColor: _accentForDisciplina(item.disciplinaName),
+                    subject: item.disciplinaName,
+                    teacherName: item.professorName,
+                    statusLabel: statusLabel,
+                    statusBackgroundColor: statusBg,
+                    statusTextColor: statusText,
+                    dateLabel: _formatDateLabel(
+                      item.startTime,
+                    ).replaceFirst('📅 ', ''),
+                    timeLabel:
+                        '${_formatTime(item.startTime)} - ${_formatTime(item.endTime)}',
+                    primaryLabel: isPending
+                        ? 'Rever pedido'
+                        : canEnter
+                        ? 'Entrar na Aula'
+                        : 'Ver Detalhes',
+                    onPrimaryTap: () => _handlePrimaryAction(item),
+                    onSecondaryTap: canShowCancel
+                        ? () => _handleSecondaryAction(item)
+                        : null,
+                    secondaryIsLoading:
+                        _cancellingReservationId == item.idReservation,
+                    primaryGradient: primaryGradient,
+                    primaryBackgroundColor: primaryBackgroundColor,
+                    showPlayIcon: canEnter,
+                  );
+                }
+
                 return _UpcomingLessonCard(
                   accentColor: _accentForDisciplina(item.disciplinaName),
                   subject: item.disciplinaName,
@@ -705,26 +708,28 @@ class _UpcomingLessonsListState extends State<_UpcomingLessonsList> {
                       _cancellingReservationId == item.idReservation,
                 );
               }(),
-              const SizedBox(height: 22.404),
+              SizedBox(height: widget.isMobile ? 16 : 22.404),
             ],
             if (canLoadMore)
               SizedBox(
                 width: double.infinity,
-                height: 84.017,
+                height: widget.isMobile ? 52 : 84.017,
                 child: OutlinedButton.icon(
                   onPressed: _loadMore,
                   icon: const Icon(
                     Icons.expand_more_rounded,
-                    size: 28.006,
+                    size: 24,
                     color: Color(0xFF4A5565),
                   ),
-                  label: const Text(
+                  label: Text(
                     'Ver mais aulas',
                     style: TextStyle(
-                      fontSize: 22.404,
-                      fontWeight: FontWeight.w400,
+                      fontSize: widget.isMobile ? 15 : 22.404,
+                      fontWeight: widget.isMobile
+                          ? FontWeight.w600
+                          : FontWeight.w400,
                       color: Color(0xFF4A5565),
-                      height: 33.607 / 22.404,
+                      height: widget.isMobile ? 22 / 15 : 33.607 / 22.404,
                     ),
                   ),
                   style: OutlinedButton.styleFrom(
@@ -740,9 +745,66 @@ class _UpcomingLessonsListState extends State<_UpcomingLessonsList> {
                   ),
                 ),
               ),
+            if (widget.isMobile) ...[
+              const SizedBox(height: 16),
+              CalendarioMobileCtaButton(
+                label: 'Marcar Nova Aula',
+                onTap: () =>
+                    Navigator.of(context).pushNamed(Routes.explicadores),
+              ),
+            ],
           ],
         );
       },
+    );
+  }
+}
+
+class _MobileUpcomingLessonsEmptyState extends StatelessWidget {
+  const _MobileUpcomingLessonsEmptyState();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 28),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(
+          CalendarioConstants.mobileCardRadius,
+        ),
+        border: Border.all(color: CalendarioConstants.mobileBorderColor),
+      ),
+      child: Column(
+        children: const [
+          CircleAvatar(
+            radius: 28,
+            backgroundColor: Color(0xFFFFF7ED),
+            child: Icon(
+              Icons.calendar_month_rounded,
+              size: 28,
+              color: CalendarioConstants.activeTabColor,
+            ),
+          ),
+          SizedBox(height: 16),
+          Text(
+            'Ainda não tens próximas aulas marcadas',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
+              color: CalendarioConstants.mobileTextColor,
+              height: 28 / 20,
+            ),
+          ),
+          SizedBox(height: 8),
+          Text(
+            'Explora os explicadores disponíveis e agenda a tua próxima explicação.',
+            textAlign: TextAlign.center,
+            style: CalendarioConstants.mobileCardSubtitleStyle,
+          ),
+        ],
+      ),
     );
   }
 }

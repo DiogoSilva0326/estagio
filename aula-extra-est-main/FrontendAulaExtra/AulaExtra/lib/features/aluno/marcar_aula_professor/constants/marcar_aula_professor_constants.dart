@@ -9,8 +9,20 @@ class MarcarAulaProfessorConstants {
   /// Padding horizontal geral.
   static const double horizontalPadding = 40;
 
+  /// Padding horizontal para mobile.
+  static const double mobileHorizontalPadding = 16;
+
   /// Padding vertical geral.
   static const double verticalPadding = 40;
+
+  /// Padding vertical para mobile.
+  static const double mobileVerticalPadding = 20;
+
+  /// Radius base dos cards.
+  static const double cardRadius = 20;
+
+  /// Radius base dos cards compactos.
+  static const double compactCardRadius = 18;
 
   /// Fundo da página.
   static const Color pageBackground = Color(0xFFF9F9F9);

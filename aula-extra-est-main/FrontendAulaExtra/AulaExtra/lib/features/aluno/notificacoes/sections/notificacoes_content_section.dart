@@ -2,6 +2,7 @@ import 'package:aula_extra/core/data/notifications/dtos/user_notification_dto.da
 import 'package:aula_extra/core/data/notifications/notifications_service.dart';
 import 'package:aula_extra/core/data/reservations_calendar/reservations_calendar_service.dart';
 import 'package:aula_extra/core/data/reservations_calendar/calendar_status.dart';
+import 'package:aula_extra/core/components/header/app_header.dart';
 import 'package:aula_extra/features/aluno/calendario/state/student_calendar_refresh_bus.dart';
 import 'package:aula_extra/features/aluno/calendario/widgets/pending_lesson_review_dialog.dart';
 import 'package:aula_extra/features/aluno/core/widgets/aluno_menu_nav.dart';
@@ -180,130 +181,239 @@ class _NotificacoesContentSectionState
     }).toList();
   }
 
+  Widget _buildHeader({required bool isMobile}) {
+    final titleStyle = isMobile
+        ? NotificacoesConstants.mobileTitleStyle
+        : NotificacoesConstants.titleStyle;
+    final subtitleStyle = isMobile
+        ? NotificacoesConstants.mobileSubtitleStyle
+        : NotificacoesConstants.subtitleStyle;
+    final actionStyle =
+        (isMobile
+                ? NotificacoesConstants.mobileActionLinkStyle
+                : NotificacoesConstants.actionLinkStyle)
+            .copyWith(
+              color: _unreadCount == 0 ? const Color(0xFF9CA3AF) : null,
+            );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Notificações', style: titleStyle),
+        SizedBox(height: isMobile ? 8 : 11.243),
+        Text('Fique por dentro de tudo que acontece', style: subtitleStyle),
+        SizedBox(height: isMobile ? 10 : 18),
+        Align(
+          alignment: Alignment.centerRight,
+          child: InkWell(
+            onTap: _unreadCount == 0 ? null : _markAllAsRead,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+              child: Text('Marcar todas como lidas', style: actionStyle),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFilters({required bool isMobile}) {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: [
+          NotificacoesFilterPill(
+            label: 'Todas',
+            selected: _filtro == NotificacoesFiltro.todas,
+            onTap: () => setState(() => _filtro = NotificacoesFiltro.todas),
+            isMobile: isMobile,
+          ),
+          SizedBox(width: isMobile ? 10 : 16.865),
+          NotificacoesFilterPill(
+            label: 'Não lidas',
+            selected: _filtro == NotificacoesFiltro.naoLidas,
+            onTap: () => setState(() => _filtro = NotificacoesFiltro.naoLidas),
+            isMobile: isMobile,
+          ),
+          SizedBox(width: isMobile ? 10 : 16.865),
+          NotificacoesFilterPill(
+            label: 'Aulas',
+            selected: _filtro == NotificacoesFiltro.aulas,
+            onTap: () => setState(() => _filtro = NotificacoesFiltro.aulas),
+            isMobile: isMobile,
+          ),
+          SizedBox(width: isMobile ? 10 : 16.865),
+          NotificacoesFilterPill(
+            label: 'Tarefas',
+            selected: _filtro == NotificacoesFiltro.tarefas,
+            onTap: () => setState(() => _filtro = NotificacoesFiltro.tarefas),
+            isMobile: isMobile,
+          ),
+          SizedBox(width: isMobile ? 10 : 16.865),
+          NotificacoesFilterPill(
+            label: 'Mensagens',
+            selected: _filtro == NotificacoesFiltro.mensagens,
+            onTap: () => setState(() => _filtro = NotificacoesFiltro.mensagens),
+            isMobile: isMobile,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyState({required bool isMobile}) {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(isMobile ? 20 : 32),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(
+          isMobile
+              ? NotificacoesConstants.mobileCardRadius
+              : NotificacoesConstants.cardRadius,
+        ),
+        border: Border.all(
+          color: const Color(0xFFF3F4F6),
+          width: NotificacoesConstants.borderWidth,
+        ),
+        boxShadow: NotificacoesConstants.cardShadow,
+      ),
+      child: Text(
+        'Não existem notificações para este filtro.',
+        style: TextStyle(
+          fontSize: isMobile ? 14 : 18,
+          color: const Color(0xFF4A5565),
+          height: 1.45,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNotificationList({required bool isMobile}) {
+    if (_filteredItems.isEmpty) {
+      return _buildEmptyState(isMobile: isMobile);
+    }
+
+    return Column(
+      children: List.generate(_filteredItems.length, (index) {
+        final item = _filteredItems[index];
+        return Padding(
+          padding: EdgeInsets.only(
+            bottom: index == _filteredItems.length - 1
+                ? 0
+                : (isMobile ? NotificacoesConstants.mobileCardSpacing : 16.865),
+          ),
+          child: NotificacaoCard(
+            item: item,
+            isMobile: isMobile,
+            onPrimaryAction: item.isLessonReviewRequest
+                ? () => _reviewLessonRequest(item)
+                : null,
+            primaryActionLabel: item.isLessonReviewRequest
+                ? 'Rever aula'
+                : null,
+            onMarkAsRead: item.unread ? () => _markAsRead(item.id) : null,
+          ),
+        );
+      }),
+    );
+  }
+
   Widget _buildListContent() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: const [
-                Text('Notificações', style: NotificacoesConstants.titleStyle),
-                SizedBox(height: 11.243),
-                Text(
-                  'Fique por dentro de tudo que acontece',
-                  style: NotificacoesConstants.subtitleStyle,
-                ),
-              ],
-            ),
-            InkWell(
-              onTap: _unreadCount == 0 ? null : _markAllAsRead,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 8,
-                  vertical: 10,
-                ),
-                child: Text(
-                  'Marcar todas como lidas',
-                  style: NotificacoesConstants.actionLinkStyle.copyWith(
-                    color: _unreadCount == 0 ? const Color(0xFF9CA3AF) : null,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
+        _buildHeader(isMobile: false),
         const SizedBox(height: 44),
         _UnreadSummaryCard(count: _unreadCount),
         const SizedBox(height: 33),
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            children: [
-              NotificacoesFilterPill(
-                label: 'Todas',
-                selected: _filtro == NotificacoesFiltro.todas,
-                onTap: () => setState(() => _filtro = NotificacoesFiltro.todas),
-              ),
-              const SizedBox(width: 16.865),
-              NotificacoesFilterPill(
-                label: 'Não lidas',
-                selected: _filtro == NotificacoesFiltro.naoLidas,
-                onTap: () =>
-                    setState(() => _filtro = NotificacoesFiltro.naoLidas),
-              ),
-              const SizedBox(width: 16.865),
-              NotificacoesFilterPill(
-                label: 'Aulas',
-                selected: _filtro == NotificacoesFiltro.aulas,
-                onTap: () => setState(() => _filtro = NotificacoesFiltro.aulas),
-              ),
-              const SizedBox(width: 16.865),
-              NotificacoesFilterPill(
-                label: 'Tarefas',
-                selected: _filtro == NotificacoesFiltro.tarefas,
-                onTap: () =>
-                    setState(() => _filtro = NotificacoesFiltro.tarefas),
-              ),
-              const SizedBox(width: 16.865),
-              NotificacoesFilterPill(
-                label: 'Mensagens',
-                selected: _filtro == NotificacoesFiltro.mensagens,
-                onTap: () =>
-                    setState(() => _filtro = NotificacoesFiltro.mensagens),
-              ),
-            ],
-          ),
-        ),
+        _buildFilters(isMobile: false),
         const SizedBox(height: 33),
-        if (_filteredItems.isEmpty)
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(32),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(
-                NotificacoesConstants.cardRadius,
-              ),
-              border: Border.all(
-                color: const Color(0xFFF3F4F6),
-                width: NotificacoesConstants.borderWidth,
-              ),
-              boxShadow: NotificacoesConstants.cardShadow,
-            ),
-            child: const Text(
-              'Não existem notificações para este filtro.',
-              style: TextStyle(fontSize: 18, color: Color(0xFF4A5565)),
-            ),
-          )
-        else
-          ...List.generate(_filteredItems.length, (index) {
-            final item = _filteredItems[index];
-            return Padding(
-              padding: EdgeInsets.only(
-                bottom: index == _filteredItems.length - 1 ? 0 : 16.865,
-              ),
-              child: NotificacaoCard(
-                item: item,
-                onPrimaryAction: item.isLessonReviewRequest
-                    ? () => _reviewLessonRequest(item)
-                    : null,
-                primaryActionLabel: item.isLessonReviewRequest
-                    ? 'Rever aula'
-                    : null,
-                onMarkAsRead: item.unread ? () => _markAsRead(item.id) : null,
-              ),
-            );
-          }),
+        _buildNotificationList(isMobile: false),
       ],
+    );
+  }
+
+  Widget _buildMobileListContent() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: NotificacoesConstants.mobileHorizontalPadding,
+        vertical: NotificacoesConstants.mobileVerticalPadding,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildHeader(isMobile: true),
+          const SizedBox(height: NotificacoesConstants.mobileSectionSpacing),
+          _UnreadSummaryCard(count: _unreadCount, isMobile: true),
+          const SizedBox(height: NotificacoesConstants.mobileSectionSpacing),
+          _buildFilters(isMobile: true),
+          const SizedBox(height: NotificacoesConstants.mobileSectionSpacing),
+          _buildNotificationList(isMobile: true),
+        ],
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final isMobile =
+        MediaQuery.sizeOf(context).width <= AppHeader.mobileBreakpoint;
+
+    if (isMobile) {
+      return FutureBuilder<void>(
+        future: _loadFuture,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting &&
+              _items.isEmpty) {
+            return const Center(
+              child: Padding(
+                padding: EdgeInsets.symmetric(vertical: 64),
+                child: CircularProgressIndicator(),
+              ),
+            );
+          }
+
+          if (snapshot.hasError && _items.isEmpty) {
+            return Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: NotificacoesConstants.mobileHorizontalPadding,
+                vertical: 32,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Notificações',
+                    style: NotificacoesConstants.mobileTitleStyle,
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    snapshot.error.toString(),
+                    style: const TextStyle(
+                      color: Color(0xFFB42318),
+                      fontSize: 14,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: () {
+                      setState(() {
+                        _loadFuture = _loadNotifications();
+                      });
+                    },
+                    child: const Text('Tentar novamente'),
+                  ),
+                ],
+              ),
+            );
+          }
+
+          return _buildMobileListContent();
+        },
+      );
+    }
+
     return Padding(
       padding: const EdgeInsets.symmetric(
         horizontal: NotificacoesConstants.horizontalPadding,
@@ -368,18 +478,25 @@ class _NotificacoesContentSectionState
 }
 
 class _UnreadSummaryCard extends StatelessWidget {
-  const _UnreadSummaryCard({required this.count});
+  const _UnreadSummaryCard({required this.count, this.isMobile = false});
 
   final int count;
+  final bool isMobile;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(35.135, 35.135, 35.135, 35.135),
+      padding: isMobile
+          ? const EdgeInsets.fromLTRB(18, 18, 18, 18)
+          : const EdgeInsets.fromLTRB(35.135, 35.135, 35.135, 35.135),
       decoration: BoxDecoration(
         gradient: NotificacoesConstants.unreadSummaryGradient,
-        borderRadius: BorderRadius.circular(NotificacoesConstants.cardRadius),
+        borderRadius: BorderRadius.circular(
+          isMobile
+              ? NotificacoesConstants.mobileCardRadius
+              : NotificacoesConstants.cardRadius,
+        ),
         border: Border.all(
           color: NotificacoesConstants.unreadSummaryBorderColor,
           width: NotificacoesConstants.borderWidth,
@@ -388,8 +505,12 @@ class _UnreadSummaryCard extends StatelessWidget {
       child: Row(
         children: [
           Container(
-            width: 67.459,
-            height: 67.459,
+            width: isMobile
+                ? NotificacoesConstants.mobileSummaryBadgeSize
+                : 67.459,
+            height: isMobile
+                ? NotificacoesConstants.mobileSummaryBadgeSize
+                : 67.459,
             decoration: const BoxDecoration(
               gradient: NotificacoesConstants.iconOrangeGradient,
               shape: BoxShape.circle,
@@ -398,30 +519,30 @@ class _UnreadSummaryCard extends StatelessWidget {
             child: const Icon(
               Icons.notifications_rounded,
               color: Colors.white,
-              size: 33.73,
+              size: NotificacoesConstants.mobileSummaryIconSize,
             ),
           ),
-          const SizedBox(width: 16.865),
+          SizedBox(width: isMobile ? 12 : 16.865),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 '$count',
-                style: const TextStyle(
-                  fontSize: 33.73,
+                style: TextStyle(
+                  fontSize: isMobile ? 24 : 33.73,
                   fontWeight: FontWeight.w700,
-                  color: Color(0xFFCA3500),
-                  height: 44.973 / 33.73,
+                  color: const Color(0xFFCA3500),
+                  height: isMobile ? 1.15 : 44.973 / 33.73,
                 ),
               ),
               const SizedBox(height: 2),
-              const Text(
+              Text(
                 'Notificações não lidas',
                 style: TextStyle(
-                  fontSize: 19.676,
+                  fontSize: isMobile ? 13 : 19.676,
                   fontWeight: FontWeight.w400,
-                  color: Color(0xFFF54900),
-                  height: 28.108 / 19.676,
+                  color: const Color(0xFFF54900),
+                  height: isMobile ? 1.35 : 28.108 / 19.676,
                 ),
               ),
             ],

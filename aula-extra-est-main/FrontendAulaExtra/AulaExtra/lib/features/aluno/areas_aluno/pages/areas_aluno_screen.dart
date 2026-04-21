@@ -50,9 +50,7 @@ class AreasAlunoScreen extends StatelessWidget {
                       color: Color(0xFFF9F9F9),
                       child: SizedBox(
                         width: double.infinity,
-                        child: FullBleedScaledSection(
-                          child: AreasAlunoContentSection(),
-                        ),
+                        child: AreasAlunoContentSection(),
                       ),
                     ),
                     ColoredBox(

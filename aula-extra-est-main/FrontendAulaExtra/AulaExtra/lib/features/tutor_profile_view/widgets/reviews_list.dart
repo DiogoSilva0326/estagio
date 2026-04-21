@@ -3,10 +3,7 @@ import 'package:aula_extra/features/tutor_profile_view/widgets/review_card.dart'
 import 'package:flutter/material.dart';
 
 class ReviewsList extends StatelessWidget {
-  const ReviewsList({
-    super.key,
-    required this.reviews,
-  });
+  const ReviewsList({super.key, required this.reviews});
 
   final List<PublicProfessorReviewDto> reviews;
 
@@ -31,7 +28,9 @@ class ReviewsList extends StatelessWidget {
       return diff.inHours == 1 ? '1 hora atrás' : '${diff.inHours} horas atrás';
     }
     if (diff.inMinutes >= 1) {
-      return diff.inMinutes == 1 ? '1 minuto atrás' : '${diff.inMinutes} minutos atrás';
+      return diff.inMinutes == 1
+          ? '1 minuto atrás'
+          : '${diff.inMinutes} minutos atrás';
     }
 
     return 'Agora mesmo';
@@ -42,11 +41,7 @@ class ReviewsList extends StatelessWidget {
     if (reviews.isEmpty) {
       return const Text(
         'Este professor ainda não recebeu avaliações públicas.',
-        style: TextStyle(
-          fontSize: 18,
-          height: 1.6,
-          color: Color(0xFF6B7280),
-        ),
+        style: TextStyle(fontSize: 18, height: 1.6, color: Color(0xFF6B7280)),
       );
     }
 

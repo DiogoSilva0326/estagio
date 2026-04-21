@@ -11,7 +11,8 @@ class AvaliarProfessorDialog extends StatefulWidget {
 }
 
 class _AvaliarProfessorDialogState extends State<AvaliarProfessorDialog> {
-  final StudentProfessorEvaluationsService _service = StudentProfessorEvaluationsService();
+  final StudentProfessorEvaluationsService _service =
+      StudentProfessorEvaluationsService();
 
   bool _loading = true;
   bool _submitting = false;
@@ -39,7 +40,9 @@ class _AvaliarProfessorDialogState extends State<AvaliarProfessorDialog> {
       if (!mounted) return;
       setState(() {
         _pending = pending;
-        _selectedProfessorId = pending.isNotEmpty ? pending.first.professorId : null;
+        _selectedProfessorId = pending.isNotEmpty
+            ? pending.first.professorId
+            : null;
         _loading = false;
       });
     } catch (e) {
@@ -60,6 +63,49 @@ class _AvaliarProfessorDialogState extends State<AvaliarProfessorDialog> {
     return '$d/$m/$y';
   }
 
+  String _professorDropdownSubtitle(PendingProfessorEvaluationDto pending) {
+    final end = _formatDate(pending.lastLessonEnd ?? pending.lastLessonStart);
+    if (end.isNotEmpty) {
+      return 'Última aula: $end';
+    }
+    return 'Sem data disponível';
+  }
+
+  Widget _buildDropdownLabel({
+    required String title,
+    required String subtitle,
+  }) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.w500,
+            color: Color(0xFF101828),
+            height: 22 / 15,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          subtitle,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w400,
+            color: Color(0xFF667085),
+            height: 16 / 12,
+          ),
+        ),
+      ],
+    );
+  }
+
   PendingProfessorEvaluationDto? _selectedPending() {
     final id = _selectedProfessorId;
     if (id == null) return null;
@@ -75,7 +121,9 @@ class _AvaliarProfessorDialogState extends State<AvaliarProfessorDialog> {
     final selectedProfessorId = _selectedProfessorId;
     if (selectedProfessorId == null || selectedProfessorId.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Nenhum professor pendente para avaliar.')),
+        const SnackBar(
+          content: Text('Nenhum professor pendente para avaliar.'),
+        ),
       );
       return;
     }
@@ -112,13 +160,19 @@ class _AvaliarProfessorDialogState extends State<AvaliarProfessorDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final dialogHorizontalInset = screenWidth < 420 ? 12.0 : 24.0;
+
     return Dialog(
       backgroundColor: Colors.transparent,
-      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+      insetPadding: EdgeInsets.symmetric(
+        horizontal: dialogHorizontalInset,
+        vertical: 24,
+      ),
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 600),
+        constraints: const BoxConstraints(maxWidth: 640),
         child: Container(
-          padding: const EdgeInsets.fromLTRB(25, 25, 25, 1),
+          padding: const EdgeInsets.fromLTRB(18, 25, 18, 1),
           decoration: BoxDecoration(
             color: Colors.white,
             border: Border.all(color: const Color(0xFFF3F4F6)),
@@ -190,6 +244,8 @@ class _AvaliarProfessorDialogState extends State<AvaliarProfessorDialog> {
                   DropdownButtonFormField<String>(
                     key: ValueKey(_selectedProfessorId ?? 'pending'),
                     initialValue: _selectedProfessorId,
+                    isExpanded: true,
+                    itemHeight: null,
                     decoration: InputDecoration(
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(14),
@@ -199,19 +255,32 @@ class _AvaliarProfessorDialogState extends State<AvaliarProfessorDialog> {
                         borderRadius: BorderRadius.circular(14),
                         borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
                       ),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 14,
+                      ),
                     ),
-                    items: _pending
+                    selectedItemBuilder: (context) => _pending
                         .map(
-                          (p) {
-                            final end = _formatDate(p.lastLessonEnd ?? p.lastLessonStart);
-                            final label = end.isEmpty ? p.professorName : '${p.professorName} • Última aula: $end';
-                            return DropdownMenuItem<String>(
-                              value: p.professorId,
-                              child: Text(label, overflow: TextOverflow.ellipsis),
-                            );
-                          },
+                          (p) => Align(
+                            alignment: Alignment.centerLeft,
+                            child: _buildDropdownLabel(
+                              title: p.professorName,
+                              subtitle: _professorDropdownSubtitle(p),
+                            ),
+                          ),
                         )
+                        .toList(growable: false),
+                    items: _pending
+                        .map((p) {
+                          return DropdownMenuItem<String>(
+                            value: p.professorId,
+                            child: _buildDropdownLabel(
+                              title: p.professorName,
+                              subtitle: _professorDropdownSubtitle(p),
+                            ),
+                          );
+                        })
                         .toList(growable: false),
                     onChanged: (v) => setState(() => _selectedProfessorId = v),
                   ),
@@ -222,7 +291,9 @@ class _AvaliarProfessorDialogState extends State<AvaliarProfessorDialog> {
                       if (selected == null) return const SizedBox.shrink();
                       final start = _formatDate(selected.lastLessonStart);
                       final end = _formatDate(selected.lastLessonEnd);
-                      final date = (start.isNotEmpty && end.isNotEmpty) ? '$start - $end' : (end.isNotEmpty ? end : start);
+                      final date = (start.isNotEmpty && end.isNotEmpty)
+                          ? '$start - $end'
+                          : (end.isNotEmpty ? end : start);
                       if (date.isEmpty) return const SizedBox.shrink();
                       return Text(
                         'Última aula: $date',
@@ -255,7 +326,10 @@ class _AvaliarProfessorDialogState extends State<AvaliarProfessorDialog> {
                         height: 32,
                         child: IconButton(
                           padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints.tightFor(width: 32, height: 32),
+                          constraints: const BoxConstraints.tightFor(
+                            width: 32,
+                            height: 32,
+                          ),
                           onPressed: () => setState(() => _rating = i),
                           icon: Icon(
                             i <= _rating ? Icons.star : Icons.star_border,
@@ -264,7 +338,7 @@ class _AvaliarProfessorDialogState extends State<AvaliarProfessorDialog> {
                           ),
                         ),
                       ),
-                    ]
+                    ],
                   ],
                 ),
                 const SizedBox(height: 16),
@@ -292,7 +366,10 @@ class _AvaliarProfessorDialogState extends State<AvaliarProfessorDialog> {
                       borderRadius: BorderRadius.circular(14),
                       borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
                     ),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 24),
@@ -300,7 +377,9 @@ class _AvaliarProfessorDialogState extends State<AvaliarProfessorDialog> {
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
                     TextButton(
-                      onPressed: _submitting ? null : () => Navigator.of(context).pop(false),
+                      onPressed: _submitting
+                          ? null
+                          : () => Navigator.of(context).pop(false),
                       child: const Text('Cancelar'),
                     ),
                     const SizedBox(width: 12),
@@ -316,7 +395,9 @@ class _AvaliarProfessorDialogState extends State<AvaliarProfessorDialog> {
                               height: 16,
                               child: CircularProgressIndicator(
                                 strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  Colors.white,
+                                ),
                               ),
                             )
                           : const Text('Enviar'),

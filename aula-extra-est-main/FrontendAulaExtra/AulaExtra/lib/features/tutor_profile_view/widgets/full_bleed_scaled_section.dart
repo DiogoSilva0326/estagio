@@ -2,10 +2,7 @@ import 'package:aula_extra/features/tutor_profile_view/constants/tutor_profile_l
 import 'package:flutter/material.dart';
 
 class FullBleedScaledSection extends StatelessWidget {
-  const FullBleedScaledSection({
-    super.key,
-    required this.child,
-  });
+  const FullBleedScaledSection({super.key, required this.child});
 
   final Widget child;
 
@@ -19,10 +16,7 @@ class FullBleedScaledSection extends StatelessWidget {
             child: FittedBox(
               fit: BoxFit.scaleDown,
               alignment: Alignment.topCenter,
-              child: SizedBox(
-                width: kTutorProfileDesignWidth,
-                child: child,
-              ),
+              child: SizedBox(width: kTutorProfileDesignWidth, child: child),
             ),
           ),
         );

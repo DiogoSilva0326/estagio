@@ -139,7 +139,9 @@ class ComprarCreditosPackageCard extends StatelessWidget {
                 (feature) => Padding(
                   padding: const EdgeInsets.only(bottom: 2),
                   child: Text(
-                    feature.startsWith('Preço unitário') ? feature : '✓ $feature',
+                    feature.startsWith('Preço unitário')
+                        ? feature
+                        : '✓ $feature',
                     style: const TextStyle(
                       fontSize: 17.872,
                       fontWeight: FontWeight.w400,
@@ -181,10 +183,7 @@ class ComprarCreditosPackageCard extends StatelessWidget {
 }
 
 class _ComprarAgoraButton extends StatelessWidget {
-  const _ComprarAgoraButton({
-    required this.label,
-    required this.onPressed,
-  });
+  const _ComprarAgoraButton({required this.label, required this.onPressed});
 
   final String label;
   final VoidCallback? onPressed;

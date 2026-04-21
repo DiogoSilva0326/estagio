@@ -6,6 +6,16 @@
 class PagamentosProfessorLayout {
   const PagamentosProfessorLayout._();
 
+  static const double mobileHorizontalPadding = 16;
+  static const double mobileTopPadding = 20;
+  static const double mobileBottomPadding = 32;
+  static const double mobileSectionGap = 18;
+  static const double mobileCardRadius = 20;
+  static const double mobileStatCardRadius = 18;
+  static const double mobileActionHeight = 46;
+  static const double mobileActionRadius = 14;
+  static const double mobileListCardPadding = 16;
+
   /// Padding esquerdo do conteúdo (após menu lateral).
   static const double pageLeftPadding = 54;
 

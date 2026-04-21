@@ -4,7 +4,7 @@ import 'package:aula_extra/core/data/professors/professors_api.dart';
 import 'package:aula_extra/core/data/professors/professors_service.dart';
 import 'package:aula_extra/core/data/users/dtos/user_profile_dto.dart';
 import 'package:aula_extra/core/data/users/users_service.dart';
-import 'package:aula_extra/features/become_teacher/constants/become_teacher_constants.dart';
+import 'package:aula_extra/features/become_teacher/assets/become_teacher_assets.dart';
 import 'package:aula_extra/features/register/constants/register_colors.dart';
 import 'package:aula_extra/routes/routes.dart';
 import 'package:flutter/material.dart';
@@ -14,9 +14,13 @@ class BecomeTeacherCard extends StatefulWidget {
   const BecomeTeacherCard({
     super.key,
     required this.onLoginTap,
+    this.width,
+    this.compact = false,
   });
 
   final VoidCallback onLoginTap;
+  final double? width;
+  final bool compact;
 
   @override
   State<BecomeTeacherCard> createState() => _BecomeTeacherCardState();
@@ -24,8 +28,8 @@ class BecomeTeacherCard extends StatefulWidget {
 
 class _CertificateControllers {
   _CertificateControllers()
-      : name = TextEditingController(),
-        url = TextEditingController();
+    : name = TextEditingController(),
+      url = TextEditingController();
 
   final TextEditingController name;
   final TextEditingController url;
@@ -61,7 +65,9 @@ class _BecomeTeacherCardState extends State<BecomeTeacherCard> {
   final _bioImageUrlController = TextEditingController();
   final _presentationController = TextEditingController();
 
-  final List<_CertificateControllers> _certificates = [_CertificateControllers()];
+  final List<_CertificateControllers> _certificates = [
+    _CertificateControllers(),
+  ];
 
   @override
   void initState() {
@@ -195,7 +201,9 @@ class _BecomeTeacherCardState extends State<BecomeTeacherCard> {
   }
 
   bool get _hasAtLeastOneCertificate {
-    return _certificates.any((c) => c.name.text.trim().isNotEmpty || c.url.text.trim().isNotEmpty);
+    return _certificates.any(
+      (c) => c.name.text.trim().isNotEmpty || c.url.text.trim().isNotEmpty,
+    );
   }
 
   bool get _canSubmit {
@@ -215,7 +223,9 @@ class _BecomeTeacherCardState extends State<BecomeTeacherCard> {
     if (!_looksLikeUrl(_bioImageUrlController.text)) return false;
     if (!_looksLikeUrl(_ibanDocumentUrlController.text)) return false;
     for (final c in _certificates) {
-      if ((c.url.text.trim().isNotEmpty) && !_looksLikeUrl(c.url.text)) return false;
+      if ((c.url.text.trim().isNotEmpty) && !_looksLikeUrl(c.url.text)) {
+        return false;
+      }
     }
 
     // Certificates are optional, but support multiple.
@@ -247,14 +257,18 @@ class _BecomeTeacherCardState extends State<BecomeTeacherCard> {
     setState(() => _isSubmitting = true);
     try {
       final yearsExperienceRaw = _yearsExperienceController.text.trim();
-      final yearsExperience = yearsExperienceRaw.isEmpty ? null : int.tryParse(yearsExperienceRaw);
+      final yearsExperience = yearsExperienceRaw.isEmpty
+          ? null
+          : int.tryParse(yearsExperienceRaw);
 
       final certificates = <UpsertProfessorCertificateInput>[];
       for (final c in _certificates) {
         final name = c.name.text.trim();
         final url = c.url.text.trim();
         if (name.isEmpty || url.isEmpty) continue;
-        certificates.add(UpsertProfessorCertificateInput(name: name, fileUrl: url));
+        certificates.add(
+          UpsertProfessorCertificateInput(name: name, fileUrl: url),
+        );
       }
 
       final service = ProfessorsService();
@@ -294,9 +308,9 @@ class _BecomeTeacherCardState extends State<BecomeTeacherCard> {
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString())),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.toString())));
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
@@ -304,11 +318,15 @@ class _BecomeTeacherCardState extends State<BecomeTeacherCard> {
 
   Widget _sectionTitle(String text) {
     return Padding(
-      padding: BecomeTeacherLayout.sectionTitlePadding,
+      padding: widget.compact
+          ? const EdgeInsets.only(top: 14)
+          : BecomeTeacherLayout.sectionTitlePadding,
       child: Text(
         text,
-        style: const TextStyle(
-          fontSize: BecomeTeacherLayout.sectionTitleFontSize,
+        style: TextStyle(
+          fontSize: widget.compact
+              ? 13
+              : BecomeTeacherLayout.sectionTitleFontSize,
           fontWeight: FontWeight.w700,
           color: RegisterColors.textPrimary,
         ),
@@ -351,19 +369,31 @@ class _BecomeTeacherCardState extends State<BecomeTeacherCard> {
         contentPadding: BecomeTeacherLayout.inputContentPadding,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(BecomeTeacherLayout.inputRadius),
-          borderSide: const BorderSide(color: RegisterColors.stroke, width: BecomeTeacherLayout.inputBorderWidth),
+          borderSide: const BorderSide(
+            color: RegisterColors.stroke,
+            width: BecomeTeacherLayout.inputBorderWidth,
+          ),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(BecomeTeacherLayout.inputRadius),
-          borderSide: const BorderSide(color: RegisterColors.stroke, width: BecomeTeacherLayout.inputBorderWidth),
+          borderSide: const BorderSide(
+            color: RegisterColors.stroke,
+            width: BecomeTeacherLayout.inputBorderWidth,
+          ),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(BecomeTeacherLayout.inputRadius),
-          borderSide: const BorderSide(color: RegisterColors.stroke, width: BecomeTeacherLayout.inputBorderWidth),
+          borderSide: const BorderSide(
+            color: RegisterColors.stroke,
+            width: BecomeTeacherLayout.inputBorderWidth,
+          ),
         ),
         disabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(BecomeTeacherLayout.inputRadius),
-          borderSide: const BorderSide(color: RegisterColors.stroke, width: BecomeTeacherLayout.inputBorderWidth),
+          borderSide: const BorderSide(
+            color: RegisterColors.stroke,
+            width: BecomeTeacherLayout.inputBorderWidth,
+          ),
         ),
       ),
     );
@@ -377,7 +407,9 @@ class _BecomeTeacherCardState extends State<BecomeTeacherCard> {
             fontSize: BecomeTeacherLayout.fieldLabelFontSize,
             fontWeight: FontWeight.w700,
             color: BecomeTeacherColors.fieldLabel,
-            height: BecomeTeacherLayout.fieldLabelLineHeight / BecomeTeacherLayout.fieldLabelFontSize,
+            height:
+                BecomeTeacherLayout.fieldLabelLineHeight /
+                BecomeTeacherLayout.fieldLabelFontSize,
             letterSpacing: BecomeTeacherLayout.fieldLabelLetterSpacing,
           ),
         ),
@@ -392,14 +424,36 @@ class _BecomeTeacherCardState extends State<BecomeTeacherCard> {
   @override
   Widget build(BuildContext context) {
     final user = context.watch<UserProvider>();
-    final hasKnownAccount = user.account != null && (user.account!.email ?? '').trim().isNotEmpty;
+    final hasKnownAccount =
+        user.account != null && (user.account!.email ?? '').trim().isNotEmpty;
     final isLoggedIn = user.isLoggedIn;
     final lockAccountFields = isLoggedIn && hasKnownAccount;
 
     final enabled = _canSubmit && !_isSubmitting;
+    final cardWidth = widget.width ?? BecomeTeacherLayout.cardWidth;
+    final cardPadding = widget.compact
+        ? const EdgeInsets.fromLTRB(18, 20, 18, 18)
+        : BecomeTeacherLayout.contentPadding;
+    final tabsHeight = widget.compact ? 46.0 : BecomeTeacherLayout.tabsHeight;
+    final tabFontSize = widget.compact ? 12.5 : BecomeTeacherLayout.tabFontSize;
+    final titleFontSize = widget.compact
+        ? 22.0
+        : BecomeTeacherLayout.formTitleFontSize;
+    final titleLineHeight = widget.compact
+        ? 27.0
+        : BecomeTeacherLayout.formTitleLineHeight;
+    final subtitleFontSize = widget.compact
+        ? 13.0
+        : BecomeTeacherLayout.subtitleFontSize;
+    final subtitleLineHeight = widget.compact
+        ? 19.0
+        : BecomeTeacherLayout.subtitleLineHeight;
+    final submitHeight = widget.compact
+        ? 48.0
+        : BecomeTeacherLayout.submitHeight;
 
     return Container(
-      width: BecomeTeacherLayout.cardWidth,
+      width: cardWidth,
       // Taller than RegisterCard; page scroll handles overflow.
       decoration: BoxDecoration(
         color: Colors.white,
@@ -416,7 +470,7 @@ class _BecomeTeacherCardState extends State<BecomeTeacherCard> {
       child: Column(
         children: [
           SizedBox(
-            height: BecomeTeacherLayout.tabsHeight,
+            height: tabsHeight,
             child: Row(
               children: [
                 Expanded(
@@ -426,21 +480,35 @@ class _BecomeTeacherCardState extends State<BecomeTeacherCard> {
                       decoration: const BoxDecoration(
                         color: BecomeTeacherColors.inactiveTabBackground,
                         border: Border(
-                          bottom: BorderSide(width: BecomeTeacherLayout.tabsBottomBorderWidth, color: BecomeTeacherColors.tabsDivider),
+                          bottom: BorderSide(
+                            width: BecomeTeacherLayout.tabsBottomBorderWidth,
+                            color: BecomeTeacherColors.tabsDivider,
+                          ),
                         ),
                         borderRadius: BorderRadius.only(
-                          topLeft: Radius.circular(BecomeTeacherLayout.tabsCornerRadius),
+                          topLeft: Radius.circular(
+                            BecomeTeacherLayout.tabsCornerRadius,
+                          ),
                         ),
                       ),
                       alignment: Alignment.center,
-                      child: const Text(
-                        'Entrar',
-                        style: TextStyle(
-                          fontSize: BecomeTeacherLayout.tabFontSize,
-                          fontWeight: FontWeight.w700,
-                          color: RegisterColors.textSecondary,
-                          height: BecomeTeacherLayout.tabLineHeight / BecomeTeacherLayout.tabFontSize,
-                          letterSpacing: BecomeTeacherLayout.tabLetterSpacing,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            'Entrar',
+                            style: TextStyle(
+                              fontSize: tabFontSize,
+                              fontWeight: FontWeight.w700,
+                              color: RegisterColors.textSecondary,
+                              height:
+                                  BecomeTeacherLayout.tabLineHeight /
+                                  tabFontSize,
+                              letterSpacing:
+                                  BecomeTeacherLayout.tabLetterSpacing,
+                            ),
+                          ),
                         ),
                       ),
                     ),
@@ -452,24 +520,39 @@ class _BecomeTeacherCardState extends State<BecomeTeacherCard> {
                       gradient: LinearGradient(
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
-                        colors: [RegisterColors.gradientStart, RegisterColors.gradientEnd],
+                        colors: [
+                          RegisterColors.gradientStart,
+                          RegisterColors.gradientEnd,
+                        ],
                       ),
                       border: Border(
-                        bottom: BorderSide(width: BecomeTeacherLayout.tabsBottomBorderWidth, color: BecomeTeacherColors.tabsDivider),
+                        bottom: BorderSide(
+                          width: BecomeTeacherLayout.tabsBottomBorderWidth,
+                          color: BecomeTeacherColors.tabsDivider,
+                        ),
                       ),
                       borderRadius: BorderRadius.only(
-                        topRight: Radius.circular(BecomeTeacherLayout.tabsCornerRadius),
+                        topRight: Radius.circular(
+                          BecomeTeacherLayout.tabsCornerRadius,
+                        ),
                       ),
                     ),
                     alignment: Alignment.center,
-                    child: const Text(
-                      'Tornar-se Explicador',
-                      style: TextStyle(
-                        fontSize: BecomeTeacherLayout.tabFontSize,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.white,
-                        height: BecomeTeacherLayout.tabLineHeight / BecomeTeacherLayout.tabFontSize,
-                        letterSpacing: BecomeTeacherLayout.tabLetterSpacing,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          'Tornar-se Explicador',
+                          style: TextStyle(
+                            fontSize: tabFontSize,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                            height:
+                                BecomeTeacherLayout.tabLineHeight / tabFontSize,
+                            letterSpacing: BecomeTeacherLayout.tabLetterSpacing,
+                          ),
+                        ),
                       ),
                     ),
                   ),
@@ -478,30 +561,32 @@ class _BecomeTeacherCardState extends State<BecomeTeacherCard> {
             ),
           ),
           Padding(
-            padding: BecomeTeacherLayout.contentPadding,
+            padding: cardPadding,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Text(
+                Text(
                   'Candidata-te a explicador',
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    fontSize: BecomeTeacherLayout.formTitleFontSize,
+                    fontSize: titleFontSize,
                     fontWeight: FontWeight.w700,
                     color: RegisterColors.textPrimary,
-                    height: BecomeTeacherLayout.formTitleLineHeight / BecomeTeacherLayout.formTitleFontSize,
+                    height: titleLineHeight / titleFontSize,
                     letterSpacing: BecomeTeacherLayout.formTitleLetterSpacing,
                   ),
                 ),
                 const SizedBox(height: BecomeTeacherLayout.titleSubtitleGap),
                 Text(
-                  lockAccountFields ? 'Já tens conta — dados preenchidos.' : 'Se ainda não tens conta, cria-a aqui.',
+                  lockAccountFields
+                      ? 'Já tens conta — dados preenchidos.'
+                      : 'Se ainda não tens conta, cria-a aqui.',
                   textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontSize: BecomeTeacherLayout.subtitleFontSize,
+                  style: TextStyle(
+                    fontSize: subtitleFontSize,
                     fontWeight: FontWeight.w400,
                     color: RegisterColors.textSecondary,
-                    height: BecomeTeacherLayout.subtitleLineHeight / BecomeTeacherLayout.subtitleFontSize,
+                    height: subtitleLineHeight / subtitleFontSize,
                     letterSpacing: BecomeTeacherLayout.subtitleLetterSpacing,
                   ),
                 ),
@@ -513,7 +598,11 @@ class _BecomeTeacherCardState extends State<BecomeTeacherCard> {
                   hintText: 'O teu nome completo',
                   controller: _fullNameController,
                   enabled: !lockAccountFields,
-                  prefix: const Icon(Icons.person_outline, size: BecomeTeacherLayout.inputIconSize, color: BecomeTeacherColors.inputIconMuted),
+                  prefix: const Icon(
+                    Icons.person_outline,
+                    size: BecomeTeacherLayout.inputIconSize,
+                    color: BecomeTeacherColors.inputIconMuted,
+                  ),
                 ),
                 const SizedBox(height: BecomeTeacherLayout.fieldGap),
                 _labeledField(
@@ -522,7 +611,11 @@ class _BecomeTeacherCardState extends State<BecomeTeacherCard> {
                   controller: _emailController,
                   enabled: !lockAccountFields,
                   keyboardType: TextInputType.emailAddress,
-                  prefix: const Icon(Icons.email_outlined, size: BecomeTeacherLayout.inputIconSize, color: BecomeTeacherColors.inputIconMuted),
+                  prefix: const Icon(
+                    Icons.email_outlined,
+                    size: BecomeTeacherLayout.inputIconSize,
+                    color: BecomeTeacherColors.inputIconMuted,
+                  ),
                 ),
                 if (!lockAccountFields) ...[
                   const SizedBox(height: BecomeTeacherLayout.fieldGap),
@@ -531,16 +624,24 @@ class _BecomeTeacherCardState extends State<BecomeTeacherCard> {
                     hintText: 'Mínimo 6 caracteres',
                     controller: _passwordController,
                     obscureText: _obscurePassword,
-                    prefix: const Icon(Icons.lock_outline, size: BecomeTeacherLayout.inputIconSize, color: BecomeTeacherColors.inputIconMuted),
+                    prefix: const Icon(
+                      Icons.lock_outline,
+                      size: BecomeTeacherLayout.inputIconSize,
+                      color: BecomeTeacherColors.inputIconMuted,
+                    ),
                     suffix: IconButton(
-                      onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                      onPressed: () =>
+                          setState(() => _obscurePassword = !_obscurePassword),
                       icon: Icon(
-                        _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                        _obscurePassword
+                            ? Icons.visibility_off_outlined
+                            : Icons.visibility_outlined,
                         size: BecomeTeacherLayout.inputIconSize,
                         color: BecomeTeacherColors.inputIconMuted,
                       ),
                       padding: EdgeInsets.zero,
-                      constraints: BecomeTeacherLayout.passwordSuffixConstraints,
+                      constraints:
+                          BecomeTeacherLayout.passwordSuffixConstraints,
                     ),
                   ),
                   const SizedBox(height: BecomeTeacherLayout.fieldGap),
@@ -549,16 +650,24 @@ class _BecomeTeacherCardState extends State<BecomeTeacherCard> {
                     hintText: 'Repete a password',
                     controller: _confirmController,
                     obscureText: _obscureConfirm,
-                    prefix: const Icon(Icons.lock_outline, size: BecomeTeacherLayout.inputIconSize, color: BecomeTeacherColors.inputIconMuted),
+                    prefix: const Icon(
+                      Icons.lock_outline,
+                      size: BecomeTeacherLayout.inputIconSize,
+                      color: BecomeTeacherColors.inputIconMuted,
+                    ),
                     suffix: IconButton(
-                      onPressed: () => setState(() => _obscureConfirm = !_obscureConfirm),
+                      onPressed: () =>
+                          setState(() => _obscureConfirm = !_obscureConfirm),
                       icon: Icon(
-                        _obscureConfirm ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                        _obscureConfirm
+                            ? Icons.visibility_off_outlined
+                            : Icons.visibility_outlined,
                         size: BecomeTeacherLayout.inputIconSize,
                         color: BecomeTeacherColors.inputIconMuted,
                       ),
                       padding: EdgeInsets.zero,
-                      constraints: BecomeTeacherLayout.passwordSuffixConstraints,
+                      constraints:
+                          BecomeTeacherLayout.passwordSuffixConstraints,
                     ),
                   ),
                 ],
@@ -569,7 +678,11 @@ class _BecomeTeacherCardState extends State<BecomeTeacherCard> {
                   label: 'Username',
                   hintText: 'O teu username',
                   controller: _usernameController,
-                  prefix: const Icon(Icons.alternate_email, size: BecomeTeacherLayout.inputIconSize, color: BecomeTeacherColors.inputIconMuted),
+                  prefix: const Icon(
+                    Icons.alternate_email,
+                    size: BecomeTeacherLayout.inputIconSize,
+                    color: BecomeTeacherColors.inputIconMuted,
+                  ),
                 ),
                 const SizedBox(height: BecomeTeacherLayout.fieldGap),
                 _labeledField(
@@ -577,7 +690,11 @@ class _BecomeTeacherCardState extends State<BecomeTeacherCard> {
                   hintText: 'Ex: 912345678',
                   controller: _mobileController,
                   keyboardType: TextInputType.phone,
-                  prefix: const Icon(Icons.phone_iphone, size: BecomeTeacherLayout.inputIconSize, color: BecomeTeacherColors.inputIconMuted),
+                  prefix: const Icon(
+                    Icons.phone_iphone,
+                    size: BecomeTeacherLayout.inputIconSize,
+                    color: BecomeTeacherColors.inputIconMuted,
+                  ),
                 ),
                 const SizedBox(height: BecomeTeacherLayout.fieldGap),
                 _labeledField(
@@ -585,14 +702,22 @@ class _BecomeTeacherCardState extends State<BecomeTeacherCard> {
                   hintText: 'Ex: 123456789',
                   controller: _nifController,
                   keyboardType: TextInputType.number,
-                  prefix: const Icon(Icons.badge_outlined, size: BecomeTeacherLayout.inputIconSize, color: BecomeTeacherColors.inputIconMuted),
+                  prefix: const Icon(
+                    Icons.badge_outlined,
+                    size: BecomeTeacherLayout.inputIconSize,
+                    color: BecomeTeacherColors.inputIconMuted,
+                  ),
                 ),
                 const SizedBox(height: BecomeTeacherLayout.fieldGap),
                 _labeledField(
                   label: 'Escola atual',
                   hintText: 'Ex: Escola Secundária …',
                   controller: _currentSchoolController,
-                  prefix: const Icon(Icons.school_outlined, size: BecomeTeacherLayout.inputIconSize, color: BecomeTeacherColors.inputIconMuted),
+                  prefix: const Icon(
+                    Icons.school_outlined,
+                    size: BecomeTeacherLayout.inputIconSize,
+                    color: BecomeTeacherColors.inputIconMuted,
+                  ),
                 ),
                 const SizedBox(height: BecomeTeacherLayout.fieldGap),
                 _labeledField(
@@ -600,7 +725,11 @@ class _BecomeTeacherCardState extends State<BecomeTeacherCard> {
                   hintText: 'Ex: 3',
                   controller: _yearsExperienceController,
                   keyboardType: TextInputType.number,
-                  prefix: const Icon(Icons.timeline_outlined, size: BecomeTeacherLayout.inputIconSize, color: BecomeTeacherColors.inputIconMuted),
+                  prefix: const Icon(
+                    Icons.timeline_outlined,
+                    size: BecomeTeacherLayout.inputIconSize,
+                    color: BecomeTeacherColors.inputIconMuted,
+                  ),
                 ),
                 const SizedBox(height: BecomeTeacherLayout.fieldGap),
                 _labeledField(
@@ -608,14 +737,22 @@ class _BecomeTeacherCardState extends State<BecomeTeacherCard> {
                   hintText: 'Ex: 123456789',
                   controller: _vatController,
                   keyboardType: TextInputType.number,
-                  prefix: const Icon(Icons.receipt_long_outlined, size: BecomeTeacherLayout.inputIconSize, color: BecomeTeacherColors.inputIconMuted),
+                  prefix: const Icon(
+                    Icons.receipt_long_outlined,
+                    size: BecomeTeacherLayout.inputIconSize,
+                    color: BecomeTeacherColors.inputIconMuted,
+                  ),
                 ),
                 const SizedBox(height: BecomeTeacherLayout.fieldGap),
                 _labeledField(
                   label: 'IBAN',
                   hintText: 'Ex: PT50…',
                   controller: _ibanController,
-                  prefix: const Icon(Icons.account_balance_outlined, size: BecomeTeacherLayout.inputIconSize, color: BecomeTeacherColors.inputIconMuted),
+                  prefix: const Icon(
+                    Icons.account_balance_outlined,
+                    size: BecomeTeacherLayout.inputIconSize,
+                    color: BecomeTeacherColors.inputIconMuted,
+                  ),
                 ),
                 const SizedBox(height: BecomeTeacherLayout.fieldGap),
                 _labeledField(
@@ -623,7 +760,11 @@ class _BecomeTeacherCardState extends State<BecomeTeacherCard> {
                   hintText: 'https://…',
                   controller: _ibanDocumentUrlController,
                   keyboardType: TextInputType.url,
-                  prefix: const Icon(Icons.link, size: BecomeTeacherLayout.inputIconSize, color: BecomeTeacherColors.inputIconMuted),
+                  prefix: const Icon(
+                    Icons.link,
+                    size: BecomeTeacherLayout.inputIconSize,
+                    color: BecomeTeacherColors.inputIconMuted,
+                  ),
                 ),
                 const SizedBox(height: BecomeTeacherLayout.fieldGap),
                 _labeledField(
@@ -631,7 +772,11 @@ class _BecomeTeacherCardState extends State<BecomeTeacherCard> {
                   hintText: 'https://…',
                   controller: _videoUrlController,
                   keyboardType: TextInputType.url,
-                  prefix: const Icon(Icons.ondemand_video_outlined, size: BecomeTeacherLayout.inputIconSize, color: BecomeTeacherColors.inputIconMuted),
+                  prefix: const Icon(
+                    Icons.ondemand_video_outlined,
+                    size: BecomeTeacherLayout.inputIconSize,
+                    color: BecomeTeacherColors.inputIconMuted,
+                  ),
                 ),
                 const SizedBox(height: BecomeTeacherLayout.fieldGap),
                 _labeledField(
@@ -639,7 +784,11 @@ class _BecomeTeacherCardState extends State<BecomeTeacherCard> {
                   hintText: 'https://…',
                   controller: _bioImageUrlController,
                   keyboardType: TextInputType.url,
-                  prefix: const Icon(Icons.image_outlined, size: BecomeTeacherLayout.inputIconSize, color: BecomeTeacherColors.inputIconMuted),
+                  prefix: const Icon(
+                    Icons.image_outlined,
+                    size: BecomeTeacherLayout.inputIconSize,
+                    color: BecomeTeacherColors.inputIconMuted,
+                  ),
                 ),
 
                 _sectionTitle('Certificados'),
@@ -647,7 +796,11 @@ class _BecomeTeacherCardState extends State<BecomeTeacherCard> {
                 ...List.generate(_certificates.length, (i) {
                   final c = _certificates[i];
                   return Padding(
-                    padding: EdgeInsets.only(bottom: i == _certificates.length - 1 ? 0 : BecomeTeacherLayout.fieldGap),
+                    padding: EdgeInsets.only(
+                      bottom: i == _certificates.length - 1
+                          ? 0
+                          : BecomeTeacherLayout.fieldGap,
+                    ),
                     child: Column(
                       children: [
                         Row(
@@ -657,10 +810,17 @@ class _BecomeTeacherCardState extends State<BecomeTeacherCard> {
                                 label: i == 0 ? 'Nome do certificado' : 'Nome',
                                 hintText: 'Ex: Certificado X',
                                 controller: c.name,
-                                prefix: const Icon(Icons.description_outlined, size: BecomeTeacherLayout.inputIconSize, color: BecomeTeacherColors.inputIconMuted),
+                                prefix: const Icon(
+                                  Icons.description_outlined,
+                                  size: BecomeTeacherLayout.inputIconSize,
+                                  color: BecomeTeacherColors.inputIconMuted,
+                                ),
                               ),
                             ),
-                            const SizedBox(width: BecomeTeacherLayout.certificateNameRemoveGap),
+                            const SizedBox(
+                              width:
+                                  BecomeTeacherLayout.certificateNameRemoveGap,
+                            ),
                             if (_certificates.length > 1)
                               IconButton(
                                 onPressed: () {
@@ -669,18 +829,28 @@ class _BecomeTeacherCardState extends State<BecomeTeacherCard> {
                                     removed.dispose();
                                   });
                                 },
-                                icon: const Icon(Icons.close, size: 18, color: BecomeTeacherColors.removeIcon),
+                                icon: const Icon(
+                                  Icons.close,
+                                  size: 18,
+                                  color: BecomeTeacherColors.removeIcon,
+                                ),
                                 tooltip: 'Remover',
                               ),
                           ],
                         ),
-                        const SizedBox(height: BecomeTeacherLayout.certificateNameLinkGap),
+                        const SizedBox(
+                          height: BecomeTeacherLayout.certificateNameLinkGap,
+                        ),
                         _labeledField(
                           label: i == 0 ? 'Link do certificado' : 'Link',
                           hintText: 'https://…',
                           controller: c.url,
                           keyboardType: TextInputType.url,
-                          prefix: const Icon(Icons.link, size: BecomeTeacherLayout.inputIconSize, color: BecomeTeacherColors.inputIconMuted),
+                          prefix: const Icon(
+                            Icons.link,
+                            size: BecomeTeacherLayout.inputIconSize,
+                            color: BecomeTeacherColors.inputIconMuted,
+                          ),
                         ),
                       ],
                     ),
@@ -690,7 +860,9 @@ class _BecomeTeacherCardState extends State<BecomeTeacherCard> {
                 Align(
                   alignment: Alignment.centerLeft,
                   child: TextButton(
-                    onPressed: () => setState(() => _certificates.add(_CertificateControllers())),
+                    onPressed: () => setState(
+                      () => _certificates.add(_CertificateControllers()),
+                    ),
                     child: const Text('Adicionar certificado'),
                   ),
                 ),
@@ -701,26 +873,39 @@ class _BecomeTeacherCardState extends State<BecomeTeacherCard> {
                   label: 'Apresentação',
                   hintText: 'Fala um pouco sobre ti…',
                   controller: _presentationController,
-                  prefix: const Icon(Icons.edit_outlined, size: BecomeTeacherLayout.inputIconSize, color: BecomeTeacherColors.inputIconMuted),
+                  prefix: const Icon(
+                    Icons.edit_outlined,
+                    size: BecomeTeacherLayout.inputIconSize,
+                    color: BecomeTeacherColors.inputIconMuted,
+                  ),
                   maxLines: 4,
                 ),
 
                 const SizedBox(height: BecomeTeacherLayout.beforeSubmitGap),
                 InkWell(
                   onTap: enabled ? _submit : null,
-                  borderRadius: BorderRadius.circular(BecomeTeacherLayout.submitRadius),
+                  borderRadius: BorderRadius.circular(
+                    BecomeTeacherLayout.submitRadius,
+                  ),
                   child: Container(
-                    height: BecomeTeacherLayout.submitHeight,
+                    height: submitHeight,
                     decoration: BoxDecoration(
-                      color: enabled ? null : BecomeTeacherColors.submitDisabledBackground,
+                      color: enabled
+                          ? null
+                          : BecomeTeacherColors.submitDisabledBackground,
                       gradient: enabled
                           ? const LinearGradient(
                               begin: Alignment.topCenter,
                               end: Alignment.bottomCenter,
-                              colors: [RegisterColors.gradientStart, RegisterColors.gradientEnd],
+                              colors: [
+                                RegisterColors.gradientStart,
+                                RegisterColors.gradientEnd,
+                              ],
                             )
                           : null,
-                      borderRadius: BorderRadius.circular(BecomeTeacherLayout.submitRadius),
+                      borderRadius: BorderRadius.circular(
+                        BecomeTeacherLayout.submitRadius,
+                      ),
                     ),
                     alignment: Alignment.center,
                     child: Text(
@@ -728,8 +913,12 @@ class _BecomeTeacherCardState extends State<BecomeTeacherCard> {
                       style: TextStyle(
                         fontSize: BecomeTeacherLayout.submitFontSize,
                         fontWeight: FontWeight.w700,
-                        color: enabled ? Colors.white : BecomeTeacherColors.submitDisabledText,
-                        height: BecomeTeacherLayout.submitLineHeight / BecomeTeacherLayout.submitFontSize,
+                        color: enabled
+                            ? Colors.white
+                            : BecomeTeacherColors.submitDisabledText,
+                        height:
+                            BecomeTeacherLayout.submitLineHeight /
+                            BecomeTeacherLayout.submitFontSize,
                         letterSpacing: BecomeTeacherLayout.submitLetterSpacing,
                       ),
                     ),

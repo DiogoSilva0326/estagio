@@ -2,10 +2,7 @@ import 'package:aula_extra/features/comprar_creditos/constants/comprar_creditos_
 import 'package:flutter/material.dart';
 
 class ComprarCreditosBenefitChip extends StatelessWidget {
-  const ComprarCreditosBenefitChip({
-    super.key,
-    required this.label,
-  });
+  const ComprarCreditosBenefitChip({super.key, required this.label});
 
   final String label;
 

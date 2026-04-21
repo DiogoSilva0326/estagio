@@ -1,6 +1,9 @@
 import 'package:aula_extra/core/data/education/dtos/area_dto.dart';
 import 'package:aula_extra/core/data/education/dtos/disciplina_dto.dart';
 import 'package:aula_extra/core/data/education/education_service.dart';
+import 'package:aula_extra/core/components/header/app_header.dart';
+import 'package:aula_extra/features/disciplinas/constants/disciplinas_mobile_layout.dart';
+import 'package:aula_extra/features/disciplinas/sections/disciplinas_mobile_content_section.dart';
 import 'package:aula_extra/features/disciplinas/sections/main_content_section.dart';
 import 'package:aula_extra/features/disciplinas/sections/sidebar_section.dart';
 import 'package:flutter/material.dart';
@@ -9,7 +12,8 @@ class DisciplinasContentSection extends StatefulWidget {
   const DisciplinasContentSection({super.key});
 
   @override
-  State<DisciplinasContentSection> createState() => _DisciplinasContentSectionState();
+  State<DisciplinasContentSection> createState() =>
+      _DisciplinasContentSectionState();
 }
 
 class _DisciplinasContentSectionState extends State<DisciplinasContentSection> {
@@ -93,9 +97,11 @@ class _DisciplinasContentSectionState extends State<DisciplinasContentSection> {
   }
 
   List<AreaDto> get _visibleAreas {
-    final filtered = _areas.where((area) {
-      return _matchesSearch(area.nome, _searchController.text);
-    }).toList(growable: false);
+    final filtered = _areas
+        .where((area) {
+          return _matchesSearch(area.nome, _searchController.text);
+        })
+        .toList(growable: false);
 
     filtered.sort((a, b) {
       final byCount = b.professorCount.compareTo(a.professorCount);
@@ -107,11 +113,13 @@ class _DisciplinasContentSectionState extends State<DisciplinasContentSection> {
   }
 
   List<DisciplinaDto> get _visibleDisciplinas {
-    final filtered = _disciplinas.where((disciplina) {
-      if (_selectedAreaId == null) return false;
-      if (disciplina.idArea != _selectedAreaId) return false;
-      return _matchesSearch(disciplina.nome, _searchController.text);
-    }).toList(growable: false);
+    final filtered = _disciplinas
+        .where((disciplina) {
+          if (_selectedAreaId == null) return false;
+          if (disciplina.idArea != _selectedAreaId) return false;
+          return _matchesSearch(disciplina.nome, _searchController.text);
+        })
+        .toList(growable: false);
 
     filtered.sort((a, b) {
       final byCount = b.activeStudentsCount.compareTo(a.activeStudentsCount);
@@ -137,6 +145,29 @@ class _DisciplinasContentSectionState extends State<DisciplinasContentSection> {
 
   @override
   Widget build(BuildContext context) {
+    final isMobile =
+        MediaQuery.sizeOf(context).width <= AppHeader.mobileBreakpoint;
+
+    if (isMobile) {
+      return ColoredBox(
+        color: DisciplinasMobileLayout.pageBackground,
+        child: SizedBox(
+          width: double.infinity,
+          child: DisciplinasMobileContentSection(
+            searchController: _searchController,
+            onSearchChanged: (_) => setState(() {}),
+            areas: _visibleAreas,
+            disciplinas: _visibleDisciplinas,
+            selectedArea: _selectedArea,
+            onAreaSelected: _handleAreaSelected,
+            onClearArea: () => _handleAreaSelected(null),
+            loading: _loading,
+            error: _error,
+          ),
+        ),
+      );
+    }
+
     return ColoredBox(
       color: const Color(0xFFF9FAFB),
       child: SizedBox(

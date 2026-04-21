@@ -2,7 +2,9 @@ import 'package:aula_extra/core/data/faq/dtos/faq_category_dto.dart';
 import 'package:aula_extra/core/data/faq/dtos/faq_item_dto.dart';
 import 'package:aula_extra/core/data/faq/faq_api.dart';
 import 'package:aula_extra/core/data/faq/faq_service.dart';
+import 'package:aula_extra/core/components/header/app_header.dart';
 import 'package:aula_extra/features/faq/constants/faq_copy.dart';
+import 'package:aula_extra/features/faq/sections/faq_mobile_content_section.dart';
 import 'package:aula_extra/features/faq/utils/faq_visuals.dart';
 import 'package:aula_extra/features/faq/widgets/faq_hero_block.dart';
 import 'package:aula_extra/features/faq/widgets/faq_main_block.dart';
@@ -52,10 +54,8 @@ class _FaqContentSectionState extends State<FaqContentSection> {
 
       final categories = (results[0] as List<FaqCategoryDto>).toList()
         ..sort(
-          (left, right) => FaqVisuals.compareCategories(
-            left.category,
-            right.category,
-          ),
+          (left, right) =>
+              FaqVisuals.compareCategories(left.category, right.category),
         );
 
       if (!mounted) return;
@@ -68,7 +68,9 @@ class _FaqContentSectionState extends State<FaqContentSection> {
       if (!mounted) return;
       setState(() {
         _isLoading = false;
-        _errorMessage = error is FaqException ? error.message : 'Ocorreu um erro ao carregar as FAQs.';
+        _errorMessage = error is FaqException
+            ? error.message
+            : 'Ocorreu um erro ao carregar as FAQs.';
       });
     }
   }
@@ -94,7 +96,9 @@ class _FaqContentSectionState extends State<FaqContentSection> {
       if (!mounted) return;
       setState(() {
         _isLoading = false;
-        _errorMessage = error is FaqException ? error.message : 'Ocorreu um erro ao carregar as FAQs.';
+        _errorMessage = error is FaqException
+            ? error.message
+            : 'Ocorreu um erro ao carregar as FAQs.';
       });
     }
   }
@@ -136,28 +140,47 @@ class _FaqContentSectionState extends State<FaqContentSection> {
     final categories = grouped.keys.toList()
       ..sort(FaqVisuals.compareCategories);
 
-    return categories.map((category) {
-      final questions = grouped[category] ?? const <FaqItemDto>[];
-      final count = questions.length;
-      return FaqGroupData(
-        accentColor: FaqVisuals.accentColorForCategory(category),
-        title: category,
-        questionCountText: '$count ${count == 1 ? 'pergunta' : 'perguntas'}',
-        questions: questions
-            .map(
-              (faq) => FaqQuestionData(
-                question: faq.question,
-                answer: faq.description,
-              ),
-            )
-            .toList(growable: false),
-        initiallyExpanded: categories.first == category,
-      );
-    }).toList(growable: false);
+    return categories
+        .map((category) {
+          final questions = grouped[category] ?? const <FaqItemDto>[];
+          final count = questions.length;
+          return FaqGroupData(
+            accentColor: FaqVisuals.accentColorForCategory(category),
+            title: category,
+            questionCountText:
+                '$count ${count == 1 ? 'pergunta' : 'perguntas'}',
+            questions: questions
+                .map(
+                  (faq) => FaqQuestionData(
+                    question: faq.question,
+                    answer: faq.description,
+                  ),
+                )
+                .toList(growable: false),
+            initiallyExpanded: categories.first == category,
+          );
+        })
+        .toList(growable: false);
   }
 
   @override
   Widget build(BuildContext context) {
+    final isMobile =
+        MediaQuery.sizeOf(context).width <= AppHeader.mobileBreakpoint;
+
+    if (isMobile) {
+      return FaqMobileContentSection(
+        searchController: _searchController,
+        onSearchPressed: _loadFaqs,
+        categories: _categoryData,
+        groups: _groupData,
+        onCategoryTap: _handleCategoryTap,
+        isLoading: _isLoading,
+        errorMessage: _errorMessage,
+        onRetry: _loadInitialData,
+      );
+    }
+
     return Column(
       children: [
         FaqHeroBlock(

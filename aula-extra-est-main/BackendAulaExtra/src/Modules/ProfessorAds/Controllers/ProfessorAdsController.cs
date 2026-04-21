@@ -101,6 +101,31 @@ namespace ConfidantPostgreSQL.Modules.ProfessorAds.Controllers
             });
         }
 
+        [HttpGet("professor/{idProfessor:guid}")]
+        public async Task<IActionResult> GetProfessorAds(Guid idProfessor)
+        {
+            RequestContext.ApplyCultureFromHeader(Request);
+            if (!TryGetAuthenticatedUserId(out _)) return Unauthorized();
+
+            var professor = await _professorsService.GetProfessorByIdAsync(idProfessor);
+            if (professor == null)
+            {
+                return NotFound(new { message = "Professor profile not found" });
+            }
+
+            var ads = (await _adsService.GetProfessorAdsByProfessorIdAsync(idProfessor))
+                .Where(item =>
+                {
+                    var status = item.Status?.Trim().ToLowerInvariant();
+                    return string.IsNullOrWhiteSpace(status) || status == "published" || status == "active";
+                })
+                .OrderBy(item => item.DisciplinaNome)
+                .ThenBy(item => item.TutoringTypeName)
+                .ToArray();
+
+            return Ok(ads);
+        }
+
         [HttpPost("me")]
         public async Task<IActionResult> UpsertMyAd([FromBody] UpsertProfessorAdRequest request)
         {

@@ -15,12 +15,27 @@ import 'package:aula_extra/features/tutor_profile_view/models/tutor_profile_args
 import 'package:aula_extra/routes/routes.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'dart:math' as math;
 
 class HomeMobilePage extends StatelessWidget {
   const HomeMobilePage({super.key});
 
+  Widget _constrainedChild(double maxWidth, Widget child) {
+    return Center(
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxWidth: maxWidth),
+        child: child,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final contentMaxWidth = screenWidth <= kHomeMobileContentMaxWidth + 32
+        ? kHomeMobileContentMaxWidth
+        : math.min(screenWidth - 48, kHomeTabletMobileContentMaxWidth);
+
     return SafeArea(
       bottom: false,
       child: Column(
@@ -31,38 +46,44 @@ class HomeMobilePage extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Center(
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(
-                        maxWidth: kHomeMobileContentMaxWidth,
+                  _constrainedChild(
+                    contentMaxWidth,
+                    const _MobileHeroSection(),
+                  ),
+                  ColoredBox(
+                    color: const Color(0xFFF9F9F9),
+                    child: _constrainedChild(
+                      contentMaxWidth,
+                      const _MobileAreasSection(),
+                    ),
+                  ),
+                  DecoratedBox(
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [Color(0xFFF15C64), Color(0xFFFABD2D)],
                       ),
-                      child: const Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          _MobileHeroSection(),
-                          ColoredBox(
-                            color: Color(0xFFF9F9F9),
-                            child: _MobileAreasSection(),
-                          ),
-                          DecoratedBox(
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: [Color(0xFFF15C64), Color(0xFFFABD2D)],
-                              ),
-                            ),
-                            child: _MobileRatingsSection(),
-                          ),
-                          _MobileHowItWorksSection(),
-                          ColoredBox(
-                            color: Color(0xFFF9F9F9),
-                            child: _MobileTutorsSection(),
-                          ),
-                          ColoredBox(
-                            color: Color(0xFFF9F9F9),
-                            child: _MobileCtaSection(),
-                          ),
-                        ],
-                      ),
+                    ),
+                    child: _constrainedChild(
+                      contentMaxWidth,
+                      const _MobileRatingsSection(),
+                    ),
+                  ),
+                  _constrainedChild(
+                    contentMaxWidth,
+                    const _MobileHowItWorksSection(),
+                  ),
+                  ColoredBox(
+                    color: const Color(0xFFF9F9F9),
+                    child: _constrainedChild(
+                      contentMaxWidth,
+                      const _MobileTutorsSection(),
+                    ),
+                  ),
+                  ColoredBox(
+                    color: const Color(0xFFF9F9F9),
+                    child: _constrainedChild(
+                      contentMaxWidth,
+                      const _MobileCtaSection(),
                     ),
                   ),
                   ColoredBox(color: Color(0xFFF9F9F9), child: FooterSection()),

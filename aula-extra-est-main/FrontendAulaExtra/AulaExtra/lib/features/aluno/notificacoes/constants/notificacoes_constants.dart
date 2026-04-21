@@ -8,6 +8,45 @@ import 'package:flutter/material.dart';
 class NotificacoesConstants {
   const NotificacoesConstants._();
 
+  static const mobileHorizontalPadding = 20.0;
+
+  static const mobileVerticalPadding = 20.0;
+
+  static const mobileSectionSpacing = 18.0;
+
+  static const mobileCardSpacing = 14.0;
+
+  static const mobileSummaryIconSize = 24.0;
+
+  static const mobileSummaryBadgeSize = 48.0;
+
+  static const mobileCardRadius = 20.0;
+
+  static const mobileFilterHeight = 42.0;
+
+  static const mobileFilterFontSize = 14.0;
+
+  static const mobileTitleStyle = TextStyle(
+    fontSize: 28,
+    fontWeight: FontWeight.w600,
+    color: Color(0xFF101828),
+    height: 1.2,
+  );
+
+  static const mobileSubtitleStyle = TextStyle(
+    fontSize: 14,
+    fontWeight: FontWeight.w400,
+    color: Color(0xFF4A5565),
+    height: 1.45,
+  );
+
+  static const mobileActionLinkStyle = TextStyle(
+    fontSize: 13,
+    fontWeight: FontWeight.w600,
+    color: Color(0xFFFF6B00),
+    height: 1.35,
+  );
+
   /// Padding horizontal geral.
   static const horizontalPadding = 40.85;
 
@@ -63,14 +102,30 @@ class NotificacoesConstants {
 
   /// Sombra de pills (chips/resumos).
   static const pillShadow = [
-    BoxShadow(color: Color(0x1A000000), blurRadius: 8.432, offset: Offset(0, 5.622)),
-    BoxShadow(color: Color(0x1A000000), blurRadius: 5.622, offset: Offset(0, 2.811)),
+    BoxShadow(
+      color: Color(0x1A000000),
+      blurRadius: 8.432,
+      offset: Offset(0, 5.622),
+    ),
+    BoxShadow(
+      color: Color(0x1A000000),
+      blurRadius: 5.622,
+      offset: Offset(0, 2.811),
+    ),
   ];
 
   /// Sombra dos cards de notificação.
   static const cardShadow = [
-    BoxShadow(color: Color(0x1A000000), blurRadius: 4.216, offset: Offset(0, 1.405)),
-    BoxShadow(color: Color(0x1A000000), blurRadius: 2.811, offset: Offset(0, 1.405)),
+    BoxShadow(
+      color: Color(0x1A000000),
+      blurRadius: 4.216,
+      offset: Offset(0, 1.405),
+    ),
+    BoxShadow(
+      color: Color(0x1A000000),
+      blurRadius: 2.811,
+      offset: Offset(0, 1.405),
+    ),
   ];
 
   /// Raio dos cards.

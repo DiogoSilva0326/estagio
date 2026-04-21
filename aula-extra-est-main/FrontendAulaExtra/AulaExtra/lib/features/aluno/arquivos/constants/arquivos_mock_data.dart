@@ -23,8 +23,43 @@ class ArquivoRecenteRowData {
   final IconData icon;
 }
 
+class ArquivoFolderMockData {
+  const ArquivoFolderMockData({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.color,
+  });
+
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final Color color;
+}
+
 class ArquivosMockData {
   const ArquivosMockData._();
+
+  static const folders = <ArquivoFolderMockData>[
+    ArquivoFolderMockData(
+      title: 'Matemática - João Silva',
+      subtitle: '12 arquivos',
+      icon: Icons.functions_rounded,
+      color: Color(0xFF2B7FFF),
+    ),
+    ArquivoFolderMockData(
+      title: 'Física - Maria Santos',
+      subtitle: '8 arquivos',
+      icon: Icons.science_rounded,
+      color: Color(0xFF00C950),
+    ),
+    ArquivoFolderMockData(
+      title: 'Inglês - Pedro Costa',
+      subtitle: '15 arquivos',
+      icon: Icons.language_rounded,
+      color: Color(0xFFFF6900),
+    ),
+  ];
 
   /// Lista fake de ficheiros recentes para preencher a UI (protótipo/dev).
   static const recentFiles = <ArquivoRecenteRowData>[

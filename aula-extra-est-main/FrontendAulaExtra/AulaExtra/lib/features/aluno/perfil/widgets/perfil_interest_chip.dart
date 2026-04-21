@@ -7,18 +7,27 @@ class PerfilInterestChip extends StatelessWidget {
     required this.label,
     this.onRemove,
     this.width,
+    this.isMobile = false,
   });
 
   final String label;
   final VoidCallback? onRemove;
   final double? width;
+  final bool isMobile;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: PerfilConstants.interestChipHeight,
+      height: isMobile
+          ? PerfilConstants.mobileInterestChipHeight
+          : PerfilConstants.interestChipHeight,
       width: width,
-      padding: const EdgeInsets.only(left: 22.247, right: 14, top: 0, bottom: 0),
+      padding: EdgeInsets.only(
+        left: isMobile ? 14 : 22.247,
+        right: isMobile ? 10 : 14,
+        top: 0,
+        bottom: 0,
+      ),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(9999),
         gradient: PerfilConstants.gradientOrange,
@@ -28,23 +37,27 @@ class PerfilInterestChip extends StatelessWidget {
         children: [
           Text(
             label,
-            style: const TextStyle(
-              fontSize: 19.466,
-              fontWeight: FontWeight.w400,
+            style: TextStyle(
+              fontSize: isMobile ? 13 : 19.466,
+              fontWeight: isMobile ? FontWeight.w500 : FontWeight.w400,
               color: Colors.white,
-              height: 27.809 / 19.466,
+              height: isMobile ? 18 / 13 : 27.809 / 19.466,
             ),
           ),
-          const SizedBox(width: 12),
+          SizedBox(width: isMobile ? 8 : 12),
           if (onRemove != null)
             InkWell(
               onTap: onRemove,
               borderRadius: BorderRadius.circular(9999),
-              child: const SizedBox(
-                width: 22.247,
-                height: 22.247,
+              child: SizedBox(
+                width: isMobile ? 18 : 22.247,
+                height: isMobile ? 18 : 22.247,
                 child: Center(
-                  child: Icon(Icons.close, size: 16.685, color: Colors.white),
+                  child: Icon(
+                    Icons.close,
+                    size: isMobile ? 14 : 16.685,
+                    color: Colors.white,
+                  ),
                 ),
               ),
             ),

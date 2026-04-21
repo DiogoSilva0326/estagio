@@ -147,7 +147,11 @@ class _FileRow extends StatelessWidget {
                       borderRadius: BorderRadius.circular(13.932),
                     ),
                     child: Center(
-                      child: Icon(_fileIconFor(data.contentType), size: 27.865, color: const Color(0xFF101828)),
+                      child: Icon(
+                        _fileIconFor(data.contentType),
+                        size: 27.865,
+                        color: const Color(0xFF101828),
+                      ),
                     ),
                   ),
                   const SizedBox(width: 16.719),
@@ -188,7 +192,11 @@ class _FileRow extends StatelessWidget {
           ),
           _BodyCell(width: 127.221, text: data.uploadedByDisplayName),
           _BodyCell(width: 111.699, text: _formatDate(data.createdAt)),
-          _BodyCell(width: 154.465, text: _formatFileSize(data.fileSizeBytes), alignCenterVertically: true),
+          _BodyCell(
+            width: 154.465,
+            text: _formatFileSize(data.fileSizeBytes),
+            alignCenterVertically: true,
+          ),
           SizedBox(
             width: 199.299,
             child: Padding(
@@ -215,10 +223,13 @@ IconData _fileIconFor(String contentType) {
   final normalized = contentType.toLowerCase();
   if (normalized.contains('pdf')) return Icons.picture_as_pdf_rounded;
   if (normalized.contains('image')) return Icons.image_rounded;
-  if (normalized.contains('presentation') || normalized.contains('powerpoint')) {
+  if (normalized.contains('presentation') ||
+      normalized.contains('powerpoint')) {
     return Icons.slideshow_rounded;
   }
-  if (normalized.contains('sheet') || normalized.contains('excel') || normalized.contains('csv')) {
+  if (normalized.contains('sheet') ||
+      normalized.contains('excel') ||
+      normalized.contains('csv')) {
     return Icons.table_chart_rounded;
   }
   if (normalized.contains('audio')) return Icons.audio_file_rounded;
@@ -228,13 +239,32 @@ IconData _fileIconFor(String contentType) {
 
 String _fileTypeLabel(String contentType) {
   final normalized = contentType.toLowerCase();
-  if (normalized.contains('pdf')) return 'PDF';
-  if (normalized.contains('image')) return 'Imagem';
-  if (normalized.contains('presentation') || normalized.contains('powerpoint')) return 'Apresentação';
-  if (normalized.contains('sheet') || normalized.contains('excel') || normalized.contains('csv')) return 'Folha de cálculo';
-  if (normalized.contains('audio')) return 'Áudio';
-  if (normalized.contains('video')) return 'Vídeo';
-  if (normalized.contains('word') || normalized.contains('document') || normalized.contains('text')) return 'Documento';
+  if (normalized.contains('pdf')) {
+    return 'PDF';
+  }
+  if (normalized.contains('image')) {
+    return 'Imagem';
+  }
+  if (normalized.contains('presentation') ||
+      normalized.contains('powerpoint')) {
+    return 'Apresentação';
+  }
+  if (normalized.contains('sheet') ||
+      normalized.contains('excel') ||
+      normalized.contains('csv')) {
+    return 'Folha de cálculo';
+  }
+  if (normalized.contains('audio')) {
+    return 'Áudio';
+  }
+  if (normalized.contains('video')) {
+    return 'Vídeo';
+  }
+  if (normalized.contains('word') ||
+      normalized.contains('document') ||
+      normalized.contains('text')) {
+    return 'Documento';
+  }
   return 'Ficheiro';
 }
 
@@ -279,7 +309,9 @@ class _BodyCell extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.only(left: 33.44),
         child: Align(
-          alignment: alignCenterVertically ? Alignment.centerLeft : Alignment.topLeft,
+          alignment: alignCenterVertically
+              ? Alignment.centerLeft
+              : Alignment.topLeft,
           child: Padding(
             padding: EdgeInsets.only(top: alignCenterVertically ? 0 : 36.22),
             child: Text(
@@ -317,7 +349,11 @@ class _DownloadButton extends StatelessWidget {
             padding: const EdgeInsets.only(left: 22.292),
             child: Row(
               children: const [
-                Icon(Icons.download_rounded, size: 22.292, color: Color(0xFF364153)),
+                Icon(
+                  Icons.download_rounded,
+                  size: 22.292,
+                  color: Color(0xFF364153),
+                ),
                 SizedBox(width: 16.719),
                 Text(
                   'Baixar',
@@ -353,7 +389,11 @@ class _DeleteButton extends StatelessWidget {
           borderRadius: BorderRadius.circular(13.932),
           onTap: onTap,
           child: const Center(
-            child: Icon(Icons.delete_outline_rounded, size: 22.292, color: Color(0xFFB42318)),
+            child: Icon(
+              Icons.delete_outline_rounded,
+              size: 22.292,
+              color: Color(0xFFB42318),
+            ),
           ),
         ),
       ),

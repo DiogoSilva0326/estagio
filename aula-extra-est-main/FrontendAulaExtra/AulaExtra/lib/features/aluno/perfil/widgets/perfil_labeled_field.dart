@@ -10,6 +10,7 @@ class PerfilLabeledField extends StatelessWidget {
     this.maxLines = 1,
     this.hintText,
     this.readOnly = false,
+    this.isMobile = false,
   });
 
   final String label;
@@ -18,20 +19,42 @@ class PerfilLabeledField extends StatelessWidget {
   final int maxLines;
   final String? hintText;
   final bool readOnly;
+  final bool isMobile;
 
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: PerfilConstants.labelStyle),
-        const SizedBox(height: PerfilConstants.smallGap),
+        Text(
+          label,
+          style: isMobile
+              ? PerfilConstants.mobileLabelStyle
+              : PerfilConstants.labelStyle,
+        ),
+        SizedBox(
+          height: isMobile
+              ? PerfilConstants.mobileSmallGap
+              : PerfilConstants.smallGap,
+        ),
         Container(
           width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 22.247, vertical: 16.685),
+          padding: EdgeInsets.symmetric(
+            horizontal: isMobile ? 14 : 22.247,
+            vertical: isMobile ? 12 : 16.685,
+          ),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(PerfilConstants.fieldRadius),
-            border: Border.all(color: PerfilConstants.fieldBorderColor, width: 1.39),
+            borderRadius: BorderRadius.circular(
+              isMobile
+                  ? PerfilConstants.mobileFieldRadius
+                  : PerfilConstants.fieldRadius,
+            ),
+            border: Border.all(
+              color: isMobile
+                  ? PerfilConstants.mobileBorderColor
+                  : PerfilConstants.fieldBorderColor,
+              width: 1.39,
+            ),
             color: Colors.white,
           ),
           child: TextField(
@@ -43,10 +66,14 @@ class PerfilLabeledField extends StatelessWidget {
               isDense: true,
               border: InputBorder.none,
               hintText: hintText,
-              hintStyle: PerfilConstants.mutedHintStyle,
+              hintStyle: isMobile
+                  ? PerfilConstants.mobileHintStyle
+                  : PerfilConstants.mutedHintStyle,
               contentPadding: EdgeInsets.zero,
             ),
-            style: PerfilConstants.fieldTextStyle,
+            style: isMobile
+                ? PerfilConstants.mobileFieldTextStyle
+                : PerfilConstants.fieldTextStyle,
           ),
         ),
       ],

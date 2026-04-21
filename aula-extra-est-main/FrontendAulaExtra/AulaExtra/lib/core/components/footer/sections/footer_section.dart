@@ -109,6 +109,14 @@ class FooterSection extends StatelessWidget {
             ? constraints.maxWidth
             : MediaQuery.sizeOf(context).width;
 
+        if (width > FooterLayout.tabletDesktopFooterBreakpoint &&
+            width <= FooterLayout.mobileBreakpoint) {
+          return FooterDesktopSection(
+            quickLinkItems: quickLinkItems,
+            onTapByItem: onTapByItem,
+          );
+        }
+
         if (width <= FooterLayout.mobileBreakpoint) {
           return FooterMobileSection(
             quickLinkItems: quickLinkItems,

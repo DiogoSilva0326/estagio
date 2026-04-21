@@ -6,10 +6,15 @@ class MinhasDisciplinasProfessorColors {
   static const Color background = Color(0xFFF9F9F9);
   static const Color title = Color(0xFF101828);
   static const Color subtitle = Color(0xFF4A5565);
+  static const Color mobileMutedText = Color(0xFF667085);
   static const Color cardBorder = Color(0xFFE5E7EB);
   static const Color cardShadow = Color(0x1A000000);
+  static const Color mobileSurface = Colors.white;
+  static const Color mobileSoftSurface = Color(0xFFFFF7ED);
+  static const Color mobileSoftBorder = Color(0xFFFFD7BA);
   static const Color buttonGradientTop = Color(0xFFF15C64);
   static const Color buttonGradientBottom = Color(0xFFFC9039);
+  static const Color success = Color(0xFF00A63E);
   static const Color dangerBorder = Color(0xFFFFA2A2);
   static const Color dangerIcon = Color(0xFFFB2C36);
   static const Color dialogTitle = Color(0xFF111827);
@@ -26,6 +31,14 @@ class MinhasDisciplinasProfessorColors {
   static const Color deleteDangerText = Color(0xFFFF0000);
   static const Color deleteConfirmButton = Color(0xFFFF0000);
   static const Color deleteCloseIcon = Color(0xFF6B7280);
+
+  static const List<BoxShadow> mobileShadow = [
+    BoxShadow(
+      color: Color.fromRGBO(16, 24, 40, 0.08),
+      offset: Offset(0, 8),
+      blurRadius: 24,
+    ),
+  ];
 
   static const List<Color> dialogGradient = <Color>[
     Color(0xFFF15C64),

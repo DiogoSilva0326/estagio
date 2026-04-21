@@ -17,8 +17,20 @@ class PagamentosProfessorColors {
   /// Cor do texto normal.
   static const Color text = Color(0xFF0A0A0A);
 
+  /// Cor de texto secundário em mobile.
+  static const Color muted = Color(0xFF667085);
+
+  /// Superfície base para cartões mobile.
+  static const Color mobileSurface = Colors.white;
+
   /// Borda base de cartões e tabela.
   static const Color cardBorder = Color(0xFFE5E7EB);
+
+  /// Fundo do CTA de reclamação.
+  static const Color disputeBackground = Color(0xFFFFEEF0);
+
+  /// Cor de destaque do CTA de reclamação.
+  static const Color disputeAccent = Color(0xFFF15C64);
 
   /// Fundo do cabeçalho da tabela.
   static const Color tableHeaderBackground = Color(0xFFF9FAFB);

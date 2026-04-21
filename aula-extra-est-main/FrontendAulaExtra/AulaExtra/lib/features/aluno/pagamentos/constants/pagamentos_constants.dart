@@ -8,6 +8,85 @@ import 'package:flutter/material.dart';
 class PagamentosConstants {
   const PagamentosConstants._();
 
+  static const backgroundColor = Color(0xFFF9F9F9);
+  static const mobileHorizontalPadding = 16.0;
+  static const mobileVerticalPadding = 16.0;
+  static const mobileSectionSpacing = 16.0;
+  static const mobileCardRadius = 20.0;
+  static const mobileBorderColor = Color(0xFFE9EAEB);
+  static const mobileSurfaceColor = Colors.white;
+  static const mobileMutedColor = Color(0xFF667085);
+  static const mobileTextColor = Color(0xFF101828);
+  static const mobileAvatarFallbackColor = Color(0xFFE5E7EB);
+  static const mobileShadow = [
+    BoxShadow(
+      color: Color.fromRGBO(16, 24, 40, 0.08),
+      offset: Offset(0, 8),
+      blurRadius: 24,
+    ),
+  ];
+
+  static const mobileTitleStyle = TextStyle(
+    fontSize: 30,
+    fontWeight: FontWeight.w600,
+    color: mobileTextColor,
+    height: 36 / 30,
+  );
+
+  static const mobileSubtitleStyle = TextStyle(
+    fontSize: 14,
+    fontWeight: FontWeight.w400,
+    color: mobileMutedColor,
+    height: 20 / 14,
+  );
+
+  static const mobileSectionTitleStyle = TextStyle(
+    fontSize: 20,
+    fontWeight: FontWeight.w600,
+    color: mobileTextColor,
+    height: 28 / 20,
+  );
+
+  static const mobileCardTitleStyle = TextStyle(
+    fontSize: 16,
+    fontWeight: FontWeight.w700,
+    color: mobileTextColor,
+    height: 24 / 16,
+  );
+
+  static const mobileBodyStyle = TextStyle(
+    fontSize: 14,
+    fontWeight: FontWeight.w400,
+    color: mobileMutedColor,
+    height: 20 / 14,
+  );
+
+  static const mobileMetaLabelStyle = TextStyle(
+    fontSize: 13,
+    fontWeight: FontWeight.w500,
+    color: mobileMutedColor,
+    height: 18 / 13,
+  );
+
+  static const mobileMetaValueStyle = TextStyle(
+    fontSize: 14,
+    fontWeight: FontWeight.w600,
+    color: mobileTextColor,
+    height: 20 / 14,
+  );
+
+  static const mobileStatusStyle = TextStyle(
+    fontSize: 12,
+    fontWeight: FontWeight.w600,
+    height: 18 / 12,
+  );
+
+  static const orangeGradient = LinearGradient(
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+    colors: [Color(0xFFFF6B00), Color(0xFFFF9966)],
+  );
+
   /// Padding horizontal geral.
   static const horizontalPadding = 40.85;
 

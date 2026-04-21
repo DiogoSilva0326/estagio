@@ -20,6 +20,24 @@ class DisponibilidadeProfessorColors {
   /// Cor de texto secundário/descritivo.
   static const Color muted = Color(0xFF6A7282);
 
+  /// Superfície branca principal para cartões mobile.
+  static const Color mobileSurface = Colors.white;
+
+  /// Fundo suave para o cabeçalho do card do dia.
+  static const Color mobileDayHeaderBackground = Color(0xFFF8FAFC);
+
+  /// Fundo do estado selecionado no mobile.
+  static const Color mobileAvailableFill = Color(0xFFFFF1E8);
+
+  /// Fundo do estado não selecionado no mobile.
+  static const Color mobileUnavailableFill = Color(0xFFF9FAFB);
+
+  /// Cor do mini botão de limpar.
+  static const Color clearDayAccent = Color(0xFFF97316);
+
+  /// Fundo do mini botão de limpar.
+  static const Color clearDayBackground = Color(0xFFFFF7ED);
+
   /// Borda base dos cartões/containers.
   static const Color cardBorder = Color(0xFFE5E7EB);
 

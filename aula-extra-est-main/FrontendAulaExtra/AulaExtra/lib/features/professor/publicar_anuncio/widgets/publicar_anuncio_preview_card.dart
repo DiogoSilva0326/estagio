@@ -14,6 +14,7 @@ class PublicarAnuncioPreviewCard extends StatelessWidget {
     required this.description,
     required this.formattedPrice,
     required this.photoUrl,
+    required this.isMobile,
     required this.onViewProfile,
     super.key,
   });
@@ -25,29 +26,34 @@ class PublicarAnuncioPreviewCard extends StatelessWidget {
   final String description;
   final String formattedPrice;
   final String? photoUrl;
+  final bool isMobile;
   final VoidCallback onViewProfile;
 
   @override
   Widget build(BuildContext context) {
     return PublicarAnuncioSurfaceCard(
+      padding: EdgeInsets.all(
+        isMobile ? PublicarAnuncioProfessorLayout.mobileCardPadding : 28,
+      ),
+      radius: isMobile ? PublicarAnuncioProfessorLayout.mobileCardRadius : 28,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Pré-visualização',
             style: TextStyle(
-              fontSize: 26,
+              fontSize: isMobile ? 22 : 26,
               fontWeight: FontWeight.w700,
               color: PublicarAnuncioProfessorColors.title,
             ),
           ),
-          const SizedBox(height: 22),
+          SizedBox(height: isMobile ? 18 : 22),
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.all(24),
+            padding: EdgeInsets.all(isMobile ? 16 : 24),
             decoration: BoxDecoration(
               color: PublicarAnuncioProfessorColors.surface,
-              borderRadius: BorderRadius.circular(24),
+              borderRadius: BorderRadius.circular(isMobile ? 20 : 24),
               border: Border.all(
                 color: PublicarAnuncioProfessorColors.surfaceBorder,
               ),
@@ -65,16 +71,19 @@ class PublicarAnuncioPreviewCard extends StatelessWidget {
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    PublicarAnuncioProfileAvatar(photoUrl: photoUrl, size: 84),
-                    const SizedBox(width: 18),
+                    PublicarAnuncioProfileAvatar(
+                      photoUrl: photoUrl,
+                      size: isMobile ? 72 : 84,
+                    ),
+                    SizedBox(width: isMobile ? 14 : 18),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
                             displayName,
-                            style: const TextStyle(
-                              fontSize: 24,
+                            style: TextStyle(
+                              fontSize: isMobile ? 20 : 24,
                               fontWeight: FontWeight.w700,
                               color: PublicarAnuncioProfessorColors.title,
                               height: 1.15,
@@ -146,14 +155,14 @@ class PublicarAnuncioPreviewCard extends StatelessWidget {
                   height: 1,
                   color: PublicarAnuncioProfessorColors.surfaceBorder,
                 ),
-                const SizedBox(height: 18),
+                SizedBox(height: isMobile ? 16 : 18),
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Text(
                       formattedPrice,
-                      style: const TextStyle(
-                        fontSize: 34,
+                      style: TextStyle(
+                        fontSize: isMobile ? 30 : 34,
                         fontWeight: FontWeight.w800,
                         color: PublicarAnuncioProfessorColors.title,
                         height: 1,
@@ -180,7 +189,7 @@ class PublicarAnuncioPreviewCard extends StatelessWidget {
                       child: OutlinedButton(
                         onPressed: onViewProfile,
                         style: OutlinedButton.styleFrom(
-                          minimumSize: const Size.fromHeight(48),
+                          minimumSize: Size.fromHeight(isMobile ? 46 : 48),
                           side: const BorderSide(
                             color: PublicarAnuncioProfessorColors.surfaceBorder,
                           ),
@@ -193,7 +202,7 @@ class PublicarAnuncioPreviewCard extends StatelessWidget {
                       child: FilledButton(
                         onPressed: null,
                         style: FilledButton.styleFrom(
-                          minimumSize: const Size.fromHeight(48),
+                          minimumSize: Size.fromHeight(isMobile ? 46 : 48),
                           backgroundColor:
                               PublicarAnuncioProfessorColors.accent,
                           disabledBackgroundColor:

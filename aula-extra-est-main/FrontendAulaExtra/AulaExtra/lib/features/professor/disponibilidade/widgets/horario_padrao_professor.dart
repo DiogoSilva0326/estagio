@@ -4,11 +4,14 @@ import 'package:aula_extra/core/data/http/api_config.dart';
 import 'package:aula_extra/core/data/session/token_storage.dart';
 import 'package:aula_extra/features/professor/disponibilidade/constants/disponibilidade_professor_colors.dart';
 import 'package:aula_extra/features/professor/disponibilidade/constants/disponibilidade_professor_layout.dart';
+import 'package:aula_extra/features/professor/disponibilidade/widgets/disponibilidade_professor_mobile_day_card.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
 class HorarioPadraoProfessor extends StatefulWidget {
-  const HorarioPadraoProfessor({super.key});
+  const HorarioPadraoProfessor({super.key, this.isMobile = false});
+
+  final bool isMobile;
 
   @override
   State<HorarioPadraoProfessor> createState() => _HorarioPadraoProfessorState();
@@ -39,6 +42,11 @@ class _HorarioPadraoProfessorState extends State<HorarioPadraoProfessor> {
     final hour = (index ~/ 2).toString().padLeft(2, '0');
     final minute = index.isEven ? '00' : '30';
     return '$hour:$minute';
+  }, growable: false);
+
+  List<String> get _hourSlots => List<String>.generate(24, (index) {
+    final hour = index.toString().padLeft(2, '0');
+    return '$hour:00';
   }, growable: false);
 
   Object? _readJsonValue(
@@ -340,15 +348,44 @@ class _HorarioPadraoProfessorState extends State<HorarioPadraoProfessor> {
     });
   }
 
-  @override
-  Widget build(BuildContext context) {
-    if (_isLoading) {
-      return const SizedBox(
-        height: 300,
-        child: Center(child: CircularProgressIndicator()),
-      );
-    }
+  bool _isHourSelected(int dayIdx, int hourIndex) {
+    final hour = hourIndex.toString().padLeft(2, '0');
+    final primaryKey = _buildSlotKey(dayIdx, '$hour:00');
+    final secondaryKey = _buildSlotKey(dayIdx, '$hour:30');
+    return _templateDisponibilidade.contains(primaryKey) ||
+        _templateDisponibilidade.contains(secondaryKey);
+  }
 
+  void _toggleHourSlot(int dayIdx, int hourIndex) {
+    final hour = hourIndex.toString().padLeft(2, '0');
+    final primaryKey = _buildSlotKey(dayIdx, '$hour:00');
+    final secondaryKey = _buildSlotKey(dayIdx, '$hour:30');
+    final isSelected =
+        _templateDisponibilidade.contains(primaryKey) ||
+        _templateDisponibilidade.contains(secondaryKey);
+
+    setState(() {
+      if (isSelected) {
+        _templateDisponibilidade.remove(primaryKey);
+        _templateDisponibilidade.remove(secondaryKey);
+      } else {
+        _templateDisponibilidade.add(primaryKey);
+        _templateDisponibilidade.add(secondaryKey);
+      }
+    });
+  }
+
+  void _clearDay(int dayIdx) {
+    setState(() {
+      for (var hourIndex = 0; hourIndex < 24; hourIndex++) {
+        final hour = hourIndex.toString().padLeft(2, '0');
+        _templateDisponibilidade.remove(_buildSlotKey(dayIdx, '$hour:00'));
+        _templateDisponibilidade.remove(_buildSlotKey(dayIdx, '$hour:30'));
+      }
+    });
+  }
+
+  Widget _buildDesktopContent() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -450,6 +487,120 @@ class _HorarioPadraoProfessorState extends State<HorarioPadraoProfessor> {
     );
   }
 
+  Widget _buildMobileTopBar() {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Expanded(
+          child: Text(
+            'Disponibilidade',
+            style: TextStyle(
+              color: DisponibilidadeProfessorColors.title,
+              fontSize: 30,
+              fontWeight: FontWeight.w700,
+              height: 36 / 30,
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        _buildSaveButton(isMobile: true),
+      ],
+    );
+  }
+
+  Widget _buildLegendItem({required Color color, required String label}) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: DisponibilidadeProfessorLayout.mobileLegendDotSize,
+          height: DisponibilidadeProfessorLayout.mobileLegendDotSize,
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(999),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Text(
+          label,
+          style: const TextStyle(
+            color: DisponibilidadeProfessorColors.muted,
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
+            height: 18 / 13,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMobileContent() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildMobileTopBar(),
+        const SizedBox(height: 16),
+        const Text(
+          'Marque os seus horários disponíveis. Cada bloco representa uma hora e pode limpar rapidamente um dia inteiro.',
+          style: TextStyle(
+            color: DisponibilidadeProfessorColors.muted,
+            fontSize: 14,
+            fontWeight: FontWeight.w400,
+            height: 20 / 14,
+          ),
+        ),
+        const SizedBox(height: DisponibilidadeProfessorLayout.mobileSectionGap),
+        Column(
+          children: List.generate(_diasSemanaLabels.length, (dayIdx) {
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: dayIdx == _diasSemanaLabels.length - 1 ? 0 : 14,
+              ),
+              child: DisponibilidadeProfessorMobileDayCard(
+                dayLabel: _diasSemanaLabels[dayIdx],
+                slots: _hourSlots,
+                isSelected: (hourIndex) => _isHourSelected(dayIdx, hourIndex),
+                onToggleSlot: (hourIndex) => _toggleHourSlot(dayIdx, hourIndex),
+                onClearDay: () => _clearDay(dayIdx),
+              ),
+            );
+          }),
+        ),
+        const SizedBox(height: 16),
+        Wrap(
+          spacing: 20,
+          runSpacing: 8,
+          children: [
+            _buildLegendItem(
+              color: DisponibilidadeProfessorColors.availableBorder,
+              label: 'Disponível',
+            ),
+            _buildLegendItem(
+              color: const Color(0xFFD5D7DA),
+              label: 'Indisponível',
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const SizedBox(
+        height: 300,
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (widget.isMobile) {
+      return _buildMobileContent();
+    }
+
+    return _buildDesktopContent();
+  }
+
   Widget _buildGridBlock(int dayIdx, String time) {
     final key = _buildSlotKey(dayIdx, time);
     final isSelected = _templateDisponibilidade.contains(key);
@@ -482,41 +633,53 @@ class _HorarioPadraoProfessorState extends State<HorarioPadraoProfessor> {
     );
   }
 
-  Widget _buildSaveButton() {
-    return Align(
-      alignment: Alignment.centerRight,
-      child: SizedBox(
-        height: DisponibilidadeProfessorLayout.saveButtonHeight,
-        child: ElevatedButton(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: DisponibilidadeProfessorColors.availableBorder,
-            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(
-                DisponibilidadeProfessorLayout.saveButtonRadius,
-              ),
+  Widget _buildSaveButton({bool isMobile = false}) {
+    final button = SizedBox(
+      height: isMobile
+          ? DisponibilidadeProfessorLayout.mobileSaveButtonHeight
+          : DisponibilidadeProfessorLayout.saveButtonHeight,
+      child: ElevatedButton(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: DisponibilidadeProfessorColors.availableBorder,
+          padding: EdgeInsets.symmetric(
+            horizontal: isMobile ? 16 : 32,
+            vertical: isMobile ? 10 : 16,
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(
+              isMobile
+                  ? DisponibilidadeProfessorLayout.mobileActionRadius
+                  : DisponibilidadeProfessorLayout.saveButtonRadius,
             ),
           ),
-          onPressed: _isSaving ? null : _guardarHorarioFixo,
-          child: _isSaving
-              ? const SizedBox(
-                  height: 20,
-                  width: 20,
-                  child: CircularProgressIndicator(
-                    color: Colors.white,
-                    strokeWidth: 2,
-                  ),
-                )
-              : const Text(
-                  'Guardar Horário Fixo',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
         ),
+        onPressed: _isSaving ? null : _guardarHorarioFixo,
+        child: _isSaving
+            ? const SizedBox(
+                height: 20,
+                width: 20,
+                child: CircularProgressIndicator(
+                  color: Colors.white,
+                  strokeWidth: 2,
+                ),
+              )
+            : Text(
+                isMobile ? 'Salvar' : 'Guardar Horário Fixo',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: isMobile ? 13 : 16,
+                  height: isMobile ? 18 / 13 : null,
+                ),
+              ),
       ),
     );
+
+    if (isMobile) {
+      return button;
+    }
+
+    return Align(alignment: Alignment.centerRight, child: button);
   }
 }
 

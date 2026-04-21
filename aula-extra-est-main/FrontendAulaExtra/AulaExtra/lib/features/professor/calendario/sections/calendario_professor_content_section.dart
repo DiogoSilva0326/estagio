@@ -1,10 +1,18 @@
 import 'dart:math' as math;
 
+import 'package:aula_extra/core/components/header/app_header.dart';
 import 'package:aula_extra/core/data/lesson_classroom/lesson_classroom_service.dart';
 import 'package:aula_extra/core/data/reservations_calendar/calendar_status.dart';
 import 'package:aula_extra/core/data/reservations_calendar/dtos/professor_calendar_item_dto.dart';
 import 'package:aula_extra/core/data/reservations_calendar/reservations_calendar_service.dart';
 import 'package:aula_extra/features/aluno/calendario/constants/calendario_constants.dart';
+import 'package:aula_extra/features/aluno/calendario/widgets/calendario_mobile_cta_button.dart';
+import 'package:aula_extra/features/aluno/calendario/widgets/calendario_mobile_intro.dart';
+import 'package:aula_extra/features/aluno/calendario/widgets/calendario_mode_tabs.dart';
+import 'package:aula_extra/features/aluno/calendario/widgets/mobile_upcoming_lesson_card.dart';
+import 'package:aula_extra/features/aluno/calendario/widgets/mobile_week_day_card.dart';
+import 'package:aula_extra/features/aluno/calendario/widgets/mobile_week_header.dart';
+import 'package:aula_extra/features/aluno/calendario/widgets/mobile_week_stats_card.dart';
 import 'package:aula_extra/features/classroom/pages/live_classroom_page.dart';
 import 'package:aula_extra/features/professor/calendario/constants/calendario_professor_colors.dart';
 import 'package:aula_extra/features/professor/calendario/constants/calendario_professor_layout.dart';
@@ -17,7 +25,9 @@ import 'package:aula_extra/features/professor/core/widgets/professor_menu_nav.da
 import 'package:flutter/material.dart';
 
 class CalendarioProfessorContentSection extends StatefulWidget {
-  const CalendarioProfessorContentSection({super.key});
+  const CalendarioProfessorContentSection({super.key, this.isMobile = false});
+
+  final bool isMobile;
 
   @override
   State<CalendarioProfessorContentSection> createState() =>
@@ -46,6 +56,10 @@ class _CalendarioProfessorContentSectionState
 
   @override
   Widget build(BuildContext context) {
+    final isMobile =
+        widget.isMobile ||
+        MediaQuery.sizeOf(context).width <= AppHeader.mobileBreakpoint;
+
     final titleStyle = TextStyle(
       color: CalendarioProfessorColors.title,
       fontWeight: FontWeight.w700,
@@ -54,6 +68,10 @@ class _CalendarioProfessorContentSectionState
           CalendarioProfessorLayout.titleLineHeight /
           CalendarioProfessorLayout.titleFontSize,
     );
+
+    if (isMobile) {
+      return _buildMobileContent();
+    }
 
     return Container(
       color: CalendarioProfessorColors.background,
@@ -102,7 +120,10 @@ class _CalendarioProfessorContentSectionState
                       ),
                       const SizedBox(height: 37.813),
                       if (_selectedTab == 0)
-                        _ProfessorUpcomingLessonsList(key: _upcomingListKey)
+                        _ProfessorUpcomingLessonsList(
+                          key: _upcomingListKey,
+                          isMobile: false,
+                        )
                       else
                         _ProfessorWeeklyCalendarCard(key: _weeklyCardKey),
                     ],
@@ -115,10 +136,61 @@ class _CalendarioProfessorContentSectionState
       ),
     );
   }
+
+  Widget _buildMobileContent() {
+    return Container(
+      width: double.infinity,
+      color: CalendarioConstants.backgroundColor,
+      padding: const EdgeInsets.fromLTRB(
+        CalendarioConstants.mobileHorizontalPadding,
+        CalendarioConstants.mobileVerticalPadding,
+        CalendarioConstants.mobileHorizontalPadding,
+        28,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const CalendarioMobileIntro(
+            title: 'Calendário',
+            subtitle:
+                'Acompanhe as próximas aulas e a sua agenda semanal num único lugar.',
+          ),
+          const SizedBox(height: CalendarioConstants.mobileSectionSpacing),
+          CalendarioMobileCtaButton(
+            label: 'Adicionar Horário',
+            icon: Icons.add_circle_outline_rounded,
+            onTap: _handleAddLesson,
+          ),
+          const SizedBox(height: CalendarioConstants.mobileSectionSpacing),
+          CalendarioModeTabs(
+            activeMode: _selectedTab == 0
+                ? CalendarioMode.upcoming
+                : CalendarioMode.weekly,
+            onUpcomingTap: () {
+              if (_selectedTab == 0) return;
+              setState(() => _selectedTab = 0);
+            },
+            onWeeklyTap: () {
+              if (_selectedTab == 1) return;
+              setState(() => _selectedTab = 1);
+            },
+            isMobile: true,
+          ),
+          const SizedBox(height: CalendarioConstants.mobileSectionSpacing),
+          if (_selectedTab == 0)
+            _ProfessorUpcomingLessonsList(key: _upcomingListKey, isMobile: true)
+          else
+            _ProfessorMobileWeeklyAgenda(key: _weeklyCardKey),
+        ],
+      ),
+    );
+  }
 }
 
 class _ProfessorUpcomingLessonsList extends StatefulWidget {
-  const _ProfessorUpcomingLessonsList({super.key});
+  const _ProfessorUpcomingLessonsList({super.key, required this.isMobile});
+
+  final bool isMobile;
 
   @override
   State<_ProfessorUpcomingLessonsList> createState() =>
@@ -296,6 +368,105 @@ class _ProfessorUpcomingLessonsListState
     }
   }
 
+  void _showEnterLessonInfo() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          'Podes entrar na aula 10 minutos antes do início e até 15 minutos após o fim.',
+        ),
+      ),
+    );
+  }
+
+  void _showPendingInfo() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Esta aula ainda está a aguardar confirmação do aluno.'),
+      ),
+    );
+  }
+
+  String _mobileStatusLabel(ProfessorCalendarItemDto item) {
+    if (isPendingCalendarStatus(item.status)) return 'Pendente';
+    if (normalizeCalendarStatus(item.status) == 'cancelled') return 'Cancelada';
+    return 'Confirmada';
+  }
+
+  Color _mobileStatusBackground(ProfessorCalendarItemDto item) {
+    if (isPendingCalendarStatus(item.status)) return const Color(0xFFFFF7E8);
+    if (normalizeCalendarStatus(item.status) == 'cancelled') {
+      return const Color(0xFFF2F4F7);
+    }
+    return const Color(0xFFECFDF3);
+  }
+
+  Color _mobileStatusTextColor(ProfessorCalendarItemDto item) {
+    if (isPendingCalendarStatus(item.status)) return const Color(0xFFB54708);
+    if (normalizeCalendarStatus(item.status) == 'cancelled') {
+      return const Color(0xFF667085);
+    }
+    return const Color(0xFF027A48);
+  }
+
+  String _mobilePrimaryLabel(ProfessorCalendarItemDto item, bool canEnter) {
+    if (isPendingCalendarStatus(item.status)) return 'A aguardar aluno';
+    if (canEnter) return 'Entrar na Aula';
+    return 'Ver horário';
+  }
+
+  VoidCallback _mobilePrimaryAction(
+    ProfessorCalendarItemDto item,
+    bool canEnter,
+  ) {
+    if (isPendingCalendarStatus(item.status)) {
+      return _showPendingInfo;
+    }
+    if (canEnter) {
+      return () => _handleEnterLesson(item);
+    }
+    return _showEnterLessonInfo;
+  }
+
+  Widget _buildMobileEmptyState() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: CalendarioConstants.mobileSurfaceColor,
+        borderRadius: BorderRadius.circular(
+          CalendarioConstants.mobileCardRadius,
+        ),
+        border: Border.all(color: CalendarioConstants.mobileBorderColor),
+        boxShadow: CalendarioConstants.mobileShadow,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: const [
+          Icon(
+            Icons.calendar_month_rounded,
+            size: 28,
+            color: CalendarioConstants.activeTabColor,
+          ),
+          SizedBox(height: 12),
+          Text(
+            'Ainda não tem aulas marcadas',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
+              color: CalendarioConstants.mobileTextColor,
+              height: 28 / 20,
+            ),
+          ),
+          SizedBox(height: 8),
+          Text(
+            'Quando existirem novas reservas, elas aparecem aqui para poder acompanhar rapidamente.',
+            style: CalendarioConstants.mobileCardSubtitleStyle,
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<List<ProfessorCalendarItemDto>>(
@@ -320,6 +491,10 @@ class _ProfessorUpcomingLessonsListState
 
         final items = snapshot.data ?? const <ProfessorCalendarItemDto>[];
         if (items.isEmpty) {
+          if (widget.isMobile) {
+            return _buildMobileEmptyState();
+          }
+
           return const Padding(
             padding: EdgeInsets.symmetric(vertical: 24),
             child: Text(
@@ -330,6 +505,75 @@ class _ProfessorUpcomingLessonsListState
         }
 
         final canLoadMore = items.length >= _limit;
+
+        if (widget.isMobile) {
+          return Column(
+            children: [
+              for (var index = 0; index < items.length; index++) ...[
+                Builder(
+                  builder: (context) {
+                    final item = items[index];
+                    final canEnter = _canEnterLesson(item);
+                    final studentName = item.studentName.trim().isEmpty
+                        ? 'Aluno'
+                        : item.studentName.trim();
+
+                    return MobileUpcomingLessonCard(
+                      accentColor: _accentColor(item.disciplinaName),
+                      subject: item.disciplinaName,
+                      teacherName: studentName,
+                      dateLabel: _formatWeekdayAndDate(
+                        item.startTime.toLocal(),
+                      ),
+                      timeLabel: _formatTimeRange(
+                        item.startTime.toLocal(),
+                        item.endTime.toLocal(),
+                      ),
+                      primaryLabel: _mobilePrimaryLabel(item, canEnter),
+                      onPrimaryTap: _mobilePrimaryAction(item, canEnter),
+                      onSecondaryTap:
+                          normalizeCalendarStatus(item.status) == 'cancelled' ||
+                              _cancellingReservationId == item.idReservation
+                          ? null
+                          : () => _cancelLesson(item),
+                      primaryBackgroundColor:
+                          isPendingCalendarStatus(item.status)
+                          ? CalendarioConstants.mobilePendingColor
+                          : (canEnter
+                                ? CalendarioConstants.mobileSuccessColor
+                                : null),
+                      primaryGradient:
+                          isPendingCalendarStatus(item.status) || canEnter
+                          ? null
+                          : CalendarioConstants.orangeGradient,
+                      statusLabel: _mobileStatusLabel(item),
+                      statusBackgroundColor: _mobileStatusBackground(item),
+                      statusTextColor: _mobileStatusTextColor(item),
+                      secondaryIsLoading:
+                          _cancellingReservationId == item.idReservation,
+                      showPlayIcon:
+                          canEnter && !isPendingCalendarStatus(item.status),
+                    );
+                  },
+                ),
+                if (index != items.length - 1)
+                  const SizedBox(
+                    height: CalendarioConstants.mobileSectionSpacing,
+                  ),
+              ],
+              if (canLoadMore) ...[
+                const SizedBox(
+                  height: CalendarioConstants.mobileSectionSpacing,
+                ),
+                CalendarioMobileCtaButton(
+                  label: 'Ver mais aulas',
+                  icon: Icons.expand_more_rounded,
+                  onTap: _loadMore,
+                ),
+              ],
+            ],
+          );
+        }
 
         return Column(
           children: [
@@ -392,6 +636,308 @@ class _ProfessorUpcomingLessonsListState
                 ),
               ),
             ],
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _ProfessorMobileWeeklyAgenda extends StatefulWidget {
+  const _ProfessorMobileWeeklyAgenda({super.key});
+
+  @override
+  State<_ProfessorMobileWeeklyAgenda> createState() =>
+      _ProfessorMobileWeeklyAgendaState();
+}
+
+class _ProfessorMobileWeeklyAgendaState
+    extends State<_ProfessorMobileWeeklyAgenda> {
+  final ReservationsCalendarService _calendarService =
+      ReservationsCalendarService();
+  final LessonClassroomService _lessonClassroomService =
+      LessonClassroomService();
+
+  late Future<List<ProfessorCalendarItemDto>> _future;
+  int _weekOffset = 0;
+  String? _enteringReservationId;
+
+  static const _days = [
+    'Segunda',
+    'Terça',
+    'Quarta',
+    'Quinta',
+    'Sexta',
+    'Sábado',
+    'Domingo',
+  ];
+
+  static const _months = [
+    'Jan',
+    'Fev',
+    'Mar',
+    'Abr',
+    'Mai',
+    'Jun',
+    'Jul',
+    'Ago',
+    'Set',
+    'Out',
+    'Nov',
+    'Dez',
+  ];
+
+  static DateTime _startOfWeek(DateTime now) {
+    final today = DateTime(now.year, now.month, now.day);
+    return today.subtract(Duration(days: today.weekday - 1));
+  }
+
+  static String _toIsoDate(DateTime d) {
+    final yyyy = d.year.toString().padLeft(4, '0');
+    final mm = d.month.toString().padLeft(2, '0');
+    final dd = d.day.toString().padLeft(2, '0');
+    return '$yyyy-$mm-$dd';
+  }
+
+  static bool _isSameDate(DateTime a, DateTime b) {
+    return a.year == b.year && a.month == b.month && a.day == b.day;
+  }
+
+  static String _formatClock(DateTime value) {
+    final hh = value.hour.toString().padLeft(2, '0');
+    final mm = value.minute.toString().padLeft(2, '0');
+    return '$hh:$mm';
+  }
+
+  static String _formatDuration(ProfessorCalendarItemDto item) {
+    final minutes = item.endTime.difference(item.startTime).inMinutes;
+    final hours = minutes ~/ 60;
+    final remainingMinutes = minutes % 60;
+    if (hours > 0 && remainingMinutes > 0) {
+      return '${hours}h ${remainingMinutes}m';
+    }
+    if (hours > 0) return '${hours}h';
+    return '${remainingMinutes}m';
+  }
+
+  static String _nextLessonLabel(List<ProfessorCalendarItemDto> items) {
+    if (items.isEmpty) return 'Sem aulas';
+    final now = DateTime.now();
+    final futureItems =
+        items.where((item) => item.startTime.isAfter(now)).toList()..sort(
+          (first, second) => first.startTime.compareTo(second.startTime),
+        );
+
+    if (futureItems.isEmpty) return 'Esta semana';
+
+    final next = futureItems.first.startTime.toLocal();
+    return '${next.day.toString().padLeft(2, '0')} ${_months[next.month - 1]} · ${_formatClock(next)}';
+  }
+
+  void _loadWeek() {
+    final base = _startOfWeek(DateTime.now());
+    final weekStart = base.add(Duration(days: 7 * _weekOffset));
+    _future = _calendarService.getProfessorWeek(
+      weekStart: _toIsoDate(weekStart),
+    );
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _loadWeek();
+  }
+
+  bool _canEnterLesson(ProfessorCalendarItemDto item) {
+    if (isPendingCalendarStatus(item.status)) {
+      return false;
+    }
+
+    final now = DateTime.now();
+    final start = item.startTime.toLocal();
+    final end = item.endTime.toLocal();
+    final enterFrom = start.subtract(const Duration(minutes: 10));
+    final enterUntil = end.add(const Duration(minutes: 15));
+
+    return (now.isAfter(enterFrom) || now.isAtSameMomentAs(enterFrom)) &&
+        (now.isBefore(enterUntil) || now.isAtSameMomentAs(enterUntil));
+  }
+
+  Future<void> _handlePrimaryAction(ProfessorCalendarItemDto item) async {
+    if (isPendingCalendarStatus(item.status)) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Esta aula ainda está a aguardar confirmação do aluno.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    if (!_canEnterLesson(item)) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Podes entrar na aula 10 minutos antes do início e até 15 minutos após o fim.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    if (_enteringReservationId == item.idReservation) return;
+    setState(() => _enteringReservationId = item.idReservation);
+
+    try {
+      final entry = await _lessonClassroomService.enterClassroom(
+        reservationId: item.idReservation,
+      );
+
+      if (!mounted) return;
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => LiveClassroomPage(entry: entry),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.toString())));
+    } finally {
+      if (mounted) {
+        setState(() => _enteringReservationId = null);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final base = _startOfWeek(DateTime.now());
+    final weekStart = base.add(Duration(days: 7 * _weekOffset));
+    final weekEnd = weekStart.add(const Duration(days: 6));
+    final label =
+        '${weekStart.day.toString().padLeft(2, '0')} ${_months[weekStart.month - 1]} - ${weekEnd.day.toString().padLeft(2, '0')} ${_months[weekEnd.month - 1]}';
+
+    return FutureBuilder<List<ProfessorCalendarItemDto>>(
+      future: _future,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Padding(
+            padding: EdgeInsets.symmetric(vertical: 48),
+            child: Center(child: CircularProgressIndicator()),
+          );
+        }
+
+        if (snapshot.hasError) {
+          return Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: CalendarioConstants.mobileSurfaceColor,
+              borderRadius: BorderRadius.circular(
+                CalendarioConstants.mobileCardRadius,
+              ),
+              border: Border.all(color: CalendarioConstants.mobileBorderColor),
+            ),
+            child: Text(
+              snapshot.error.toString(),
+              style: const TextStyle(color: Color(0xFF6A7282)),
+            ),
+          );
+        }
+
+        final items =
+            (snapshot.data ?? const <ProfessorCalendarItemDto>[])
+                .where(
+                  (item) => normalizeCalendarStatus(item.status) != 'cancelled',
+                )
+                .toList()
+              ..sort(
+                (first, second) => first.startTime.compareTo(second.startTime),
+              );
+        final pendingCount = items
+            .where((item) => isPendingCalendarStatus(item.status))
+            .length;
+        final today = DateTime.now();
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            MobileWeekHeader(
+              label: label,
+              onPreviousTap: () {
+                setState(() {
+                  _weekOffset -= 1;
+                  _loadWeek();
+                });
+              },
+              onNextTap: () {
+                setState(() {
+                  _weekOffset += 1;
+                  _loadWeek();
+                });
+              },
+            ),
+            const SizedBox(height: CalendarioConstants.mobileSectionSpacing),
+            for (var dayIndex = 0; dayIndex < 7; dayIndex++) ...[
+              Builder(
+                builder: (context) {
+                  final date = weekStart.add(Duration(days: dayIndex));
+                  final dayItems = items.where((item) {
+                    final localStart = item.startTime.toLocal();
+                    return _isSameDate(localStart, date);
+                  }).toList();
+
+                  return MobileWeekDayCard(
+                    title:
+                        '${_days[dayIndex]} · ${date.day.toString().padLeft(2, '0')} ${_months[date.month - 1]}',
+                    isToday: _isSameDate(date, today),
+                    children: dayItems.isEmpty
+                        ? const [
+                            MobileWeekEmptyState(
+                              label: 'Sem aulas agendadas para este dia',
+                            ),
+                          ]
+                        : [
+                            for (final item in dayItems)
+                              MobileWeekLessonTile(
+                                subject: item.disciplinaName,
+                                teacher: item.studentName.trim().isEmpty
+                                    ? 'Aluno'
+                                    : item.studentName.trim(),
+                                timeRange:
+                                    '${_formatClock(item.startTime.toLocal())} - ${_formatClock(item.endTime.toLocal())}',
+                                durationLabel: _formatDuration(item),
+                                actionLabel:
+                                    isPendingCalendarStatus(item.status)
+                                    ? 'A aguardar aluno'
+                                    : (_canEnterLesson(item)
+                                          ? 'Entrar na Aula'
+                                          : 'Ver horário'),
+                                onActionTap: () => _handlePrimaryAction(item),
+                                useSuccessButton:
+                                    _canEnterLesson(item) &&
+                                    !isPendingCalendarStatus(item.status),
+                              ),
+                          ],
+                  );
+                },
+              ),
+              if (dayIndex != 6)
+                const SizedBox(
+                  height: CalendarioConstants.mobileSectionSpacing,
+                ),
+            ],
+            const SizedBox(height: CalendarioConstants.mobileSectionSpacing),
+            MobileWeekStatsCard(
+              weekLessons: items.length,
+              pendingTasks: pendingCount,
+              nextLessonLabel: _nextLessonLabel(items),
+            ),
           ],
         );
       },

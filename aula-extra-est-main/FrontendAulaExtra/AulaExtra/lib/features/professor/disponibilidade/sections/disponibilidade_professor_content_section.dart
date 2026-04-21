@@ -6,7 +6,12 @@ import 'package:aula_extra/features/professor/disponibilidade/widgets/horario_pa
 import 'package:flutter/material.dart';
 
 class DisponibilidadeProfessorContentSection extends StatefulWidget {
-  const DisponibilidadeProfessorContentSection({super.key});
+  const DisponibilidadeProfessorContentSection({
+    super.key,
+    this.isMobile = false,
+  });
+
+  final bool isMobile;
 
   @override
   State<DisponibilidadeProfessorContentSection> createState() =>
@@ -25,6 +30,20 @@ class _DisponibilidadeProfessorContentSectionState
           DisponibilidadeProfessorLayout.titleLineHeight /
           DisponibilidadeProfessorLayout.titleFontSize,
     );
+
+    if (widget.isMobile) {
+      return Container(
+        width: double.infinity,
+        color: DisponibilidadeProfessorColors.background,
+        padding: const EdgeInsets.fromLTRB(
+          DisponibilidadeProfessorLayout.mobileHorizontalPadding,
+          DisponibilidadeProfessorLayout.mobileTopPadding,
+          DisponibilidadeProfessorLayout.mobileHorizontalPadding,
+          DisponibilidadeProfessorLayout.mobileBottomPadding,
+        ),
+        child: const HorarioPadraoProfessor(isMobile: true),
+      );
+    }
 
     return Container(
       color: DisponibilidadeProfessorColors.background,

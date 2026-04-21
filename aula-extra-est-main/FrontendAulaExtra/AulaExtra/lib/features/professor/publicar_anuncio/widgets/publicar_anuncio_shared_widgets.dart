@@ -2,17 +2,24 @@ import 'package:aula_extra/features/professor/publicar_anuncio/constants/publica
 import 'package:flutter/material.dart';
 
 class PublicarAnuncioSurfaceCard extends StatelessWidget {
-  const PublicarAnuncioSurfaceCard({required this.child, super.key});
+  const PublicarAnuncioSurfaceCard({
+    required this.child,
+    super.key,
+    this.padding = const EdgeInsets.all(28),
+    this.radius = 28,
+  });
 
   final Widget child;
+  final EdgeInsetsGeometry padding;
+  final double radius;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(28),
+      padding: padding,
       decoration: BoxDecoration(
         color: PublicarAnuncioProfessorColors.surface,
-        borderRadius: BorderRadius.circular(28),
+        borderRadius: BorderRadius.circular(radius),
         border: Border.all(color: PublicarAnuncioProfessorColors.surfaceBorder),
       ),
       child: child,
@@ -21,13 +28,24 @@ class PublicarAnuncioSurfaceCard extends StatelessWidget {
 }
 
 class PublicarAnuncioStateCard extends StatelessWidget {
-  const PublicarAnuncioStateCard({required this.child, super.key});
+  const PublicarAnuncioStateCard({
+    required this.child,
+    super.key,
+    this.padding = const EdgeInsets.all(28),
+    this.radius = 28,
+  });
 
   final Widget child;
+  final EdgeInsetsGeometry padding;
+  final double radius;
 
   @override
   Widget build(BuildContext context) {
-    return PublicarAnuncioSurfaceCard(child: child);
+    return PublicarAnuncioSurfaceCard(
+      padding: padding,
+      radius: radius,
+      child: child,
+    );
   }
 }
 

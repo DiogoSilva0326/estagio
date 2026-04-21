@@ -62,10 +62,7 @@ class MainContentHeaderSection extends StatelessWidget {
 }
 
 class _SearchInput extends StatelessWidget {
-  const _SearchInput({
-    required this.controller,
-    required this.onSubmitted,
-  });
+  const _SearchInput({required this.controller, required this.onSubmitted});
 
   final TextEditingController controller;
   final ValueChanged<String> onSubmitted;
@@ -96,7 +93,7 @@ class _SearchInput extends StatelessWidget {
               decoration: const InputDecoration(
                 isCollapsed: true,
                 border: InputBorder.none,
-                hintText: 'Procura por nome ou especialidade...',
+                hintText: 'Procura por nome ou disciplina...',
                 hintStyle: TextStyle(
                   fontSize: 20.426,
                   color: Color.fromRGBO(10, 10, 10, 0.5),
@@ -144,7 +141,11 @@ class _Dropdown extends StatelessWidget {
               child: DropdownButton<String?>(
                 value: selectedId,
                 isExpanded: true,
-                icon: const Icon(Icons.expand_more, size: 25.532, color: Color(0xFF0A0A0A)),
+                icon: const Icon(
+                  Icons.expand_more,
+                  size: 25.532,
+                  color: Color(0xFF0A0A0A),
+                ),
                 items: options
                     .map(
                       (o) => DropdownMenuItem<String?>(

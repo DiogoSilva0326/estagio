@@ -1,11 +1,20 @@
 import 'dart:math' as math;
 
+import 'package:aula_extra/core/components/header/app_header.dart';
+import 'package:aula_extra/core/data/lesson_classroom/lesson_classroom_service.dart';
 import 'package:aula_extra/core/data/reservations_calendar/calendar_status.dart';
 import 'package:aula_extra/features/aluno/core/widgets/aluno_menu_nav.dart';
 import 'package:aula_extra/features/aluno/calendario/constants/calendario_constants.dart';
 import 'package:aula_extra/core/data/reservations_calendar/dtos/student_calendar_item_dto.dart';
 import 'package:aula_extra/core/data/reservations_calendar/reservations_calendar_service.dart';
 import 'package:aula_extra/features/aluno/calendario/state/student_calendar_refresh_bus.dart';
+import 'package:aula_extra/features/aluno/calendario/widgets/calendario_mobile_intro.dart';
+import 'package:aula_extra/features/aluno/calendario/widgets/calendario_mode_tabs.dart';
+import 'package:aula_extra/features/aluno/calendario/widgets/mobile_week_day_card.dart';
+import 'package:aula_extra/features/aluno/calendario/widgets/mobile_week_header.dart';
+import 'package:aula_extra/features/aluno/calendario/widgets/mobile_week_stats_card.dart';
+import 'package:aula_extra/features/aluno/calendario/widgets/pending_lesson_review_dialog.dart';
+import 'package:aula_extra/features/classroom/pages/live_classroom_page.dart';
 import 'package:aula_extra/routes/routes.dart';
 import 'package:flutter/material.dart';
 
@@ -14,6 +23,40 @@ class CalendarioSemanalContentSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isMobile =
+        MediaQuery.sizeOf(context).width <= AppHeader.mobileBreakpoint;
+
+    void onUpcomingTap() {
+      Navigator.of(context).pushReplacementNamed(Routes.calendario);
+    }
+
+    if (isMobile) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: CalendarioConstants.mobileHorizontalPadding,
+          vertical: CalendarioConstants.mobileVerticalPadding,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const CalendarioMobileIntro(
+              title: 'Calendário',
+              subtitle: 'Organize suas aulas e compromissos da semana.',
+            ),
+            const SizedBox(height: CalendarioConstants.mobileSectionSpacing),
+            CalendarioModeTabs(
+              activeMode: CalendarioMode.weekly,
+              onUpcomingTap: onUpcomingTap,
+              onWeeklyTap: () {},
+              isMobile: true,
+            ),
+            const SizedBox(height: CalendarioConstants.mobileSectionSpacing),
+            const _MobileWeeklyAgenda(),
+          ],
+        ),
+      );
+    }
+
     return Padding(
       padding: const EdgeInsets.symmetric(
         horizontal: CalendarioConstants.horizontalPadding,
@@ -36,10 +79,11 @@ class CalendarioSemanalContentSection extends StatelessWidget {
                   style: CalendarioConstants.subtitleStyle,
                 ),
                 const SizedBox(height: 33.607),
-                _WeeklyTabs(
-                  onUpcomingTap: () => Navigator.of(
-                    context,
-                  ).pushReplacementNamed(Routes.calendario),
+                CalendarioModeTabs(
+                  activeMode: CalendarioMode.weekly,
+                  onUpcomingTap: onUpcomingTap,
+                  onWeeklyTap: () {},
+                  isMobile: false,
                 ),
                 const SizedBox(height: 22.404),
                 const _WeeklyCalendarCard(),
@@ -52,79 +96,312 @@ class CalendarioSemanalContentSection extends StatelessWidget {
   }
 }
 
-class _WeeklyTabs extends StatelessWidget {
-  const _WeeklyTabs({required this.onUpcomingTap});
+class _MobileWeeklyAgenda extends StatefulWidget {
+  const _MobileWeeklyAgenda();
 
-  final VoidCallback onUpcomingTap;
+  @override
+  State<_MobileWeeklyAgenda> createState() => _MobileWeeklyAgendaState();
+}
+
+class _MobileWeeklyAgendaState extends State<_MobileWeeklyAgenda> {
+  final ReservationsCalendarService _calendarService =
+      ReservationsCalendarService();
+  final LessonClassroomService _lessonClassroomService =
+      LessonClassroomService();
+  late Future<List<StudentCalendarItemDto>> _future;
+  int _weekOffset = 0;
+  String? _enteringReservationId;
+
+  static const _days = [
+    'Segunda',
+    'Terça',
+    'Quarta',
+    'Quinta',
+    'Sexta',
+    'Sábado',
+    'Domingo',
+  ];
+
+  static const _months = [
+    'Jan',
+    'Fev',
+    'Mar',
+    'Abr',
+    'Mai',
+    'Jun',
+    'Jul',
+    'Ago',
+    'Set',
+    'Out',
+    'Nov',
+    'Dez',
+  ];
+
+  static DateTime _startOfWeek(DateTime now) {
+    final today = DateTime(now.year, now.month, now.day);
+    return today.subtract(Duration(days: today.weekday - 1));
+  }
+
+  static String _toIsoDate(DateTime d) {
+    final yyyy = d.year.toString().padLeft(4, '0');
+    final mm = d.month.toString().padLeft(2, '0');
+    final dd = d.day.toString().padLeft(2, '0');
+    return '$yyyy-$mm-$dd';
+  }
+
+  static bool _isSameDate(DateTime a, DateTime b) {
+    return a.year == b.year && a.month == b.month && a.day == b.day;
+  }
+
+  void _handleCalendarChanged() {
+    if (!mounted) return;
+    setState(_loadWeek);
+  }
+
+  void _loadWeek() {
+    final base = _startOfWeek(DateTime.now());
+    final weekStart = base.add(Duration(days: 7 * _weekOffset));
+    _future = _calendarService.getMyWeek(weekStart: _toIsoDate(weekStart));
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _loadWeek();
+    StudentCalendarRefreshBus.notifier.addListener(_handleCalendarChanged);
+  }
+
+  @override
+  void dispose() {
+    StudentCalendarRefreshBus.notifier.removeListener(_handleCalendarChanged);
+    super.dispose();
+  }
+
+  bool _canEnterLesson(StudentCalendarItemDto item) {
+    final now = DateTime.now();
+    final start = item.startTime.toLocal();
+    final end = item.endTime.toLocal();
+    final enterFrom = start.subtract(const Duration(minutes: 10));
+    final enterUntil = end.add(const Duration(minutes: 15));
+    return (now.isAfter(enterFrom) || now.isAtSameMomentAs(enterFrom)) &&
+        (now.isBefore(enterUntil) || now.isAtSameMomentAs(enterUntil));
+  }
+
+  Future<void> _openPendingLessonReview(StudentCalendarItemDto item) async {
+    final decision = await showPendingLessonReviewDialog(
+      context,
+      lesson: PendingLessonReviewData(
+        idReservation: item.idReservation,
+        subject: item.disciplinaName,
+        teacherName: item.professorName,
+        startTime: item.startTime,
+        endTime: item.endTime,
+        status: item.status,
+      ),
+      calendarService: _calendarService,
+    );
+
+    if (decision != null && mounted) {
+      setState(_loadWeek);
+    }
+  }
+
+  Future<void> _handlePrimaryAction(StudentCalendarItemDto item) async {
+    if (isPendingCalendarStatus(item.status)) {
+      await _openPendingLessonReview(item);
+      return;
+    }
+
+    if (!_canEnterLesson(item)) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Podes entrar na aula 10 minutos antes do início e até 15 minutos após o fim.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    if (_enteringReservationId == item.idReservation) return;
+    setState(() => _enteringReservationId = item.idReservation);
+
+    try {
+      final entry = await _lessonClassroomService.enterClassroom(
+        reservationId: item.idReservation,
+      );
+
+      if (!mounted) return;
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => LiveClassroomPage(entry: entry),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.toString())));
+    } finally {
+      if (mounted) {
+        setState(() => _enteringReservationId = null);
+      }
+    }
+  }
+
+  static String _formatClock(DateTime value) {
+    final hh = value.hour.toString().padLeft(2, '0');
+    final mm = value.minute.toString().padLeft(2, '0');
+    return '$hh:$mm';
+  }
+
+  static String _formatWeekLabel(DateTime weekStart) {
+    final weekEnd = weekStart.add(const Duration(days: 6));
+    final startMonth = _months[weekStart.month - 1];
+    final endMonth = _months[weekEnd.month - 1];
+    if (weekStart.month == weekEnd.month) {
+      return '${weekStart.day} - ${weekEnd.day} $endMonth ${weekEnd.year}';
+    }
+    return '${weekStart.day} $startMonth - ${weekEnd.day} $endMonth ${weekEnd.year}';
+  }
+
+  static String _formatDayTitle(DateTime date) {
+    return '${_days[date.weekday - 1]}, ${date.day}';
+  }
+
+  static String _formatDuration(StudentCalendarItemDto item) {
+    final minutes = item.endTime.difference(item.startTime).inMinutes;
+    return '${minutes.clamp(0, 999)}min';
+  }
+
+  static String _nextLessonLabel(List<StudentCalendarItemDto> items) {
+    final now = DateTime.now();
+    final upcoming =
+        items
+            .where((item) => item.startTime.isAfter(now))
+            .toList(growable: false)
+          ..sort((a, b) => a.startTime.compareTo(b.startTime));
+
+    if (upcoming.isEmpty) return '—';
+
+    final diff = upcoming.first.startTime.difference(now);
+    if (diff.inMinutes < 60) {
+      return '${diff.inMinutes} min';
+    }
+    if (diff.inHours < 24) {
+      return '${diff.inHours} h';
+    }
+    return '${diff.inDays} dia${diff.inDays == 1 ? '' : 's'}';
+  }
 
   @override
   Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: const BoxDecoration(
-        border: Border(
-          bottom: BorderSide(
-            color: CalendarioConstants.dividerColor,
-            width: 1.4,
-          ),
-        ),
-      ),
-      child: SizedBox(
-        height: 71.414,
-        child: Row(
-          children: [
-            InkWell(
-              onTap: onUpcomingTap,
-              child: SizedBox(
-                width: 223.837,
-                height: 70.014,
-                child: Center(
-                  child: Text(
-                    'Próximas Aulas',
-                    style: const TextStyle(
-                      fontSize: 22.404,
-                      fontWeight: FontWeight.w500,
-                      color: CalendarioConstants.inactiveTabColor,
-                      height: 33.607 / 22.404,
-                    ),
-                  ),
-                ),
-              ),
+    final base = _startOfWeek(DateTime.now());
+    final weekStart = base.add(Duration(days: 7 * _weekOffset));
+    final today = DateTime.now();
+
+    return FutureBuilder<List<StudentCalendarItemDto>>(
+      future: _future,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        if (snapshot.hasError) {
+          return Center(
+            child: Text(
+              snapshot.error.toString(),
+              style: const TextStyle(color: Color(0xFF6A7282)),
             ),
-            const SizedBox(width: 22.404),
-            SizedBox(
-              width: 268.154,
-              height: 70.014,
-              child: Stack(
-                children: [
-                  const Align(
-                    alignment: Alignment.center,
-                    child: Text(
-                      'Calendário Semanal',
-                      style: TextStyle(
-                        fontSize: 22.404,
-                        fontWeight: FontWeight.w500,
-                        color: CalendarioConstants.activeTabColor,
-                        height: 33.607 / 22.404,
-                      ),
-                    ),
-                  ),
-                  const Positioned(
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    child: SizedBox(
-                      height: 2.801,
-                      child: ColoredBox(
-                        color: CalendarioConstants.activeTabColor,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+          );
+        }
+
+        final items =
+            (snapshot.data ?? const <StudentCalendarItemDto>[])
+                .where(
+                  (item) => normalizeCalendarStatus(item.status) != 'cancelled',
+                )
+                .toList(growable: false)
+              ..sort((a, b) => a.startTime.compareTo(b.startTime));
+
+        final pendingTasks = items
+            .where((item) => isPendingCalendarStatus(item.status))
+            .length;
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            MobileWeekHeader(
+              label: _formatWeekLabel(weekStart),
+              onPreviousTap: () {
+                setState(() {
+                  _weekOffset -= 1;
+                  _loadWeek();
+                });
+              },
+              onNextTap: () {
+                setState(() {
+                  _weekOffset += 1;
+                  _loadWeek();
+                });
+              },
+            ),
+            const SizedBox(height: 16),
+            for (var index = 0; index < 7; index++) ...[
+              () {
+                final date = weekStart.add(Duration(days: index));
+                final dayItems = items
+                    .where((item) {
+                      return _isSameDate(item.startTime, date);
+                    })
+                    .toList(growable: false);
+
+                return MobileWeekDayCard(
+                  title: _formatDayTitle(date),
+                  isToday: _isSameDate(date, today),
+                  children: dayItems.isEmpty
+                      ? const [MobileWeekEmptyState()]
+                      : dayItems
+                            .map((item) {
+                              final canEnter = _canEnterLesson(item);
+                              final isPending = isPendingCalendarStatus(
+                                item.status,
+                              );
+                              final actionLabel = isPending
+                                  ? 'Rever pedido'
+                                  : canEnter
+                                  ? 'Entrar na Aula'
+                                  : 'Ver Detalhes';
+
+                              return MobileWeekLessonTile(
+                                subject: item.disciplinaName,
+                                teacher: item.professorName,
+                                timeRange:
+                                    '${_formatClock(item.startTime)} • ${_formatClock(item.endTime)}',
+                                durationLabel:
+                                    _enteringReservationId == item.idReservation
+                                    ? 'A entrar...'
+                                    : _formatDuration(item),
+                                actionLabel: actionLabel,
+                                onActionTap: () => _handlePrimaryAction(item),
+                                useSuccessButton: canEnter,
+                              );
+                            })
+                            .toList(growable: false),
+                );
+              }(),
+              if (index < 6) const SizedBox(height: 12),
+            ],
+            const SizedBox(height: 16),
+            MobileWeekStatsCard(
+              weekLessons: items.length,
+              pendingTasks: pendingTasks,
+              nextLessonLabel: _nextLessonLabel(items),
             ),
           ],
-        ),
-      ),
+        );
+      },
     );
   }
 }

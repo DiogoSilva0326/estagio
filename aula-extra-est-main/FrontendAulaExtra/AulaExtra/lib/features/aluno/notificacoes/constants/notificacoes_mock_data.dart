@@ -5,13 +5,7 @@ import 'package:flutter/material.dart';
 /// Onde é usado:
 /// - Em `lib/features/aluno/notificacoes/` para agrupar/renderizar diferentes
 ///   estilos/ícones conforme o tipo.
-enum NotificacaoTipo {
-  aula,
-  tarefa,
-  mensagem,
-  avaliacao,
-  pagamento,
-}
+enum NotificacaoTipo { aula, tarefa, mensagem, avaliacao, pagamento }
 
 /// Modelo de item de notificação apresentado na lista.
 ///

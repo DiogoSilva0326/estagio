@@ -6,7 +6,9 @@ import 'package:aula_extra/core/data/tutors/dtos/my_tutor_dto.dart';
 import 'package:aula_extra/features/shared/complaints/widgets/related_user_complaint_dialog.dart';
 import 'package:aula_extra/features/aluno/chats/models/chat_bootstrap_args.dart';
 import 'package:aula_extra/features/aluno/marcar_aula_professor/models/marcar_aula_professor_args.dart';
+import 'package:aula_extra/core/components/header/app_header.dart';
 import 'package:aula_extra/features/aluno/meus_explicadores/constants/meus_explicadores_constants.dart';
+import 'package:aula_extra/features/aluno/meus_explicadores/sections/meus_explicadores_mobile_content_section.dart';
 import 'package:aula_extra/features/aluno/meus_explicadores/widgets/tutor_card.dart';
 import 'package:aula_extra/features/tutor_profile_view/models/tutor_profile_args.dart';
 import 'package:aula_extra/routes/routes.dart';
@@ -23,13 +25,30 @@ class MeusExplicadoresContentSection extends StatefulWidget {
 
 class _MeusExplicadoresContentSectionState
     extends State<MeusExplicadoresContentSection> {
-  late final Future<List<MyTutorDto>> _future;
+  late Future<List<MyTutorDto>> _future;
   final ComplaintsService _complaintsService = ComplaintsService();
+  String? _loadError;
 
   @override
   void initState() {
     super.initState();
-    _future = MyTutorsService().getMyTutors();
+    _future = _loadTutors();
+  }
+
+  Future<List<MyTutorDto>> _loadTutors() async {
+    try {
+      _loadError = null;
+      return await MyTutorsService().getMyTutors();
+    } catch (error) {
+      _loadError = error.toString();
+      rethrow;
+    }
+  }
+
+  void _retryLoad() {
+    setState(() {
+      _future = _loadTutors();
+    });
   }
 
   String _formatDate(DateTime? dt) {
@@ -75,9 +94,7 @@ class _MeusExplicadoresContentSectionState
     if (!mounted || submitted != true) return;
 
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Reclamação submetida sobre ${tutor.tutorName}.'),
-      ),
+      SnackBar(content: Text('Reclamação submetida sobre ${tutor.tutorName}.')),
     );
   }
 
@@ -85,8 +102,87 @@ class _MeusExplicadoresContentSectionState
   Widget build(BuildContext context) {
     final role = context.watch<UserProvider>().role;
     final isStudent = role == Role.student;
+    final isMobile =
+        MediaQuery.sizeOf(context).width <= AppHeader.mobileBreakpoint;
 
     if (!isStudent) return const SizedBox.shrink();
+
+    if (isMobile) {
+      return FutureBuilder<List<MyTutorDto>>(
+        future: _future,
+        builder: (context, snapshot) {
+          final items = snapshot.data ?? const <MyTutorDto>[];
+          return MeusExplicadoresMobileContentSection(
+            loading: snapshot.connectionState == ConnectionState.waiting,
+            error: snapshot.hasError
+                ? (_loadError ?? 'Não foi possível carregar os explicadores.')
+                : null,
+            tutors: items,
+            formatDate: _formatDate,
+            onRetry: _retryLoad,
+            onViewProfileTap: (item) {
+              final subjects = item.subjects
+                  .where((value) => value.trim().isNotEmpty)
+                  .map((value) => value.trim())
+                  .toList(growable: false);
+              final subject = subjects.isNotEmpty
+                  ? subjects.first
+                  : ((item.lastLessonSubject == null ||
+                            item.lastLessonSubject!.trim().isEmpty)
+                        ? '—'
+                        : item.lastLessonSubject!.trim());
+
+              Navigator.of(context).pushNamed(
+                Routes.tutorProfile,
+                arguments: TutorProfileArgs(
+                  professorId: item.professorId,
+                  name: item.tutorName,
+                  country: 'Portugal',
+                  rating: item.rating ?? 0,
+                  reviewCount: item.reviewCount,
+                  description:
+                      'Sou ${item.tutorName}, um explicador apaixonado por ensinar e ajudar alunos a alcançarem os seus objetivos.',
+                  lessonsText: '—',
+                  pricePerHour: 25,
+                  tags: subjects.isNotEmpty
+                      ? subjects.take(2).toList(growable: false)
+                      : [subject],
+                ),
+              );
+            },
+            onChatTap: _openTutorChat,
+            onComplaintTap: (item) => _showComplaintDialog(item),
+            onScheduleTap: (item) {
+              final subjects = item.subjects
+                  .where((value) => value.trim().isNotEmpty)
+                  .map((value) => value.trim())
+                  .toList(growable: false);
+              final subject = subjects.isNotEmpty
+                  ? subjects.first
+                  : ((item.lastLessonSubject == null ||
+                            item.lastLessonSubject!.trim().isEmpty)
+                        ? '—'
+                        : item.lastLessonSubject!.trim());
+
+              Navigator.of(context).pushNamed(
+                Routes.marcarAulaProfessor,
+                arguments: MarcarAulaProfessorArgs(
+                  professorId: item.professorId,
+                  tutorName: item.tutorName,
+                  subject: subject,
+                  rating: item.rating ?? 0,
+                  reviewCount: item.reviewCount,
+                  location: 'Lisboa',
+                  pricePerHour: 25,
+                ),
+              );
+            },
+            onFindMoreTap: () =>
+                Navigator.of(context).pushNamed(Routes.explicadores),
+          );
+        },
+      );
+    }
 
     return Padding(
       padding: const EdgeInsets.symmetric(
@@ -181,14 +277,18 @@ class _MeusExplicadoresContentSectionState
                             final subject = subjects.isNotEmpty
                                 ? subjects.first
                                 : ((item.lastLessonSubject == null ||
-                                        item.lastLessonSubject!.trim().isEmpty)
+                                          item.lastLessonSubject!
+                                              .trim()
+                                              .isEmpty)
                                       ? '—'
                                       : item.lastLessonSubject!.trim());
 
                             return TutorCard(
                               name: item.tutorName,
                               subject: subject,
-                              subjects: subjects.isNotEmpty ? subjects : [subject],
+                              subjects: subjects.isNotEmpty
+                                  ? subjects
+                                  : [subject],
                               avatarUrl: item.avatarUrl,
                               lastLessonDateText: _formatDate(
                                 item.lastLessonStart,
@@ -208,7 +308,11 @@ class _MeusExplicadoresContentSectionState
                                         'Sou ${item.tutorName}, um explicador apaixonado por ensinar e ajudar alunos a alcançarem os seus objetivos.',
                                     lessonsText: '—',
                                     pricePerHour: 25,
-                                    tags: subjects.isNotEmpty ? subjects.take(2).toList(growable: false) : [subject],
+                                    tags: subjects.isNotEmpty
+                                        ? subjects
+                                              .take(2)
+                                              .toList(growable: false)
+                                        : [subject],
                                   ),
                                 );
                               },

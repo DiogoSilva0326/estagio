@@ -16,13 +16,28 @@ class PagamentosTableCard extends StatelessWidget {
 
   String _formatDate(DateTime? date) {
     if (date == null) return '—';
-    const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+    const months = [
+      'Jan',
+      'Fev',
+      'Mar',
+      'Abr',
+      'Mai',
+      'Jun',
+      'Jul',
+      'Ago',
+      'Set',
+      'Out',
+      'Nov',
+      'Dez',
+    ];
     return '${date.day.toString().padLeft(2, '0')} ${months[date.month - 1]} ${date.year}';
   }
 
   String _formatAmount(double value) {
     final symbol = currency.toUpperCase() == 'EUR' ? '€' : currency;
-    final fixed = value.toStringAsFixed(value.truncateToDouble() == value ? 0 : 2).replaceAll('.', ',');
+    final fixed = value
+        .toStringAsFixed(value.truncateToDouble() == value ? 0 : 2)
+        .replaceAll('.', ',');
     return symbol == '€' ? '$fixed$symbol' : '$fixed $symbol';
   }
 
@@ -58,29 +73,33 @@ class PagamentosTableCard extends StatelessWidget {
             child: Column(
               children: [
                 const _TableHeaderRow(),
-                  if (rows.isEmpty)
-                    const SizedBox(
-                      height: 120,
-                      child: Center(
-                        child: Text(
-                          'Ainda não existem pagamentos para mostrar.',
-                          style: TextStyle(fontSize: 18, color: Color(0xFF4A5565)),
+                if (rows.isEmpty)
+                  const SizedBox(
+                    height: 120,
+                    child: Center(
+                      child: Text(
+                        'Ainda não existem pagamentos para mostrar.',
+                        style: TextStyle(
+                          fontSize: 18,
+                          color: Color(0xFF4A5565),
                         ),
                       ),
-                    )
-                  else
-                    for (int i = 0; i < rows.length; i++)
-                      _PagamentoRow(
-                        tutor: rows[i].tutorName,
-                        disciplina: rows[i].subject,
-                        data: _formatDate(rows[i].date),
-                        valor: _formatAmount(rows[i].amount),
-                        status: paymentStatusLabel(rows[i].status),
-                        statusKind: normalizePaymentStatus(rows[i].status),
-                        hasReceipt: (rows[i].receiptUrl?.trim().isNotEmpty ?? false),
-                        hasBottomBorder: i != rows.length - 1,
-                        onReceiptTap: () => onReceiptTap(rows[i]),
-                      ),
+                    ),
+                  )
+                else
+                  for (int i = 0; i < rows.length; i++)
+                    _PagamentoRow(
+                      tutor: rows[i].tutorName,
+                      disciplina: rows[i].subject,
+                      data: _formatDate(rows[i].date),
+                      valor: _formatAmount(rows[i].amount),
+                      status: paymentStatusLabel(rows[i].status),
+                      statusKind: normalizePaymentStatus(rows[i].status),
+                      hasReceipt:
+                          (rows[i].receiptUrl?.trim().isNotEmpty ?? false),
+                      hasBottomBorder: i != rows.length - 1,
+                      onReceiptTap: () => onReceiptTap(rows[i]),
+                    ),
               ],
             ),
           ),
@@ -219,7 +238,11 @@ class _TutorCell extends StatelessWidget {
 }
 
 class _BodyCell extends StatelessWidget {
-  const _BodyCell({required this.width, required this.text, required this.topPadding});
+  const _BodyCell({
+    required this.width,
+    required this.text,
+    required this.topPadding,
+  });
 
   final double width;
   final String text;
@@ -284,13 +307,13 @@ class _StatusCell extends StatelessWidget {
     final bg = statusKind == 'refunded'
         ? const Color(0xFFFEE2E2)
         : statusKind == 'paid'
-            ? const Color(0xFFDCFCE7)
-            : const Color(0xFFFFEDD4);
+        ? const Color(0xFFDCFCE7)
+        : const Color(0xFFFFEDD4);
     final fg = statusKind == 'refunded'
         ? const Color(0xFFB42318)
         : statusKind == 'paid'
-            ? const Color(0xFF008236)
-            : const Color(0xFFCA3500);
+        ? const Color(0xFF008236)
+        : const Color(0xFFCA3500);
 
     return SizedBox(
       width: 168.423,
@@ -299,7 +322,10 @@ class _StatusCell extends StatelessWidget {
         child: Align(
           alignment: Alignment.centerLeft,
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16.433, vertical: 5.478),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 16.433,
+              vertical: 5.478,
+            ),
             decoration: BoxDecoration(
               color: bg,
               borderRadius: BorderRadius.circular(9999999),
@@ -346,7 +372,11 @@ class _ActionsCell extends StatelessWidget {
 }
 
 class _ReceiptButton extends StatelessWidget {
-  const _ReceiptButton({required this.icon, required this.onTap, required this.enabled});
+  const _ReceiptButton({
+    required this.icon,
+    required this.onTap,
+    required this.enabled,
+  });
 
   final IconData icon;
   final VoidCallback onTap;
@@ -363,14 +393,22 @@ class _ReceiptButton extends StatelessWidget {
         child: Row(
           children: [
             const SizedBox(width: 16.433),
-            Icon(icon, size: 21.91, color: enabled ? const Color(0xFF364153) : const Color(0xFF9CA3AF)),
+            Icon(
+              icon,
+              size: 21.91,
+              color: enabled
+                  ? const Color(0xFF364153)
+                  : const Color(0xFF9CA3AF),
+            ),
             const SizedBox(width: 10),
             Text(
               'Recibo',
               style: TextStyle(
                 fontSize: 19.171,
                 fontWeight: FontWeight.w400,
-                color: enabled ? const Color(0xFF364153) : const Color(0xFF9CA3AF),
+                color: enabled
+                    ? const Color(0xFF364153)
+                    : const Color(0xFF9CA3AF),
                 height: 27.388 / 19.171,
               ),
             ),

@@ -18,6 +18,7 @@ class PublicarAnuncioFormCard extends StatelessWidget {
     required this.photoUrl,
     required this.saving,
     required this.isEditing,
+    required this.isMobile,
     required this.inputDecoration,
     required this.parsePrice,
     required this.onDisciplinaChanged,
@@ -39,6 +40,7 @@ class PublicarAnuncioFormCard extends StatelessWidget {
   final String? photoUrl;
   final bool saving;
   final bool isEditing;
+  final bool isMobile;
   final InputDecoration Function(String hint) inputDecoration;
   final double? Function(String raw) parsePrice;
   final ValueChanged<String?> onDisciplinaChanged;
@@ -49,20 +51,24 @@ class PublicarAnuncioFormCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return PublicarAnuncioSurfaceCard(
+      padding: EdgeInsets.all(
+        isMobile ? PublicarAnuncioProfessorLayout.mobileCardPadding : 28,
+      ),
+      radius: isMobile ? PublicarAnuncioProfessorLayout.mobileCardRadius : 28,
       child: Form(
         key: formKey,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'Informações do Anúncio',
               style: TextStyle(
-                fontSize: 26,
+                fontSize: isMobile ? 22 : 26,
                 fontWeight: FontWeight.w700,
                 color: PublicarAnuncioProfessorColors.title,
               ),
             ),
-            const SizedBox(height: 22),
+            SizedBox(height: isMobile ? 18 : 22),
             const PublicarAnuncioFieldLabel('Disciplina'),
             const SizedBox(height: 8),
             DropdownButtonFormField<String>(
@@ -205,7 +211,7 @@ class PublicarAnuncioFormCard extends StatelessWidget {
             const SizedBox(height: 24),
             SizedBox(
               width: double.infinity,
-              height: 54,
+              height: isMobile ? 48 : 54,
               child: DecoratedBox(
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(14),
@@ -234,9 +240,9 @@ class PublicarAnuncioFormCard extends StatelessWidget {
                               isEditing
                                   ? 'Guardar Alterações'
                                   : 'Publicar Anúncio',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 color: Colors.white,
-                                fontSize: 16,
+                                fontSize: isMobile ? 15 : 16,
                                 fontWeight: FontWeight.w700,
                               ),
                             ),

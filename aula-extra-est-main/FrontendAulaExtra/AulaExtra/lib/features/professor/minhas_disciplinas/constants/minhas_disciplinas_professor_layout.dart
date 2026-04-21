@@ -1,6 +1,16 @@
 class MinhasDisciplinasProfessorLayout {
   const MinhasDisciplinasProfessorLayout._();
 
+  static const double mobileHorizontalPadding = 16.0;
+  static const double mobileTopPadding = 18.0;
+  static const double mobileBottomPadding = 32.0;
+  static const double mobileSectionGap = 16.0;
+  static const double mobileCardPadding = 16.0;
+  static const double mobileCardRadius = 20.0;
+  static const double mobileStatsGap = 12.0;
+  static const double mobileDisciplinaAvatarSize = 56.0;
+  static const double mobileActionButtonHeight = 40.0;
+
   static const double summaryWidth = 318.0;
   static const double summaryHeight = 123.271;
   static const double cardWidth = 318.0;

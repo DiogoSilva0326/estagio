@@ -46,9 +46,7 @@ class FolderCard extends StatelessWidget {
               color: color,
               borderRadius: BorderRadius.circular(19.505),
             ),
-            child: Center(
-              child: Icon(icon, size: 33.438, color: Colors.white),
-            ),
+            child: Center(child: Icon(icon, size: 33.438, color: Colors.white)),
           ),
           const SizedBox(width: 22.292),
           Expanded(
