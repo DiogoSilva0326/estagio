@@ -8,6 +8,7 @@ class ProfessorCalendarItemDto {
     required this.lessonTitle,
     required this.studentName,
     required this.disciplinaName,
+    this.targetRole,
   });
 
   final String idReservation;
@@ -18,6 +19,7 @@ class ProfessorCalendarItemDto {
   final String lessonTitle;
   final String studentName;
   final String disciplinaName;
+  final String? targetRole;
 
   static String _readString(
     Map<String, dynamic> json,
@@ -29,6 +31,15 @@ class ProfessorCalendarItemDto {
       throw const ProfessorCalendarException('Resposta inválida do servidor');
     }
     return value.toString();
+  }
+
+  static String? _readOptionalString(
+    Map<String, dynamic> json,
+    String pascal,
+    String camel,
+  ) {
+    final value = json[pascal] ?? json[camel];
+    return value?.toString();
   }
 
   static DateTime _readDateTime(
@@ -53,6 +64,7 @@ class ProfessorCalendarItemDto {
       lessonTitle: _readString(json, 'LessonTitle', 'lessonTitle'),
       studentName: _readString(json, 'StudentName', 'studentName'),
       disciplinaName: _readString(json, 'DisciplinaName', 'disciplinaName'),
+      targetRole: _readOptionalString(json, 'TargetRole', 'targetRole'),
     );
   }
 }

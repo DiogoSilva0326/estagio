@@ -21,7 +21,24 @@ class NewsletterCampaignDialogResult {
 }
 
 class NewsletterCampaignDialog extends StatefulWidget {
-  const NewsletterCampaignDialog({super.key});
+  const NewsletterCampaignDialog({
+    super.key,
+    this.initialInternalName,
+    this.initialEmailSubject,
+    this.initialAudience,
+    this.initialEmailBody,
+    this.readOnly = false,
+    this.title = 'Nova Campanha de Newsletter',
+    this.subtitle = 'Crie e configure uma nova newsletter para a sua base.',
+  });
+
+  final String? initialInternalName;
+  final String? initialEmailSubject;
+  final String? initialAudience;
+  final String? initialEmailBody;
+  final bool readOnly;
+  final String title;
+  final String subtitle;
 
   @override
   State<NewsletterCampaignDialog> createState() =>
@@ -30,6 +47,7 @@ class NewsletterCampaignDialog extends StatefulWidget {
 
 class _NewsletterCampaignDialogState extends State<NewsletterCampaignDialog> {
   static const List<String> _audienceOptions = [
+    'Todos os subscritores',
     'Novos registos',
     'Alunos inativos há 30 dias',
     'Explicadores ativos',
@@ -49,9 +67,15 @@ class _NewsletterCampaignDialogState extends State<NewsletterCampaignDialog> {
   @override
   void initState() {
     super.initState();
-    _internalNameController = TextEditingController()..addListener(_onChanged);
-    _subjectController = TextEditingController()..addListener(_onChanged);
-    _bodyController = TextEditingController()..addListener(_onChanged);
+    _internalNameController =
+        TextEditingController(text: widget.initialInternalName ?? '')
+          ..addListener(_onChanged);
+    _subjectController =
+        TextEditingController(text: widget.initialEmailSubject ?? '')
+          ..addListener(_onChanged);
+    _bodyController = TextEditingController(text: widget.initialEmailBody ?? '')
+      ..addListener(_onChanged);
+    _selectedAudience = widget.initialAudience ?? _audienceOptions.first;
   }
 
   @override
@@ -90,13 +114,15 @@ class _NewsletterCampaignDialogState extends State<NewsletterCampaignDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final maxHeight = MediaQuery.of(context).size.height * 0.88;
+
     return Dialog(
       backgroundColor: Colors.transparent,
       elevation: 0,
       insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
       child: Center(
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 700),
+          constraints: BoxConstraints(maxWidth: 700, maxHeight: maxHeight),
           child: Container(
             decoration: BoxDecoration(
               color: Colors.white,
@@ -112,38 +138,52 @@ class _NewsletterCampaignDialogState extends State<NewsletterCampaignDialog> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                _DialogHeader(onClose: _close),
-                Container(
-                  width: double.infinity,
-                  color: const Color(0xFFF8FAFC),
-                  padding: const EdgeInsets.fromLTRB(32, 32, 32, 24),
-                  child: Column(
-                    children: [
-                      _ConfigurationCard(
-                        internalNameController: _internalNameController,
-                        subjectController: _subjectController,
-                        selectedAudience: _selectedAudience,
-                        audienceOptions: _audienceOptions,
-                        onAudienceChanged: (value) {
-                          if (value == null) {
-                            return;
-                          }
+                _DialogHeader(
+                  onClose: _close,
+                  title: widget.title,
+                  subtitle: widget.subtitle,
+                ),
+                Flexible(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(32, 32, 32, 24),
+                    child: Container(
+                      width: double.infinity,
+                      color: const Color(0xFFF8FAFC),
+                      child: Column(
+                        children: [
+                          _ConfigurationCard(
+                            internalNameController: _internalNameController,
+                            subjectController: _subjectController,
+                            selectedAudience: _selectedAudience,
+                            audienceOptions: _audienceOptions,
+                            readOnly: widget.readOnly,
+                            onAudienceChanged: (value) {
+                              if (value == null) {
+                                return;
+                              }
 
-                          setState(() => _selectedAudience = value);
-                        },
+                              setState(() => _selectedAudience = value);
+                            },
+                          ),
+                          const SizedBox(height: 24),
+                          _EmailBodyCard(
+                            bodyController: _bodyController,
+                            readOnly: widget.readOnly,
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 24),
-                      _EmailBodyCard(bodyController: _bodyController),
-                    ],
+                    ),
                   ),
                 ),
-                _DialogFooter(
-                  canSubmit: _canSubmit,
-                  onCancel: _close,
-                  onSaveDraft: () =>
-                      _submit(NewsletterCampaignDialogAction.draft),
-                  onSend: () => _submit(NewsletterCampaignDialogAction.send),
-                ),
+                widget.readOnly
+                    ? _ReadOnlyDialogFooter(onClose: _close)
+                    : _DialogFooter(
+                        canSubmit: _canSubmit,
+                        onCancel: _close,
+                        onSaveDraft: () =>
+                            _submit(NewsletterCampaignDialogAction.draft),
+                        onSend: () => _submit(NewsletterCampaignDialogAction.send),
+                      ),
               ],
             ),
           ),
@@ -154,9 +194,15 @@ class _NewsletterCampaignDialogState extends State<NewsletterCampaignDialog> {
 }
 
 class _DialogHeader extends StatelessWidget {
-  const _DialogHeader({required this.onClose});
+  const _DialogHeader({
+    required this.onClose,
+    required this.title,
+    required this.subtitle,
+  });
 
   final VoidCallback onClose;
+  final String title;
+  final String subtitle;
 
   @override
   Widget build(BuildContext context) {
@@ -185,9 +231,9 @@ class _DialogHeader extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 12),
-                    const Expanded(
+                    Expanded(
                       child: Text(
-                        'Nova Campanha de Newsletter',
+                        title,
                         style: TextStyle(
                           color: AppColors.textPrimary,
                           fontSize: 24,
@@ -199,9 +245,9 @@ class _DialogHeader extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 12),
-                const Text(
-                  'Crie e configure uma nova newsletter para a sua base.',
-                  style: TextStyle(
+                Text(
+                  subtitle,
+                  style: const TextStyle(
                     color: AppColors.textMuted,
                     fontSize: 15,
                     fontWeight: FontWeight.w500,
@@ -238,6 +284,7 @@ class _ConfigurationCard extends StatelessWidget {
     required this.subjectController,
     required this.selectedAudience,
     required this.audienceOptions,
+    required this.readOnly,
     required this.onAudienceChanged,
   });
 
@@ -245,6 +292,7 @@ class _ConfigurationCard extends StatelessWidget {
   final TextEditingController subjectController;
   final String selectedAudience;
   final List<String> audienceOptions;
+  final bool readOnly;
   final ValueChanged<String?> onAudienceChanged;
 
   @override
@@ -258,6 +306,7 @@ class _ConfigurationCard extends StatelessWidget {
             child: _DialogInput(
               controller: internalNameController,
               hintText: 'Ex: Promoção Exames Nacionais 2026',
+              readOnly: readOnly,
             ),
           ),
           const SizedBox(height: 16),
@@ -266,6 +315,7 @@ class _ConfigurationCard extends StatelessWidget {
             child: _DialogInput(
               controller: subjectController,
               hintText: 'Ex: Prepara-te para os exames com 20% de desconto! 🚀',
+              readOnly: readOnly,
             ),
           ),
           const SizedBox(height: 16),
@@ -273,7 +323,7 @@ class _ConfigurationCard extends StatelessWidget {
             label: 'Destinatários',
             child: DropdownButtonFormField<String>(
               initialValue: selectedAudience,
-              onChanged: onAudienceChanged,
+              onChanged: readOnly ? null : onAudienceChanged,
               icon: const Icon(
                 Icons.keyboard_arrow_down_rounded,
                 color: AppColors.textSecondary,
@@ -292,9 +342,10 @@ class _ConfigurationCard extends StatelessWidget {
 }
 
 class _EmailBodyCard extends StatelessWidget {
-  const _EmailBodyCard({required this.bodyController});
+  const _EmailBodyCard({required this.bodyController, required this.readOnly});
 
   final TextEditingController bodyController;
+  final bool readOnly;
 
   @override
   Widget build(BuildContext context) {
@@ -303,13 +354,14 @@ class _EmailBodyCard extends StatelessWidget {
       title: 'Corpo do Email',
       child: Column(
         children: [
-          const _EditorToolbar(),
-          const Divider(height: 1, color: AppColors.border),
+          if (!readOnly) const _EditorToolbar(),
+          if (!readOnly) const Divider(height: 1, color: AppColors.border),
           Padding(
             padding: const EdgeInsets.all(24),
             child: TextField(
               controller: bodyController,
               maxLines: 10,
+              readOnly: readOnly,
               decoration: const InputDecoration(
                 border: InputBorder.none,
                 isCollapsed: true,
@@ -423,20 +475,52 @@ class _DialogField extends StatelessWidget {
 }
 
 class _DialogInput extends StatelessWidget {
-  const _DialogInput({required this.controller, required this.hintText});
+  const _DialogInput({
+    required this.controller,
+    required this.hintText,
+    required this.readOnly,
+  });
 
   final TextEditingController controller;
   final String hintText;
+  final bool readOnly;
 
   @override
   Widget build(BuildContext context) {
     return TextField(
       controller: controller,
+      readOnly: readOnly,
       decoration: _inputDecoration(hintText: hintText),
       style: const TextStyle(
         color: AppColors.textPrimary,
         fontSize: 15,
         fontWeight: FontWeight.w500,
+      ),
+    );
+  }
+}
+
+class _ReadOnlyDialogFooter extends StatelessWidget {
+  const _ReadOnlyDialogFooter({required this.onClose});
+
+  final VoidCallback onClose;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(24),
+      child: Row(
+        children: [
+          const Spacer(),
+          SizedBox(
+            width: 160,
+            child: _PrimaryActionButton(
+              label: 'Fechar',
+              icon: Icons.visibility_outlined,
+              onPressed: onClose,
+            ),
+          ),
+        ],
       ),
     );
   }

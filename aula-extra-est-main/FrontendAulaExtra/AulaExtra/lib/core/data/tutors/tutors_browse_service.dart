@@ -21,6 +21,7 @@ class TutorsBrowseService {
     double? maxPrice,
     double? minRating,
     List<String>? availability,
+    String? roleCategory, 
     int page = 1,
     int pageSize = 4,
   }) async {
@@ -35,6 +36,7 @@ class TutorsBrowseService {
       maxPrice: maxPrice,
       minRating: minRating,
       availability: availability,
+      roleCategory: roleCategory, 
       page: page,
       pageSize: pageSize,
     );

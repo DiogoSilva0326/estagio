@@ -43,16 +43,7 @@ class AppHeader extends StatelessWidget {
       case Routes.calendarioSemanal:
         return HeaderAlunoItem.minhasAulas;
       case Routes.explicadores:
-      case Routes.meusExplicadores:
         return HeaderAlunoItem.maisExplicadores;
-      case Routes.areasAluno:
-      case Routes.arquivos:
-      case Routes.chats:
-      case Routes.pagamentos:
-      case Routes.avaliacoes:
-      case Routes.perfilAluno:
-      case Routes.notificacoes:
-        return HeaderAlunoItem.recursos;
     }
     return null;
   }
@@ -98,40 +89,42 @@ class AppHeader extends StatelessWidget {
               headerAlunoActiveItem)
         : headerAlunoActiveItem;
 
-    final effectiveTeacherItem = userRole == Role.teacher
+    final isTeachingRole = userRole == Role.teacher || 
+                           userRole == Role.tutor || 
+                           userRole == Role.psychologist;
+
+    final effectiveTeacherItem = isTeachingRole
         ? _teacherActiveItemFromRoute(currentRouteName)
         : null;
 
     if (isMobile) {
       return MobileAppHeader(
         role: userRole,
-        onRegisterTap: onRegisterTap,
-        onLoginTap: onLoginTap,
-        onLogoTap: onLogoTap,
-        onProfileTap: onProfileTap,
       );
     }
 
-    return userRole == Role.teacher
-        ? HeaderExplicador(
+    if (isTeachingRole) {
+      return HeaderExplicador(
             activeItem: effectiveTeacherItem,
             displayName: displayName,
             profileImageUrl: profileImageUrl,
             onLogoTap: onLogoTap,
             onProfileTap: onProfileTap,
-            onMeusAlunosTap: () =>
-                Navigator.of(context).pushNamed(Routes.professorMeusAlunos),
-            onRecursosTap: () =>
-                Navigator.of(context).pushNamed(Routes.professorMeusAlunos),
-          )
-        : userRole == Role.student
-        ? _StudentHeaderWithCredits(
+            onMeusAlunosTap: () => Navigator.of(context).pushNamed(Routes.professorMeusAlunos),
+            onRecursosTap: () => Navigator.of(context).pushNamed(Routes.professorMeusAlunos),
+          );
+    }
+
+    if (userRole == Role.student) {
+      return _StudentHeaderWithCredits(
             activeItem: effectiveAlunoItem,
             displayName: displayName,
             onLogoTap: onLogoTap,
             onProfileTap: onProfileTap,
-          )
-        : HeaderSemLogin(
+          );
+    }
+
+    return HeaderSemLogin(
             onRegisterTap: onRegisterTap,
             onLoginTap: onLoginTap,
             onLogoTap: onLogoTap,

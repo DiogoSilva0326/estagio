@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Collections.Generic;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ConfidantPostgreSQL.Auth;
@@ -28,6 +29,23 @@ namespace ConfidantPostgreSQL.Modules.Authentication.Controller
             _users = users;
             _userProfileService = userProfileService;
             _emailService = emailService;
+        }
+
+        private static object BuildAuthResponse(ConfidantPostgreSQL.Modules.Users.DTOs.AuthResult auth, string message)
+        {
+            return new
+            {
+                user = auth.User,
+                token = auth.Token,
+                roles = auth.Roles,
+                message
+            };
+        }
+
+        private static bool HasRole(IEnumerable<string>? roles, string role)
+        {
+            if (roles == null) return false;
+            return roles.Any(item => string.Equals(item?.Trim(), role, StringComparison.OrdinalIgnoreCase));
         }
 
         private bool TryGetAuthenticatedUserId(out Guid userId)
@@ -60,13 +78,29 @@ namespace ConfidantPostgreSQL.Modules.Authentication.Controller
             if (auth == null)
                 return Unauthorized();
 
-            return Ok(new
+            return Ok(BuildAuthResponse(auth, "Login successful."));
+        }
+
+        [AllowAnonymous]
+        [HttpPost("AdminLogin")]
+        public async Task<IActionResult> AdminLogin(
+            [FromBody] AuthenticationLoginRequest request,
+            [FromHeader(Name = "culture")] string? culture = null)
+        {
+            RequestContext.ApplyCulture(culture);
+            if (request == null || string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.Password))
+                return BadRequest("Email and password required");
+
+            var auth = await _users.AuthenticateAsync(request.Email, request.Password);
+            if (auth == null)
+                return Unauthorized();
+
+            if (!HasRole(auth.Roles, "admin"))
             {
-                user = auth.User,
-                token = auth.Token,
-                roles = auth.Roles,
-                message = "Login successful."
-            });
+                return StatusCode(403, new { message = "Admin access required." });
+            }
+
+            return Ok(BuildAuthResponse(auth, "Admin login successful."));
         }
 
         // POST /api/Authentication/Register
@@ -151,13 +185,16 @@ namespace ConfidantPostgreSQL.Modules.Authentication.Controller
             if (auth == null)
                 return Unauthorized();
 
-            return Ok(new
-            {
-                user = auth.User,
-                token = auth.Token,
-                roles = auth.Roles,
-                message = "Token refreshed."
-            });
+            return Ok(BuildAuthResponse(auth, "Token refreshed."));
+        }
+
+        [AuthorizeJwt]
+        [HttpPost("Logout")]
+        public IActionResult Logout(
+            [FromHeader(Name = "culture")] string? culture = null)
+        {
+            RequestContext.ApplyCulture(culture);
+            return Ok(new { message = "Logout successful." });
         }
 
         // POST /api/Authentication/RequestPasswordReset

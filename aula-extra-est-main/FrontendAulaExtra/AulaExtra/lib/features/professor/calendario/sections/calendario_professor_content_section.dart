@@ -23,6 +23,9 @@ import 'package:aula_extra/features/professor/calendario/widgets/full_bleed_scal
 import 'package:aula_extra/features/professor/calendario/widgets/marcar_aula_dialog.dart';
 import 'package:aula_extra/features/professor/core/widgets/professor_menu_nav.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:aula_extra/core/providers/user_provider.dart';
+import 'package:aula_extra/core/config/teaching_roles_config.dart';
 
 class CalendarioProfessorContentSection extends StatefulWidget {
   const CalendarioProfessorContentSection({super.key, this.isMobile = false});
@@ -54,8 +57,62 @@ class _CalendarioProfessorContentSectionState
     }
   }
 
+  Widget _buildMobileContent(TeachingRoleConfig config) {
+    return Container(
+      width: double.infinity,
+      color: CalendarioConstants.backgroundColor,
+      padding: const EdgeInsets.fromLTRB(
+        CalendarioConstants.mobileHorizontalPadding,
+        CalendarioConstants.mobileVerticalPadding,
+        CalendarioConstants.mobileHorizontalPadding,
+        28,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          CalendarioMobileIntro(
+            title: 'Calendário',
+            subtitle:
+                'Acompanhe as próximas ${config.sessionsLabel} e a sua agenda semanal num único lugar.', 
+          ),
+          const SizedBox(height: CalendarioConstants.mobileSectionSpacing),
+          CalendarioMobileCtaButton(
+            label: 'Adicionar Horário',
+            icon: Icons.add_circle_outline_rounded,
+            onTap: _handleAddLesson,
+          ),
+          const SizedBox(height: CalendarioConstants.mobileSectionSpacing),
+          CalendarioModeTabs(
+            activeMode: _selectedTab == 0
+                ? CalendarioMode.upcoming
+                : CalendarioMode.weekly,
+            onUpcomingTap: () {
+              if (_selectedTab == 0) return;
+              setState(() => _selectedTab = 0);
+            },
+            onWeeklyTap: () {
+              if (_selectedTab == 1) return;
+              setState(() => _selectedTab = 1);
+            },
+            isMobile: true,
+          ),
+          const SizedBox(height: CalendarioConstants.mobileSectionSpacing),
+          if (_selectedTab == 0)
+            _ProfessorUpcomingLessonsList(
+                key: _upcomingListKey, isMobile: true, config: config)
+          else
+            _ProfessorMobileWeeklyAgenda(
+                key: _weeklyCardKey, config: config),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final userProvider = Provider.of<UserProvider>(context);
+    final config = TeachingRoleConfig.fromRole(userProvider.role);
+
     final isMobile =
         widget.isMobile ||
         MediaQuery.sizeOf(context).width <= AppHeader.mobileBreakpoint;
@@ -70,7 +127,7 @@ class _CalendarioProfessorContentSectionState
     );
 
     if (isMobile) {
-      return _buildMobileContent();
+      return _buildMobileContent(config);
     }
 
     return Container(
@@ -106,7 +163,7 @@ class _CalendarioProfessorContentSectionState
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Text('Calendário', style: titleStyle),
-                            _AddHorarioButton(onTap: _handleAddLesson),
+                            _AddHorarioButton(onTap: _handleAddLesson, config: config),
                           ],
                         ),
                       ),
@@ -123,9 +180,11 @@ class _CalendarioProfessorContentSectionState
                         _ProfessorUpcomingLessonsList(
                           key: _upcomingListKey,
                           isMobile: false,
+                          config: config,
                         )
                       else
-                        _ProfessorWeeklyCalendarCard(key: _weeklyCardKey),
+                        _ProfessorWeeklyCalendarCard(
+                            key: _weeklyCardKey, config: config),
                     ],
                   ),
                 ),
@@ -136,61 +195,17 @@ class _CalendarioProfessorContentSectionState
       ),
     );
   }
-
-  Widget _buildMobileContent() {
-    return Container(
-      width: double.infinity,
-      color: CalendarioConstants.backgroundColor,
-      padding: const EdgeInsets.fromLTRB(
-        CalendarioConstants.mobileHorizontalPadding,
-        CalendarioConstants.mobileVerticalPadding,
-        CalendarioConstants.mobileHorizontalPadding,
-        28,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const CalendarioMobileIntro(
-            title: 'Calendário',
-            subtitle:
-                'Acompanhe as próximas aulas e a sua agenda semanal num único lugar.',
-          ),
-          const SizedBox(height: CalendarioConstants.mobileSectionSpacing),
-          CalendarioMobileCtaButton(
-            label: 'Adicionar Horário',
-            icon: Icons.add_circle_outline_rounded,
-            onTap: _handleAddLesson,
-          ),
-          const SizedBox(height: CalendarioConstants.mobileSectionSpacing),
-          CalendarioModeTabs(
-            activeMode: _selectedTab == 0
-                ? CalendarioMode.upcoming
-                : CalendarioMode.weekly,
-            onUpcomingTap: () {
-              if (_selectedTab == 0) return;
-              setState(() => _selectedTab = 0);
-            },
-            onWeeklyTap: () {
-              if (_selectedTab == 1) return;
-              setState(() => _selectedTab = 1);
-            },
-            isMobile: true,
-          ),
-          const SizedBox(height: CalendarioConstants.mobileSectionSpacing),
-          if (_selectedTab == 0)
-            _ProfessorUpcomingLessonsList(key: _upcomingListKey, isMobile: true)
-          else
-            _ProfessorMobileWeeklyAgenda(key: _weeklyCardKey),
-        ],
-      ),
-    );
-  }
 }
 
 class _ProfessorUpcomingLessonsList extends StatefulWidget {
-  const _ProfessorUpcomingLessonsList({super.key, required this.isMobile});
+  const _ProfessorUpcomingLessonsList({
+    super.key,
+    required this.isMobile,
+    required this.config,
+  });
 
   final bool isMobile;
+  final TeachingRoleConfig config;
 
   @override
   State<_ProfessorUpcomingLessonsList> createState() =>
@@ -209,48 +224,41 @@ class _ProfessorUpcomingLessonsListState
   String? _cancellingReservationId;
 
   static const _months = [
-    'Jan',
-    'Fev',
-    'Mar',
-    'Abr',
-    'Mai',
-    'Jun',
-    'Jul',
-    'Ago',
-    'Set',
-    'Out',
-    'Nov',
-    'Dez',
+    'Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun',
+    'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez',
   ];
 
   @override
   void initState() {
     super.initState();
-    _future = _calendarService.getProfessorUpcoming(limit: _limit);
+    _future = _calendarService.getProfessorUpcoming(
+      limit: _limit,
+      role: context.read<UserProvider>().role,
+    );
   }
 
   void _loadMore() {
     setState(() {
       _limit += 4;
-      _future = _calendarService.getProfessorUpcoming(limit: _limit);
+      _future = _calendarService.getProfessorUpcoming(
+        limit: _limit,
+        role: context.read<UserProvider>().role,
+      );
     });
   }
 
   void _reload() {
     setState(() {
-      _future = _calendarService.getProfessorUpcoming(limit: _limit);
+      _future = _calendarService.getProfessorUpcoming(
+        limit: _limit,
+        role: context.read<UserProvider>().role,
+      );
     });
   }
 
   String _formatWeekdayAndDate(DateTime dt) {
     const weekdays = [
-      'Segunda',
-      'Terça',
-      'Quarta',
-      'Quinta',
-      'Sexta',
-      'Sábado',
-      'Domingo',
+      'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo',
     ];
     final weekday = weekdays[dt.weekday - 1];
     final day = dt.day.toString().padLeft(2, '0');
@@ -278,17 +286,6 @@ class _ProfessorUpcomingLessonsListState
     }
     return (parts.first.characters.first + parts.last.characters.first)
         .toUpperCase();
-  }
-
-  Color _accentColor(String disciplina) {
-    final normalized = disciplina.toLowerCase();
-    if (normalized.contains('mat')) {
-      return CalendarioProfessorColors.badgeBlue;
-    }
-    if (normalized.contains('fís') || normalized.contains('fis')) {
-      return CalendarioProfessorColors.badgeGreen;
-    }
-    return CalendarioProfessorColors.badgeOrange;
   }
 
   bool _canEnterLesson(ProfessorCalendarItemDto item) {
@@ -350,10 +347,11 @@ class _ProfessorUpcomingLessonsListState
 
       if (!mounted) return;
       _reload();
+      final capitalizedSession = widget.config.sessionsLabel == 'aulas' ? 'Aula' : 'Sessão';
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Aula cancelada com sucesso.'),
-          backgroundColor: Color(0xFF00A63E),
+        SnackBar(
+          content: Text('$capitalizedSession cancelada com sucesso.'),
+          backgroundColor: const Color(0xFF00A63E),
         ),
       );
     } catch (error) {
@@ -369,19 +367,22 @@ class _ProfessorUpcomingLessonsListState
   }
 
   void _showEnterLessonInfo() {
+    final sessionTerm = widget.config.sessionsLabel == 'aulas' ? 'aula' : 'sessão';
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
+      SnackBar(
         content: Text(
-          'Podes entrar na aula 10 minutos antes do início e até 15 minutos após o fim.',
+          'Pode entrar na $sessionTerm 10 minutos antes do início e até 15 minutos após o fim.',
         ),
       ),
     );
   }
 
   void _showPendingInfo() {
+    final sessionTerm = widget.config.sessionsLabel == 'aulas' ? 'aula' : 'sessão';
+    final targetLabel = widget.config.roleName == 'Explicador' ? 'aluno' : 'membro';
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Esta aula ainda está a aguardar confirmação do aluno.'),
+      SnackBar(
+        content: Text('Esta $sessionTerm ainda está a aguardar confirmação do $targetLabel.'),
       ),
     );
   }
@@ -409,8 +410,8 @@ class _ProfessorUpcomingLessonsListState
   }
 
   String _mobilePrimaryLabel(ProfessorCalendarItemDto item, bool canEnter) {
-    if (isPendingCalendarStatus(item.status)) return 'A aguardar aluno';
-    if (canEnter) return 'Entrar na Aula';
+    if (isPendingCalendarStatus(item.status)) return 'A aguardar confirmação';
+    if (canEnter) return widget.config.marcarAula.joinSessionLabel;
     return 'Ver horário';
   }
 
@@ -441,24 +442,24 @@ class _ProfessorUpcomingLessonsListState
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: const [
-          Icon(
+        children: [
+          const Icon(
             Icons.calendar_month_rounded,
             size: 28,
             color: CalendarioConstants.activeTabColor,
           ),
-          SizedBox(height: 12),
+          const SizedBox(height: 12),
           Text(
-            'Ainda não tem aulas marcadas',
-            style: TextStyle(
+            'Ainda não tem ${widget.config.sessionsLabel} marcadas',
+            style: const TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.w700,
               color: CalendarioConstants.mobileTextColor,
               height: 28 / 20,
             ),
           ),
-          SizedBox(height: 8),
-          Text(
+          const SizedBox(height: 8),
+          const Text(
             'Quando existirem novas reservas, elas aparecem aqui para poder acompanhar rapidamente.',
             style: CalendarioConstants.mobileCardSubtitleStyle,
           ),
@@ -495,11 +496,11 @@ class _ProfessorUpcomingLessonsListState
             return _buildMobileEmptyState();
           }
 
-          return const Padding(
-            padding: EdgeInsets.symmetric(vertical: 24),
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 24),
             child: Text(
-              'Ainda não tem aulas marcadas.',
-              style: TextStyle(fontSize: 18, color: Color(0xFF6A7282)),
+              'Ainda não tem ${widget.config.sessionsLabel} marcadas.',
+              style: const TextStyle(fontSize: 18, color: Color(0xFF6A7282)),
             ),
           );
         }
@@ -515,11 +516,15 @@ class _ProfessorUpcomingLessonsListState
                     final item = items[index];
                     final canEnter = _canEnterLesson(item);
                     final studentName = item.studentName.trim().isEmpty
-                        ? 'Aluno'
+                        ? 'Membro'
                         : item.studentName.trim();
 
+                    final Gradient? dynamicGradient = isPendingCalendarStatus(item.status) || canEnter 
+                        ? null 
+                        : LinearGradient(colors: [widget.config.primaryColor, widget.config.primaryColor.withOpacity(0.8)]);
+
                     return MobileUpcomingLessonCard(
-                      accentColor: _accentColor(item.disciplinaName),
+                      accentColor: widget.config.primaryColor, 
                       subject: item.disciplinaName,
                       teacherName: studentName,
                       dateLabel: _formatWeekdayAndDate(
@@ -533,19 +538,16 @@ class _ProfessorUpcomingLessonsListState
                       onPrimaryTap: _mobilePrimaryAction(item, canEnter),
                       onSecondaryTap:
                           normalizeCalendarStatus(item.status) == 'cancelled' ||
-                              _cancellingReservationId == item.idReservation
-                          ? null
-                          : () => _cancelLesson(item),
+                                  _cancellingReservationId == item.idReservation
+                              ? null
+                              : () => _cancelLesson(item),
                       primaryBackgroundColor:
                           isPendingCalendarStatus(item.status)
                           ? CalendarioConstants.mobilePendingColor
                           : (canEnter
-                                ? CalendarioConstants.mobileSuccessColor
+                                ? widget.config.primaryColor
                                 : null),
-                      primaryGradient:
-                          isPendingCalendarStatus(item.status) || canEnter
-                          ? null
-                          : CalendarioConstants.orangeGradient,
+                      primaryGradient: dynamicGradient,
                       statusLabel: _mobileStatusLabel(item),
                       statusBackgroundColor: _mobileStatusBackground(item),
                       statusTextColor: _mobileStatusTextColor(item),
@@ -566,7 +568,7 @@ class _ProfessorUpcomingLessonsListState
                   height: CalendarioConstants.mobileSectionSpacing,
                 ),
                 CalendarioMobileCtaButton(
-                  label: 'Ver mais aulas',
+                  label: 'Ver mais ${widget.config.sessionsLabel}', 
                   icon: Icons.expand_more_rounded,
                   onTap: _loadMore,
                 ),
@@ -590,11 +592,14 @@ class _ProfessorUpcomingLessonsListState
                 final isCancelled =
                     normalizeCalendarStatus(item.status) == 'cancelled';
                 final studentName = item.studentName.trim().isEmpty
-                    ? 'Aluno'
+                    ? 'Aluno/Membro'
                     : item.studentName.trim();
+                
+                final targetLabel = widget.config.roleName == 'Explicador' ? 'aluno' : 'membro';
+
                 final data = ProfessorAulaCardData(
                   initials: _initials(studentName),
-                  color: _accentColor(item.disciplinaName),
+                  color: widget.config.primaryColor,
                   studentName: studentName,
                   subject: item.disciplinaName,
                   weekdayAndDate: _formatWeekdayAndDate(
@@ -605,8 +610,8 @@ class _ProfessorUpcomingLessonsListState
                     item.endTime.toLocal(),
                   ),
                   primaryActionLabel: isPending
-                      ? 'A aguardar aluno'
-                      : 'Entrar na Aula',
+                      ? 'A aguardar $targetLabel'
+                      : widget.config.marcarAula.joinSessionLabel, 
                   primaryActionEnabled: canEnter,
                   showPrimaryAction: true,
                 );
@@ -618,7 +623,7 @@ class _ProfessorUpcomingLessonsListState
                       : null,
                   onCancelTap:
                       isCancelled ||
-                          _cancellingReservationId == item.idReservation
+                              _cancellingReservationId == item.idReservation
                       ? null
                       : () => _cancelLesson(item),
                 );
@@ -632,7 +637,7 @@ class _ProfessorUpcomingLessonsListState
                 child: OutlinedButton.icon(
                   onPressed: _loadMore,
                   icon: const Icon(Icons.expand_more_rounded),
-                  label: const Text('Ver mais aulas'),
+                  label: Text('Ver mais ${widget.config.sessionsLabel}'), 
                 ),
               ),
             ],
@@ -644,7 +649,9 @@ class _ProfessorUpcomingLessonsListState
 }
 
 class _ProfessorMobileWeeklyAgenda extends StatefulWidget {
-  const _ProfessorMobileWeeklyAgenda({super.key});
+  const _ProfessorMobileWeeklyAgenda({super.key, required this.config});
+
+  final TeachingRoleConfig config;
 
   @override
   State<_ProfessorMobileWeeklyAgenda> createState() =>
@@ -663,28 +670,12 @@ class _ProfessorMobileWeeklyAgendaState
   String? _enteringReservationId;
 
   static const _days = [
-    'Segunda',
-    'Terça',
-    'Quarta',
-    'Quinta',
-    'Sexta',
-    'Sábado',
-    'Domingo',
+    'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo',
   ];
 
   static const _months = [
-    'Jan',
-    'Fev',
-    'Mar',
-    'Abr',
-    'Mai',
-    'Jun',
-    'Jul',
-    'Ago',
-    'Set',
-    'Out',
-    'Nov',
-    'Dez',
+    'Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun',
+    'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez',
   ];
 
   static DateTime _startOfWeek(DateTime now) {
@@ -720,8 +711,8 @@ class _ProfessorMobileWeeklyAgendaState
     return '${remainingMinutes}m';
   }
 
-  static String _nextLessonLabel(List<ProfessorCalendarItemDto> items) {
-    if (items.isEmpty) return 'Sem aulas';
+  String _nextLessonLabel(List<ProfessorCalendarItemDto> items) {
+    if (items.isEmpty) return 'Sem ${widget.config.sessionsLabel}'; 
     final now = DateTime.now();
     final futureItems =
         items.where((item) => item.startTime.isAfter(now)).toList()..sort(
@@ -739,6 +730,7 @@ class _ProfessorMobileWeeklyAgendaState
     final weekStart = base.add(Duration(days: 7 * _weekOffset));
     _future = _calendarService.getProfessorWeek(
       weekStart: _toIsoDate(weekStart),
+      role: context.read<UserProvider>().role,
     );
   }
 
@@ -769,7 +761,7 @@ class _ProfessorMobileWeeklyAgendaState
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-            'Esta aula ainda está a aguardar confirmação do aluno.',
+            'Esta marcação ainda está a aguardar confirmação.',
           ),
         ),
       );
@@ -778,10 +770,11 @@ class _ProfessorMobileWeeklyAgendaState
 
     if (!_canEnterLesson(item)) {
       if (!mounted) return;
+      final sessionTerm = widget.config.sessionsLabel == 'aulas' ? 'aula' : 'sessão';
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text(
-            'Podes entrar na aula 10 minutos antes do início e até 15 minutos após o fim.',
+            'Pode entrar na $sessionTerm 10 minutos antes do início e até 15 minutos após o fim.',
           ),
         ),
       );
@@ -897,9 +890,9 @@ class _ProfessorMobileWeeklyAgendaState
                         '${_days[dayIndex]} · ${date.day.toString().padLeft(2, '0')} ${_months[date.month - 1]}',
                     isToday: _isSameDate(date, today),
                     children: dayItems.isEmpty
-                        ? const [
+                        ? [
                             MobileWeekEmptyState(
-                              label: 'Sem aulas agendadas para este dia',
+                              label: 'Sem ${widget.config.sessionsLabel} agendadas para este dia', 
                             ),
                           ]
                         : [
@@ -914,10 +907,10 @@ class _ProfessorMobileWeeklyAgendaState
                                 durationLabel: _formatDuration(item),
                                 actionLabel:
                                     isPendingCalendarStatus(item.status)
-                                    ? 'A aguardar aluno'
+                                    ? 'A aguardar confirmação'
                                     : (_canEnterLesson(item)
-                                          ? 'Entrar na Aula'
-                                          : 'Ver horário'),
+                                        ? widget.config.marcarAula.joinSessionLabel 
+                                        : 'Ver horário'),
                                 onActionTap: () => _handlePrimaryAction(item),
                                 useSuccessButton:
                                     _canEnterLesson(item) &&
@@ -946,7 +939,9 @@ class _ProfessorMobileWeeklyAgendaState
 }
 
 class _ProfessorWeeklyCalendarCard extends StatelessWidget {
-  const _ProfessorWeeklyCalendarCard({super.key});
+  const _ProfessorWeeklyCalendarCard({super.key, required this.config});
+
+  final TeachingRoleConfig config;
 
   @override
   Widget build(BuildContext context) {
@@ -967,14 +962,16 @@ class _ProfessorWeeklyCalendarCard extends StatelessWidget {
           ),
           boxShadow: CalendarioConstants.cardShadow,
         ),
-        child: const _ProfessorWeeklyCalendarGrid(),
+        child: _ProfessorWeeklyCalendarGrid(config: config), 
       ),
     );
   }
 }
 
 class _ProfessorWeeklyCalendarGrid extends StatefulWidget {
-  const _ProfessorWeeklyCalendarGrid();
+  const _ProfessorWeeklyCalendarGrid({required this.config});
+
+  final TeachingRoleConfig config;
 
   @override
   State<_ProfessorWeeklyCalendarGrid> createState() =>
@@ -1008,18 +1005,8 @@ class _ProfessorWeeklyCalendarGridState
   );
   static const _days = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
   static const _months = [
-    'Jan',
-    'Fev',
-    'Mar',
-    'Abr',
-    'Mai',
-    'Jun',
-    'Jul',
-    'Ago',
-    'Set',
-    'Out',
-    'Nov',
-    'Dez',
+    'Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun',
+    'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez',
   ];
 
   static DateTime _startOfWeek(DateTime now) {
@@ -1121,11 +1108,11 @@ class _ProfessorWeeklyCalendarGridState
       );
     }
 
-    return const _ProfessorWeeklyLessonPalette(
-      background: Color(0xFFECFDF3),
-      border: Color(0xFF12B76A),
-      title: Color(0xFF027A48),
-      subtitle: Color(0xFF039855),
+    return _ProfessorWeeklyLessonPalette(
+      background: widget.config.primaryColor.withOpacity(0.12),
+      border: widget.config.primaryColor,
+      title: widget.config.primaryColor.withOpacity(0.9),
+      subtitle: widget.config.primaryColor.withOpacity(0.7),
     );
   }
 
@@ -1134,6 +1121,7 @@ class _ProfessorWeeklyCalendarGridState
     final weekStart = base.add(Duration(days: 7 * _weekOffset));
     _future = _calendarService.getProfessorWeek(
       weekStart: _toIsoDate(weekStart),
+      role: context.read<UserProvider>().role,
     );
   }
 
@@ -1356,12 +1344,12 @@ class _ProfessorWeeklyCalendarGridState
                                                       color: index == 0
                                                           ? Colors.transparent
                                                           : (slot.isOdd
-                                                                ? const Color(
-                                                                    0xFFF2F4F7,
-                                                                  )
-                                                                : const Color(
-                                                                    0xFFE5E7EB,
-                                                                  )),
+                                                              ? const Color(
+                                                                  0xFFF2F4F7,
+                                                                )
+                                                              : const Color(
+                                                                  0xFFE5E7EB,
+                                                                )),
                                                     ),
                                                   ),
                                                 ),
@@ -1518,12 +1506,15 @@ class _ProfessorWeeklyLessonPalette {
 }
 
 class _AddHorarioButton extends StatelessWidget {
-  const _AddHorarioButton({required this.onTap});
+  const _AddHorarioButton({required this.onTap, required this.config});
 
   final VoidCallback onTap;
+  final TeachingRoleConfig config;
 
   @override
   Widget build(BuildContext context) {
+    final isOrange = config.roleName == 'Explicador';
+
     return SizedBox(
       width: CalendarioProfessorLayout.addButtonWidth,
       height: CalendarioProfessorLayout.addButtonHeight,
@@ -1532,14 +1523,15 @@ class _AddHorarioButton extends StatelessWidget {
           borderRadius: BorderRadius.circular(
             CalendarioProfessorLayout.addButtonRadius,
           ),
-          gradient: const LinearGradient(
+          color: isOrange ? null : config.primaryColor,
+          gradient: isOrange ? const LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
               CalendarioProfessorColors.addGradientTop,
               CalendarioProfessorColors.addGradientBottom,
             ],
-          ),
+          ) : null,
         ),
         child: InkWell(
           onTap: onTap,

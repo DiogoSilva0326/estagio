@@ -1,22 +1,28 @@
 import 'package:aula_extra/core/components/menu_professor/constants/menu_professor_colors.dart';
+import 'package:aula_extra/core/components/menu_professor/constants/menu_professor_items.dart'; 
 import 'package:aula_extra/core/components/menu_professor/widgets/menu_professor_nav_item.dart';
 import 'package:aula_extra/core/components/menu_professor/widgets/menu_professor_stat_row.dart';
 import 'package:aula_extra/core/data/notifications/dtos/user_notification_dto.dart';
 import 'package:aula_extra/core/data/notifications/notifications_service.dart';
 import 'package:aula_extra/core/data/reservations_calendar/dtos/professor_calendar_item_dto.dart';
 import 'package:aula_extra/core/data/reservations_calendar/reservations_calendar_service.dart';
+import 'package:aula_extra/core/providers/user_provider.dart';
+import 'package:aula_extra/core/config/teaching_roles_config.dart';
 import 'package:aula_extra/routes/routes.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 class TeacherMobileMenuDrawer extends StatefulWidget {
   const TeacherMobileMenuDrawer({
     super.key,
     required this.onClose,
     required this.onLogoutTap,
+    this.currentRouteName,
   });
 
   final VoidCallback onClose;
   final VoidCallback onLogoutTap;
+  final String? currentRouteName;
 
   @override
   State<TeacherMobileMenuDrawer> createState() =>
@@ -29,25 +35,6 @@ class _TeacherMobileMenuDrawerState extends State<TeacherMobileMenuDrawer> {
 
   late final Future<_TeacherMenuStats> _statsFuture;
 
-  static const _items = <_TeacherMenuItem>[
-    _TeacherMenuItem('Meus Alunos', Icons.groups_rounded),
-    _TeacherMenuItem('Calendário', Icons.calendar_month_rounded),
-    _TeacherMenuItem('Arquivos', Icons.description_outlined),
-    _TeacherMenuItem('Chats', Icons.chat_bubble_outline_rounded),
-    _TeacherMenuItem('Publicar Anúncio', Icons.campaign_rounded),
-    _TeacherMenuItem('Os meus anúncios', Icons.view_agenda_rounded),
-    _TeacherMenuItem('Disponibilidade', Icons.schedule_rounded),
-    _TeacherMenuItem('Pagamentos', Icons.payments_rounded),
-    _TeacherMenuItem('Disciplinas', Icons.menu_book_rounded),
-    _TeacherMenuItem('Avaliações', Icons.star_rounded),
-    _TeacherMenuItem('Perfil', Icons.person_rounded),
-    _TeacherMenuItem(
-      'Notificações',
-      Icons.notifications_rounded,
-      hasBadge: true,
-    ),
-  ];
-
   @override
   void initState() {
     super.initState();
@@ -56,20 +43,20 @@ class _TeacherMobileMenuDrawerState extends State<TeacherMobileMenuDrawer> {
 
   Future<_TeacherMenuStats> _loadStats() async {
     final results = await Future.wait<Object?>([
-      _calendarService.getProfessorWeek(),
-      _calendarService.getProfessorUpcoming(limit: 1),
+      _calendarService.getProfessorWeek(role: context.read<UserProvider>().role),
+      _calendarService.getProfessorUpcoming(limit: 1, role: context.read<UserProvider>().role),
       _notificationsService.fetchMyNotifications(),
     ]);
 
     final weekLessons = results[0] is List<ProfessorCalendarItemDto>
         ? (results[0] as List<ProfessorCalendarItemDto>)
-              .where(_isActiveLesson)
-              .length
+            .where(_isActiveLesson)
+            .length
         : 0;
     final upcomingLessons = results[1] is List<ProfessorCalendarItemDto>
         ? (results[1] as List<ProfessorCalendarItemDto>)
-              .where(_isActiveLesson)
-              .toList(growable: false)
+            .where(_isActiveLesson)
+            .toList(growable: false)
         : const <ProfessorCalendarItemDto>[];
     final notifications = results[2] is List<UserNotificationDto>
         ? (results[2] as List<UserNotificationDto>)
@@ -132,17 +119,17 @@ class _TeacherMobileMenuDrawerState extends State<TeacherMobileMenuDrawer> {
     return 'em $dayDiff dias';
   }
 
-  int? _selectedIndex(BuildContext context) {
-    final routeName = ModalRoute.of(context)?.settings.name;
+  int? _selectedIndex() {
+    final routeName = widget.currentRouteName;
     if (routeName == Routes.professorMeusAlunos) return 0;
-    if (routeName == Routes.professorCalendario) return 1;
-    if (routeName == Routes.professorArquivos) return 2;
-    if (routeName == Routes.professorChats) return 3;
-    if (routeName == Routes.professorPublicarAnuncio) return 4;
-    if (routeName == Routes.professorMeusAnuncios) return 5;
-    if (routeName == Routes.professorDisponibilidade) return 6;
-    if (routeName == Routes.professorPagamentos) return 7;
-    if (routeName == Routes.professorMinhasDisciplinas) return 8;
+    if (routeName == Routes.professorMinhasDisciplinas) return 1;
+    if (routeName == Routes.professorCalendario) return 2;
+    if (routeName == Routes.professorArquivos) return 3;
+    if (routeName == Routes.professorChats) return 4;
+    if (routeName == Routes.professorPublicarAnuncio) return 5;
+    if (routeName == Routes.professorMeusAnuncios) return 6;
+    if (routeName == Routes.professorDisponibilidade) return 7;
+    if (routeName == Routes.professorPagamentos) return 8;
     if (routeName == Routes.professorAvaliacoes) return 9;
     if (routeName == Routes.professorPerfil) return 10;
     if (routeName == Routes.professorNotificacoes) return 11;
@@ -152,14 +139,14 @@ class _TeacherMobileMenuDrawerState extends State<TeacherMobileMenuDrawer> {
   void _onItemTap(BuildContext context, int index) {
     final target = switch (index) {
       0 => Routes.professorMeusAlunos,
-      1 => Routes.professorCalendario,
-      2 => Routes.professorArquivos,
-      3 => Routes.professorChats,
-      4 => Routes.professorPublicarAnuncio,
-      5 => Routes.professorMeusAnuncios,
-      6 => Routes.professorDisponibilidade,
-      7 => Routes.professorPagamentos,
-      8 => Routes.professorMinhasDisciplinas,
+      1 => Routes.professorMinhasDisciplinas,
+      2 => Routes.professorCalendario,
+      3 => Routes.professorArquivos,
+      4 => Routes.professorChats,
+      5 => Routes.professorPublicarAnuncio,
+      6 => Routes.professorMeusAnuncios,
+      7 => Routes.professorDisponibilidade,
+      8 => Routes.professorPagamentos,
       9 => Routes.professorAvaliacoes,
       10 => Routes.professorPerfil,
       11 => Routes.professorNotificacoes,
@@ -170,17 +157,106 @@ class _TeacherMobileMenuDrawerState extends State<TeacherMobileMenuDrawer> {
       return;
     }
 
-    final current = ModalRoute.of(context)?.settings.name;
     widget.onClose();
-    if (current == target) {
+    if (widget.currentRouteName == target) {
       return;
     }
 
     Navigator.of(context).pushNamed(target);
   }
 
+  void _showRoleSwitcher(BuildContext context, UserProvider userProvider) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (bottomSheetContext) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 24),
+                  child: Text(
+                    'Mudar Perfil',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: MenuProfessorColors.textHeading,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                _RoleTile(
+                  title: 'Modo Aluno',
+                  icon: Icons.school_rounded,
+                  color: const Color(0xFF6B7280),
+                  isActive: userProvider.role == Role.student,
+                  onTap: () {
+                    Navigator.of(bottomSheetContext).pop();
+                    widget.onClose();
+                    userProvider.setRole(Role.student);
+                    Navigator.of(context).pushNamedAndRemoveUntil(Routes.home, (route) => false);
+                  },
+                ),
+                const Divider(height: 1, color: Color(0xFFF3F4F6)),
+                _RoleTile(
+                  title: 'Modo Explicador',
+                  icon: Icons.menu_book_rounded,
+                  color: TeachingRoleConfig.fromRole(Role.teacher).primaryColor,
+                  isActive: userProvider.role == Role.teacher,
+                  onTap: () {
+                    Navigator.of(bottomSheetContext).pop();
+                    widget.onClose();
+                    userProvider.setRole(Role.teacher);
+                    Navigator.of(context).pushNamedAndRemoveUntil(Routes.home, (route) => false);
+                  },
+                ),
+                _RoleTile(
+                  title: 'Modo Tutor',
+                  icon: Icons.psychology_alt_rounded,
+                  color: TeachingRoleConfig.fromRole(Role.tutor).primaryColor,
+                  isActive: userProvider.role == Role.tutor,
+                  onTap: () {
+                    Navigator.of(bottomSheetContext).pop();
+                    widget.onClose();
+                    userProvider.setRole(Role.tutor);
+                    Navigator.of(context).pushNamedAndRemoveUntil(Routes.home, (route) => false);
+                  },
+                ),
+                _RoleTile(
+                  title: 'Modo Psicólogo',
+                  icon: Icons.health_and_safety_rounded,
+                  color: TeachingRoleConfig.fromRole(Role.psychologist).primaryColor,
+                  isActive: userProvider.role == Role.psychologist,
+                  onTap: () {
+                    Navigator.of(bottomSheetContext).pop();
+                    widget.onClose();
+                    userProvider.setRole(Role.psychologist);
+                    Navigator.of(context).pushNamedAndRemoveUntil(Routes.home, (route) => false);
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final userProvider = Provider.of<UserProvider>(context);
+    final config = TeachingRoleConfig.fromRole(userProvider.role);
+    final items = MenuProfessorItems.all; 
+
+    final nextItemLabel = config.sessionsLabel == 'aulas' ? 'aula' : 'sessão';
+
     return Material(
       color: Colors.white,
       borderRadius: const BorderRadius.only(
@@ -211,7 +287,7 @@ class _TeacherMobileMenuDrawerState extends State<TeacherMobileMenuDrawer> {
                     future: _statsFuture,
                     builder: (context, snapshot) {
                       final stats = snapshot.data ?? const _TeacherMenuStats();
-                      final selectedIndex = _selectedIndex(context);
+                      final selectedIndex = _selectedIndex();
 
                       return Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -233,9 +309,9 @@ class _TeacherMobileMenuDrawerState extends State<TeacherMobileMenuDrawer> {
                             ),
                           ),
                           const SizedBox(height: 12),
-                          const Text(
-                            'Menu do Explicador',
-                            style: TextStyle(
+                          Text(
+                            config.menu.menuTitle,
+                            style: const TextStyle(
                               fontSize: 22,
                               height: 28 / 22,
                               fontWeight: FontWeight.w600,
@@ -243,19 +319,30 @@ class _TeacherMobileMenuDrawerState extends State<TeacherMobileMenuDrawer> {
                             ),
                           ),
                           const SizedBox(height: 24),
-                          ...List.generate(_items.length, (index) {
-                            final item = _items[index];
+                          ...List.generate(items.length, (index) {
+                            final item = items[index];
                             final badgeCount = item.hasBadge
                                 ? stats.notificationCount
                                 : null;
+
+                            String label = item.label;
+
+                            if (label == 'Meus Alunos') {
+                              label = config.studentsLabel;
+                            } else if (label == 'Minhas Disciplinas') {
+                              label = config.perfil.subjectsSectionTitle;
+                            } else if (label == 'Calendário') {
+                              label = config.calendarLabel;
+                            }
 
                             return Padding(
                               padding: const EdgeInsets.only(bottom: 4),
                               child: MenuProfessorNavItem(
                                 icon: item.icon,
-                                label: item.label,
+                                label: label,
                                 badgeCount: badgeCount,
                                 selected: selectedIndex == index,
+                                activeColor: config.primaryColor,
                                 onTap: () => _onItemTap(context, index),
                               ),
                             );
@@ -285,26 +372,55 @@ class _TeacherMobileMenuDrawerState extends State<TeacherMobileMenuDrawer> {
                                 ),
                                 const SizedBox(height: 16),
                                 MenuProfessorStatRow(
-                                  label: 'Aulas esta semana:',
+                                  label: config.menu.statsSessionsLabel,
                                   value: '${stats.aulasEstaSemana}',
-                                  valueColor: MenuProfessorColors.accentOrange,
+                                  valueColor: config.primaryColor,
                                 ),
                                 const SizedBox(height: 10),
                                 MenuProfessorStatRow(
                                   label: 'Tarefas pendentes:',
                                   value: '${stats.tarefasPendentes}',
-                                  valueColor: MenuProfessorColors.accentOrange,
+                                  valueColor: config.primaryColor,
                                 ),
                                 const SizedBox(height: 10),
                                 MenuProfessorStatRow(
-                                  label: 'Próxima aula em:',
+                                  label: 'Próxima $nextItemLabel em:',
                                   value: stats.proximaAulaEm,
-                                  valueColor: MenuProfessorColors.accentGreen,
+                                  valueColor: config.primaryColor,
                                 ),
                               ],
                             ),
                           ),
                           const SizedBox(height: 24),
+                          SizedBox(
+                            width: double.infinity,
+                            height: 48,
+                            child: OutlinedButton.icon(
+                              onPressed: () =>
+                                  _showRoleSwitcher(context, userProvider),
+                              icon: const Icon(Icons.swap_horiz_rounded,
+                                  size: 20),
+                              label: const Text(
+                                'MUDAR DE PERFIL',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                  letterSpacing: -0.3,
+                                ),
+                              ),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: const Color(0xFF374151),
+                                side: const BorderSide(
+                                  color: Color(0xFFD1D5DB),
+                                  width: 1,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
                           SizedBox(
                             width: double.infinity,
                             height: 48,
@@ -344,12 +460,46 @@ class _TeacherMobileMenuDrawerState extends State<TeacherMobileMenuDrawer> {
   }
 }
 
-class _TeacherMenuItem {
-  const _TeacherMenuItem(this.label, this.icon, {this.hasBadge = false});
+class _RoleTile extends StatelessWidget {
+  const _RoleTile({
+    required this.title,
+    required this.icon,
+    required this.color,
+    required this.isActive,
+    required this.onTap,
+  });
 
-  final String label;
+  final String title;
   final IconData icon;
-  final bool hasBadge;
+  final Color color;
+  final bool isActive;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      leading: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Icon(icon, color: color, size: 24),
+      ),
+      title: Text(
+        title,
+        style: TextStyle(
+          fontWeight: isActive ? FontWeight.bold : FontWeight.w500,
+          color: isActive ? color : const Color(0xFF374151),
+        ),
+      ),
+      trailing: isActive
+          ? Icon(Icons.check_circle_rounded, color: color)
+          : const Icon(Icons.chevron_right_rounded, color: Color(0xFFD1D5DB)),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
+      onTap: onTap,
+    );
+  }
 }
 
 class _TeacherMenuStats {

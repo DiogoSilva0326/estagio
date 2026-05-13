@@ -26,7 +26,7 @@ class AvaliacoesMobileModeTabs extends StatelessWidget {
         children: [
           Expanded(
             child: _ModeChip(
-              label: 'Por aula',
+              label: 'Por sessão',
               selected: isLessonsSelected,
               onTap: onLessonsTap,
             ),
@@ -34,7 +34,7 @@ class AvaliacoesMobileModeTabs extends StatelessWidget {
           const SizedBox(width: 8),
           Expanded(
             child: _ModeChip(
-              label: 'Por professor',
+              label: 'Por profissional',
               selected: !isLessonsSelected,
               onTap: onProfessorTap,
             ),

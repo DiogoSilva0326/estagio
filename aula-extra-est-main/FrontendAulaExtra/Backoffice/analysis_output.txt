@@ -1,0 +1,55 @@
+Analyzing planos_precos...                                      
+
+  error • The named parameter 'courseId' is required, but there's no corresponding argument. Try adding the required argument • lib/features/planos_precos/constants/planos_precos_mock_data.dart:8:3 • missing_required_argument
+  error • The named parameter 'id' is required, but there's no corresponding argument. Try adding the required argument • lib/features/planos_precos/constants/planos_precos_mock_data.dart:8:3 • missing_required_argument
+  error • The named parameter 'isActive' is required, but there's no corresponding argument. Try adding the required argument • lib/features/planos_precos/constants/planos_precos_mock_data.dart:8:3 • missing_required_argument
+  error • The named parameter 'numberOfLessons' is required, but there's no corresponding argument. Try adding the required argument • lib/features/planos_precos/constants/planos_precos_mock_data.dart:8:3 • missing_required_argument
+  error • The named parameter 'courseId' is required, but there's no corresponding argument. Try adding the required argument • lib/features/planos_precos/constants/planos_precos_mock_data.dart:21:3 • missing_required_argument
+  error • The named parameter 'id' is required, but there's no corresponding argument. Try adding the required argument • lib/features/planos_precos/constants/planos_precos_mock_data.dart:21:3 • missing_required_argument
+  error • The named parameter 'isActive' is required, but there's no corresponding argument. Try adding the required argument • lib/features/planos_precos/constants/planos_precos_mock_data.dart:21:3 • missing_required_argument
+  error • The named parameter 'numberOfLessons' is required, but there's no corresponding argument. Try adding the required argument • lib/features/planos_precos/constants/planos_precos_mock_data.dart:21:3 • missing_required_argument
+  error • The named parameter 'courseId' is required, but there's no corresponding argument. Try adding the required argument • lib/features/planos_precos/constants/planos_precos_mock_data.dart:34:3 • missing_required_argument
+  error • The named parameter 'id' is required, but there's no corresponding argument. Try adding the required argument • lib/features/planos_precos/constants/planos_precos_mock_data.dart:34:3 • missing_required_argument
+  error • The named parameter 'isActive' is required, but there's no corresponding argument. Try adding the required argument • lib/features/planos_precos/constants/planos_precos_mock_data.dart:34:3 • missing_required_argument
+  error • The named parameter 'numberOfLessons' is required, but there's no corresponding argument. Try adding the required argument • lib/features/planos_precos/constants/planos_precos_mock_data.dart:34:3 • missing_required_argument
+warning • The value of the field '_loading' isn't used. Try removing the field, or using it • lib/features/planos_precos/pages/planos_precos_page.dart:24:8 • unused_field
+warning • The value of the field '_warningMessage' isn't used. Try removing the field, or using it • lib/features/planos_precos/pages/planos_precos_page.dart:25:11 • unused_field
+  error • Invalid constant value • lib/features/planos_precos/services/backoffice_planos_precos_service.dart:192:31 • invalid_constant
+  error • The method 'Color' isn't defined for the type 'BackofficePlanosPrecosService'. Try correcting the name to the name of an existing method, or defining a method named 'Color' • lib/features/planos_precos/services/backoffice_planos_precos_service.dart:192:31 • undefined_method
+  error • Invalid constant value • lib/features/planos_precos/services/backoffice_planos_precos_service.dart:193:25 • invalid_constant
+  error • The method 'Color' isn't defined for the type 'BackofficePlanosPrecosService'. Try correcting the name to the name of an existing method, or defining a method named 'Color' • lib/features/planos_precos/services/backoffice_planos_precos_service.dart:193:25 • undefined_method
+  error • Invalid constant value • lib/features/planos_precos/services/backoffice_planos_precos_service.dart:194:15 • invalid_constant
+  error • Undefined name 'Icons'. Try correcting the name to one that is defined, or defining the name • lib/features/planos_precos/services/backoffice_planos_precos_service.dart:194:15 • undefined_identifier
+  error • Invalid constant value • lib/features/planos_precos/services/backoffice_planos_precos_service.dart:195:30 • invalid_constant
+  error • The method 'Color' isn't defined for the type 'BackofficePlanosPrecosService'. Try correcting the name to the name of an existing method, or defining a method named 'Color' • lib/features/planos_precos/services/backoffice_planos_precos_service.dart:195:30 • undefined_method
+  error • Invalid constant value • lib/features/planos_precos/services/backoffice_planos_precos_service.dart:196:20 • invalid_constant
+  error • The method 'Color' isn't defined for the type 'BackofficePlanosPrecosService'. Try correcting the name to the name of an existing method, or defining a method named 'Color' • lib/features/planos_precos/services/backoffice_planos_precos_service.dart:196:20 • undefined_method
+  error • Invalid constant value • lib/features/planos_precos/services/backoffice_planos_precos_service.dart:203:31 • invalid_constant
+  error • The method 'Color' isn't defined for the type 'BackofficePlanosPrecosService'. Try correcting the name to the name of an existing method, or defining a method named 'Color' • lib/features/planos_precos/services/backoffice_planos_precos_service.dart:203:31 • undefined_method
+  error • Invalid constant value • lib/features/planos_precos/services/backoffice_planos_precos_service.dart:204:25 • invalid_constant
+  error • The method 'Color' isn't defined for the type 'BackofficePlanosPrecosService'. Try correcting the name to the name of an existing method, or defining a method named 'Color' • lib/features/planos_precos/services/backoffice_planos_precos_service.dart:204:25 • undefined_method
+  error • Invalid constant value • lib/features/planos_precos/services/backoffice_planos_precos_service.dart:205:15 • invalid_constant
+  error • Undefined name 'Icons'. Try correcting the name to one that is defined, or defining the name • lib/features/planos_precos/services/backoffice_planos_precos_service.dart:205:15 • undefined_identifier
+  error • Invalid constant value • lib/features/planos_precos/services/backoffice_planos_precos_service.dart:206:30 • invalid_constant
+  error • The method 'Color' isn't defined for the type 'BackofficePlanosPrecosService'. Try correcting the name to the name of an existing method, or defining a method named 'Color' • lib/features/planos_precos/services/backoffice_planos_precos_service.dart:206:30 • undefined_method
+  error • Invalid constant value • lib/features/planos_precos/services/backoffice_planos_precos_service.dart:207:20 • invalid_constant
+  error • The method 'Color' isn't defined for the type 'BackofficePlanosPrecosService'. Try correcting the name to the name of an existing method, or defining a method named 'Color' • lib/features/planos_precos/services/backoffice_planos_precos_service.dart:207:20 • undefined_method
+  error • Invalid constant value • lib/features/planos_precos/services/backoffice_planos_precos_service.dart:213:29 • invalid_constant
+  error • The method 'Color' isn't defined for the type 'BackofficePlanosPrecosService'. Try correcting the name to the name of an existing method, or defining a method named 'Color' • lib/features/planos_precos/services/backoffice_planos_precos_service.dart:213:29 • undefined_method
+  error • Invalid constant value • lib/features/planos_precos/services/backoffice_planos_precos_service.dart:214:23 • invalid_constant
+  error • The method 'Color' isn't defined for the type 'BackofficePlanosPrecosService'. Try correcting the name to the name of an existing method, or defining a method named 'Color' • lib/features/planos_precos/services/backoffice_planos_precos_service.dart:214:23 • undefined_method
+  error • Invalid constant value • lib/features/planos_precos/services/backoffice_planos_precos_service.dart:215:13 • invalid_constant
+  error • Undefined name 'Icons'. Try correcting the name to one that is defined, or defining the name • lib/features/planos_precos/services/backoffice_planos_precos_service.dart:215:13 • undefined_identifier
+  error • Invalid constant value • lib/features/planos_precos/services/backoffice_planos_precos_service.dart:216:28 • invalid_constant
+  error • The method 'Color' isn't defined for the type 'BackofficePlanosPrecosService'. Try correcting the name to the name of an existing method, or defining a method named 'Color' • lib/features/planos_precos/services/backoffice_planos_precos_service.dart:216:28 • undefined_method
+  error • Invalid constant value • lib/features/planos_precos/services/backoffice_planos_precos_service.dart:217:18 • invalid_constant
+  error • The method 'Color' isn't defined for the type 'BackofficePlanosPrecosService'. Try correcting the name to the name of an existing method, or defining a method named 'Color' • lib/features/planos_precos/services/backoffice_planos_precos_service.dart:217:18 • undefined_method
+  error • Undefined class 'Color'. Try changing the name to the name of an existing class, or creating a class with the name 'Color' • lib/features/planos_precos/services/backoffice_planos_precos_service.dart:264:9 • undefined_class
+  error • Undefined class 'Color'. Try changing the name to the name of an existing class, or creating a class with the name 'Color' • lib/features/planos_precos/services/backoffice_planos_precos_service.dart:265:9 • undefined_class
+  error • Undefined class 'IconData'. Try changing the name to the name of an existing class, or creating a class with the name 'IconData' • lib/features/planos_precos/services/backoffice_planos_precos_service.dart:266:9 • undefined_class
+  error • Undefined class 'Color'. Try changing the name to the name of an existing class, or creating a class with the name 'Color' • lib/features/planos_precos/services/backoffice_planos_precos_service.dart:267:9 • undefined_class
+  error • Undefined class 'Color'. Try changing the name to the name of an existing class, or creating a class with the name 'Color' • lib/features/planos_precos/services/backoffice_planos_precos_service.dart:268:9 • undefined_class
+   info • 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre. Try replacing the use of the deprecated member with the replacement • lib/features/planos_precos/widgets/novo_plano_dialog.dart:207:19 • deprecated_member_use
+   info • 'activeColor' is deprecated and shouldn't be used. Use activeThumbColor or activeTrackColor instead. This feature was deprecated after v3.31.0-2.0.pre. Try replacing the use of the deprecated member with the replacement • lib/features/planos_precos/widgets/novo_plano_dialog.dart:290:19 • deprecated_member_use
+
+51 issues found. (ran in 0.6s)

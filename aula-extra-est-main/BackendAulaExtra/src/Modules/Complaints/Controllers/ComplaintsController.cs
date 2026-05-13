@@ -93,6 +93,38 @@ namespace ConfidantPostgreSQL.Modules.Complaints.Controllers
             return rows == 0 ? NotFound() : NoContent();
         }
 
+        [HttpPost("{idComplaint:guid}/reply")]
+        public async Task<IActionResult> ReplyToComplaint(Guid idComplaint, [FromBody] ReplyToComplaintRequest request)
+        {
+            if (request == null)
+            {
+                return BadRequest(new { message = "Pedido inválido." });
+            }
+
+            if (!TryGetAuthenticatedUserId(out var responderUserId))
+            {
+                return Unauthorized();
+            }
+
+            try
+            {
+                var updated = await _service.ReplyToComplaintAsync(
+                    idComplaint,
+                    responderUserId,
+                    request.ResponseMessage,
+                    request.Status);
+                return updated ? NoContent() : NotFound();
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
         [HttpDelete("{idComplaint:guid}")]
         public async Task<IActionResult> DeleteComplaint(Guid idComplaint)
         {

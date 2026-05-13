@@ -1,5 +1,8 @@
 import 'package:aula_extra/features/aluno/calendario/constants/calendario_constants.dart';
+import 'package:aula_extra/core/providers/user_provider.dart'; 
+import 'package:aula_extra/core/config/teaching_roles_config.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 enum CalendarioMode { upcoming, weekly }
 
@@ -19,14 +22,25 @@ class CalendarioModeTabs extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final userProvider = Provider.of<UserProvider>(context);
+    final config = TeachingRoleConfig.fromRole(userProvider.role);
+    final isStudent = userProvider.role == Role.student;
+    
+    final upcomingLabel = isStudent ? 'Próximas Sessões' : config.calendario.nextSessionLabel;
+    
+    final Color activeColor = (isStudent || config.roleName == 'Explicador') 
+        ? CalendarioConstants.activeTabColor 
+        : config.primaryColor;
+
     if (isMobile) {
       return Row(
         children: [
           Expanded(
             child: _MobileTabButton(
-              label: 'Próximas Aulas',
+              label: upcomingLabel,
               selected: activeMode == CalendarioMode.upcoming,
               onTap: onUpcomingTap,
+              activeColor: activeColor,
             ),
           ),
           const SizedBox(width: 12),
@@ -35,6 +49,7 @@ class CalendarioModeTabs extends StatelessWidget {
               label: 'Calendário Semanal',
               selected: activeMode == CalendarioMode.weekly,
               onTap: onWeeklyTap,
+              activeColor: activeColor,
             ),
           ),
         ],
@@ -56,9 +71,10 @@ class CalendarioModeTabs extends StatelessWidget {
           children: [
             _DesktopTabItem(
               width: 223.837,
-              text: 'Próximas Aulas',
+              text: upcomingLabel,
               selected: activeMode == CalendarioMode.upcoming,
               onTap: onUpcomingTap,
+              activeColor: activeColor,
             ),
             const SizedBox(width: 22.404),
             _DesktopTabItem(
@@ -66,6 +82,7 @@ class CalendarioModeTabs extends StatelessWidget {
               text: 'Calendário Semanal',
               selected: activeMode == CalendarioMode.weekly,
               onTap: onWeeklyTap,
+              activeColor: activeColor,
             ),
           ],
         ),
@@ -79,11 +96,13 @@ class _MobileTabButton extends StatelessWidget {
     required this.label,
     required this.selected,
     required this.onTap,
+    required this.activeColor,
   });
 
   final String label;
   final bool selected;
   final VoidCallback onTap;
+  final Color activeColor;
 
   @override
   Widget build(BuildContext context) {
@@ -91,11 +110,11 @@ class _MobileTabButton extends StatelessWidget {
       height: 46,
       child: DecoratedBox(
         decoration: BoxDecoration(
-          color: selected ? CalendarioConstants.activeTabColor : Colors.white,
+          color: selected ? activeColor : Colors.white,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
             color: selected
-                ? CalendarioConstants.activeTabColor
+                ? activeColor
                 : CalendarioConstants.mobileBorderColor,
           ),
         ),
@@ -134,12 +153,14 @@ class _DesktopTabItem extends StatelessWidget {
     required this.text,
     required this.selected,
     required this.onTap,
+    required this.activeColor,
   });
 
   final double width;
   final String text;
   final bool selected;
   final VoidCallback onTap;
+  final Color activeColor;
 
   @override
   Widget build(BuildContext context) {
@@ -159,20 +180,20 @@ class _DesktopTabItem extends StatelessWidget {
                   fontSize: 22.404,
                   fontWeight: FontWeight.w500,
                   color: selected
-                      ? CalendarioConstants.activeTabColor
+                      ? activeColor
                       : CalendarioConstants.inactiveTabColor,
                   height: 33.607 / 22.404,
                 ),
               ),
             ),
             if (selected)
-              const Positioned(
+              Positioned(
                 left: 0,
                 right: 0,
                 bottom: 0,
                 child: SizedBox(
                   height: 2.801,
-                  child: ColoredBox(color: CalendarioConstants.activeTabColor),
+                  child: ColoredBox(color: activeColor),
                 ),
               ),
           ],

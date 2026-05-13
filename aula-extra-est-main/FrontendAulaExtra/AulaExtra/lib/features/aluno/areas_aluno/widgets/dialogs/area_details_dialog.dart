@@ -15,13 +15,12 @@ Future<void> showAreaDetailsDialog(
   BuildContext context, {
   required AreaOverview area,
 }) {
-  final isMobile =
-      MediaQuery.sizeOf(context).width <= AppHeader.mobileBreakpoint;
+  final isMobile = MediaQuery.sizeOf(context).width <= AppHeader.mobileBreakpoint;
   if (isMobile) {
     return showGeneralDialog<void>(
       context: context,
       barrierDismissible: true,
-      barrierLabel: 'Detalhes da área',
+      barrierLabel: 'Detalhes do Apoio',
       barrierColor: Colors.black54,
       transitionDuration: const Duration(milliseconds: 220),
       pageBuilder: (_, __, ___) => AreaDetailsDialog(area: area),
@@ -50,6 +49,7 @@ Future<void> showAreaDetailsDialog(
     builder: (context) => AreaDetailsDialog(area: area),
   );
 }
+
 
 class AreaDetailsDialog extends StatefulWidget {
   const AreaDetailsDialog({super.key, required this.area});
@@ -105,14 +105,13 @@ class _AreaDetailsDialogState extends State<AreaDetailsDialog> {
     } catch (_) {}
 
     return _AreaDetailsData(
-      completedLessons:
-          summary?.completedLessons ?? widget.area.scheduledLessons,
+      completedLessons: summary?.completedLessons ?? widget.area.scheduledLessons,
       pendingTasks: _countRelatedPendingTasks(notifications),
       nextLessonText: _formatNextLesson(summary) ?? widget.area.nextLessonText,
       tutors: tutors,
       subtitle: tutors.isEmpty
-          ? 'Ainda não tem um explicador nesta área'
-          : '${tutors.length} explicador${tutors.length == 1 ? '' : 'es'} recomendado${tutors.length == 1 ? '' : 's'} nesta área',
+          ? 'Ainda não tem um profissional nesta área'
+          : '${tutors.length} profissiona${tutors.length == 1 ? 'l' : 'is'} recomendado${tutors.length == 1 ? '' : 's'} nesta área',
     );
   }
 
@@ -125,13 +124,11 @@ class _AreaDetailsDialogState extends State<AreaDetailsDialog> {
     }..removeWhere((token) => token.isEmpty);
 
     return notifications.where((notification) {
-      if (notification.kind != UserNotificationKind.tarefa ||
-          notification.isRead) {
+      if (notification.kind != UserNotificationKind.tarefa || notification.isRead) {
         return false;
       }
 
-      final text = '${notification.title} ${notification.message}'
-          .toLowerCase();
+      final text = '${notification.title} ${notification.message}'.toLowerCase();
       if (tokens.isEmpty) return true;
       return tokens.any(text.contains);
     }).length;
@@ -153,20 +150,22 @@ class _AreaDetailsDialogState extends State<AreaDetailsDialog> {
   @override
   Widget build(BuildContext context) {
     final maxHeight = MediaQuery.sizeOf(context).height * 0.9;
-    final isMobile =
-        MediaQuery.sizeOf(context).width <= AppHeader.mobileBreakpoint;
+    final isMobile = MediaQuery.sizeOf(context).width <= AppHeader.mobileBreakpoint;
+    
+    final isSessao = widget.area.targetRole != 'ensino';
+    final singularTerm = isSessao ? 'Sessão' : 'Aula';
+    final pluralTerm = isSessao ? 'Sessões' : 'Aulas';
 
     return FutureBuilder<_AreaDetailsData>(
       future: _detailsFuture,
       builder: (context, snapshot) {
-        final details =
-            snapshot.data ??
+        final details = snapshot.data ??
             _AreaDetailsData(
               completedLessons: widget.area.scheduledLessons,
               pendingTasks: widget.area.pendingTasks,
               nextLessonText: widget.area.nextLessonText,
               tutors: const [],
-              subtitle: 'Ainda não tem um explicador nesta área',
+              subtitle: 'Ainda não tem um profissional nesta área',
             );
 
         if (isMobile) {
@@ -174,9 +173,12 @@ class _AreaDetailsDialogState extends State<AreaDetailsDialog> {
             area: widget.area,
             details: details,
             loading: snapshot.connectionState == ConnectionState.waiting,
+            singularTerm: singularTerm,
+            pluralTerm: pluralTerm,
           );
         }
 
+        // DESKTOP VIEW
         return Dialog(
           backgroundColor: _surface,
           insetPadding: const EdgeInsets.all(24),
@@ -201,8 +203,7 @@ class _AreaDetailsDialogState extends State<AreaDetailsDialog> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          if (snapshot.connectionState ==
-                              ConnectionState.waiting)
+                          if (snapshot.connectionState == ConnectionState.waiting)
                             const Padding(
                               padding: EdgeInsets.only(bottom: 16),
                               child: LinearProgressIndicator(
@@ -220,7 +221,8 @@ class _AreaDetailsDialogState extends State<AreaDetailsDialog> {
                                   gradientEnd: const Color(0xFFFFFFFF),
                                   icon: Icons.menu_book_outlined,
                                   iconColor: const Color(0xFF155DFC),
-                                  title: 'AULAS JÁ TIDAS',
+                                  // CORREÇÃO: Usar a variável pluralTerm aqui!
+                                  title: '${pluralTerm.toUpperCase()} CONCLUÍDAS',
                                   titleColor: const Color(0xFF155DFC),
                                   value: '${details.completedLessons}',
                                 ),
@@ -246,7 +248,8 @@ class _AreaDetailsDialogState extends State<AreaDetailsDialog> {
                                   gradientEnd: const Color(0xFFFFFFFF),
                                   icon: Icons.schedule,
                                   iconColor: const Color(0xFF00A63E),
-                                  title: 'PRÓXIMA AULA',
+                                  // CORREÇÃO: Usar a variável singularTerm aqui!
+                                  title: 'PRÓXIMA ${singularTerm.toUpperCase()}',
                                   titleColor: const Color(0xFF00A63E),
                                   value: details.nextLessonText,
                                   valueIsSmall: true,
@@ -269,7 +272,7 @@ class _AreaDetailsDialogState extends State<AreaDetailsDialog> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 const Text(
-                                  'Disciplinas selecionadas',
+                                  'Serviços selecionados',
                                   style: TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.w600,
@@ -280,7 +283,7 @@ class _AreaDetailsDialogState extends State<AreaDetailsDialog> {
                                 const SizedBox(height: 12),
                                 if (widget.area.selectedDisciplinaNames.isEmpty)
                                   const Text(
-                                    'Nenhuma disciplina selecionada nesta área.',
+                                    'Nenhum serviço selecionado nesta área.',
                                     style: TextStyle(
                                       fontSize: 14,
                                       fontWeight: FontWeight.w400,
@@ -293,10 +296,7 @@ class _AreaDetailsDialogState extends State<AreaDetailsDialog> {
                                     spacing: 8,
                                     runSpacing: 8,
                                     children: [
-                                      for (final name
-                                          in widget
-                                              .area
-                                              .selectedDisciplinaNames)
+                                      for (final name in widget.area.selectedDisciplinaNames)
                                         Chip(
                                           label: Text(
                                             name,
@@ -306,21 +306,14 @@ class _AreaDetailsDialogState extends State<AreaDetailsDialog> {
                                               color: Color(0xFF4A5565),
                                             ),
                                           ),
-                                          backgroundColor: const Color(
-                                            0xFFF3F4F6,
-                                          ),
+                                          backgroundColor: const Color(0xFFF3F4F6),
                                           side: BorderSide.none,
                                           shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(
-                                              999,
-                                            ),
+                                            borderRadius: BorderRadius.circular(999),
                                           ),
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 8,
-                                          ),
+                                          padding: const EdgeInsets.symmetric(horizontal: 8),
                                           visualDensity: VisualDensity.compact,
-                                          materialTapTargetSize:
-                                              MaterialTapTargetSize.shrinkWrap,
+                                          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                                         ),
                                     ],
                                   ),
@@ -342,7 +335,7 @@ class _AreaDetailsDialogState extends State<AreaDetailsDialog> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 const Text(
-                                  'Explicadores desta área',
+                                  'Profissionais sugeridos',
                                   style: TextStyle(
                                     fontSize: 18,
                                     fontWeight: FontWeight.w600,
@@ -353,8 +346,8 @@ class _AreaDetailsDialogState extends State<AreaDetailsDialog> {
                                 const SizedBox(height: 8),
                                 Text(
                                   details.tutors.isEmpty
-                                      ? 'Ainda não encontrámos explicadores sugeridos para esta área.'
-                                      : 'Veja alguns explicadores que lecionam esta área e explore mais opções.',
+                                      ? 'Ainda não encontrámos profissionais sugeridos para esta área.'
+                                      : 'Veja alguns especialistas que atuam nesta área e explore mais opções.',
                                   style: const TextStyle(
                                     fontSize: 14,
                                     fontWeight: FontWeight.w400,
@@ -368,13 +361,10 @@ class _AreaDetailsDialogState extends State<AreaDetailsDialog> {
                                 else
                                   Column(
                                     children: [
-                                      for (
-                                        var index = 0;
-                                        index < details.tutors.length;
-                                        index++
-                                      ) ...[
+                                      for (var index = 0; index < details.tutors.length; index++) ...[
                                         _TutorSuggestionCard(
                                           tutor: details.tutors[index],
+                                          pluralTerm: pluralTerm,
                                           onTap: () {
                                             final tutor = details.tutors[index];
                                             Navigator.of(context).pop();
@@ -383,91 +373,21 @@ class _AreaDetailsDialogState extends State<AreaDetailsDialog> {
                                               arguments: TutorProfileArgs(
                                                 professorId: tutor.idProfessor,
                                                 name: tutor.name,
-                                                country:
-                                                    tutor.subtitle.isNotEmpty
-                                                    ? tutor.subtitle
-                                                    : 'Online',
+                                                country: tutor.subtitle.isNotEmpty ? tutor.subtitle : 'Online',
                                                 rating: tutor.rating,
                                                 reviewCount: tutor.reviewCount,
                                                 description: tutor.description,
-                                                lessonsText:
-                                                    '${tutor.lessonsCount} aulas',
-                                                pricePerHour: tutor.minPrice
-                                                    .round(),
+                                                lessonsText: '${tutor.lessonsCount} ${pluralTerm.toLowerCase()}',
+                                                pricePerHour: tutor.minPrice.round(),
                                                 tags: tutor.tags,
                                               ),
                                             );
                                           },
                                         ),
-                                        if (index < details.tutors.length - 1)
-                                          const SizedBox(height: 12),
+                                        if (index < details.tutors.length - 1) const SizedBox(height: 12),
                                       ],
                                     ],
                                   ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 24),
-                          Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.all(21),
-                            decoration: BoxDecoration(
-                              color: _mutedSurface,
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(
-                                color: const Color(0xFFF3F4F6),
-                              ),
-                            ),
-                            child: Column(
-                              children: [
-                                Text(
-                                  details.tutors.isEmpty
-                                      ? 'Ainda não tem um explicador nesta área. Vamos encontrar um?'
-                                      : 'Quer ver mais opções de explicadores para esta área?',
-                                  textAlign: TextAlign.center,
-                                  style: const TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w600,
-                                    color: Color(0xFF101828),
-                                    height: 28 / 18,
-                                  ),
-                                ),
-                                const SizedBox(height: 20),
-                                SizedBox(
-                                  height: 48,
-                                  width: 194.117,
-                                  child: DecoratedBox(
-                                    decoration: BoxDecoration(
-                                      gradient:
-                                          AreasAlunoConstants.orangeGradient,
-                                      borderRadius: BorderRadius.circular(14),
-                                    ),
-                                    child: TextButton(
-                                      onPressed: () {
-                                        Navigator.of(context).pop();
-                                        Navigator.of(
-                                          context,
-                                        ).pushNamed(Routes.explicadores);
-                                      },
-                                      style: TextButton.styleFrom(
-                                        foregroundColor: Colors.white,
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            14,
-                                          ),
-                                        ),
-                                      ),
-                                      child: const Text(
-                                        'Encontrar explicadores',
-                                        style: TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.w400,
-                                          height: 24 / 16,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
                               ],
                             ),
                           ),
@@ -484,6 +404,7 @@ class _AreaDetailsDialogState extends State<AreaDetailsDialog> {
                   ),
                   padding: const EdgeInsets.symmetric(horizontal: 24),
                   child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       TextButton(
                         onPressed: () => Navigator.of(context).pop(),
@@ -496,6 +417,36 @@ class _AreaDetailsDialogState extends State<AreaDetailsDialog> {
                           ),
                         ),
                         child: const Text('Fechar'),
+                      ),
+                      SizedBox(
+                        height: 48,
+                        width: 220,
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            gradient: AreasAlunoConstants.orangeGradient,
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: TextButton(
+                            onPressed: () {
+                              Navigator.of(context).pop();
+                              Navigator.of(context).pushNamed(Routes.explicadores);
+                            },
+                            style: TextButton.styleFrom(
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                            ),
+                            child: const Text(
+                              'Encontrar especialistas',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                                height: 24 / 16,
+                              ),
+                            ),
+                          ),
+                        ),
                       ),
                     ],
                   ),
@@ -514,11 +465,15 @@ class _AreaDetailsMobileSheet extends StatelessWidget {
     required this.area,
     required this.details,
     required this.loading,
+    required this.singularTerm,
+    required this.pluralTerm,
   });
 
   final AreaOverview area;
   final _AreaDetailsData details;
   final bool loading;
+  final String singularTerm;
+  final String pluralTerm;
 
   @override
   Widget build(BuildContext context) {
@@ -622,7 +577,7 @@ class _AreaDetailsMobileSheet extends StatelessWidget {
                       children: [
                         Expanded(
                           child: _MobileStatCard(
-                            title: 'Aulas',
+                            title: pluralTerm,
                             value: '${details.completedLessons}',
                             accent: const Color(0xFF155DFC),
                             bg: const Color(0xFFEFF6FF),
@@ -665,7 +620,7 @@ class _AreaDetailsMobileSheet extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const Text(
-                            'Disciplinas selecionadas',
+                            'Serviços selecionados',
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w700,
@@ -676,7 +631,7 @@ class _AreaDetailsMobileSheet extends StatelessWidget {
                           const SizedBox(height: 12),
                           if (area.selectedDisciplinaNames.isEmpty)
                             const Text(
-                              'Nenhuma disciplina selecionada nesta área.',
+                              'Nenhum serviço selecionado nesta área.',
                               style: TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w500,
@@ -729,7 +684,7 @@ class _AreaDetailsMobileSheet extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const Text(
-                            'Explicadores desta área',
+                            'Profissionais sugeridos',
                             style: TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.w700,
@@ -740,8 +695,8 @@ class _AreaDetailsMobileSheet extends StatelessWidget {
                           const SizedBox(height: 8),
                           Text(
                             details.tutors.isEmpty
-                                ? 'Ainda não encontrámos explicadores sugeridos para esta área.'
-                                : 'Veja alguns explicadores que lecionam esta área e explore mais opções.',
+                                ? 'Ainda não encontrámos profissionais sugeridos para esta área.'
+                                : 'Veja alguns especialistas que atuam nesta área e explore mais opções.',
                             style: const TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w500,
@@ -755,13 +710,10 @@ class _AreaDetailsMobileSheet extends StatelessWidget {
                           else
                             Column(
                               children: [
-                                for (
-                                  var index = 0;
-                                  index < details.tutors.length;
-                                  index++
-                                ) ...[
+                                for (var index = 0; index < details.tutors.length; index++) ...[
                                   _MobileTutorSuggestionCard(
                                     tutor: details.tutors[index],
+                                    pluralTerm: pluralTerm,
                                   ),
                                   if (index < details.tutors.length - 1)
                                     const SizedBox(height: 12),
@@ -783,9 +735,7 @@ class _AreaDetailsMobileSheet extends StatelessWidget {
                         child: TextButton(
                           onPressed: () {
                             Navigator.of(context).pop();
-                            Navigator.of(
-                              context,
-                            ).pushNamed(Routes.explicadores);
+                            Navigator.of(context).pushNamed(Routes.explicadores);
                           },
                           style: TextButton.styleFrom(
                             foregroundColor: Colors.white,
@@ -794,7 +744,7 @@ class _AreaDetailsMobileSheet extends StatelessWidget {
                             ),
                           ),
                           child: const Text(
-                            'Encontrar explicadores',
+                            'Encontrar especialistas',
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w700,
@@ -810,243 +760,6 @@ class _AreaDetailsMobileSheet extends StatelessWidget {
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _MobileStatCard extends StatelessWidget {
-  const _MobileStatCard({
-    required this.title,
-    required this.value,
-    required this.accent,
-    required this.bg,
-    required this.icon,
-    this.smallValue = false,
-  });
-
-  final String title;
-  final String value;
-  final Color accent;
-  final Color bg;
-  final IconData icon;
-  final bool smallValue;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      constraints: const BoxConstraints(minHeight: 92),
-      padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: accent.withValues(alpha: 0.18)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, size: 16, color: accent),
-          const SizedBox(height: 8),
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              color: accent,
-              height: 1.2,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            value,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontSize: smallValue ? 13 : 22,
-              fontWeight: FontWeight.w700,
-              color: const Color(0xFF101828),
-              height: 1.2,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _MobileTutorSuggestionCard extends StatelessWidget {
-  const _MobileTutorSuggestionCard({required this.tutor});
-
-  final TutorBrowseItemDto tutor;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              CircleAvatar(
-                radius: 22,
-                backgroundColor: const Color(0xFFFFEDD5),
-                child: Text(
-                  tutor.name.isNotEmpty
-                      ? tutor.name.characters.first.toUpperCase()
-                      : 'E',
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFFF54900),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      tutor.name,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFF101828),
-                        height: 1.3,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      tutor.subtitle.isNotEmpty ? tutor.subtitle : 'Online',
-                      style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                        color: Color(0xFF4A5565),
-                        height: 1.35,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                '${tutor.minPrice.round()}€/h',
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFFF54900),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              const Icon(
-                Icons.star_rounded,
-                size: 16,
-                color: Color(0xFFFC9039),
-              ),
-              const SizedBox(width: 4),
-              Text(
-                '${tutor.rating.toStringAsFixed(1)} (${tutor.reviewCount})',
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF364153),
-                ),
-              ),
-              const SizedBox(width: 12),
-              const Icon(
-                Icons.menu_book_outlined,
-                size: 16,
-                color: Color(0xFF6A7282),
-              ),
-              const SizedBox(width: 4),
-              Text(
-                '${tutor.lessonsCount} aulas',
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF364153),
-                ),
-              ),
-            ],
-          ),
-          if (tutor.tags.isNotEmpty) ...[
-            const SizedBox(height: 10),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                for (final tag in tutor.tags.take(3))
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF3F4F6),
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                    child: Text(
-                      tag,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                        color: Color(0xFF4A5565),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ],
-          const SizedBox(height: 12),
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                Navigator.of(context).pushNamed(
-                  Routes.tutorProfile,
-                  arguments: TutorProfileArgs(
-                    professorId: tutor.idProfessor,
-                    name: tutor.name,
-                    country: tutor.subtitle.isNotEmpty
-                        ? tutor.subtitle
-                        : 'Online',
-                    rating: tutor.rating,
-                    reviewCount: tutor.reviewCount,
-                    description: tutor.description,
-                    lessonsText: '${tutor.lessonsCount} aulas',
-                    pricePerHour: tutor.minPrice.round(),
-                    tags: tutor.tags,
-                  ),
-                );
-              },
-              style: OutlinedButton.styleFrom(
-                minimumSize: const Size.fromHeight(44),
-                side: const BorderSide(color: Color(0xFFE5E7EB)),
-                foregroundColor: const Color(0xFFF54900),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              child: const Text(
-                'Ver perfil',
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -1180,13 +893,15 @@ class _StatCard extends StatelessWidget {
             children: [
               Icon(icon, size: 16, color: iconColor),
               const SizedBox(width: 8),
-              Text(
-                title,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                  color: titleColor,
-                  height: 16 / 12,
+              Expanded(
+                child: Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: titleColor,
+                    height: 16 / 12,
+                  ),
                 ),
               ),
             ],
@@ -1194,6 +909,8 @@ class _StatCard extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             value,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
             style: TextStyle(
               fontSize: valueIsSmall ? 14 : 24,
               fontWeight: valueIsSmall ? FontWeight.w600 : FontWeight.bold,
@@ -1237,7 +954,7 @@ class _EmptyTutorsState extends StatelessWidget {
         border: Border.all(color: const Color(0xFFE5E7EB)),
       ),
       child: const Text(
-        'Sem sugestões neste momento. Pode usar o botão abaixo para explorar a página completa de explicadores.',
+        'Sem sugestões neste momento. Pode usar o botão abaixo para explorar o catálogo completo.',
         style: TextStyle(
           fontSize: 14,
           fontWeight: FontWeight.w400,
@@ -1250,10 +967,11 @@ class _EmptyTutorsState extends StatelessWidget {
 }
 
 class _TutorSuggestionCard extends StatelessWidget {
-  const _TutorSuggestionCard({required this.tutor, required this.onTap});
+  const _TutorSuggestionCard({required this.tutor, required this.onTap, required this.pluralTerm});
 
   final TutorBrowseItemDto tutor;
   final VoidCallback onTap;
+  final String pluralTerm;
 
   @override
   Widget build(BuildContext context) {
@@ -1346,7 +1064,7 @@ class _TutorSuggestionCard extends StatelessWidget {
                     ),
                     const SizedBox(width: 4),
                     Text(
-                      '${tutor.lessonsCount} aulas',
+                      '${tutor.lessonsCount} ${pluralTerm.toLowerCase()}',
                       style: const TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w500,
@@ -1393,6 +1111,244 @@ class _TutorSuggestionCard extends StatelessWidget {
               foregroundColor: const Color(0xFFF54900),
             ),
             child: const Text('Ver perfil'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MobileStatCard extends StatelessWidget {
+  const _MobileStatCard({
+    required this.title,
+    required this.value,
+    required this.accent,
+    required this.bg,
+    required this.icon,
+    this.smallValue = false,
+  });
+
+  final String title;
+  final String value;
+  final Color accent;
+  final Color bg;
+  final IconData icon;
+  final bool smallValue;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      constraints: const BoxConstraints(minHeight: 92),
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: accent.withValues(alpha: 0.18)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 16, color: accent),
+          const SizedBox(height: 8),
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: accent,
+              height: 1.2,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            value,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: smallValue ? 13 : 22,
+              fontWeight: FontWeight.w700,
+              color: const Color(0xFF101828),
+              height: 1.2,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MobileTutorSuggestionCard extends StatelessWidget {
+  const _MobileTutorSuggestionCard({required this.tutor, required this.pluralTerm});
+
+  final TutorBrowseItemDto tutor;
+  final String pluralTerm;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              CircleAvatar(
+                radius: 22,
+                backgroundColor: const Color(0xFFFFEDD5),
+                child: Text(
+                  tutor.name.isNotEmpty
+                      ? tutor.name.characters.first.toUpperCase()
+                      : 'E',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFFF54900),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      tutor.name,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF101828),
+                        height: 1.3,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      tutor.subtitle.isNotEmpty ? tutor.subtitle : 'Online',
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                        color: Color(0xFF4A5565),
+                        height: 1.35,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                '${tutor.minPrice.round()}€/h',
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFFF54900),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              const Icon(
+                Icons.star_rounded,
+                size: 16,
+                color: Color(0xFFFC9039),
+              ),
+              const SizedBox(width: 4),
+              Text(
+                '${tutor.rating.toStringAsFixed(1)} (${tutor.reviewCount})',
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF364153),
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Icon(
+                Icons.menu_book_outlined,
+                size: 16,
+                color: Color(0xFF6A7282),
+              ),
+              const SizedBox(width: 4),
+              Text(
+                '${tutor.lessonsCount} ${pluralTerm.toLowerCase()}',
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF364153),
+                ),
+              ),
+            ],
+          ),
+          if (tutor.tags.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final tag in tutor.tags.take(3))
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF3F4F6),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Text(
+                      tag,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: Color(0xFF4A5565),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ],
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                Navigator.of(context).pushNamed(
+                  Routes.tutorProfile,
+                  arguments: TutorProfileArgs(
+                    professorId: tutor.idProfessor,
+                    name: tutor.name,
+                    country: tutor.subtitle.isNotEmpty
+                        ? tutor.subtitle
+                        : 'Online',
+                    rating: tutor.rating,
+                    reviewCount: tutor.reviewCount,
+                    description: tutor.description,
+                    lessonsText: '${tutor.lessonsCount} ${pluralTerm.toLowerCase()}',
+                    pricePerHour: tutor.minPrice.round(),
+                    tags: tutor.tags,
+                  ),
+                );
+              },
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size.fromHeight(44),
+                side: const BorderSide(color: Color(0xFFE5E7EB)),
+                foregroundColor: const Color(0xFFF54900),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: const Text(
+                'Ver perfil',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+              ),
+            ),
           ),
         ],
       ),

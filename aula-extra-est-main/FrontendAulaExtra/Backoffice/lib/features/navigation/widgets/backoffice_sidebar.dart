@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/constants/app_dimensions.dart';
+import '../../../core/auth/backoffice_session_controller.dart';
 import '../../../design/theme/app_colors.dart';
 import '../constants/backoffice_navigation_sections.dart';
 import '../models/backoffice_user_profile.dart';
 import 'backoffice_sidebar_section.dart';
 
-class BackofficeSidebar extends StatelessWidget {
+class BackofficeSidebar extends StatefulWidget {
   const BackofficeSidebar({
     required this.currentRoute,
     required this.onNavigate,
@@ -15,6 +16,34 @@ class BackofficeSidebar extends StatelessWidget {
 
   final String currentRoute;
   final ValueChanged<String> onNavigate;
+
+  @override
+  State<BackofficeSidebar> createState() => _BackofficeSidebarState();
+}
+
+class _BackofficeSidebarState extends State<BackofficeSidebar> {
+  static double _lastOffset = 0;
+
+  late final ScrollController _scrollController;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController = ScrollController(initialScrollOffset: _lastOffset)
+      ..addListener(_storeOffset);
+  }
+
+  @override
+  void dispose() {
+    _scrollController
+      ..removeListener(_storeOffset)
+      ..dispose();
+    super.dispose();
+  }
+
+  void _storeOffset() {
+    _lastOffset = _scrollController.offset;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -31,6 +60,7 @@ class BackofficeSidebar extends StatelessWidget {
             const _SidebarHeader(),
             Expanded(
               child: SingleChildScrollView(
+                controller: _scrollController,
                 padding: const EdgeInsets.fromLTRB(16, 24, 15, 24),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -39,8 +69,8 @@ class BackofficeSidebar extends StatelessWidget {
                         in BackofficeNavigationSections.sections) ...[
                       BackofficeSidebarSection(
                         section: section,
-                        currentRoute: currentRoute,
-                        onItemTap: onNavigate,
+                        currentRoute: widget.currentRoute,
+                        onItemTap: widget.onNavigate,
                       ),
                       const SizedBox(height: 26),
                     ],
@@ -48,9 +78,7 @@ class BackofficeSidebar extends StatelessWidget {
                 ),
               ),
             ),
-            const _SidebarFooter(
-              profile: BackofficeNavigationSections.currentUser,
-            ),
+            const _SidebarFooter(),
           ],
         ),
       ),
@@ -104,12 +132,17 @@ class _SidebarHeader extends StatelessWidget {
 }
 
 class _SidebarFooter extends StatelessWidget {
-  const _SidebarFooter({required this.profile});
-
-  final BackofficeUserProfile profile;
+  const _SidebarFooter();
 
   @override
   Widget build(BuildContext context) {
+    final session = BackofficeSessionController.instance;
+    final profile = session.userProfile ?? const BackofficeUserProfile(
+      name: 'Admin AulaExtra',
+      email: 'admin@aulaextra.pt',
+      initials: 'AA',
+    );
+
     return Container(
       width: double.infinity,
       decoration: const BoxDecoration(
@@ -168,7 +201,12 @@ class _SidebarFooter extends StatelessWidget {
             ),
           ),
           IconButton(
-            onPressed: () {},
+            onPressed: () async {
+              await session.logout();
+              if (context.mounted) {
+                Navigator.of(context).pushNamedAndRemoveUntil('/login', (_) => false);
+              }
+            },
             icon: const Icon(
               Icons.logout,
               size: 20,

@@ -126,7 +126,7 @@ class MenuAlunoSection extends StatelessWidget {
                     ),
                     const SizedBox(height: 16),
                     MenuAlunoStatRow(
-                      label: 'Aulas esta semana:',
+                      label: 'Apoios esta semana:',
                       value: '$aulasEstaSemana',
                       valueColor: MenuAlunoColors.accentOrange,
                     ),

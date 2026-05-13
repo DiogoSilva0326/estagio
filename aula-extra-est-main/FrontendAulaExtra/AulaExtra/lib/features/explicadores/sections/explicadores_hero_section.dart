@@ -28,7 +28,7 @@ class _HeroContent extends StatelessWidget {
             left: 40.85,
             top: 0,
             child: Text(
-              'Explicadores Online',
+              'Apoio Especializado',
               style: TextStyle(
                 fontSize: 61.277,
                 height: 1,
@@ -43,7 +43,7 @@ class _HeroContent extends StatelessWidget {
             child: SizedBox(
               width: 980.426,
               child: Text(
-                'Encontra o explicador perfeito para ti, desde a primária até à universidade. Personaliza a tua busca por preço, disponibilidade e mais.',
+                'Encontra o apoio perfeito para ti, desde explicadores a tutores e psicólogos. Personaliza a tua busca por preço, disponibilidade e mais.',
                 style: TextStyle(
                   fontSize: 25.532,
                   height: 35.745 / 25.532,
@@ -63,7 +63,7 @@ class _HeroContent extends StatelessWidget {
                 children: const [
                   _HeroStat(
                     icon: Icons.people_alt_outlined,
-                    text: '500+ explicadores disponíveis',
+                    text: '500+ profissionais disponíveis',
                     width: 367.879,
                   ),
                   SizedBox(width: 40.851),
@@ -75,7 +75,7 @@ class _HeroContent extends StatelessWidget {
                   SizedBox(width: 40.851),
                   _HeroStat(
                     icon: Icons.play_circle_outline,
-                    text: '50.000+ aulas realizadas',
+                    text: '50.000+ sessões realizadas',
                     width: 310.462,
                   ),
                 ],
@@ -89,7 +89,7 @@ class _HeroContent extends StatelessWidget {
               width: 346.127,
               height: 76.596,
               child: DecoratedBox(
-                decoration: BoxDecoration(
+                decoration: const BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.all(Radius.circular(12.766)),
                 ),
@@ -100,16 +100,12 @@ class _HeroContent extends StatelessWidget {
                       fontSize: 22.979,
                       height: 35.745 / 22.979,
                       fontWeight: FontWeight.w700,
-                      
                       color: Color(0xFFFC9039),
                     ),
-                    
                   ),
                 ),
-                
               ),
             ),
-            
           ),
         ],
       ),

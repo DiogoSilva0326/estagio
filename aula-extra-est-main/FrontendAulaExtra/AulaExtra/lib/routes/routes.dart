@@ -1,8 +1,8 @@
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
 import 'package:aula_extra/features/disciplinas/pages/disciplinas_screen.dart';
 import 'package:aula_extra/features/explicadores/pages/explicadores_screen.dart';
 import 'package:aula_extra/features/aluno/areas_aluno/pages/areas_aluno_screen.dart';
-import 'package:aula_extra/features/aluno/meus_explicadores/pages/meus_explicadores_screen.dart';
+import 'package:aula_extra/features/aluno/meus_profissionais/pages/meus_explicadores_screen.dart';
 import 'package:aula_extra/features/aluno/calendario/pages/calendario_screen.dart';
 import 'package:aula_extra/features/aluno/calendario/pages/calendario_semanal_screen.dart';
 import 'package:aula_extra/features/aluno/chats/pages/chats_screen.dart';
@@ -38,85 +38,31 @@ import 'package:provider/provider.dart';
 import 'package:aula_extra/core/data/session/token_storage.dart';
 import 'package:aula_extra/core/data/auth/auth_service.dart';
 import 'package:aula_extra/core/session/session_manager.dart';
+import 'package:aula_extra/features/aluno/meus_profissionais/pages/meus_tutores_screen.dart';
+import 'package:aula_extra/features/aluno/meus_profissionais/pages/meus_psicologos_screen.dart';
 
-class _TeacherOnly extends StatefulWidget {
+class _TeacherOnly extends StatelessWidget {
   const _TeacherOnly({required this.child});
 
   final Widget child;
 
   @override
-  State<_TeacherOnly> createState() => _TeacherOnlyState();
-}
-
-class _TeacherOnlyState extends State<_TeacherOnly> {
-  final TokenStorage _tokenStorage = TokenStorage();
-  bool? _isTeacher;
-
-  @override
-  void initState() {
-    super.initState();
-    _resolve();
-  }
-
-  Future<void> _resolve() async {
-    try {
-      final token = await _tokenStorage.loadToken();
-      if (token == null || token.trim().isEmpty) {
-        await SessionManager.instance.handleExpiredSession();
-        if (!mounted) return;
-        setState(() => _isTeacher = false);
-        return;
-      }
-
-      // Confirm roles with backend (prevents stale JWT granting access).
-      bool teacher;
-      try {
-        final session = await AuthService(
-          tokenStorage: _tokenStorage,
-        ).refresh();
-        teacher = session.appRole == Role.teacher;
-      } catch (_) {
-        await SessionManager.instance.handleExpiredSession();
-        teacher = false;
-      }
-
-      if (!mounted) return;
-
-      if (teacher == false) {
-        final provider = context.read<UserProvider>();
-        if (provider.role == Role.teacher) provider.setRole(Role.student);
-      }
-      setState(() => _isTeacher = teacher);
-
-      // Keep provider role consistent (best-effort).
-      final provider = context.read<UserProvider>();
-      if (teacher && provider.role != Role.teacher) {
-        provider.setRole(Role.teacher);
-      }
-      if (!teacher && provider.role == Role.teacher) {
-        provider.setRole(Role.student);
-      }
-    } catch (_) {
-      await SessionManager.instance.handleExpiredSession();
-      if (!mounted) return;
-      setState(() => _isTeacher = false);
-      final provider = context.read<UserProvider>();
-      if (provider.role == Role.teacher) provider.setRole(Role.student);
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final isTeacher = _isTeacher;
+    final currentRole = context.watch<UserProvider>().role;
 
-    // Safe default: deny until proven.
-    if (isTeacher != true) {
-      return const BecomeTeacherScreen();
+    final allowedRoles = [Role.teacher, Role.tutor, Role.psychologist];
+
+    if (allowedRoles.contains(currentRole)) {
+      return child;
     }
 
-    return widget.child;
+    // Se houver erro de permissão, ele mostra esta tela. 
+    // Se a tua app volta para o início, verifica se a 'BecomeTeacherScreen' 
+    // tem algum Navigator.push no seu initState.
+    return const BecomeTeacherScreen();
   }
 }
+
 
 class Routes {
   static const String home = '/';
@@ -129,6 +75,10 @@ class Routes {
   static const String registerStudent = '/register/student';
   static const String explicadores = '/explicadores';
   static const String meusExplicadores = '/aluno/meus-explicadores';
+  static const String meusTutores = '/aluno/meus-tutores';         
+  static const String meusPsicologos = '/aluno/meus-psicologos';     
+  static const String tutores = '/tutores';                  
+  static const String psicologos = '/psicologos';
   static const String disciplinas = '/disciplinas';
   static const String tutorProfile = '/explicadores/perfil';
   static const String marcarAulaProfessor = '/aluno/marcar-aula';
@@ -167,6 +117,8 @@ class Routes {
     registerStudent: (context) => const RegisterStudentScreen(),
     explicadores: (context) => const ExplicadoresScreen(),
     meusExplicadores: (context) => const MeusExplicadoresScreen(),
+    meusTutores: (context) => const MeusTutoresScreen(),      
+    meusPsicologos: (context) => const MeusPsicologosScreen(),
     calendario: (context) => const CalendarioScreen(),
     calendarioSemanal: (context) => const CalendarioSemanalScreen(),
     arquivos: (context) => const ArquivosScreen(),

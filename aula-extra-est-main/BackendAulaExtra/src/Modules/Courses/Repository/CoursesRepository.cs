@@ -8,6 +8,86 @@ namespace ConfidantPostgreSQL.Modules.Courses.Repository
 {
     public class CoursesRepository : ICoursesRepository
     {
+                private const string EnsureLessonPacksSchemaSql = @"
+ALTER TABLE public.lesson_packs
+    ADD COLUMN IF NOT EXISTS description TEXT;
+
+DROP FUNCTION IF EXISTS public.usp_lesson_packs_insert(uuid, character varying, integer, integer, numeric, boolean, timestamp);
+CREATE OR REPLACE FUNCTION public.usp_lesson_packs_insert(
+    p_id_course uuid,
+    p_name varchar(200),
+    p_description text,
+    p_number_of_lessons integer,
+    p_session_duration_minutes integer,
+    p_total_price numeric,
+    p_is_active boolean,
+    p_created_at timestamp
+)
+RETURNS uuid
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_id uuid;
+BEGIN
+    INSERT INTO public.lesson_packs (
+        id_course,
+        name,
+        description,
+        number_of_lessons,
+        session_duration_minutes,
+        total_price,
+        is_active,
+        created_at
+    )
+    VALUES (
+        p_id_course,
+        p_name,
+        p_description,
+        p_number_of_lessons,
+        p_session_duration_minutes,
+        p_total_price,
+        COALESCE(p_is_active, true),
+        COALESCE(p_created_at, now())
+    )
+    RETURNING id_lesson_pack INTO v_id;
+
+    RETURN v_id;
+END;
+$$;
+
+DROP FUNCTION IF EXISTS public.usp_lesson_packs_update(uuid, uuid, character varying, integer, integer, numeric, boolean);
+CREATE OR REPLACE FUNCTION public.usp_lesson_packs_update(
+    p_id_lesson_pack uuid,
+    p_id_course uuid,
+    p_name varchar(200),
+    p_description text,
+    p_number_of_lessons integer,
+    p_session_duration_minutes integer,
+    p_total_price numeric,
+    p_is_active boolean
+)
+RETURNS integer
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_rowcount integer;
+BEGIN
+    UPDATE public.lesson_packs
+    SET id_course = p_id_course,
+            name = p_name,
+            description = p_description,
+            number_of_lessons = p_number_of_lessons,
+            session_duration_minutes = p_session_duration_minutes,
+            total_price = p_total_price,
+            is_active = p_is_active
+    WHERE id_lesson_pack = p_id_lesson_pack;
+
+    GET DIAGNOSTICS v_rowcount = ROW_COUNT;
+    RETURN v_rowcount;
+END;
+$$;
+";
+
         private readonly string _connectionString;
 
         public CoursesRepository(string connectionString)
@@ -431,6 +511,7 @@ namespace ConfidantPostgreSQL.Modules.Courses.Repository
             var list = new List<LessonPack>();
             await using var conn = new NpgsqlConnection(_connectionString);
             await conn.OpenAsync();
+            await EnsureLessonPacksSchemaAsync(conn);
             await using var cmd = conn.CreateCommand();
             cmd.CommandText = "SELECT * FROM public.usp_lesson_packs_select_all01();";
             await using var reader = await cmd.ExecuteReaderAsync();
@@ -441,6 +522,7 @@ namespace ConfidantPostgreSQL.Modules.Courses.Repository
                     IdLessonPack = reader.GetGuid(reader.GetOrdinal("id_lesson_pack")),
                     IdCourse = reader.GetGuid(reader.GetOrdinal("id_course")),
                     Name = GetNullableString(reader, "name"),
+                    Description = GetNullableString(reader, "description"),
                     NumberOfLessons = reader.GetInt32(reader.GetOrdinal("number_of_lessons")),
                     SessionDurationMinutes = GetNullableInt(reader, "session_duration_minutes"),
                     TotalPrice = GetNullableDecimal(reader, "total_price"),
@@ -455,6 +537,7 @@ namespace ConfidantPostgreSQL.Modules.Courses.Repository
         {
             await using var conn = new NpgsqlConnection(_connectionString);
             await conn.OpenAsync();
+            await EnsureLessonPacksSchemaAsync(conn);
             await using var cmd = conn.CreateCommand();
             cmd.CommandText = "SELECT * FROM public.usp_lesson_packs_select_details01(@id_lesson_pack);";
             cmd.Parameters.AddWithValue("id_lesson_pack", idLessonPack);
@@ -465,6 +548,7 @@ namespace ConfidantPostgreSQL.Modules.Courses.Repository
                 IdLessonPack = reader.GetGuid(reader.GetOrdinal("id_lesson_pack")),
                 IdCourse = reader.GetGuid(reader.GetOrdinal("id_course")),
                 Name = GetNullableString(reader, "name"),
+                Description = GetNullableString(reader, "description"),
                 NumberOfLessons = reader.GetInt32(reader.GetOrdinal("number_of_lessons")),
                 SessionDurationMinutes = GetNullableInt(reader, "session_duration_minutes"),
                 TotalPrice = GetNullableDecimal(reader, "total_price"),
@@ -478,6 +562,7 @@ namespace ConfidantPostgreSQL.Modules.Courses.Repository
             var list = new List<LessonPack>();
             await using var conn = new NpgsqlConnection(_connectionString);
             await conn.OpenAsync();
+            await EnsureLessonPacksSchemaAsync(conn);
             await using var cmd = conn.CreateCommand();
             cmd.CommandText = "SELECT * FROM public.usp_lesson_packs_select_by_course01(@id_course);";
             cmd.Parameters.AddWithValue("id_course", idCourse);
@@ -489,6 +574,7 @@ namespace ConfidantPostgreSQL.Modules.Courses.Repository
                     IdLessonPack = reader.GetGuid(reader.GetOrdinal("id_lesson_pack")),
                     IdCourse = reader.GetGuid(reader.GetOrdinal("id_course")),
                     Name = GetNullableString(reader, "name"),
+                    Description = GetNullableString(reader, "description"),
                     NumberOfLessons = reader.GetInt32(reader.GetOrdinal("number_of_lessons")),
                     SessionDurationMinutes = GetNullableInt(reader, "session_duration_minutes"),
                     TotalPrice = GetNullableDecimal(reader, "total_price"),
@@ -503,10 +589,12 @@ namespace ConfidantPostgreSQL.Modules.Courses.Repository
         {
             await using var conn = new NpgsqlConnection(_connectionString);
             await conn.OpenAsync();
+            await EnsureLessonPacksSchemaAsync(conn);
             await using var cmd = conn.CreateCommand();
-            cmd.CommandText = "SELECT public.usp_lesson_packs_insert(@id_course, @name, @number_of_lessons, @session_duration_minutes, @total_price, @is_active, @created_at);";
+            cmd.CommandText = "SELECT public.usp_lesson_packs_insert(@id_course, @name, @description, @number_of_lessons, @session_duration_minutes, @total_price, @is_active, @created_at);";
             cmd.Parameters.AddWithValue("id_course", lessonPack.IdCourse);
             cmd.Parameters.AddWithValue("name", (object?)lessonPack.Name ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("description", (object?)lessonPack.Description ?? DBNull.Value);
             cmd.Parameters.AddWithValue("number_of_lessons", lessonPack.NumberOfLessons);
             cmd.Parameters.AddWithValue("session_duration_minutes", (object?)lessonPack.SessionDurationMinutes ?? DBNull.Value);
             cmd.Parameters.AddWithValue("total_price", (object?)lessonPack.TotalPrice ?? DBNull.Value);
@@ -520,17 +608,26 @@ namespace ConfidantPostgreSQL.Modules.Courses.Repository
         {
             await using var conn = new NpgsqlConnection(_connectionString);
             await conn.OpenAsync();
+            await EnsureLessonPacksSchemaAsync(conn);
             await using var cmd = conn.CreateCommand();
-            cmd.CommandText = "SELECT public.usp_lesson_packs_update(@id_lesson_pack, @id_course, @name, @number_of_lessons, @session_duration_minutes, @total_price, @is_active);";
+            cmd.CommandText = "SELECT public.usp_lesson_packs_update(@id_lesson_pack, @id_course, @name, @description, @number_of_lessons, @session_duration_minutes, @total_price, @is_active);";
             cmd.Parameters.AddWithValue("id_lesson_pack", lessonPack.IdLessonPack);
             cmd.Parameters.AddWithValue("id_course", lessonPack.IdCourse);
             cmd.Parameters.AddWithValue("name", (object?)lessonPack.Name ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("description", (object?)lessonPack.Description ?? DBNull.Value);
             cmd.Parameters.AddWithValue("number_of_lessons", lessonPack.NumberOfLessons);
             cmd.Parameters.AddWithValue("session_duration_minutes", (object?)lessonPack.SessionDurationMinutes ?? DBNull.Value);
             cmd.Parameters.AddWithValue("total_price", (object?)lessonPack.TotalPrice ?? DBNull.Value);
             cmd.Parameters.AddWithValue("is_active", (object?)lessonPack.IsActive ?? DBNull.Value);
             var res = await cmd.ExecuteScalarAsync();
             return Convert.ToInt32(res);
+        }
+
+        private static async Task EnsureLessonPacksSchemaAsync(NpgsqlConnection conn)
+        {
+            await using var cmd = conn.CreateCommand();
+            cmd.CommandText = EnsureLessonPacksSchemaSql;
+            await cmd.ExecuteNonQueryAsync();
         }
 
         public async Task<int> DeleteLessonPackAsync(Guid idLessonPack)

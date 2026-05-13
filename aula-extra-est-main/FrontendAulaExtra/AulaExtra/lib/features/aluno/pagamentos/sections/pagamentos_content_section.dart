@@ -259,7 +259,7 @@ class _PagamentosContentSectionState extends State<PagamentosContentSection> {
         children: [
           const PagamentosMobileIntro(
             title: 'Pagamentos',
-            subtitle: 'Gerencie seus pagamentos e pacotes de aulas',
+            subtitle: 'Gerencie seus pagamentos e pacotes de apoios',
           ),
           const SizedBox(height: 18),
           Row(
@@ -459,7 +459,7 @@ class _PagamentosContentSectionState extends State<PagamentosContentSection> {
           return Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const AlunoMenuNav(selectedIndex: 5),
+              const AlunoMenuNav(),
               const SizedBox(width: 40),
               Expanded(
                 child: Column(
@@ -471,7 +471,7 @@ class _PagamentosContentSectionState extends State<PagamentosContentSection> {
                     ),
                     const SizedBox(height: 10.955),
                     const Text(
-                      'Gerencie seus pagamentos e pacotes de aulas',
+                      'Gerencie seus pagamentos e pacotes de apoios',
                       style: PagamentosConstants.subtitleStyle,
                     ),
                     const SizedBox(height: 24),

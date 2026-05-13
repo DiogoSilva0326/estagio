@@ -2,6 +2,9 @@ import 'package:aula_extra/features/professor/avaliacoes/constants/avaliacoes_pr
 import 'package:aula_extra/features/professor/avaliacoes/constants/avaliacoes_professor_layout.dart';
 import 'package:aula_extra/features/professor/avaliacoes/constants/avaliacoes_professor_tabs.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:aula_extra/core/providers/user_provider.dart';
+import 'package:aula_extra/core/config/teaching_roles_config.dart';
 
 class AvaliacoesProfessorMobileModeTabs extends StatelessWidget {
   const AvaliacoesProfessorMobileModeTabs({
@@ -15,6 +18,10 @@ class AvaliacoesProfessorMobileModeTabs extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final userProvider = Provider.of<UserProvider>(context);
+    final config = TeachingRoleConfig.fromRole(userProvider.role);
+    final isOrange = config.roleName == 'Explicador';
+
     return Container(
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
@@ -26,6 +33,11 @@ class AvaliacoesProfessorMobileModeTabs extends StatelessWidget {
         children: AvaliacoesProfessorTab.values
             .map((tab) {
               final selected = selectedTab == tab;
+              
+              final String label = tab == AvaliacoesProfessorTab.aulas 
+                  ? config.avaliacoes.sessionTabLabel 
+                  : config.roleName;
+
               return Expanded(
                 child: Padding(
                   padding: EdgeInsets.only(
@@ -53,10 +65,10 @@ class AvaliacoesProfessorMobileModeTabs extends StatelessWidget {
                               : null,
                         ),
                         child: Text(
-                          tab.label,
+                          label,
                           style: TextStyle(
                             color: selected
-                                ? AvaliacoesProfessorColors.title
+                                ? (isOrange ? AvaliacoesProfessorColors.title : config.primaryColor)
                                 : AvaliacoesProfessorColors.muted,
                             fontSize: 14,
                             fontWeight: selected

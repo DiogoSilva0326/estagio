@@ -196,14 +196,16 @@ class _AlunoMenuNavState extends State<AlunoMenuNav> {
     final routeName = ModalRoute.of(context)?.settings.name;
     if (routeName == Routes.areasAluno) return 0;
     if (routeName == Routes.meusExplicadores) return 1;
-    if (routeName == Routes.calendario) return 2;
-    if (routeName == Routes.calendarioSemanal) return 2;
-    if (routeName == Routes.arquivos) return 3;
-    if (routeName == Routes.chats) return 4;
-    if (routeName == Routes.pagamentos) return 5;
-    if (routeName == Routes.avaliacoes) return 6;
-    if (routeName == Routes.perfilAluno) return 7;
-    if (routeName == Routes.notificacoes) return 8;
+    if (routeName == Routes.meusTutores) return 2;     
+    if (routeName == Routes.meusPsicologos) return 3;
+    if (routeName == Routes.calendario) return 4;
+    if (routeName == Routes.calendarioSemanal) return 4; 
+    if (routeName == Routes.arquivos) return 5;
+    if (routeName == Routes.chats) return 6;
+    if (routeName == Routes.pagamentos) return 7;
+    if (routeName == Routes.avaliacoes) return 8;
+    if (routeName == Routes.perfilAluno) return 9;
+    if (routeName == Routes.notificacoes) return 10;
     return null;
   }
 
@@ -214,13 +216,15 @@ class _AlunoMenuNavState extends State<AlunoMenuNav> {
       final target = switch (index) {
         0 => Routes.areasAluno,
         1 => Routes.meusExplicadores,
-        2 => Routes.calendario,
-        3 => Routes.arquivos,
-        4 => Routes.chats,
-        5 => Routes.pagamentos,
-        6 => Routes.avaliacoes,
-        7 => Routes.perfilAluno,
-        8 => Routes.notificacoes,
+        2 => Routes.meusTutores,      
+        3 => Routes.meusPsicologos,
+        4 => Routes.calendario,
+        5 => Routes.arquivos,
+        6 => Routes.chats,
+        7 => Routes.pagamentos,
+        8 => Routes.avaliacoes,
+        9 => Routes.perfilAluno,
+        10 => Routes.notificacoes,
         _ => null,
       };
 

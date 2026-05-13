@@ -16,9 +16,9 @@ class AvaliacoesProfessorMobileIntro extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Avaliações',
-          style: TextStyle(
+        Text(
+          title,
+          style: const TextStyle(
             color: AvaliacoesProfessorColors.title,
             fontSize: 32,
             fontWeight: FontWeight.w700,

@@ -1,84 +1,76 @@
 import 'package:flutter/material.dart';
 
 import '../../../design/theme/app_colors.dart';
-import '../../dashboard/widgets/dashboard_surface_card.dart';
+import '../models/newsletter_campaign.dart';
 import '../widgets/newsletter_metric_card.dart';
 
 class NewsletterMetricsSection extends StatelessWidget {
-  const NewsletterMetricsSection({super.key});
+  const NewsletterMetricsSection({
+    required this.items,
+    required this.subscriberCount,
+    super.key,
+  });
+
+  final List<NewsletterCampaign> items;
+  final int subscriberCount;
 
   @override
   Widget build(BuildContext context) {
+    final sentCampaigns = items.where((item) => item.status == NewsletterCampaignStatus.sent).length;
+    final pendingCampaigns = items.where((item) => item.status != NewsletterCampaignStatus.sent).length;
+    final sentContacts = items.fold<int>(0, (sum, item) => sum + item.sentCount);
+
+    final cards = [
+      NewsletterMetricCard(
+        title: 'Subscritores ativos',
+        value: '$subscriberCount',
+        caption: 'Total confirmado na base de newsletter',
+        icon: Icons.send_rounded,
+        iconBackgroundColor: const Color(0xFFFFF1E8),
+        iconColor: const Color(0xFFFC9039),
+      ),
+      NewsletterMetricCard(
+        title: 'Campanhas enviadas',
+        value: '$sentCampaigns',
+        caption: 'Campanhas com envio concluído',
+        icon: Icons.mark_email_read_rounded,
+        iconBackgroundColor: const Color(0xFFEAF2FF),
+        iconColor: const Color(0xFF3B82F6),
+      ),
+      NewsletterMetricCard(
+        title: 'Fluxo ativo',
+        value: pendingCampaigns > 0 ? '$pendingCampaigns' : '$sentContacts',
+        caption: pendingCampaigns > 0
+            ? 'Rascunhos ou campanhas ainda por concluir'
+            : 'Contactos já processados pelos envios',
+        icon: Icons.ads_click_rounded,
+        iconBackgroundColor: const Color(0xFFEAFBF3),
+        iconColor: const Color(0xFF12B76A),
+      ),
+    ];
+
     return LayoutBuilder(
       builder: (context, constraints) {
         if (constraints.maxWidth < 860) {
-          return const Column(
+          return Column(
             children: [
-              NewsletterMetricCard(
-                title: 'Campanhas enviadas',
-                value: '24',
-                caption: 'Últimos 30 dias',
-                icon: Icons.send_rounded,
-                iconBackgroundColor: Color(0xFFFFF1E8),
-                iconColor: Color(0xFFFC9039),
-              ),
-              SizedBox(height: 18),
-              NewsletterMetricCard(
-                title: 'Taxa média de abertura',
-                value: '46,8%',
-                caption: 'Acima do mês anterior',
-                icon: Icons.mark_email_read_rounded,
-                iconBackgroundColor: Color(0xFFEAF2FF),
-                iconColor: Color(0xFF3B82F6),
-              ),
-              SizedBox(height: 18),
-              NewsletterMetricCard(
-                title: 'Cliques médios',
-                value: '11,9%',
-                caption: 'CTR global das campanhas',
-                icon: Icons.ads_click_rounded,
-                iconBackgroundColor: Color(0xFFEAFBF3),
-                iconColor: Color(0xFF12B76A),
-              ),
+              cards[0],
+              const SizedBox(height: 18),
+              cards[1],
+              const SizedBox(height: 18),
+              cards[2],
             ],
           );
         }
 
-        return const Row(
+        return Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(
-              child: NewsletterMetricCard(
-                title: 'Campanhas enviadas',
-                value: '24',
-                caption: 'Últimos 30 dias',
-                icon: Icons.send_rounded,
-                iconBackgroundColor: Color(0xFFFFF1E8),
-                iconColor: Color(0xFFFC9039),
-              ),
-            ),
-            SizedBox(width: 18),
-            Expanded(
-              child: NewsletterMetricCard(
-                title: 'Taxa média de abertura',
-                value: '46,8%',
-                caption: 'Acima do mês anterior',
-                icon: Icons.mark_email_read_rounded,
-                iconBackgroundColor: Color(0xFFEAF2FF),
-                iconColor: Color(0xFF3B82F6),
-              ),
-            ),
-            SizedBox(width: 18),
-            Expanded(
-              child: NewsletterMetricCard(
-                title: 'Cliques médios',
-                value: '11,9%',
-                caption: 'CTR global das campanhas',
-                icon: Icons.ads_click_rounded,
-                iconBackgroundColor: Color(0xFFEAFBF3),
-                iconColor: Color(0xFF12B76A),
-              ),
-            ),
+            Expanded(child: cards[0]),
+            const SizedBox(width: 18),
+            Expanded(child: cards[1]),
+            const SizedBox(width: 18),
+            Expanded(child: cards[2]),
           ],
         );
       },
@@ -87,65 +79,66 @@ class NewsletterMetricsSection extends StatelessWidget {
 }
 
 class NewsletterAudienceSection extends StatelessWidget {
-  const NewsletterAudienceSection({super.key});
+  const NewsletterAudienceSection({required this.items, super.key});
+
+  final List<NewsletterCampaign> items;
 
   @override
   Widget build(BuildContext context) {
+    final activeSegments = items
+        .map((item) => item.audience)
+        .where((label) => label.trim().isNotEmpty)
+        .toSet()
+        .toList(growable: false);
+    final nextScheduled = items.where((item) => item.scheduledAt != null).toList(growable: false)
+      ..sort((a, b) => a.scheduledAt!.compareTo(b.scheduledAt!));
+    final nextCampaign = nextScheduled.isNotEmpty ? nextScheduled.first : null;
+
+    Widget buildSegmentsCard() {
+      return _InsightCard(
+        icon: Icons.groups_rounded,
+        iconBackgroundColor: const Color(0xFFEAF2FF),
+        iconColor: const Color(0xFF3B82F6),
+        title: 'Segmentos ativos',
+        body: activeSegments.isEmpty
+            ? 'Sem segmentos utilizados ainda. As novas campanhas podem ser dirigidas a todos os subscritores ou a segmentos específicos.'
+            : activeSegments.join(', '),
+      );
+    }
+
+    Widget buildNextCard() {
+      return _InsightCard(
+        icon: Icons.schedule_send_rounded,
+        iconBackgroundColor: const Color(0xFFFFF4E5),
+        iconColor: AppColors.warning,
+        title: 'Próximo envio',
+        body: nextCampaign == null
+            ? 'Sem campanhas agendadas de momento. Os rascunhos ficam disponíveis para envio manual.'
+            : '${nextCampaign.title} · ${nextCampaign.scheduledFor} · ${nextCampaign.performanceLabel.toLowerCase()}.',
+      );
+    }
+
     return LayoutBuilder(
       builder: (context, constraints) {
         final isCompact = constraints.maxWidth < 860;
 
-        final cards = const [
-          Expanded(
-            child: _InsightCard(
-              icon: Icons.groups_rounded,
-              iconBackgroundColor: Color(0xFFEAF2FF),
-              iconColor: Color(0xFF3B82F6),
-              title: 'Segmentos ativos',
-              body:
-                  'Novos registos, alunos inativos, explicadores ativos e leads vindas do formulário principal.',
-            ),
-          ),
-          SizedBox(width: 18),
-          Expanded(
-            child: _InsightCard(
-              icon: Icons.schedule_send_rounded,
-              iconBackgroundColor: Color(0xFFFFF4E5),
-              iconColor: AppColors.warning,
-              title: 'Próximo envio',
-              body:
-                  'Reativação de alunos inativos · amanhã às 09:00 · audiência prevista de 860 contactos.',
-            ),
-          ),
-        ];
-
         if (isCompact) {
-          return const Column(
+          return Column(
             children: [
-              _InsightCard(
-                icon: Icons.groups_rounded,
-                iconBackgroundColor: Color(0xFFEAF2FF),
-                iconColor: Color(0xFF3B82F6),
-                title: 'Segmentos ativos',
-                body:
-                    'Novos registos, alunos inativos, explicadores ativos e leads vindas do formulário principal.',
-              ),
-              SizedBox(height: 18),
-              _InsightCard(
-                icon: Icons.schedule_send_rounded,
-                iconBackgroundColor: Color(0xFFFFF4E5),
-                iconColor: AppColors.warning,
-                title: 'Próximo envio',
-                body:
-                    'Reativação de alunos inativos · amanhã às 09:00 · audiência prevista de 860 contactos.',
-              ),
+              buildSegmentsCard(),
+              const SizedBox(height: 18),
+              buildNextCard(),
             ],
           );
         }
 
         return Row(
           crossAxisAlignment: CrossAxisAlignment.start,
-          children: cards,
+          children: [
+            Expanded(child: buildSegmentsCard()),
+            const SizedBox(width: 18),
+            Expanded(child: buildNextCard()),
+          ],
         );
       },
     );
@@ -169,9 +162,20 @@ class _InsightCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return DashboardSurfaceCard(
+    return Container(
+      width: double.infinity,
       padding: const EdgeInsets.all(28),
-      borderRadius: 24,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0F101828),
+            blurRadius: 18,
+            offset: Offset(0, 8),
+          ),
+        ],
+      ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

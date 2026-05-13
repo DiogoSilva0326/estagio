@@ -1,7 +1,12 @@
+import 'package:aula_extra/core/data/education/dtos/area_dto.dart';
+import 'package:aula_extra/core/data/education/dtos/disciplina_dto.dart';
+import 'package:aula_extra/core/data/education/education_service.dart';
 import 'package:aula_extra/core/data/professor_ads/dtos/professor_ad_dto.dart';
+import 'package:aula_extra/core/data/professor_ads/dtos/professor_ads_form_data_dto.dart';
 import 'package:aula_extra/core/data/professor_ads/professor_ads_api.dart';
 import 'package:aula_extra/core/data/professor_ads/professor_ads_service.dart';
 import 'package:aula_extra/core/providers/user_provider.dart';
+import 'package:aula_extra/core/config/teaching_roles_config.dart'; 
 import 'package:aula_extra/core/widgets/app_confirmation_dialog.dart';
 import 'package:aula_extra/features/home/widgets/full_bleed_scaled_section.dart';
 import 'package:aula_extra/features/professor/core/widgets/professor_menu_nav.dart';
@@ -30,6 +35,7 @@ class MeusAnunciosProfessorContentSection extends StatefulWidget {
 class _MeusAnunciosProfessorContentSectionState
     extends State<MeusAnunciosProfessorContentSection> {
   final ProfessorAdsService _adsService = ProfessorAdsService();
+  final EducationService _educationService = EducationService();
 
   bool _loading = true;
   String? _error;
@@ -50,10 +56,34 @@ class _MeusAnunciosProfessorContentSectionState
     });
 
     try {
-      final data = await _adsService.getMyData();
+      final userProvider = Provider.of<UserProvider>(context, listen: false);
+      final currentTargetRole = userProvider.role == Role.psychologist ? 'psicologia' 
+                              : userProvider.role == Role.tutor ? 'tutoria' 
+                              : 'ensino';
+
+      final results = await Future.wait([
+        _adsService.getMyData(),
+        _educationService.getAreas(targetRole: currentTargetRole),
+      ]);
+
+      final data = results[0] as ProfessorAdsFormDataDto;
+      final allowedAreas = results[1] as List<AreaDto>;
+      
+      final allowedAreaIds = allowedAreas.map((a) => a.idArea).toSet();
+
+      final roleFilteredAds = data.ads.where((ad) {
+        final disciplina = data.disciplinas.cast<DisciplinaDto?>().firstWhere(
+          (d) => d?.idDisciplina == ad.idDisciplina,
+          orElse: () => null,
+        );
+        if (disciplina == null) return false;
+        
+        return allowedAreaIds.contains(disciplina.idArea);
+      }).toList(growable: false);
+
       if (!mounted) return;
       setState(() {
-        _ads = data.ads;
+        _ads = roleFilteredAds;
         _loading = false;
       });
     } on ProfessorAdsException catch (error) {
@@ -86,7 +116,7 @@ class _MeusAnunciosProfessorContentSectionState
     await _load();
   }
 
-  void _openPublicProfile(ProfessorAdDto ad, String displayName) {
+  void _openPublicProfile(ProfessorAdDto ad, String displayName, TeachingRoleConfig config) {
     Navigator.of(context).pushNamed(
       Routes.tutorProfile,
       arguments: TutorProfileArgs(
@@ -97,8 +127,8 @@ class _MeusAnunciosProfessorContentSectionState
         reviewCount: 0,
         description: ad.description?.trim().isNotEmpty == true
             ? ad.description!.trim()
-            : 'Professor disponível para novas aulas.',
-        lessonsText: 'Professor Aula Extra',
+            : config.publicarAnuncio.defaultProfileDescription,
+        lessonsText: config.publicarAnuncio.profileBadgeText,
         pricePerHour: (ad.sessionPrice ?? 0).round(),
         tags: [
           if ((ad.disciplinaNome ?? '').trim().isNotEmpty)
@@ -199,16 +229,19 @@ class _MeusAnunciosProfessorContentSectionState
 
   @override
   Widget build(BuildContext context) {
-    final account = context.watch<UserProvider>().account;
+    final userProvider = Provider.of<UserProvider>(context);
+    final account = userProvider.account;
+    final config = TeachingRoleConfig.fromRole(userProvider.role);
+
     final displayName = (account?.fullName?.trim().isNotEmpty ?? false)
         ? account!.fullName!.trim()
         : (account?.username?.trim().isNotEmpty ?? false)
         ? account!.username!.trim()
-        : 'Professor';
+        : config.roleName;
     final filteredAds = _filteredAds;
 
     if (widget.isMobile) {
-      return _buildMobileContent(displayName, filteredAds);
+      return _buildMobileContent(displayName, filteredAds, config);
     }
 
     return Container(
@@ -248,7 +281,7 @@ class _MeusAnunciosProfessorContentSectionState
                                   ),
                                   SizedBox(height: 10),
                                   Text(
-                                    'Consulte os anúncios publicados, controle quais estão ativos e ajuste rapidamente o que aparece aos alunos.',
+                                    'Consulte os anúncios publicados, controle quais estão ativos e ajuste rapidamente o que aparece aos utilizadores.',
                                     style: TextStyle(
                                       fontSize: 15,
                                       color:
@@ -260,7 +293,7 @@ class _MeusAnunciosProfessorContentSectionState
                               ),
                             ),
                             const SizedBox(width: 18),
-                            _NewAdButton(onPressed: _openCreate),
+                            _NewAdButton(onPressed: _openCreate, config: config),
                           ],
                         ),
                         const SizedBox(height: 28),
@@ -306,9 +339,9 @@ class _MeusAnunciosProfessorContentSectionState
                             ),
                           )
                         else ...[
-                          _buildStatsRow(),
+                          _buildStatsRow(config),
                           const SizedBox(height: 24),
-                          _buildFilterRow(),
+                          _buildFilterRow(config),
                           const SizedBox(height: 24),
                           if (_ads.isEmpty)
                             MeusAnunciosPanelCard(
@@ -325,7 +358,7 @@ class _MeusAnunciosProfessorContentSectionState
                                   ),
                                   const SizedBox(height: 10),
                                   const Text(
-                                    'Crie o seu primeiro anúncio para começar a aparecer aos alunos.',
+                                    'Crie o seu primeiro anúncio para começar a ser descoberto.',
                                     style: TextStyle(
                                       fontSize: 15,
                                       color:
@@ -338,6 +371,9 @@ class _MeusAnunciosProfessorContentSectionState
                                     onPressed: _openCreate,
                                     icon: const Icon(Icons.campaign_rounded),
                                     label: const Text('Publicar anúncio'),
+                                    style: FilledButton.styleFrom(
+                                        backgroundColor: config.primaryColor,
+                                    ),
                                   ),
                                 ],
                               ),
@@ -398,6 +434,7 @@ class _MeusAnunciosProfessorContentSectionState
                                                 _openPublicProfile(
                                                   ad,
                                                   displayName,
+                                                  config
                                                 ),
                                             processingStatus: _statusLoadingIds
                                                 .contains(ad.idProfessorAd),
@@ -424,6 +461,7 @@ class _MeusAnunciosProfessorContentSectionState
   Widget _buildMobileContent(
     String displayName,
     List<ProfessorAdDto> filteredAds,
+    TeachingRoleConfig config,
   ) {
     return Container(
       width: double.infinity,
@@ -458,7 +496,7 @@ class _MeusAnunciosProfessorContentSectionState
           const SizedBox(height: 16),
           SizedBox(
             width: double.infinity,
-            child: _NewAdButton(onPressed: _openCreate),
+            child: _NewAdButton(onPressed: _openCreate, config: config),
           ),
           const SizedBox(height: 16),
           if (_loading)
@@ -504,9 +542,9 @@ class _MeusAnunciosProfessorContentSectionState
               ),
             )
           else ...[
-            _buildStatsRow(),
+            _buildStatsRow(config),
             const SizedBox(height: 16),
-            _buildMobileFilterRow(),
+            _buildMobileFilterRow(config),
             const SizedBox(height: 16),
             if (_ads.isEmpty)
               MeusAnunciosPanelCard(
@@ -527,7 +565,7 @@ class _MeusAnunciosProfessorContentSectionState
                     ),
                     const SizedBox(height: 10),
                     const Text(
-                      'Crie o seu primeiro anúncio para começar a aparecer aos alunos.',
+                      'Crie o seu primeiro anúncio para começar a ser descoberto.',
                       style: TextStyle(
                         fontSize: 14,
                         color: MeusAnunciosProfessorColors.mutedText,
@@ -541,6 +579,9 @@ class _MeusAnunciosProfessorContentSectionState
                         onPressed: _openCreate,
                         icon: const Icon(Icons.campaign_rounded),
                         label: const Text('Publicar anúncio'),
+                        style: FilledButton.styleFrom(
+                            backgroundColor: config.primaryColor,
+                        ),
                       ),
                     ),
                   ],
@@ -591,7 +632,7 @@ class _MeusAnunciosProfessorContentSectionState
                       onToggleStatus: () =>
                           _handleStatusAction(filteredAds[index]),
                       onViewProfile: () =>
-                          _openPublicProfile(filteredAds[index], displayName),
+                          _openPublicProfile(filteredAds[index], displayName, config),
                       processingStatus: _statusLoadingIds.contains(
                         filteredAds[index].idProfessorAd,
                       ),
@@ -607,7 +648,7 @@ class _MeusAnunciosProfessorContentSectionState
     );
   }
 
-  Widget _buildStatsRow() {
+  Widget _buildStatsRow(TeachingRoleConfig config) {
     final published = _ads.where((ad) => ad.status == 'published').length;
     final inactive = _ads
         .where((ad) => ad.status.trim().toLowerCase() == 'inactive')
@@ -620,6 +661,9 @@ class _MeusAnunciosProfessorContentSectionState
         .toSet()
         .length;
 
+    final isSpecialized = config.roleName != 'Explicador';
+    final areasLabel = isSpecialized ? 'Áreas anunciadas' : 'Disciplinas anunciadas';
+
     return LayoutBuilder(
       builder: (context, constraints) {
         final cards = [
@@ -627,16 +671,19 @@ class _MeusAnunciosProfessorContentSectionState
             label: 'Anúncios ativos',
             value: '$published',
             icon: Icons.campaign_rounded,
+            color: config.primaryColor,
           ),
           MeusAnunciosStatCard(
             label: 'Anúncios inativos',
             value: '$inactive',
             icon: Icons.pause_circle_outline_rounded,
+            color: config.primaryColor,
           ),
           MeusAnunciosStatCard(
-            label: 'Disciplinas anunciadas',
+            label: areasLabel,
             value: '$disciplines',
             icon: Icons.menu_book_rounded,
+            color: config.primaryColor,
           ),
         ];
 
@@ -663,7 +710,7 @@ class _MeusAnunciosProfessorContentSectionState
     );
   }
 
-  Widget _buildFilterRow() {
+  Widget _buildFilterRow(TeachingRoleConfig config) {
     final activeCount = _ads
         .where((ad) => ad.status.trim().toLowerCase() != 'inactive')
         .length;
@@ -679,6 +726,7 @@ class _MeusAnunciosProfessorContentSectionState
           label: 'Ativos',
           count: activeCount,
           selected: _selectedFilter == _AdsFilter.active,
+          color: config.primaryColor,
           expand: false,
           onTap: () {
             setState(() {
@@ -690,6 +738,7 @@ class _MeusAnunciosProfessorContentSectionState
           label: 'Inativos',
           count: inactiveCount,
           selected: _selectedFilter == _AdsFilter.inactive,
+          color: config.primaryColor,
           expand: false,
           onTap: () {
             setState(() {
@@ -701,7 +750,7 @@ class _MeusAnunciosProfessorContentSectionState
     );
   }
 
-  Widget _buildMobileFilterRow() {
+  Widget _buildMobileFilterRow(TeachingRoleConfig config) {
     final activeCount = _ads
         .where((ad) => ad.status.trim().toLowerCase() != 'inactive')
         .length;
@@ -716,6 +765,7 @@ class _MeusAnunciosProfessorContentSectionState
             label: 'Ativos',
             count: activeCount,
             selected: _selectedFilter == _AdsFilter.active,
+            color: config.primaryColor,
             expand: true,
             onTap: () {
               setState(() {
@@ -730,6 +780,7 @@ class _MeusAnunciosProfessorContentSectionState
             label: 'Inativos',
             count: inactiveCount,
             selected: _selectedFilter == _AdsFilter.inactive,
+            color: config.primaryColor,
             expand: true,
             onTap: () {
               setState(() {
@@ -744,21 +795,28 @@ class _MeusAnunciosProfessorContentSectionState
 }
 
 class _NewAdButton extends StatelessWidget {
-  const _NewAdButton({required this.onPressed});
+  const _NewAdButton({required this.onPressed, required this.config});
 
   final VoidCallback onPressed;
+  final TeachingRoleConfig config;
 
   @override
   Widget build(BuildContext context) {
+    final isOrange = config.roleName == 'Explicador';
+    final color = config.primaryColor;
+
     return DecoratedBox(
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFFF97316), Color(0xFFFB923C)],
-        ),
+        color: isOrange ? null : color,
+        gradient: isOrange
+            ? const LinearGradient(
+                colors: [Color(0xFFF97316), Color(0xFFFB923C)],
+              )
+            : null,
         borderRadius: BorderRadius.circular(18),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x29FB923C),
+            color: Color(0x19000000),
             blurRadius: 24,
             offset: Offset(0, 12),
           ),
@@ -788,6 +846,7 @@ class _FilterChipButton extends StatelessWidget {
     required this.label,
     required this.count,
     required this.selected,
+    required this.color,
     this.expand = false,
     required this.onTap,
   });
@@ -795,6 +854,7 @@ class _FilterChipButton extends StatelessWidget {
   final String label;
   final int count;
   final bool selected;
+  final Color color;
   final bool expand;
   final VoidCallback onTap;
 
@@ -811,12 +871,10 @@ class _FilterChipButton extends StatelessWidget {
           vertical: 12,
         ),
         decoration: BoxDecoration(
-          color: selected ? const Color(0xFFFFF7ED) : Colors.white,
+          color: selected ? color.withOpacity(0.05) : Colors.white,
           borderRadius: BorderRadius.circular(999),
           border: Border.all(
-            color: selected
-                ? MeusAnunciosProfessorColors.accent
-                : MeusAnunciosProfessorColors.surfaceBorder,
+            color: selected ? color : MeusAnunciosProfessorColors.surfaceBorder,
           ),
         ),
         child: Row(
@@ -830,9 +888,7 @@ class _FilterChipButton extends StatelessWidget {
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w700,
-                color: selected
-                    ? MeusAnunciosProfessorColors.accent
-                    : MeusAnunciosProfessorColors.title,
+                color: selected ? color : MeusAnunciosProfessorColors.title,
               ),
             ),
             const SizedBox(width: 8),
@@ -840,7 +896,7 @@ class _FilterChipButton extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
               decoration: BoxDecoration(
                 color: selected
-                    ? const Color(0xFFFFEDD5)
+                    ? color.withOpacity(0.15)
                     : MeusAnunciosProfessorColors.mutedSurface,
                 borderRadius: BorderRadius.circular(999),
               ),
@@ -850,7 +906,7 @@ class _FilterChipButton extends StatelessWidget {
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
                   color: selected
-                      ? MeusAnunciosProfessorColors.accent
+                      ? color
                       : MeusAnunciosProfessorColors.mutedText,
                 ),
               ),

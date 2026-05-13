@@ -3,13 +3,14 @@ import 'package:flutter/material.dart';
 import '../../../design/theme/app_colors.dart';
 import '../../dashboard/widgets/dashboard_status_badge.dart';
 import '../../dashboard/widgets/dashboard_surface_card.dart';
-import '../constants/alunos_mock_data.dart';
 import '../models/aluno_item.dart';
 import '../widgets/aluno_profile_cell.dart';
 import '../widgets/alunos_filter_chip.dart';
 
 class AlunosTableSection extends StatelessWidget {
-  const AlunosTableSection({super.key});
+  const AlunosTableSection({required this.items, super.key});
+
+  final List<AlunoItem> items;
 
   @override
   Widget build(BuildContext context) {
@@ -48,20 +49,24 @@ class AlunosTableSection extends StatelessWidget {
               constraints: const BoxConstraints(minWidth: 980),
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(27.955, 20, 27.955, 18),
-                child: Column(
-                  children: [
-                    const _AlunosTableHeader(),
-                    for (
-                      var index = 0;
-                      index < AlunosMockData.alunos.length;
-                      index++
-                    )
-                      _AlunosTableRow(
-                        item: AlunosMockData.alunos[index],
-                        showDivider: index != AlunosMockData.alunos.length - 1,
+                child: items.isEmpty
+                    ? const _EmptyState(
+                        message: 'Não existem alunos para mostrar.',
+                      )
+                    : Column(
+                        children: [
+                          const _AlunosTableHeader(),
+                          for (
+                            var index = 0;
+                            index < items.length;
+                            index++
+                          )
+                            _AlunosTableRow(
+                              item: items[index],
+                              showDivider: index != items.length - 1,
+                            ),
+                        ],
                       ),
-                  ],
-                ),
               ),
             ),
           ),
@@ -186,6 +191,41 @@ class _BodyCell extends StatelessWidget {
           fontSize: 16.307,
           fontWeight: FontWeight.w700,
           letterSpacing: -0.1752,
+        ),
+      ),
+    );
+  }
+}
+
+class _EmptyState extends StatelessWidget {
+  const _EmptyState({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 980,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 32),
+        child: Column(
+          children: [
+            const Icon(
+              Icons.school_outlined,
+              size: 32,
+              color: AppColors.textMuted,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
         ),
       ),
     );

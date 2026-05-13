@@ -22,4 +22,10 @@ namespace ConfidantPostgreSQL.Modules.Payments.Models
         public string PaymentSource { get; set; } = string.Empty;
         public string ReporterRole { get; set; } = string.Empty;
     }
+
+    public class ReplyToPaymentDisputeRequest
+    {
+        public string? ResponseMessage { get; set; }
+        public string? Status { get; set; }
+    }
 }

@@ -100,6 +100,86 @@ namespace ConfidantPostgreSQL.Modules.Users.Repository
             return list;
         }
 
+        public async Task<IEnumerable<AdminStudentDirectoryItem>> GetAdminStudentDirectoryAsync()
+        {
+            var list = new List<AdminStudentDirectoryItem>();
+            await using var conn = new NpgsqlConnection(_connectionString);
+            await conn.OpenAsync();
+            await using var cmd = conn.CreateCommand();
+            cmd.CommandText = @"
+                WITH student_roles AS (
+                    SELECT ur.user_id
+                    FROM public.user_role ur
+                    INNER JOIN public.role r ON r.id = ur.role_id
+                    WHERE lower(r.description) = 'aluno'
+                ),
+                lesson_stats AS (
+                    SELECT
+                        e.id_user,
+                        COUNT(*)::int AS sessions_count
+                    FROM public.enrollments e
+                    INNER JOIN public.lessons l ON l.id_lesson = e.id_lesson
+                    GROUP BY e.id_user
+                ),
+                pack_stats AS (
+                    SELECT
+                        ulp.id_user,
+                        COUNT(*) FILTER (WHERE COALESCE(ulp.status, '') = '' OR lower(ulp.status) IN ('active', 'ativo'))::int AS active_packs,
+                        COALESCE(SUM(COALESCE(lp.total_price, 0)), 0)::numeric(18,2) AS total_spent
+                    FROM public.user_lesson_packs ulp
+                    INNER JOIN public.lesson_packs lp ON lp.id_lesson_pack = ulp.id_lesson_pack
+                    GROUP BY ulp.id_user
+                )
+                SELECT
+                    u.id_user,
+                    COALESCE(NULLIF(TRIM(u.display_name), ''), NULLIF(TRIM(CONCAT_WS(' ', u.first_name, u.last_name)), ''), NULLIF(TRIM(u.username), ''), u.email) AS name,
+                    COALESCE(u.email, '') AS email,
+                    COALESCE(NULLIF(TRIM(u.education_level), ''), '—') AS school_year,
+                    CASE
+                        WHEN COALESCE(ps.active_packs, 0) > 0 THEN CONCAT(ps.active_packs, ' plano(s) ativo(s)')
+                        ELSE 'Sem plano ativo'
+                    END AS plan_label,
+                    CONCAT(COALESCE(ls.sessions_count, 0), ' sessões') AS sessions_label,
+                    CASE
+                        WHEN COALESCE(u.inactive, false) OR COALESCE(up.inactive, false) THEN 'INATIVO'
+                        ELSE 'ATIVO'
+                    END AS status_label,
+                    CASE
+                        WHEN COALESCE(u.inactive, false) OR COALESCE(up.inactive, false) THEN 'Conta inativa'
+                        ELSE 'Conta ativa'
+                    END AS account_state_label,
+                    COALESCE(up.total_spent, ps.total_spent, 0)::numeric(18,2) AS total_spent,
+                    COALESCE(ps.active_packs, 0) AS active_lesson_packs,
+                    COALESCE(ls.sessions_count, 0) AS sessions_count
+                FROM public.users u
+                INNER JOIN student_roles sr ON sr.user_id = u.id_user
+                LEFT JOIN public.user_profile up ON up.user_id = u.id_user
+                LEFT JOIN lesson_stats ls ON ls.id_user = u.id_user
+                LEFT JOIN pack_stats ps ON ps.id_user = u.id_user
+                ORDER BY u.last_update DESC, u.creation_date DESC, u.id_user DESC;";
+
+            await using var reader = await cmd.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+            {
+                list.Add(new AdminStudentDirectoryItem
+                {
+                    UserId = reader.GetGuid(reader.GetOrdinal("id_user")),
+                    Name = GetNullableString(reader, "name") ?? "Aluno",
+                    Email = GetNullableString(reader, "email") ?? string.Empty,
+                    SchoolYear = GetNullableString(reader, "school_year") ?? "—",
+                    PlanLabel = GetNullableString(reader, "plan_label") ?? "Sem plano ativo",
+                    SessionsLabel = GetNullableString(reader, "sessions_label") ?? "0 sessões",
+                    StatusLabel = GetNullableString(reader, "status_label") ?? "ATIVO",
+                    AccountStateLabel = GetNullableString(reader, "account_state_label") ?? "Conta ativa",
+                    TotalSpent = GetNullableDecimal(reader, "total_spent") ?? 0m,
+                    ActiveLessonPacks = GetNullableInt(reader, "active_lesson_packs") ?? 0,
+                    SessionsCount = GetNullableInt(reader, "sessions_count") ?? 0,
+                });
+            }
+
+            return list;
+        }
+
         public async Task<Guid> InsertAsync(User user)
         {
             await using var conn = new NpgsqlConnection(_connectionString);
@@ -434,6 +514,18 @@ namespace ConfidantPostgreSQL.Modules.Users.Repository
         {
             if (!TryGetOrdinal(reader, column, out var idx)) return null;
             return reader.IsDBNull(idx) ? null : reader.GetString(idx);
+        }
+
+        private static int? GetNullableInt(NpgsqlDataReader reader, string column)
+        {
+            if (!TryGetOrdinal(reader, column, out var idx)) return null;
+            return reader.IsDBNull(idx) ? null : reader.GetInt32(idx);
+        }
+
+        private static decimal? GetNullableDecimal(NpgsqlDataReader reader, string column)
+        {
+            if (!TryGetOrdinal(reader, column, out var idx)) return null;
+            return reader.IsDBNull(idx) ? null : reader.GetDecimal(idx);
         }
 
         /// <summary>

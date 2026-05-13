@@ -31,6 +31,7 @@ namespace ConfidantPostgreSQL.Modules.Users.Service
         public Task<int> DeleteAsync(Guid id) => _repo.DeleteAsync(id);
         public Task<User?> GetByIdAsync(Guid id) => _repo.GetByIdAsync(id);
         public Task<IEnumerable<User>> GetAllAsync() => _repo.GetAllAsync();
+        public Task<IEnumerable<AdminStudentDirectoryItem>> GetAdminStudentDirectoryAsync() => _repo.GetAdminStudentDirectoryAsync();
         public Task<User?> GetByEmailAsync(string email) => _repo.GetByEmailAsync(email);
         public Task<User?> GetByUsernameAsync(string username) => _repo.GetByUsernameAsync(username);
         public Task UpdateRolesAsync(Guid userId, IEnumerable<int> roleIds) => _repo.UpdateRolesAsync(userId, roleIds);

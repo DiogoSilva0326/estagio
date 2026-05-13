@@ -21,7 +21,6 @@ class ChatsProfessorScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final role = context.watch<UserProvider>().role;
-    final isTeacher = role == Role.teacher;
     final rawArgs = ModalRoute.of(context)?.settings.arguments;
     final args = rawArgs is Map
         ? Map<String, dynamic>.from(rawArgs)
@@ -31,15 +30,6 @@ class ChatsProfessorScreen extends StatelessWidget {
         args['studentUsername']?.toString() ??
         args['studentId']?.toString();
     final resolvedName = initialStudentName ?? args['studentName']?.toString();
-
-    if (!isTeacher) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!context.mounted) return;
-        Navigator.of(
-          context,
-        ).pushNamedAndRemoveUntil(Routes.home, (route) => false);
-      });
-    }
 
     final isMobile =
         MediaQuery.sizeOf(context).width <= AppHeader.mobileBreakpoint;

@@ -17,18 +17,8 @@ class PagamentosTableCard extends StatelessWidget {
   String _formatDate(DateTime? date) {
     if (date == null) return '—';
     const months = [
-      'Jan',
-      'Fev',
-      'Mar',
-      'Abr',
-      'Mai',
-      'Jun',
-      'Jul',
-      'Ago',
-      'Set',
-      'Out',
-      'Nov',
-      'Dez',
+      'Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun',
+      'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez',
     ];
     return '${date.day.toString().padLeft(2, '0')} ${months[date.month - 1]} ${date.year}';
   }
@@ -41,8 +31,81 @@ class PagamentosTableCard extends StatelessWidget {
     return symbol == '€' ? '$fixed$symbol' : '$fixed $symbol';
   }
 
+  String _getGroupKey(String subject) {
+    final s = subject.trim().toLowerCase();
+    if (s.contains('psicolog') || s.contains('terapia') || s.contains('ansiedade') || s.contains('orientação')) {
+      return 'psicologia';
+    }
+    if (s.contains('tutor') || s.contains('mentoria')) {
+      return 'tutoria';
+    }
+    return 'ensino';
+  }
+
+  Map<String, String> _getGroupMetadata(String key) {
+    switch (key) {
+      case 'psicologia':
+        return {
+          'title': 'Sessões de Psicologia & Bem-estar',
+          'col1': 'PSICÓLOGO',
+          'col2': 'ÁREA / SESSÃO',
+        };
+      case 'tutoria':
+        return {
+          'title': 'Sessões de Tutoria & Mentoria',
+          'col1': 'TUTOR',
+          'col2': 'ÁREA',
+        };
+      case 'ensino':
+      default:
+        return {
+          'title': 'Aulas de Explicação',
+          'col1': 'EXPLICADOR',
+          'col2': 'DISCIPLINA',
+        };
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    if (rows.isEmpty) {
+      return _buildEmptyState();
+    }
+
+    final grouped = <String, List<PaymentHistoryItemDto>>{};
+    for (final row in rows) {
+      final key = _getGroupKey(row.subject);
+      grouped.putIfAbsent(key, () => []).add(row);
+    }
+
+    final groupWidgets = <Widget>[];
+    final keysOrder = ['ensino', 'tutoria', 'psicologia']; 
+
+    for (final key in keysOrder) {
+      if (grouped.containsKey(key)) {
+        groupWidgets.add(_buildTableGroup(context, key, grouped[key]!));
+        groupWidgets.add(const SizedBox(height: 32));
+      }
+    }
+
+    for (final key in grouped.keys) {
+      if (!keysOrder.contains(key)) {
+        groupWidgets.add(_buildTableGroup(context, key, grouped[key]!));
+        groupWidgets.add(const SizedBox(height: 32));
+      }
+    }
+
+    if (groupWidgets.isNotEmpty) {
+      groupWidgets.removeLast();
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: groupWidgets,
+    );
+  }
+
+  Widget _buildEmptyState() {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(1.369),
@@ -56,75 +119,118 @@ class PagamentosTableCard extends StatelessWidget {
             offset: Offset(0, 1.369),
             blurRadius: 4.108,
           ),
-          BoxShadow(
-            color: Color.fromRGBO(0, 0, 0, 0.10),
-            offset: Offset(0, 1.369),
-            blurRadius: 2.739,
-            spreadRadius: -1.369,
-          ),
         ],
       ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(20.541),
-        child: SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: SizedBox(
-            width: 972.261,
-            child: Column(
-              children: [
-                const _TableHeaderRow(),
-                if (rows.isEmpty)
-                  const SizedBox(
-                    height: 120,
-                    child: Center(
-                      child: Text(
-                        'Ainda não existem pagamentos para mostrar.',
-                        style: TextStyle(
-                          fontSize: 18,
-                          color: Color(0xFF4A5565),
-                        ),
-                      ),
-                    ),
-                  )
-                else
-                  for (int i = 0; i < rows.length; i++)
-                    _PagamentoRow(
-                      tutor: rows[i].tutorName,
-                      disciplina: rows[i].subject,
-                      data: _formatDate(rows[i].date),
-                      valor: _formatAmount(rows[i].amount),
-                      status: paymentStatusLabel(rows[i].status),
-                      statusKind: normalizePaymentStatus(rows[i].status),
-                      hasReceipt:
-                          (rows[i].receiptUrl?.trim().isNotEmpty ?? false),
-                      hasBottomBorder: i != rows.length - 1,
-                      onReceiptTap: () => onReceiptTap(rows[i]),
-                    ),
-              ],
+      child: const SizedBox(
+        height: 120,
+        child: Center(
+          child: Text(
+            'Ainda não existem pagamentos para mostrar.',
+            style: TextStyle(
+              fontSize: 18,
+              color: Color(0xFF4A5565),
             ),
           ),
         ),
       ),
     );
   }
+
+  Widget _buildTableGroup(BuildContext context, String key, List<PaymentHistoryItemDto> groupRows) {
+    final meta = _getGroupMetadata(key);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 8, bottom: 12),
+          child: Text(
+            meta['title']!,
+            style: const TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF101828),
+            ),
+          ),
+        ),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(1.369),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(21.91),
+            border: Border.all(color: const Color(0xFFF3F4F6), width: 1.369),
+            boxShadow: const [
+              BoxShadow(
+                color: Color.fromRGBO(0, 0, 0, 0.10),
+                offset: Offset(0, 1.369),
+                blurRadius: 4.108,
+              ),
+              BoxShadow(
+                color: Color.fromRGBO(0, 0, 0, 0.10),
+                offset: Offset(0, 1.369),
+                blurRadius: 2.739,
+                spreadRadius: -1.369,
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(20.541),
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: SizedBox(
+                width: 972.261,
+                child: Column(
+                  children: [
+                    _TableHeaderRow(
+                      col1Label: meta['col1']!,
+                      col2Label: meta['col2']!,
+                    ),
+                    for (int i = 0; i < groupRows.length; i++)
+                      _PagamentoRow(
+                        tutor: groupRows[i].tutorName,
+                        disciplina: groupRows[i].subject,
+                        data: _formatDate(groupRows[i].date),
+                        valor: _formatAmount(groupRows[i].amount),
+                        status: paymentStatusLabel(groupRows[i].status),
+                        statusKind: normalizePaymentStatus(groupRows[i].status),
+                        hasReceipt: (groupRows[i].receiptUrl?.trim().isNotEmpty ?? false),
+                        hasBottomBorder: i != groupRows.length - 1,
+                        onReceiptTap: () => onReceiptTap(groupRows[i]),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 class _TableHeaderRow extends StatelessWidget {
-  const _TableHeaderRow();
+  const _TableHeaderRow({
+    required this.col1Label,
+    required this.col2Label,
+  });
+
+  final String col1Label;
+  final String col2Label;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       height: 55.46,
       color: const Color(0xFFF9FAFB),
-      child: const Row(
+      child: Row(
         children: [
-          _HeaderCell(width: 186.172, text: 'TUTOR'),
-          _HeaderCell(width: 167.974, text: 'DISCIPLINA'),
-          _HeaderCell(width: 138.832, text: 'DATA'),
-          _HeaderCell(width: 121.008, text: 'VALOR'),
-          _HeaderCell(width: 168.423, text: 'STATUS'),
-          _HeaderCell(width: 189.852, text: 'AÇÕES'),
+          _HeaderCell(width: 186.172, text: col1Label),
+          _HeaderCell(width: 167.974, text: col2Label),
+          const _HeaderCell(width: 138.832, text: 'DATA'),
+          const _HeaderCell(width: 121.008, text: 'VALOR'),
+          const _HeaderCell(width: 168.423, text: 'STATUS'),
+          const _HeaderCell(width: 189.852, text: 'AÇÕES'),
         ],
       ),
     );
@@ -224,6 +330,8 @@ class _TutorCell extends StatelessWidget {
           alignment: Alignment.centerLeft,
           child: Text(
             text,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
             style: const TextStyle(
               fontSize: 21.91,
               fontWeight: FontWeight.w500,
@@ -256,6 +364,8 @@ class _BodyCell extends StatelessWidget {
         padding: EdgeInsets.only(left: 32.87, top: topPadding),
         child: Text(
           text,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
           style: const TextStyle(
             fontSize: 19.171,
             fontWeight: FontWeight.w400,

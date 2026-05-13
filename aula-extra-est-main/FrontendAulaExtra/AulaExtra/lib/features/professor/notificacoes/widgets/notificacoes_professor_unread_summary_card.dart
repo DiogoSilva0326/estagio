@@ -1,19 +1,24 @@
 import 'package:aula_extra/features/professor/notificacoes/constants/notificacoes_professor_colors.dart';
 import 'package:aula_extra/features/professor/notificacoes/constants/notificacoes_professor_layout.dart';
+import 'package:aula_extra/core/config/teaching_roles_config.dart';
 import 'package:flutter/material.dart';
 
 class NotificacoesProfessorUnreadSummaryCard extends StatelessWidget {
   const NotificacoesProfessorUnreadSummaryCard({
     super.key,
     required this.unreadCount,
+    required this.config,
     this.isMobile = false,
   });
 
   final int unreadCount;
   final bool isMobile;
+  final TeachingRoleConfig config;
 
   @override
   Widget build(BuildContext context) {
+    final isOrange = config.roleName == 'Explicador';
+
     final padding = isMobile
         ? const EdgeInsets.all(20)
         : const EdgeInsets.all(28);
@@ -41,7 +46,7 @@ class NotificacoesProfessorUnreadSummaryCard extends StatelessWidget {
           NotificacoesProfessorLayout.cardRadius,
         ),
         border: Border.all(
-          color: const Color(0xFFFFE2CC),
+          color: isOrange ? const Color(0xFFFFE2CC) : config.primaryColor.withOpacity(0.25),
           width: NotificacoesProfessorLayout.cardBorderWidth,
         ),
         boxShadow: const [
@@ -57,8 +62,8 @@ class NotificacoesProfessorUnreadSummaryCard extends StatelessWidget {
           Container(
             width: iconCircle,
             height: iconCircle,
-            decoration: const BoxDecoration(
-              color: NotificacoesProfessorColors.unreadAccent,
+            decoration: BoxDecoration(
+              color: config.primaryColor, 
               shape: BoxShape.circle,
             ),
             alignment: Alignment.center,

@@ -1,5 +1,6 @@
 import 'package:aula_extra/features/professor/notificacoes/constants/notificacoes_professor_colors.dart';
 import 'package:aula_extra/features/professor/notificacoes/constants/notificacoes_professor_layout.dart';
+import 'package:aula_extra/core/config/teaching_roles_config.dart';
 import 'package:flutter/material.dart';
 
 class NotificacoesProfessorMarkAllButton extends StatelessWidget {
@@ -7,11 +8,13 @@ class NotificacoesProfessorMarkAllButton extends StatelessWidget {
     super.key,
     required this.enabled,
     required this.onTap,
+    required this.config,
     this.isMobile = false,
   });
 
   final bool enabled;
   final VoidCallback onTap;
+  final TeachingRoleConfig config;
   final bool isMobile;
 
   @override
@@ -26,7 +29,7 @@ class NotificacoesProfessorMarkAllButton extends StatelessWidget {
             'Marcar todas como lidas',
             style: TextStyle(
               color: enabled
-                  ? const Color(0xFFFF6B00)
+                  ? config.primaryColor
                   : const Color(0xFF9CA3AF),
               fontSize: 13,
               fontWeight: FontWeight.w500,

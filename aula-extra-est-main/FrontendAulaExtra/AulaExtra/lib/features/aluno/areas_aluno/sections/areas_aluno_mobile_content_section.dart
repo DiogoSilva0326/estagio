@@ -12,11 +12,13 @@ class AreasAlunoMobileCatalogItem {
   const AreasAlunoMobileCatalogItem({
     required this.id,
     required this.name,
+    required this.category,
     required this.imageAsset,
   });
 
   final String id;
   final String name;
+  final String category;
   final String imageAsset;
 }
 
@@ -73,7 +75,7 @@ class AreasAlunoMobileContentSection extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'Minhas Áreas',
+              'Apoios & Áreas',
               style: TextStyle(
                 fontSize: 34,
                 height: 1.08,
@@ -83,7 +85,7 @@ class AreasAlunoMobileContentSection extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             const Text(
-              'Gerencie suas disciplinas e acompanhe seu progresso',
+              'Gerencie as suas disciplinas, tutorias e sessões de psicologia.',
               style: TextStyle(
                 fontSize: 16,
                 height: 1.5,
@@ -111,188 +113,78 @@ class AreasAlunoMobileContentSection extends StatelessWidget {
                 if (index != overviews.length - 1) const SizedBox(height: 16),
               ],
             const SizedBox(height: AreasAlunoMobileLayout.sectionSpacing),
-            const AreasAlunoMobileRatingCard(),
-            const SizedBox(height: 16),
-            AreasAlunoMobilePromoCard(
-              title: 'Queres Aprender?',
-              description:
-                  'Encontra explicadores especialistas em qualquer disciplina e começa a aprender hoje',
-              buttonLabel: 'Começar',
-              onPressed: onExploreTutors,
-              gradient: const LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Color(0xFFFC9039),
-                  Color(0xFFFC9237),
-                  Color(0xFFFC9335),
-                  Color(0xFFFC9533),
-                  Color(0xFFFB9631),
-                  Color(0xFFFB982F),
-                  Color(0xFFFB9A2D),
-                  Color(0xFFFB9B2B),
-                  Color(0xFFFB9D28),
-                  Color(0xFFFB9E25),
-                  Color(0xFFFAA022),
-                  Color(0xFFFAA11F),
-                  Color(0xFFFAA31B),
-                ],
-              ),
-              buttonTextColor: const Color(0xFFFC9039),
-              borderRadius: 20,
-              padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
-              titleStyle: const TextStyle(
-                color: Colors.white,
-                fontSize: 24,
-                fontFamily: 'Helvetica Neue',
-                fontWeight: FontWeight.w700,
-                height: 1.33,
-              ),
-              descriptionStyle: const TextStyle(
-                color: Colors.white,
-                fontSize: 14,
-                fontFamily: 'Helvetica Neue',
-                fontWeight: FontWeight.w400,
-                height: 1.43,
-                letterSpacing: -0.15,
-              ),
-              buttonHeight: 48,
-              buttonWidth: 113.47,
-              buttonPadding: const EdgeInsets.symmetric(
-                horizontal: 0,
-                vertical: 12,
-              ),
-              buttonBorderRadius: 10,
-            ),
-            const SizedBox(height: 16),
-            AreasAlunoMobilePromoCard(
-              title: 'Queres Ensinar?',
-              description:
-                  'Junta-te à nossa comunidade de explicadores e partilha o teu conhecimento',
-              buttonLabel: 'Inscrever',
-              onPressed: onBecomeTeacher,
-              gradient: const LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Color(0xFFF15C64),
-                  Color(0xFFF26062),
-                  Color(0xFFF36460),
-                  Color(0xFFF4685E),
-                  Color(0xFFF46C5B),
-                  Color(0xFFF57059),
-                  Color(0xFFF67456),
-                  Color(0xFFF77753),
-                  Color(0xFFF87B50),
-                  Color(0xFFF87F4D),
-                  Color(0xFFF9824A),
-                  Color(0xFFFA8646),
-                  Color(0xFFFB8942),
-                  Color(0xFFFB8D3E),
-                  Color(0xFFFC9039),
-                ],
-              ),
-              buttonTextColor: const Color(0xFFF15C64),
-              borderRadius: 20,
-              padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
-              titleStyle: const TextStyle(
-                color: Colors.white,
-                fontSize: 24,
-                fontFamily: 'Helvetica Neue',
-                fontWeight: FontWeight.w700,
-                height: 1.33,
-              ),
-              descriptionStyle: const TextStyle(
-                color: Colors.white,
-                fontSize: 14,
-                fontFamily: 'Helvetica Neue',
-                fontWeight: FontWeight.w400,
-                height: 1.43,
-                letterSpacing: -0.15,
-              ),
-              buttonHeight: 48,
-              buttonWidth: 113.16,
-              buttonPadding: const EdgeInsets.symmetric(
-                horizontal: 0,
-                vertical: 12,
-              ),
-              buttonBorderRadius: 10,
-            ),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: onAddArea,
-                icon: const Icon(Icons.add_circle_outline_rounded),
-                label: const Text('Adicionar Nova Área'),
-                style: OutlinedButton.styleFrom(
-                  minimumSize: const Size.fromHeight(52),
-                  side: const BorderSide(color: Color(0xFFD1D5DC), width: 1.4),
-                  foregroundColor: AreasAlunoMobileLayout.bodyColor,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(18),
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: AreasAlunoMobileLayout.sectionSpacing),
+            
             const Text(
-              'Áreas Populares',
+              'Explorar Catálogo',
               style: TextStyle(
-                fontSize: 30,
+                fontSize: 28,
                 height: 1.1,
                 fontWeight: FontWeight.w700,
                 color: AreasAlunoMobileLayout.titleColor,
               ),
             ),
             const SizedBox(height: 14),
-            AreasAlunoMobileSearchBar(
-              controller: searchController,
-              onChanged: onPopularSearchChanged,
-            ),
-            const SizedBox(height: 14),
             SingleChildScrollView(
               scrollDirection: Axis.horizontal,
+              physics: const BouncingScrollPhysics(),
               child: Row(
                 children: [
-                  for (
-                    var index = 0;
-                    index < popularFilterOptions.length;
-                    index++
-                  ) ...[
+                  for (var index = 0; index < popularFilterOptions.length; index++) ...[
                     AreasAlunoMobileChip(
                       label: popularFilterOptions[index],
-                      selected:
-                          popularFilterOptions[index] == selectedPopularFilter,
-                      onTap: () =>
-                          onPopularFilterChanged(popularFilterOptions[index]),
+                      selected: popularFilterOptions[index] == selectedPopularFilter,
+                      onTap: () => onPopularFilterChanged(popularFilterOptions[index]),
                     ),
-                    if (index != popularFilterOptions.length - 1)
-                      const SizedBox(width: 10),
+                    if (index != popularFilterOptions.length - 1) const SizedBox(width: 10),
                   ],
                 ],
               ),
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 16),
             if (popularAreas.isEmpty)
-              const Text(
-                'Não existem áreas para mostrar com este filtro.',
-                style: TextStyle(
-                  fontSize: 15,
-                  height: 1.5,
-                  color: AreasAlunoMobileLayout.bodyColor,
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 32),
+                child: const Text(
+                  'Não existem apoios disponíveis nesta categoria.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 15, color: AreasAlunoMobileLayout.bodyColor),
                 ),
               )
             else
               for (var index = 0; index < popularAreas.length; index++) ...[
                 AreasAlunoMobileCatalogCard(
                   title: popularAreas[index].name,
+                  category: popularAreas[index].category,
                   imageAsset: popularAreas[index].imageAsset,
                   onTap: () => onPopularAreaTap(popularAreas[index]),
                 ),
-                if (index != popularAreas.length - 1)
-                  const SizedBox(height: 12),
+                if (index != popularAreas.length - 1) const SizedBox(height: 12),
               ],
+            
+            const SizedBox(height: AreasAlunoMobileLayout.sectionSpacing),
+            const AreasAlunoMobileRatingCard(),
+            const SizedBox(height: 16),
+            AreasAlunoMobilePromoCard(
+              title: 'Precisa de Ajuda?',
+              description: 'Encontre especialistas prontos a ajudar no seu desenvolvimento escolar ou pessoal.',
+              buttonLabel: 'Começar',
+              onPressed: onExploreTutors,
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Color(0xFFFC9039), Color(0xFFFAA31B)],
+              ),
+              buttonTextColor: const Color(0xFFFC9039),
+              borderRadius: 20,
+              padding: const EdgeInsets.all(24),
+              titleStyle: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w700),
+              descriptionStyle: const TextStyle(color: Colors.white, fontSize: 14, height: 1.4),
+              buttonHeight: 48,
+              buttonWidth: 120,
+              buttonPadding: const EdgeInsets.symmetric(vertical: 12),
+              buttonBorderRadius: 10,
+            ),
           ],
         ),
       ),
@@ -319,15 +211,9 @@ class _ErrorCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            message,
-            style: const TextStyle(color: Color(0xFFB42318), fontSize: 14),
-          ),
+          Text(message, style: const TextStyle(color: Color(0xFFB42318), fontSize: 14)),
           const SizedBox(height: 12),
-          OutlinedButton(
-            onPressed: onRetry,
-            child: const Text('Tentar novamente'),
-          ),
+          OutlinedButton(onPressed: onRetry, child: const Text('Tentar novamente')),
         ],
       ),
     );
@@ -343,38 +229,28 @@ class _EmptyCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(24),
         border: Border.all(color: const Color(0xFFE5E7EB)),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          const Icon(Icons.explore_outlined, size: 40, color: Color(0xFF9CA3AF)),
+          const SizedBox(height: 16),
           const Text(
-            'Ainda não tens áreas selecionadas.',
-            style: TextStyle(
-              fontSize: 18,
-              height: 1.3,
-              fontWeight: FontWeight.w700,
-              color: AreasAlunoMobileLayout.titleColor,
-            ),
+            'Nenhum apoio selecionado.',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: AreasAlunoMobileLayout.titleColor),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           const Text(
-            'Adiciona uma nova área para começares a acompanhar disciplinas e marcar aulas.',
-            style: TextStyle(
-              fontSize: 15,
-              height: 1.5,
-              color: AreasAlunoMobileLayout.bodyColor,
-            ),
+            'Adicione uma área para começar a gerir sessões.',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 15, color: AreasAlunoMobileLayout.bodyColor),
           ),
-          const SizedBox(height: 14),
-          ElevatedButton(
-            onPressed: onAddArea,
-            child: const Text('Adicionar área'),
-          ),
+          const SizedBox(height: 20),
+          ElevatedButton(onPressed: onAddArea, child: const Text('Adicionar área')),
         ],
       ),
     );

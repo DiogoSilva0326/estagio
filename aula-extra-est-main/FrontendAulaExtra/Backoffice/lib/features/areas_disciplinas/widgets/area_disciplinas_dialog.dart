@@ -8,10 +8,12 @@ class AreaDisciplinasDialogResult {
   const AreaDisciplinasDialogResult({
     required this.areaName,
     required this.disciplinas,
+    required this.targetRole, 
   });
 
   final String areaName;
   final List<String> disciplinas;
+  final String targetRole; 
 }
 
 class AreaDisciplinasDialog extends StatefulWidget {
@@ -23,11 +25,13 @@ class AreaDisciplinasDialog extends StatefulWidget {
     required this.iconColor,
     this.initialAreaName,
     this.initialDisciplinas = const <String>[],
+    this.initialTargetRole = 'ensino', 
   });
 
   final AreaDisciplinasDialogMode mode;
   final String? initialAreaName;
   final List<String> initialDisciplinas;
+  final String initialTargetRole;
   final IconData icon;
   final Color iconBackgroundColor;
   final Color iconColor;
@@ -40,6 +44,7 @@ class _AreaDisciplinasDialogState extends State<AreaDisciplinasDialog> {
   late final TextEditingController _areaController;
   late final TextEditingController _disciplinaController;
   late List<String> _disciplinas;
+  late String _targetRole; 
 
   bool get _isAreaMode => widget.mode == AreaDisciplinasDialogMode.area;
 
@@ -52,6 +57,7 @@ class _AreaDisciplinasDialogState extends State<AreaDisciplinasDialog> {
     _areaController = TextEditingController(text: widget.initialAreaName ?? '');
     _disciplinaController = TextEditingController();
     _disciplinas = List<String>.from(widget.initialDisciplinas);
+    _targetRole = widget.initialTargetRole; 
   }
 
   @override
@@ -97,6 +103,7 @@ class _AreaDisciplinasDialogState extends State<AreaDisciplinasDialog> {
       AreaDisciplinasDialogResult(
         areaName: areaName,
         disciplinas: List<String>.from(_disciplinas),
+        targetRole: _targetRole, 
       ),
     );
   }
@@ -135,9 +142,49 @@ class _AreaDisciplinasDialogState extends State<AreaDisciplinasDialog> {
                   iconBackgroundColor: widget.iconBackgroundColor,
                   iconColor: widget.iconColor,
                 ),
+
+                if (_isAreaMode) ...[
+                  const SizedBox(height: 24),
+                  const Text(
+                    'CONTEXTO / PERFIL',
+                    style: TextStyle(
+                      color: AppColors.textMuted,
+                      fontSize: 12.813,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 1.3563,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    decoration: BoxDecoration(
+                      color: AppColors.surfaceMuted,
+                      borderRadius: BorderRadius.circular(16.307),
+                      border: Border.all(color: AppColors.border),
+                    ),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        value: _targetRole,
+                        isExpanded: true,
+                        icon: const Icon(Icons.keyboard_arrow_down_rounded, color: AppColors.textMuted),
+                        items: const [
+                          DropdownMenuItem(value: 'ensino', child: Text('Ensino / Escola (Explicador)')),
+                          DropdownMenuItem(value: 'psicologia', child: Text('Saúde (Psicólogo)')),
+                          DropdownMenuItem(value: 'tutoria', child: Text('Mentoria (Tutor)')),
+                        ],
+                        onChanged: (val) {
+                          if (val != null) {
+                            setState(() => _targetRole = val);
+                          }
+                        },
+                      ),
+                    ),
+                  ),
+                ],
+
                 const SizedBox(height: 27.955),
                 const Text(
-                  'DISCIPLINAS',
+                  'DISCIPLINAS / ESPECIALIDADES',
                   style: TextStyle(
                     color: AppColors.textMuted,
                     fontSize: 12.813,
@@ -151,15 +198,10 @@ class _AreaDisciplinasDialogState extends State<AreaDisciplinasDialog> {
                   child: SingleChildScrollView(
                     child: Column(
                       children: [
-                        for (
-                          var index = 0;
-                          index < _disciplinas.length;
-                          index++
-                        ) ...[
+                        for (var index = 0; index < _disciplinas.length; index++) ...[
                           _DisciplinaEditableTile(
                             label: _disciplinas[index],
-                            onRemove: () =>
-                                _removeDisciplina(_disciplinas[index]),
+                            onRemove: () => _removeDisciplina(_disciplinas[index]),
                           ),
                           if (index != _disciplinas.length - 1)
                             const SizedBox(height: 9.318),

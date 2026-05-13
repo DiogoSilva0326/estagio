@@ -16,7 +16,7 @@ class AreasAlunoMobileSearchBar extends StatelessWidget {
       controller: controller,
       onChanged: onChanged,
       decoration: InputDecoration(
-        hintText: 'Procurar disciplinas...',
+        hintText: 'Procurar áreas ou apoios...', 
         hintStyle: const TextStyle(fontSize: 15, color: Color(0x804A5565)),
         prefixIcon: const Icon(Icons.search_rounded, color: Color(0xFF4A5565)),
         filled: true,

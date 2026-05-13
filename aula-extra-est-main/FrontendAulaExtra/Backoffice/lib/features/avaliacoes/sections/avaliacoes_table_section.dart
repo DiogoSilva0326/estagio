@@ -3,40 +3,68 @@ import 'package:flutter/material.dart';
 import '../../../design/theme/app_colors.dart';
 import '../../dashboard/widgets/dashboard_status_badge.dart';
 import '../../dashboard/widgets/dashboard_surface_card.dart';
-import '../constants/avaliacoes_mock_data.dart';
 import '../models/avaliacao_item.dart';
 import '../widgets/avaliacao_action_button.dart';
 import '../widgets/avaliacao_stars_display.dart';
 
 class AvaliacoesTableSection extends StatelessWidget {
-  const AvaliacoesTableSection({super.key});
+  const AvaliacoesTableSection({
+    required this.title,
+    required this.items,
+    required this.submittingIds,
+    required this.onModerate,
+    required this.emptyMessage,
+    super.key,
+  });
+
+  final String title;
+  final List<AvaliacaoItem> items;
+  final Set<String> submittingIds;
+  final Future<void> Function(AvaliacaoItem item, bool approved) onModerate;
+  final String emptyMessage;
 
   @override
   Widget build(BuildContext context) {
     return DashboardSurfaceCard(
       padding: EdgeInsets.zero,
       borderRadius: 27.955,
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(minWidth: 1310),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(27.955, 18.637, 27.955, 18.637),
-            child: Column(
-              children: [
-                const _AvaliacoesTableHeader(),
-                for (
-                  var index = 0;
-                  index < AvaliacoesMockData.items.length;
-                  index++
-                )
-                  _AvaliacoesTableRow(
-                    item: AvaliacoesMockData.items[index],
-                    showDivider: index != AvaliacoesMockData.items.length - 1,
-                  ),
-              ],
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(27.955, 24, 27.955, 18.637),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              title,
+              style: const TextStyle(
+                color: Color(0xFF101828),
+                fontSize: 22,
+                fontWeight: FontWeight.w700,
+                letterSpacing: -0.4,
+              ),
             ),
-          ),
+            const SizedBox(height: 18.637),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(minWidth: 1310),
+                child: Column(
+                  children: [
+                    const _AvaliacoesTableHeader(),
+                    if (items.isEmpty)
+                      _EmptyStateRow(message: emptyMessage)
+                    else
+                      for (var index = 0; index < items.length; index++)
+                        _AvaliacoesTableRow(
+                          item: items[index],
+                          isSubmitting: submittingIds.contains(items[index].id),
+                          onModerate: onModerate,
+                          showDivider: index != items.length - 1,
+                        ),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -52,9 +80,9 @@ class _AvaliacoesTableHeader extends StatelessWidget {
       padding: EdgeInsets.only(bottom: 8),
       child: Row(
         children: [
-          _HeaderCell('AVALIAÇÕES', 140),
+          _HeaderCell('AVALIAÇÃO', 140),
           _HeaderCell('ALUNO', 168),
-          _HeaderCell('EXPLICADOR', 176),
+          _HeaderCell('PROFISSIONAL', 176),
           _HeaderCell('DISCIPLINA', 150),
           _HeaderCell('ESTRELAS', 166),
           _HeaderCell('COMENTÁRIO', 190),
@@ -95,9 +123,16 @@ class _HeaderCell extends StatelessWidget {
 }
 
 class _AvaliacoesTableRow extends StatelessWidget {
-  const _AvaliacoesTableRow({required this.item, required this.showDivider});
+  const _AvaliacoesTableRow({
+    required this.item,
+    required this.isSubmitting,
+    required this.onModerate,
+    required this.showDivider,
+  });
 
   final AvaliacaoItem item;
+  final bool isSubmitting;
+  final Future<void> Function(AvaliacaoItem item, bool approved) onModerate;
   final bool showDivider;
 
   @override
@@ -134,15 +169,30 @@ class _AvaliacoesTableRow extends StatelessWidget {
             width: 86,
             child: Row(
               children: [
-                for (var index = 0; index < item.actions.length; index++) ...[
-                  AvaliacaoActionButton(
-                    action: item.actions[index],
-                    onTap: () =>
-                        _handleAction(context, item, item.actions[index]),
+                AvaliacaoActionButton(
+                  action: const AvaliacaoAction(
+                    type: AvaliacaoActionType.aprovar,
+                    icon: Icons.check_rounded,
+                    backgroundColor: Color(0x1A12B76A),
+                    iconColor: Color(0xFF12B76A),
+                    tooltip: 'Aprovar avaliação',
                   ),
-                  if (index != item.actions.length - 1)
-                    const SizedBox(width: 9.318),
-                ],
+                  enabled: !isSubmitting,
+                  isLoading: isSubmitting,
+                  onTap: () => onModerate(item, true),
+                ),
+                const SizedBox(width: 9.318),
+                AvaliacaoActionButton(
+                  action: const AvaliacaoAction(
+                    type: AvaliacaoActionType.rejeitar,
+                    icon: Icons.close_rounded,
+                    backgroundColor: Color(0x1AEF4444),
+                    iconColor: Color(0xFFEF4444),
+                    tooltip: 'Rejeitar avaliação',
+                  ),
+                  enabled: !isSubmitting,
+                  onTap: () => onModerate(item, false),
+                ),
               ],
             ),
           ),
@@ -161,29 +211,28 @@ class _AvaliacoesTableRow extends StatelessWidget {
       ],
     );
   }
+}
 
-  void _handleAction(
-    BuildContext context,
-    AvaliacaoItem item,
-    AvaliacaoAction action,
-  ) {
-    late final String message;
+class _EmptyStateRow extends StatelessWidget {
+  const _EmptyStateRow({required this.message});
 
-    switch (action.type) {
-      case AvaliacaoActionType.aprovar:
-        message = 'Avaliação ${item.code} aprovada.';
-        break;
-      case AvaliacaoActionType.rejeitar:
-        message = 'Avaliação ${item.code} rejeitada.';
-        break;
-      case AvaliacaoActionType.detalhes:
-        message = 'A abrir detalhes da avaliação ${item.code}.';
-        break;
-    }
+  final String message;
 
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(message)));
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 28),
+      alignment: Alignment.centerLeft,
+      child: Text(
+        message,
+        style: const TextStyle(
+          color: AppColors.textSecondary,
+          fontSize: 16.307,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
   }
 }
 

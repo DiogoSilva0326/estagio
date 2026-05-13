@@ -13,10 +13,14 @@ CREATE TABLE IF NOT EXISTS professors (
   is_verified_iban BOOLEAN DEFAULT false,
   is_active BOOLEAN DEFAULT true,
   is_verified BOOLEAN DEFAULT false,
+  is_rejected BOOLEAN DEFAULT false,
   created_at TIMESTAMP DEFAULT now(),
   updated_at TIMESTAMP DEFAULT now(),
   UNIQUE (id_user)
 );
+
+ALTER TABLE IF EXISTS public.professors
+  ADD COLUMN IF NOT EXISTS is_rejected BOOLEAN DEFAULT false;
 
 CREATE TABLE IF NOT EXISTS professor_feedback (
   id_professor_feedback UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -42,6 +46,8 @@ CREATE TABLE IF NOT EXISTS certificates (
   name VARCHAR(255),
   description TEXT,
   file_url TEXT,
+  approved BOOLEAN DEFAULT false,
+  approved_by_user_id UUID REFERENCES users(id_user),
   verified BOOLEAN DEFAULT false,
   verified_by_user_id UUID REFERENCES users(id_user),
   created_at TIMESTAMP DEFAULT now(),
@@ -50,6 +56,12 @@ CREATE TABLE IF NOT EXISTS certificates (
 
 ALTER TABLE IF EXISTS public.certificates
   ADD COLUMN IF NOT EXISTS description TEXT;
+
+ALTER TABLE IF EXISTS public.certificates
+  ADD COLUMN IF NOT EXISTS approved BOOLEAN DEFAULT false;
+
+ALTER TABLE IF EXISTS public.certificates
+  ADD COLUMN IF NOT EXISTS approved_by_user_id UUID REFERENCES users(id_user);
 
 
 -- professor_rooms is created in ../ddl/create_professor_rooms.sql (UUID-based).

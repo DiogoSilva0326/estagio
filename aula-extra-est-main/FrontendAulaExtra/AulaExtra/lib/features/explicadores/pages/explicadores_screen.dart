@@ -23,6 +23,7 @@ import 'package:aula_extra/features/tutor_profile_view/models/tutor_profile_args
 import 'package:aula_extra/routes/routes.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:aula_extra/core/data/tutors/dtos/tutor_browse_response_dto.dart';
 
 class ExplicadoresScreenArgs {
   const ExplicadoresScreenArgs({this.initialQuery = ''});
@@ -172,7 +173,7 @@ class _MainAreaContent extends StatefulWidget {
 }
 
 class _MainAreaContentState extends State<_MainAreaContent> {
-  static const int _pageSize = 4;
+  static const int _pageSize = 12;
 
   final _browseService = TutorsBrowseService();
   final _educationService = EducationService();
@@ -181,16 +182,22 @@ class _MainAreaContentState extends State<_MainAreaContent> {
   bool _didApplyRouteArgs = false;
   bool _initialFetchTriggered = false;
 
-  bool _loading = false;
-  String? _error;
+  bool _loadingGeral = false;
+  String? _errorGeral;
+  List<TutorBrowseItemDto> _destaquesExplicadores = [];
+  List<TutorBrowseItemDto> _destaquesTutores = [];
+  List<TutorBrowseItemDto> _destaquesPsicologos = [];
 
+  bool _loadingSpecific = false;
+  String? _errorSpecific;
   int _page = 1;
   int _total = 0;
-  List<TutorBrowseItemDto> _items = const [];
+  List<TutorBrowseItemDto> _itemsSpecific = [];
 
   List<DisciplinaDto> _disciplinas = const [];
   List<CicloEstudoDto> _ciclos = const [];
 
+  String? _selectedCategoria; 
   String? _selectedDisciplinaId;
   String? _selectedCicloId;
   Set<AvailabilityOption> _availability = <AvailabilityOption>{};
@@ -236,11 +243,9 @@ class _MainAreaContentState extends State<_MainAreaContent> {
       });
 
       if (matchedDisciplinaId != null && _initialFetchTriggered) {
-        _fetch(page: 1, append: false);
+        _fetchSpecific(page: 1, append: false);
       }
-    } catch (_) {
-      // Ignore lookup failures; tutors list still works (browse endpoint is public).
-    }
+    } catch (_) {}
   }
 
   void _applyIncomingArgs() {
@@ -259,7 +264,7 @@ class _MainAreaContentState extends State<_MainAreaContent> {
   void _triggerInitialFetchIfNeeded() {
     if (_initialFetchTriggered) return;
     _initialFetchTriggered = true;
-    _fetch(page: 1, append: false);
+    _fetchGeral(); 
   }
 
   String _normalizeText(String value) {
@@ -314,11 +319,44 @@ class _MainAreaContentState extends State<_MainAreaContent> {
         .toList(growable: false);
   }
 
-  Future<void> _fetch({required int page, required bool append}) async {
-    if (_loading) return;
+
+  Future<void> _fetchGeral() async {
+    if (_loadingGeral) return;
     setState(() {
-      _loading = true;
-      _error = null;
+      _loadingGeral = true;
+      _errorGeral = null;
+      _selectedCategoria = null;
+    });
+
+    try {
+      final q = _searchController.text.trim();
+      final searchTerm = q.isEmpty ? null : q;
+
+      final futures = await Future.wait<TutorBrowseResponseDto>([
+        _browseService.browse(q: searchTerm, pageSize: 3, roleCategory: 'explicadores'),
+        _browseService.browse(q: searchTerm, pageSize: 3, roleCategory: 'tutores'),
+        _browseService.browse(q: searchTerm, pageSize: 3, roleCategory: 'psicologos'),
+      ]);
+
+      if (mounted) {
+        setState(() {
+          _destaquesExplicadores = futures[0].items;
+          _destaquesTutores = futures[1].items;
+          _destaquesPsicologos = futures[2].items;
+        });
+      }
+    } catch (e) {
+      if (mounted) setState(() => _errorGeral = e.toString());
+    } finally {
+      if (mounted) setState(() => _loadingGeral = false);
+    }
+  }
+
+  Future<void> _fetchSpecific({required int page, required bool append}) async {
+    if (_loadingSpecific) return;
+    setState(() {
+      _loadingSpecific = true;
+      _errorSpecific = null;
     });
 
     try {
@@ -330,6 +368,7 @@ class _MainAreaContentState extends State<_MainAreaContent> {
         maxPrice: _maxPrice,
         minRating: _minRating,
         availability: _availabilityQuery(),
+        roleCategory: _selectedCategoria, 
         page: page,
         pageSize: _pageSize,
       );
@@ -338,19 +377,19 @@ class _MainAreaContentState extends State<_MainAreaContent> {
         setState(() {
           _page = resp.page;
           _total = resp.total;
-          _items = append ? [..._items, ...resp.items] : resp.items;
+          _itemsSpecific = append ? [..._itemsSpecific, ...resp.items] : resp.items;
         });
       }
     } catch (e) {
       if (mounted) {
         setState(() {
-          _error = e.toString();
+          _errorSpecific = e.toString();
         });
       }
     } finally {
       if (mounted) {
         setState(() {
-          _loading = false;
+          _loadingSpecific = false;
         });
       }
     }
@@ -366,7 +405,7 @@ class _MainAreaContentState extends State<_MainAreaContent> {
       _searchController.clear();
       _priceController.clear();
     });
-    _fetch(page: 1, append: false);
+    _applyFilters();
   }
 
   void _onPriceChanged(String rawValue) {
@@ -376,7 +415,6 @@ class _MainAreaContentState extends State<_MainAreaContent> {
         _maxPrice = null;
         return;
       }
-
       final parsed = double.tryParse(normalized);
       if (parsed != null && parsed > 0) {
         _maxPrice = parsed;
@@ -385,13 +423,25 @@ class _MainAreaContentState extends State<_MainAreaContent> {
   }
 
   void _applyFilters() {
-    _fetch(page: 1, append: false);
+    if (_selectedCategoria == null) {
+      _fetchGeral();
+    } else {
+      _fetchSpecific(page: 1, append: false);
+    }
   }
 
   void _loadMore() {
-    final hasMore = _items.length < _total;
+    if (_selectedCategoria == null) return;
+    final hasMore = _itemsSpecific.length < _total;
     if (!hasMore) return;
-    _fetch(page: _page + 1, append: true);
+    _fetchSpecific(page: _page + 1, append: true);
+  }
+
+  void _setCategoria(String? categoria) {
+    setState(() {
+      _selectedCategoria = categoria;
+    });
+    _applyFilters();
   }
 
   String? _resolvedPhotoUrl(String? rawValue) {
@@ -466,7 +516,7 @@ class _MainAreaContentState extends State<_MainAreaContent> {
         ? tutor.primarySubject.trim()
         : (_tagsForTutor(tutor).isNotEmpty
               ? _tagsForTutor(tutor).first
-              : 'Explicação');
+              : 'Sessão');
 
     Navigator.of(context).pushNamed(
       Routes.marcarAulaProfessor,
@@ -536,6 +586,116 @@ class _MainAreaContentState extends State<_MainAreaContent> {
     );
   }
 
+
+  Widget _buildDestaquesGerais(bool isMobile) {
+    if (_loadingGeral) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.symmetric(vertical: 40),
+          child: CircularProgressIndicator(color: Color(0xFFFC9039)),
+        ),
+      );
+    }
+
+    if (_errorGeral != null) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 20),
+        child: Text(
+          'Erro ao carregar destaques: $_errorGeral',
+          style: const TextStyle(color: Colors.red),
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildDestaqueSection('Explicadores em Destaque', _destaquesExplicadores, 'explicadores', isMobile),
+        const SizedBox(height: 50),
+        _buildDestaqueSection('Tutores Recomendados', _destaquesTutores, 'tutores', isMobile),
+        const SizedBox(height: 50),
+        _buildDestaqueSection('Psicólogos e Orientadores', _destaquesPsicologos, 'psicologos', isMobile),
+      ],
+    );
+  }
+
+  Widget _buildDestaqueSection(String title, List<TutorBrowseItemDto> items, String roleValue, bool isMobile) {
+    if (items.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: const TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.w700,
+            color: Color(0xFF101828),
+          ),
+        ),
+        const SizedBox(height: 24),
+        if (isMobile)
+          Column(
+            children: items.map((tutor) => Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: ExplicadoresMobileTutorCard(
+                photoUrl: _resolvedPhotoUrl(tutor.photo),
+                name: tutor.name,
+                country: tutor.subtitle.trim().isEmpty ? 'Online' : tutor.subtitle.trim(),
+                rating: tutor.rating,
+                reviewCount: tutor.reviewCount,
+                description: tutor.description,
+                lessonsText: '${tutor.lessonsCount}+ aulas',
+                pricePerHour: tutor.minPrice.round(),
+                tags: _tagsForTutor(tutor),
+                accentChipLabel: _accentChipLabel(tutor.subtitle),
+                onViewProfileTap: () => _openTutorProfile(tutor),
+                onBookLessonTap: () => _openBookLesson(tutor),
+              ),
+            )).toList(),
+          )
+        else
+          Wrap(
+            spacing: 30,
+            runSpacing: 30,
+            children: items.map((tutor) => TutorCard(
+              name: tutor.name,
+              country: tutor.subtitle.isNotEmpty ? tutor.subtitle : 'Online',
+              rating: tutor.rating,
+              reviewCount: tutor.reviewCount,
+              description: tutor.description,
+              lessonsText: '${tutor.lessonsCount} aulas',
+              pricePerHour: tutor.minPrice.round(),
+              tags: tutor.tags,
+              onViewProfileTap: () => _openTutorProfile(tutor),
+            )).toList(),
+          ),
+        const SizedBox(height: 16),
+        InkWell(
+          onTap: () => _setCategoria(roleValue),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Ver mais $title',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFFFC9039),
+                  ),
+                ),
+                const SizedBox(width: 4),
+                const Icon(Icons.arrow_forward_rounded, size: 20, color: Color(0xFFFC9039)),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isMobile =
@@ -557,7 +717,48 @@ class _MainAreaContentState extends State<_MainAreaContent> {
         .map((d) => FilterOption(id: d.idDisciplina, label: d.nome))
         .toList(growable: false);
 
-    final hasMore = _items.length < _total;
+    final hasMoreSpecific = _itemsSpecific.length < _total;
+
+    Widget buildCategoriaChips() {
+      return SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            ChoiceChip(
+              label: const Text('Visão Geral'),
+              selected: _selectedCategoria == null,
+              onSelected: (_) => _setCategoria(null),
+              selectedColor: const Color(0xFFFFF7ED),
+              side: BorderSide(color: _selectedCategoria == null ? const Color(0xFFFC9039) : const Color(0xFFD1D5DC)),
+            ),
+            const SizedBox(width: 8),
+            ChoiceChip(
+              label: const Text('Explicadores'),
+              selected: _selectedCategoria == 'explicadores',
+              onSelected: (_) => _setCategoria('explicadores'),
+              selectedColor: const Color(0xFFFFF7ED),
+              side: BorderSide(color: _selectedCategoria == 'explicadores' ? const Color(0xFFFC9039) : const Color(0xFFD1D5DC)),
+            ),
+            const SizedBox(width: 8),
+            ChoiceChip(
+              label: const Text('Tutores'),
+              selected: _selectedCategoria == 'tutores',
+              onSelected: (_) => _setCategoria('tutores'),
+              selectedColor: const Color(0xFFFFF7ED),
+              side: BorderSide(color: _selectedCategoria == 'tutores' ? const Color(0xFFFC9039) : const Color(0xFFD1D5DC)),
+            ),
+            const SizedBox(width: 8),
+            ChoiceChip(
+              label: const Text('Psicólogos'),
+              selected: _selectedCategoria == 'psicologos',
+              onSelected: (_) => _setCategoria('psicologos'),
+              selectedColor: const Color(0xFFFFF7ED),
+              side: BorderSide(color: _selectedCategoria == 'psicologos' ? const Color(0xFFFC9039) : const Color(0xFFD1D5DC)),
+            ),
+          ],
+        ),
+      );
+    }
 
     if (isMobile) {
       return Column(
@@ -577,22 +778,29 @@ class _MainAreaContentState extends State<_MainAreaContent> {
               disciplinaOptions: disciplinaFilterOptions,
             ),
           ),
+          const SizedBox(height: 16),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: buildCategoriaChips(),
+          ),
           const SizedBox(height: 24),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: _TutorsSection(
-              items: _items,
-              loading: _loading,
-              error: _error,
-              hasMore: hasMore,
-              onLoadMore: _loadMore,
-              isMobile: true,
-              onViewProfileTap: _openTutorProfile,
-              onBookLessonTap: _openBookLesson,
-              resolvePhotoUrl: _resolvedPhotoUrl,
-              accentChipLabelForCountry: _accentChipLabel,
-              tagsForTutor: _tagsForTutor,
-            ),
+            child: _selectedCategoria == null
+                ? _buildDestaquesGerais(true)
+                : _TutorsSection(
+                    items: _itemsSpecific,
+                    loading: _loadingSpecific,
+                    error: _errorSpecific,
+                    hasMore: hasMoreSpecific,
+                    onLoadMore: _loadMore,
+                    isMobile: true,
+                    onViewProfileTap: _openTutorProfile,
+                    onBookLessonTap: _openBookLesson,
+                    resolvePhotoUrl: _resolvedPhotoUrl,
+                    accentChipLabelForCountry: _accentChipLabel,
+                    tagsForTutor: _tagsForTutor,
+                  ),
           ),
         ],
       );
@@ -640,20 +848,25 @@ class _MainAreaContentState extends State<_MainAreaContent> {
                   _applyFilters();
                 },
               ),
+              const SizedBox(height: 20),
+              buildCategoriaChips(),
               const SizedBox(height: 30),
-              _TutorsSection(
-                items: _items,
-                loading: _loading,
-                error: _error,
-                hasMore: hasMore,
-                onLoadMore: _loadMore,
-                isMobile: false,
-                onViewProfileTap: _openTutorProfile,
-                onBookLessonTap: _openBookLesson,
-                resolvePhotoUrl: _resolvedPhotoUrl,
-                accentChipLabelForCountry: _accentChipLabel,
-                tagsForTutor: _tagsForTutor,
-              ),
+              if (_selectedCategoria == null)
+                _buildDestaquesGerais(false)
+              else
+                _TutorsSection(
+                  items: _itemsSpecific,
+                  loading: _loadingSpecific,
+                  error: _errorSpecific,
+                  hasMore: hasMoreSpecific,
+                  onLoadMore: _loadMore,
+                  isMobile: false,
+                  onViewProfileTap: _openTutorProfile,
+                  onBookLessonTap: _openBookLesson,
+                  resolvePhotoUrl: _resolvedPhotoUrl,
+                  accentChipLabelForCountry: _accentChipLabel,
+                  tagsForTutor: _tagsForTutor,
+                ),
             ],
           ),
         ),
@@ -704,11 +917,11 @@ class _TutorsSection extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (error != null && items.isEmpty)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 20),
+          const Padding(
+            padding: EdgeInsets.only(bottom: 20),
             child: Text(
-              'Não foi possível carregar os explicadores.',
-              style: const TextStyle(
+              'Não foi possível carregar os resultados.',
+              style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
                 color: Color(0xFF6A7282),

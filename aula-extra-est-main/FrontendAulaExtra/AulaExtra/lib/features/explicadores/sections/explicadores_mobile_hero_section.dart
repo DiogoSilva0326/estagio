@@ -26,7 +26,7 @@ class ExplicadoresMobileHeroSection extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'Explicadores Online',
+              'Apoio Especializado',
               style: TextStyle(
                 fontSize: 32,
                 height: 1.25,
@@ -36,7 +36,7 @@ class ExplicadoresMobileHeroSection extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             const Text(
-              'Encontra o explicador perfeito para ti, desde a primária até à universidade. Personaliza a tua busca por preço, disponibilidade e mais.',
+              'Encontra o apoio perfeito para ti, desde explicadores a tutores e psicólogos. Personaliza a tua busca por preço, disponibilidade e mais.',
               style: TextStyle(
                 fontSize: 17,
                 height: 1.45,
@@ -47,7 +47,7 @@ class ExplicadoresMobileHeroSection extends StatelessWidget {
             const SizedBox(height: 24),
             const _HeroStatRow(
               icon: Icons.people_alt_outlined,
-              label: '500+ explicadores disponíveis',
+              label: '500+ profissionais disponíveis',
             ),
             const SizedBox(height: 12),
             const _HeroStatRow(
@@ -57,7 +57,7 @@ class ExplicadoresMobileHeroSection extends StatelessWidget {
             const SizedBox(height: 12),
             const _HeroStatRow(
               icon: Icons.play_circle_outline_rounded,
-              label: '50.000+ aulas realizadas',
+              label: '50.000+ sessões realizadas',
             ),
             const SizedBox(height: 24),
             SizedBox(

@@ -5,7 +5,10 @@ import 'package:aula_extra/core/data/session/token_storage.dart';
 import 'package:aula_extra/features/professor/disponibilidade/constants/disponibilidade_professor_colors.dart';
 import 'package:aula_extra/features/professor/disponibilidade/constants/disponibilidade_professor_layout.dart';
 import 'package:aula_extra/features/professor/disponibilidade/widgets/disponibilidade_professor_mobile_day_card.dart';
+import 'package:aula_extra/core/providers/user_provider.dart'; 
+import 'package:aula_extra/core/config/teaching_roles_config.dart'; 
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:http/http.dart' as http;
 
 class HorarioPadraoProfessor extends StatefulWidget {
@@ -19,13 +22,7 @@ class HorarioPadraoProfessor extends StatefulWidget {
 
 class _HorarioPadraoProfessorState extends State<HorarioPadraoProfessor> {
   static const List<String> _diasSemanaLabels = [
-    'Segunda',
-    'Terça',
-    'Quarta',
-    'Quinta',
-    'Sexta',
-    'Sábado',
-    'Domingo',
+    'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo',
   ];
   static const double _slotHeight = 32;
   static const int _slotDurationMinutes = 30;
@@ -279,7 +276,7 @@ class _HorarioPadraoProfessorState extends State<HorarioPadraoProfessor> {
         return;
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Horário guardado com sucesso!'),
           backgroundColor: Colors.green,
@@ -385,13 +382,13 @@ class _HorarioPadraoProfessorState extends State<HorarioPadraoProfessor> {
     });
   }
 
-  Widget _buildDesktopContent() {
+  Widget _buildDesktopContent(TeachingRoleConfig config) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Define aqui o teu horário semanal. Este é o calendário que os teus alunos vão ver no teu perfil.',
-          style: TextStyle(
+        Text(
+          config.disponibilidade.pageDescription,
+          style: const TextStyle(
             color: DisponibilidadeProfessorColors.muted,
             fontSize: 16,
           ),
@@ -419,7 +416,7 @@ class _HorarioPadraoProfessorState extends State<HorarioPadraoProfessor> {
             children: [
               Row(
                 children: [
-                  SizedBox(
+                  const SizedBox(
                     width: DisponibilidadeProfessorLayout.tableHourColumnWidth,
                   ),
                   for (final dia in _diasSemanaLabels)
@@ -470,7 +467,7 @@ class _HorarioPadraoProfessorState extends State<HorarioPadraoProfessor> {
                               ),
                             ),
                             for (int dayIdx = 0; dayIdx < 7; dayIdx++)
-                              Expanded(child: _buildGridBlock(dayIdx, slot)),
+                              Expanded(child: _buildGridBlock(dayIdx, slot, config)), 
                           ],
                         ),
                       );
@@ -479,7 +476,7 @@ class _HorarioPadraoProfessorState extends State<HorarioPadraoProfessor> {
                 ),
               ),
               const SizedBox(height: 16),
-              _buildSaveButton(),
+              _buildSaveButton(config),
             ],
           ),
         ),
@@ -487,7 +484,7 @@ class _HorarioPadraoProfessorState extends State<HorarioPadraoProfessor> {
     );
   }
 
-  Widget _buildMobileTopBar() {
+  Widget _buildMobileTopBar(TeachingRoleConfig config) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -503,7 +500,7 @@ class _HorarioPadraoProfessorState extends State<HorarioPadraoProfessor> {
           ),
         ),
         const SizedBox(width: 12),
-        _buildSaveButton(isMobile: true),
+        _buildSaveButton(config, isMobile: true),
       ],
     );
   }
@@ -534,11 +531,11 @@ class _HorarioPadraoProfessorState extends State<HorarioPadraoProfessor> {
     );
   }
 
-  Widget _buildMobileContent() {
+  Widget _buildMobileContent(TeachingRoleConfig config) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildMobileTopBar(),
+        _buildMobileTopBar(config),
         const SizedBox(height: 16),
         const Text(
           'Marque os seus horários disponíveis. Cada bloco representa uma hora e pode limpar rapidamente um dia inteiro.',
@@ -572,7 +569,7 @@ class _HorarioPadraoProfessorState extends State<HorarioPadraoProfessor> {
           runSpacing: 8,
           children: [
             _buildLegendItem(
-              color: DisponibilidadeProfessorColors.availableBorder,
+              color: config.primaryColor, 
               label: 'Disponível',
             ),
             _buildLegendItem(
@@ -587,6 +584,9 @@ class _HorarioPadraoProfessorState extends State<HorarioPadraoProfessor> {
 
   @override
   Widget build(BuildContext context) {
+    final userProvider = Provider.of<UserProvider>(context);
+    final config = TeachingRoleConfig.fromRole(userProvider.role);
+
     if (_isLoading) {
       return const SizedBox(
         height: 300,
@@ -595,13 +595,13 @@ class _HorarioPadraoProfessorState extends State<HorarioPadraoProfessor> {
     }
 
     if (widget.isMobile) {
-      return _buildMobileContent();
+      return _buildMobileContent(config);
     }
 
-    return _buildDesktopContent();
+    return _buildDesktopContent(config);
   }
 
-  Widget _buildGridBlock(int dayIdx, String time) {
+  Widget _buildGridBlock(int dayIdx, String time, TeachingRoleConfig config) {
     final key = _buildSlotKey(dayIdx, time);
     final isSelected = _templateDisponibilidade.contains(key);
 
@@ -611,36 +611,38 @@ class _HorarioPadraoProfessorState extends State<HorarioPadraoProfessor> {
         height: _slotHeight,
         margin: const EdgeInsets.symmetric(horizontal: 4),
         decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFFFFF1E8) : const Color(0xFFF9FAFB),
+          color: isSelected 
+              ? config.primaryColor.withOpacity(0.08) 
+              : const Color(0xFFF9FAFB),
           borderRadius: BorderRadius.circular(
             DisponibilidadeProfessorLayout.tableCellRadius,
           ),
           border: Border.all(
             color: isSelected
-                ? DisponibilidadeProfessorColors.availableBorder
+                ? config.primaryColor
                 : DisponibilidadeProfessorColors.unavailableBorder,
             width: isSelected ? 1.5 : 1,
           ),
         ),
         child: isSelected
-            ? const Icon(
+            ? Icon(
                 Icons.check,
                 size: 16,
-                color: DisponibilidadeProfessorColors.availableBorder,
+                color: config.primaryColor, 
               )
             : null,
       ),
     );
   }
 
-  Widget _buildSaveButton({bool isMobile = false}) {
+  Widget _buildSaveButton(TeachingRoleConfig config, {bool isMobile = false}) {
     final button = SizedBox(
       height: isMobile
           ? DisponibilidadeProfessorLayout.mobileSaveButtonHeight
           : DisponibilidadeProfessorLayout.saveButtonHeight,
       child: ElevatedButton(
         style: ElevatedButton.styleFrom(
-          backgroundColor: DisponibilidadeProfessorColors.availableBorder,
+          backgroundColor: config.primaryColor,
           padding: EdgeInsets.symmetric(
             horizontal: isMobile ? 16 : 32,
             vertical: isMobile ? 10 : 16,

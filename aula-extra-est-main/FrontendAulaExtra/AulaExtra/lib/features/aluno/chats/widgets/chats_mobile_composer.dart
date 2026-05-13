@@ -1,5 +1,8 @@
 import 'package:aula_extra/features/aluno/chats/constants/chats_constants.dart';
+import 'package:aula_extra/core/providers/user_provider.dart'; 
+import 'package:aula_extra/core/config/teaching_roles_config.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart'; 
 
 class ChatsMobileComposer extends StatelessWidget {
   const ChatsMobileComposer({
@@ -21,6 +24,12 @@ class ChatsMobileComposer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final userProvider = Provider.of<UserProvider>(context);
+    final config = TeachingRoleConfig.fromRole(userProvider.role);
+    final isStudent = userProvider.role == Role.student;
+
+    final isOrange = isStudent || config.roleName == 'Explicador';
+
     return SafeArea(
       top: false,
       child: Container(
@@ -76,7 +85,8 @@ class ChatsMobileComposer extends StatelessWidget {
               height: 46,
               child: DecoratedBox(
                 decoration: BoxDecoration(
-                  gradient: ChatsConstants.orangeGradient,
+                  color: isOrange ? null : config.primaryColor,
+                  gradient: isOrange ? ChatsConstants.orangeGradient : null,
                   borderRadius: BorderRadius.circular(14),
                 ),
                 child: Material(

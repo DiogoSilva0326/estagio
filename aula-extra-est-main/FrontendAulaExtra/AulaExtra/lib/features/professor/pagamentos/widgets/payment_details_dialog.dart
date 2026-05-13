@@ -1,6 +1,7 @@
 import 'package:aula_extra/core/data/payments/dtos/professor_payment_dto.dart';
 import 'package:aula_extra/core/data/payments/payment_status.dart';
 import 'package:aula_extra/features/professor/pagamentos/widgets/pagamentos_professor_formatters.dart';
+import 'package:aula_extra/core/config/teaching_roles_config.dart'; 
 import 'package:flutter/material.dart';
 
 class PaymentDetailsDialog extends StatelessWidget {
@@ -9,11 +10,13 @@ class PaymentDetailsDialog extends StatelessWidget {
     required this.details,
     required this.onClose,
     required this.onPrintReceipt,
+    required this.config,
   });
 
   final ProfessorPaymentDetailsDto details;
   final VoidCallback onClose;
   final VoidCallback onPrintReceipt;
+  final TeachingRoleConfig config;
 
   @override
   Widget build(BuildContext context) {
@@ -102,7 +105,7 @@ class PaymentDetailsDialog extends StatelessWidget {
                     children: [
                       _PaymentInfoRow(
                         left: _InfoTextBlock(
-                          label: 'Aluno',
+                          label: config.pagamentos.userHeader, 
                           value: details.studentName,
                         ),
                         right: _InfoTextBlock(
@@ -113,11 +116,11 @@ class PaymentDetailsDialog extends StatelessWidget {
                       const SizedBox(height: 24),
                       _PaymentInfoRow(
                         left: _InfoTextBlock(
-                          label: 'Disciplina',
+                          label: config.pagamentos.subjectHeader, 
                           value: details.subject,
                         ),
                         right: _InfoTextBlock(
-                          label: 'Aula',
+                          label: 'Período', 
                           value:
                               '${formatProfessorPaymentDateTime(details.lessonStart)} → ${formatProfessorPaymentDateTime(details.lessonEnd)}',
                         ),

@@ -4,6 +4,7 @@ import 'package:aula_extra/core/providers/user_provider.dart';
 import 'package:aula_extra/core/session/session_manager.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:aula_extra/core/data/session/preferences_service.dart';
 
 class RoleSwitcherButton extends StatefulWidget {
   const RoleSwitcherButton({super.key, this.size = 32});
@@ -29,84 +30,37 @@ class _RoleSwitcherButtonState extends State<RoleSwitcherButton> {
     try {
       final token = await _tokenStorage.loadToken();
       if (token == null || token.trim().isEmpty) {
-        if (!mounted) return;
         setState(() => _availableRoles = {Role.none});
-
-        final userProvider = context.read<UserProvider>();
-        if (userProvider.role != Role.none || userProvider.account != null) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (!mounted) return;
-            userProvider.setAccount(null);
-            userProvider.setRole(Role.none);
-          });
-        }
         return;
       }
 
-      // Source of truth: ask backend to re-issue token with CURRENT DB roles.
-      // This prevents stale tokens from exposing professor UI.
-      AuthSession? session;
-      List<String> roles;
-      try {
-        session = await AuthService(tokenStorage: _tokenStorage).refresh();
-        roles = session.backendRoles;
+      // 1. Pedimos ao backend as roles REAIS do Pedro
+      final session = await AuthService(tokenStorage: _tokenStorage).refresh();
+      final roles = session.backendRoles;
 
-        if (!mounted) return;
-        AuthService.applySessionToProvider(
-          context.read<UserProvider>(),
-          session,
-        );
-      } catch (_) {
-        await SessionManager.instance.handleExpiredSession();
-        return;
-      }
+      final normalized = roles.map((r) => r.trim().toLowerCase()).toSet();
+      final hasTeacher = normalized.contains('professor') || normalized.contains('teacher') || normalized.contains('admin');
+      final hasTutor = normalized.contains('tutor');
+      final hasPsychologist = normalized.contains('psicologo') || normalized.contains('psychologist');
 
-      if (roles.isEmpty) {
-        final available = <Role>{Role.student};
-        if (!mounted) return;
-        setState(() => _availableRoles = available);
-
-        final current = context.read<UserProvider>().role;
-        if (!available.contains(current)) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (!mounted) return;
-            context.read<UserProvider>().setRole(Role.student);
-          });
-        }
-        return;
-      }
-
-      final normalized = roles
-          .map((r) => r.trim().toLowerCase())
-          .where((r) => r.isNotEmpty)
-          .toSet();
-      final hasTeacher =
-          normalized.contains('professor') ||
-          normalized.contains('teacher') ||
-          normalized.contains('admin');
-
-      // All authenticated users can use the app as student.
-      // Only users with professor/admin role can switch to teacher.
+      // 2. Definimos o que aparece no menu. 
+      // Se for professor, libertamos tudo para podermos testar as interfaces.
       final available = <Role>{Role.student};
-      if (hasTeacher) available.add(Role.teacher);
-
-      if (available.isEmpty) {
-        available.add(Role.none);
+      if (hasTeacher) {
+        available.add(Role.teacher);
+        available.add(Role.tutor);
+        available.add(Role.psychologist);
+      } else {
+        if (hasTutor) available.add(Role.tutor);
+        if (hasPsychologist) available.add(Role.psychologist);
       }
 
       if (!mounted) return;
       setState(() => _availableRoles = available);
 
-      final current = context.read<UserProvider>().role;
-      if (!available.contains(current)) {
-        final fallback = available.contains(Role.student)
-            ? Role.student
-            : (available.contains(Role.teacher) ? Role.teacher : Role.none);
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (!mounted) return;
-          context.read<UserProvider>().setRole(fallback);
-        });
-      }
+      // --- REMOVI AQUI O AuthService.applySessionToProvider ---
+      // Deixamos o UserProvider sossegado com a escolha que fizemos manualmente.
+
     } catch (_) {
       if (!mounted) return;
       setState(() => _availableRoles = {Role.none});
@@ -121,6 +75,10 @@ class _RoleSwitcherButtonState extends State<RoleSwitcherButton> {
         return 'Aluno';
       case Role.teacher:
         return 'Explicador';
+      case Role.tutor:
+        return 'Tutor';
+      case Role.psychologist:
+        return 'Psicólogo';
     }
   }
 
@@ -139,10 +97,24 @@ class _RoleSwitcherButtonState extends State<RoleSwitcherButton> {
       tooltip: 'Mudar role',
       initialValue: currentRole,
       enabled: canSwitch,
-      onSelected: (role) {
-        // Only allow switching to roles granted by backend.
+      onSelected: (role) async {
         if (!allowedRoles.contains(role)) return;
+        
+        final currentRole = context.read<UserProvider>().role;
+        if (currentRole == role) return;
+
         context.read<UserProvider>().setRole(role);
+        await PreferencesService.savePreferredRole(role.name);
+
+        if (role == Role.student) {
+          Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
+        } else if (role == Role.teacher) {
+          Navigator.of(context).pushNamedAndRemoveUntil('/professor/calendario', (route) => false);
+        } else if (role == Role.tutor) {
+          Navigator.of(context).pushNamedAndRemoveUntil('/professor/calendario', (route) => false); 
+        } else if (role == Role.psychologist) {
+          Navigator.of(context).pushNamedAndRemoveUntil('/professor/calendario', (route) => false);
+        }
       },
       itemBuilder: (context) {
         return menuRoles

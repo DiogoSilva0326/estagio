@@ -3,19 +3,28 @@ import 'package:flutter/material.dart';
 import 'export_csv_dialog.dart';
 
 class ExportCsvButton extends StatelessWidget {
-  const ExportCsvButton({super.key});
+  const ExportCsvButton({
+    super.key,
+    this.onConfirm,
+    this.enabled = true,
+  });
+
+  final Future<void> Function()? onConfirm;
+  final bool enabled;
 
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: const Color(0xFFFC9039),
+      color: enabled ? const Color(0xFFFC9039) : const Color(0xFFF5B37F),
       borderRadius: BorderRadius.circular(16.307),
       child: InkWell(
-        onTap: () {
+        onTap: !enabled
+            ? null
+            : () {
           showDialog<void>(
             context: context,
             barrierColor: const Color(0x73000000),
-            builder: (_) => const ExportCsvDialog(),
+            builder: (_) => ExportCsvDialog(onConfirm: onConfirm),
           );
         },
         borderRadius: BorderRadius.circular(16.307),

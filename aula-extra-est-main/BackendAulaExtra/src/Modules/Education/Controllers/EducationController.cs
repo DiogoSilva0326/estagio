@@ -61,13 +61,13 @@ namespace ConfidantPostgreSQL.Modules.Education.Controllers
             return Ok(await _service.GetPublicDisciplinasWithProfessorsAsync());
         }
 
-        // AREAS
         [AllowAnonymous]
         [HttpGet("areas")]
-        public async Task<IActionResult> GetAreas()
+        public async Task<IActionResult> GetAreas([FromQuery] string? targetRole = null, [FromQuery(Name = "target_role")] string? targetRoleFallback = null)
         {
             ApplyCulture();
-            return Ok(await _service.GetAreasAllAsync());
+            var roleToSearch = !string.IsNullOrWhiteSpace(targetRole) ? targetRole : targetRoleFallback;
+            return Ok(await _service.GetAreasAllAsync(roleToSearch));
         }
 
         [HttpGet("areas/{idArea:guid}")]

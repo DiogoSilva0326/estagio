@@ -42,6 +42,7 @@ CREATE OR REPLACE FUNCTION public.usp_professors_insert(
     p_is_verified_iban boolean,
     p_is_active boolean,
     p_is_verified boolean,
+    p_is_rejected boolean,
     p_created_at timestamp,
     p_updated_at timestamp
 )
@@ -50,7 +51,7 @@ LANGUAGE sql
 AS $$
     INSERT INTO public.professors (
         id_user, current_school, years_experience, photo, biography, presentation_video_url,
-        vat, iban, iban_document_url, is_verified_iban, is_active, is_verified, created_at, updated_at
+        vat, iban, iban_document_url, is_verified_iban, is_active, is_verified, is_rejected, created_at, updated_at
     )
     VALUES (
         p_id_user, p_current_school, p_years_experience, p_photo, p_biography, p_presentation_video_url,
@@ -58,6 +59,7 @@ AS $$
         COALESCE(p_is_verified_iban, false),
         COALESCE(p_is_active, true),
         COALESCE(p_is_verified, false),
+        COALESCE(p_is_rejected, false),
         COALESCE(p_created_at, now()),
         COALESCE(p_updated_at, now())
     )
@@ -77,7 +79,8 @@ CREATE OR REPLACE FUNCTION public.usp_professors_update(
     p_iban_document_url text,
     p_is_verified_iban boolean,
     p_is_active boolean,
-    p_is_verified boolean
+    p_is_verified boolean,
+    p_is_rejected boolean
 )
 RETURNS integer
 LANGUAGE sql
@@ -96,6 +99,7 @@ AS $$
             is_verified_iban = COALESCE(p_is_verified_iban, is_verified_iban),
             is_active = COALESCE(p_is_active, is_active),
             is_verified = COALESCE(p_is_verified, is_verified),
+            is_rejected = COALESCE(p_is_rejected, is_rejected),
             updated_at = now()
         WHERE id_professor = p_id_professor
         RETURNING 1

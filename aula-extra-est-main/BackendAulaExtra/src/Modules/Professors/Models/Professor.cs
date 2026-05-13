@@ -17,6 +17,7 @@ namespace ConfidantPostgreSQL.Modules.Professors.Models
         public bool? IsVerifiedIban { get; set; }
         public bool? IsActive { get; set; }
         public bool? IsVerified { get; set; }
+        public bool? IsRejected { get; set; }
         public DateTime? CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
     }

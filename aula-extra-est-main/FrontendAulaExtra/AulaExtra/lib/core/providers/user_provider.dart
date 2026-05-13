@@ -4,6 +4,8 @@ enum Role {
   none,
   student,
   teacher,
+  tutor,
+  psychologist,
 }
 
 class UserAccount {
@@ -51,6 +53,9 @@ class UserAccount {
 }
 
 class UserProvider extends ChangeNotifier {
+  bool get isTeachingRole => _role == Role.teacher || _role == Role.tutor || _role == Role.psychologist;
+  bool get isStudentRole => _role == Role.student;
+
   Role _role = Role.none;
   UserAccount? _account;
 
@@ -67,6 +72,7 @@ class UserProvider extends ChangeNotifier {
 
   void setRole(Role role) {
     if (_role == role) return;
+    print('DEBUG: Role a mudar de $_role para $role');
     _role = role;
     notifyListeners();
   }

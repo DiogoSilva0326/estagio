@@ -18,7 +18,7 @@ Future<List<String>?> showAreaDisciplineSelectionDialog(
     return showGeneralDialog<List<String>>(
       context: context,
       barrierDismissible: true,
-      barrierLabel: 'Selecionar disciplinas',
+      barrierLabel: 'Selecionar opções',
       barrierColor: Colors.black54,
       transitionDuration: const Duration(milliseconds: 220),
       pageBuilder: (_, __, ___) => _AreaDisciplineSelectionMobileDialog(
@@ -220,7 +220,7 @@ class _AreaDisciplineSelectionDialogState
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    '$selectedCount de $total disciplinas selecionadas',
+                    '$selectedCount de $total opções selecionadas', 
                     style: const TextStyle(
                       fontSize: 18.543,
                       fontWeight: FontWeight.w400,
@@ -389,7 +389,7 @@ class _AreaDisciplineSelectionMobileDialogState
                               ),
                               const SizedBox(height: 2),
                               const Text(
-                                'Selecione as disciplinas desejadas',
+                                'Selecione os apoios desejados', 
                                 style: TextStyle(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w500,
@@ -418,7 +418,7 @@ class _AreaDisciplineSelectionMobileDialogState
                 controller: _searchController,
                 onChanged: (value) => setState(() => _query = value),
                 decoration: InputDecoration(
-                  hintText: 'Pesquisar disciplinas',
+                  hintText: 'Pesquisar opções', // Genérico
                   prefixIcon: const Icon(Icons.search_rounded),
                   suffixText: '${widget.disciplinas.length}',
                   filled: true,
@@ -472,7 +472,7 @@ class _AreaDisciplineSelectionMobileDialogState
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Text(
-                    '${_selected.length} de ${widget.disciplinas.length} disciplinas selecionadas',
+                    '${_selected.length} de ${widget.disciplinas.length} opções selecionadas',
                     style: const TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w500,
@@ -519,6 +519,7 @@ class _AreaDisciplineSelectionMobileDialogState
 }
 
 class _MobileDisciplineTile extends StatelessWidget {
+  // IGUAL AO ORIGINAL (MANTIVE POR COMPATIBILIDADE VISUAL)
   const _MobileDisciplineTile({
     required this.label,
     required this.selected,
@@ -693,7 +694,7 @@ class _Header extends StatelessWidget {
                       ),
                       const SizedBox(height: 2),
                       const Text(
-                        'Selecione as disciplinas desejadas',
+                        'Selecione os apoios desejados',
                         style: TextStyle(
                           fontSize: 18.543,
                           fontWeight: FontWeight.w400,
@@ -761,7 +762,7 @@ class _SearchRow extends StatelessWidget {
           Opacity(
             opacity: 0.9,
             child: Text(
-              '$totalDisciplines disciplinas',
+              '$totalDisciplines opções', 
               style: const TextStyle(
                 fontSize: 18.543,
                 fontWeight: FontWeight.w400,

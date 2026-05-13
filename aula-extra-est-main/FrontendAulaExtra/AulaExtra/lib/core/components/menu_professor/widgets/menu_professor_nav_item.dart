@@ -1,5 +1,8 @@
 import 'package:aula_extra/core/components/menu_professor/constants/menu_professor_colors.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:aula_extra/core/providers/user_provider.dart';
+import 'package:aula_extra/core/config/teaching_roles_config.dart';
 
 class MenuProfessorNavItem extends StatelessWidget {
   const MenuProfessorNavItem({
@@ -8,6 +11,7 @@ class MenuProfessorNavItem extends StatelessWidget {
     required this.label,
     this.badgeCount,
     this.selected = false,
+    this.activeColor,
     this.onTap,
   });
 
@@ -15,11 +19,24 @@ class MenuProfessorNavItem extends StatelessWidget {
   final String label;
   final int? badgeCount;
   final bool selected;
+  final Color? activeColor;
   final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final showBadge = (badgeCount ?? 0) > 0;
+    
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    final config = TeachingRoleConfig.fromRole(userProvider.role);
+    final primaryColor = activeColor ?? config.primaryColor;
+
+    final bgColor = selected 
+        ? primaryColor.withOpacity(0.12) 
+        : Colors.transparent;
+
+    final contentColor = selected 
+        ? primaryColor 
+        : MenuProfessorColors.textNav;
 
     return InkWell(
       onTap: onTap,
@@ -29,14 +46,14 @@ class MenuProfessorNavItem extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 19.697),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(14.773),
-          color: selected ? MenuProfessorColors.navSelectedBackground : Colors.transparent,
+          color: bgColor,
         ),
         child: Row(
           children: [
             Icon(
               icon,
               size: 24.621,
-              color: selected ? MenuProfessorColors.accentOrange : MenuProfessorColors.textNav,
+              color: contentColor,
             ),
             const SizedBox(width: 14.773),
             Expanded(
@@ -45,8 +62,8 @@ class MenuProfessorNavItem extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 19.697,
                   height: 29.545 / 19.697,
-                  fontWeight: FontWeight.w500,
-                  color: selected ? MenuProfessorColors.accentOrange : MenuProfessorColors.textNav,
+                  fontWeight: selected ? FontWeight.w600 : FontWeight.w500, 
+                  color: contentColor,
                 ),
               ),
             ),
@@ -56,7 +73,7 @@ class MenuProfessorNavItem extends StatelessWidget {
                 width: 28.18,
                 decoration: BoxDecoration(
                   color: MenuProfessorColors.badgeRed,
-                  borderRadius: BorderRadius.circular(20653750),
+                  borderRadius: BorderRadius.circular(20653750), 
                 ),
                 alignment: Alignment.center,
                 child: Text(

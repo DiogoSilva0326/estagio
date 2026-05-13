@@ -7,9 +7,14 @@ import 'package:aula_extra/core/data/http/api_config.dart';
 import 'package:http/http.dart' as http;
 
 class EducationApi {
-  Future<List<AreaDto>> getPublicAreas() async {
+  Future<List<AreaDto>> getPublicAreas({String? targetRole}) async {
+    String path = '/api/Education/areas';
+    if (targetRole != null && targetRole.isNotEmpty) {
+      path += '?targetRole=$targetRole';
+    }
+
     final res = await http.get(
-      ApiConfig.uri('/api/Education/areas'),
+      ApiConfig.uri(path),
       headers: {'Content-Type': 'application/json'},
     );
 
@@ -110,9 +115,14 @@ class EducationApi {
         .toList(growable: false);
   }
 
-  Future<List<AreaDto>> getAreas({required String token}) async {
+  Future<List<AreaDto>> getAreas({required String token, String? targetRole}) async {
+    String path = '/api/Education/areas';
+    if (targetRole != null && targetRole.isNotEmpty) {
+      path += '?targetRole=$targetRole';
+    }
+
     final res = await http.get(
-      ApiConfig.uri('/api/Education/areas'),
+      ApiConfig.uri(path),
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',

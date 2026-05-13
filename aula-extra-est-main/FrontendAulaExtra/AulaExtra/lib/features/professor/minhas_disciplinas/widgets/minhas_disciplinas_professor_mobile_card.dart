@@ -10,15 +10,21 @@ class MinhasDisciplinasProfessorMobileCard extends StatelessWidget {
     required this.color,
     required this.onEdit,
     required this.onDelete,
+    required this.studentLabel,
+    required this.activeColor,
   });
 
   final DisciplinaDto disciplina;
-  final Color color;
+  final Color color; 
   final VoidCallback onEdit;
   final VoidCallback onDelete;
+  final String studentLabel;
+  final Color activeColor;
 
   @override
   Widget build(BuildContext context) {
+    final isOrange = activeColor == const Color(0xFFFC9039);
+
     final trimmedName = disciplina.nome.trim();
     final initial = trimmedName.isEmpty
         ? '?'
@@ -48,7 +54,7 @@ class MinhasDisciplinasProfessorMobileCard extends StatelessWidget {
                     MinhasDisciplinasProfessorLayout
                         .mobileDisciplinaAvatarSize /
                     2,
-                backgroundColor: color,
+                backgroundColor: color, 
                 child: Text(
                   initial,
                   style: const TextStyle(
@@ -104,7 +110,7 @@ class MinhasDisciplinasProfessorMobileCard extends StatelessWidget {
           const SizedBox(height: 16),
           _InfoRow(
             icon: Icons.groups_2_outlined,
-            label: '${disciplina.activeStudentsCount} alunos ativos',
+            label: '${disciplina.activeStudentsCount} $studentLabel ativos', 
           ),
           const SizedBox(height: 10),
           _InfoRow(
@@ -134,12 +140,13 @@ class MinhasDisciplinasProfessorMobileCard extends StatelessWidget {
                   child: DecoratedBox(
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(14),
-                      gradient: const LinearGradient(
+                      color: isOrange ? null : activeColor,
+                      gradient: isOrange ? const LinearGradient(
                         colors: [
                           MinhasDisciplinasProfessorColors.buttonGradientTop,
                           MinhasDisciplinasProfessorColors.buttonGradientBottom,
                         ],
-                      ),
+                      ) : null,
                     ),
                     child: Material(
                       color: Colors.transparent,

@@ -12,8 +12,8 @@ class AreasDisciplinasGridSection extends StatelessWidget {
   });
 
   final List<AreaDisciplinasItem> items;
-  final ValueChanged<int>? onEditArea;
-  final ValueChanged<int>? onAddDisciplina;
+  final ValueChanged<AreaDisciplinasItem>? onEditArea;
+  final ValueChanged<AreaDisciplinasItem>? onAddDisciplina;
 
   @override
   Widget build(BuildContext context) {
@@ -32,10 +32,10 @@ class AreasDisciplinasGridSection extends StatelessWidget {
                 width: cardWidth,
                 child: AreaDisciplinasCard(
                   item: items[index],
-                  onEdit: onEditArea == null ? null : () => onEditArea!(index),
+                  onEdit: onEditArea == null ? null : () => onEditArea!(items[index]),
                   onAddDisciplina: onAddDisciplina == null
                       ? null
-                      : () => onAddDisciplina!(index),
+                      : () => onAddDisciplina!(items[index]),
                 ),
               ),
           ],

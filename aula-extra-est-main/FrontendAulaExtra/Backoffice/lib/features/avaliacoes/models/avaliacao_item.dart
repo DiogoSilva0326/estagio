@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 enum AvaliacaoStatus { pendente, aprovada, rejeitada }
 
+enum AvaliacaoKind { aula, professor }
+
 enum AvaliacaoActionType { aprovar, rejeitar, detalhes }
 
 class AvaliacaoAction {
@@ -22,6 +24,8 @@ class AvaliacaoAction {
 
 class AvaliacaoItem {
   const AvaliacaoItem({
+    required this.id,
+    required this.kind,
     required this.code,
     required this.aluno,
     required this.explicador,
@@ -30,9 +34,10 @@ class AvaliacaoItem {
     required this.comment,
     required this.dateLabel,
     required this.status,
-    required this.actions,
   });
 
+  final String id;
+  final AvaliacaoKind kind;
   final String code;
   final String aluno;
   final String explicador;
@@ -41,7 +46,32 @@ class AvaliacaoItem {
   final String comment;
   final String dateLabel;
   final AvaliacaoStatus status;
-  final List<AvaliacaoAction> actions;
+
+  AvaliacaoItem copyWith({
+    AvaliacaoStatus? status,
+  }) {
+    return AvaliacaoItem(
+      id: id,
+      kind: kind,
+      code: code,
+      aluno: aluno,
+      explicador: explicador,
+      disciplina: disciplina,
+      estrelas: estrelas,
+      comment: comment,
+      dateLabel: dateLabel,
+      status: status ?? this.status,
+    );
+  }
+
+  String get sectionLabel {
+    switch (kind) {
+      case AvaliacaoKind.aula:
+        return 'Aula';
+      case AvaliacaoKind.professor:
+        return 'Professor';
+    }
+  }
 
   String get statusLabel {
     switch (status) {

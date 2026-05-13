@@ -172,17 +172,19 @@ ORDER BY d.nome ASC;";
             return list;
         }
 
-        public async Task<IEnumerable<Area>> GetAreasAllAsync()
+        public async Task<IEnumerable<Area>> GetAreasAllAsync(string? targetRole = null)
         {
             var list = new List<Area>();
             await using var conn = new NpgsqlConnection(_connectionString);
             await conn.OpenAsync();
             await using var cmd = conn.CreateCommand();
-            cmd.CommandText = @"
+            
+            var sql = @"
 SELECT
     a.id_area,
     a.nome,
     a.descricao,
+    a.target_role,
     a.created_at,
     a.updated_at,
     COALESCE(pc.professor_count, 0) AS professor_count
@@ -200,8 +202,18 @@ LEFT JOIN (
         AND COALESCE(p.is_active, TRUE) = TRUE
         AND COALESCE(p.is_verified, FALSE) = TRUE
     GROUP BY d.id_area
-) pc ON pc.id_area = a.id_area
-ORDER BY a.nome;";
+) pc ON pc.id_area = a.id_area ";
+
+            if (!string.IsNullOrWhiteSpace(targetRole))
+            {
+                sql += " WHERE LOWER(BTRIM(a.target_role)) = LOWER(BTRIM(@target_role)) ";
+                cmd.Parameters.AddWithValue("target_role", targetRole.Trim());
+            }
+
+            sql += " ORDER BY a.nome;";
+            
+            cmd.CommandText = sql;
+            
             await using var reader = await cmd.ExecuteReaderAsync();
             while (await reader.ReadAsync())
             {
@@ -210,6 +222,7 @@ ORDER BY a.nome;";
                     IdArea = reader.GetGuid(reader.GetOrdinal("id_area")),
                     Nome = reader.GetString(reader.GetOrdinal("nome")),
                     Descricao = GetNullableString(reader, "descricao"),
+                    TargetRole = GetNullableString(reader, "target_role") ?? "ensino",
                     ProfessorCount = GetNullableInt(reader, "professor_count") ?? 0,
                     CreatedAt = GetNullableDateTime(reader, "created_at"),
                     UpdatedAt = GetNullableDateTime(reader, "updated_at")
@@ -232,6 +245,7 @@ ORDER BY a.nome;";
                 IdArea = reader.GetGuid(reader.GetOrdinal("id_area")),
                 Nome = reader.GetString(reader.GetOrdinal("nome")),
                 Descricao = GetNullableString(reader, "descricao"),
+                TargetRole = GetNullableString(reader, "target_role") ?? "ensino",
                 ProfessorCount = 0,
                 CreatedAt = GetNullableDateTime(reader, "created_at"),
                 UpdatedAt = GetNullableDateTime(reader, "updated_at")
@@ -243,9 +257,10 @@ ORDER BY a.nome;";
             await using var conn = new NpgsqlConnection(_connectionString);
             await conn.OpenAsync();
             await using var cmd = conn.CreateCommand();
-            cmd.CommandText = "SELECT public.usp_areas_insert01(@nome, @descricao);";
+            cmd.CommandText = "SELECT public.usp_areas_insert01(@nome, @descricao, @target_role);";
             cmd.Parameters.AddWithValue("nome", area.Nome);
             cmd.Parameters.AddWithValue("descricao", (object?)area.Descricao ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("target_role", (object?)area.TargetRole ?? "ensino");
             var res = await cmd.ExecuteScalarAsync();
             return res == null || res == DBNull.Value ? Guid.Empty : (Guid)res;
         }
@@ -255,10 +270,11 @@ ORDER BY a.nome;";
             await using var conn = new NpgsqlConnection(_connectionString);
             await conn.OpenAsync();
             await using var cmd = conn.CreateCommand();
-            cmd.CommandText = "SELECT public.usp_areas_update01(@id_area, @nome, @descricao);";
+            cmd.CommandText = "SELECT public.usp_areas_update01(@id_area, @nome, @descricao, @target_role);";
             cmd.Parameters.AddWithValue("id_area", area.IdArea);
             cmd.Parameters.AddWithValue("nome", area.Nome);
             cmd.Parameters.AddWithValue("descricao", (object?)area.Descricao ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("target_role", (object?)area.TargetRole ?? "ensino");
             var res = await cmd.ExecuteScalarAsync();
             return res == null || res == DBNull.Value ? 0 : Convert.ToInt32(res);
         }

@@ -55,10 +55,7 @@ namespace ConfidantPostgreSQL.Modules.ProfessorAds.Repository
 
             var discipline = resolvedDiscipline.Value;
 
-            if (discipline.IdCicloEstudo == null || discipline.IdCicloEstudo == Guid.Empty)
-            {
-                throw new InvalidOperationException("A disciplina selecionada não tem nível de ensino configurado.");
-            }
+            // REMOVIDA A VALIDAÇÃO QUE OBRIGAVA A TER CICLO DE ESTUDO AQUI
 
             var tutoringTypeName = await ResolveTutoringTypeNameAsync(conn, tx, input.IdTutoringType);
             if (string.IsNullOrWhiteSpace(tutoringTypeName))
@@ -112,7 +109,10 @@ RETURNING id_course;";
                 insertCourse.Parameters.Add(new NpgsqlParameter("id_pricing_model", NpgsqlDbType.Uuid) { Value = (object?)pricingModelId ?? DBNull.Value });
                 insertCourse.Parameters.AddWithValue("id_tutoring_type", input.IdTutoringType);
                 insertCourse.Parameters.AddWithValue("id_disciplina", input.IdDisciplina);
-                insertCourse.Parameters.AddWithValue("id_ciclo_estudo", discipline.IdCicloEstudo.Value);
+                
+                // CORREÇÃO: Permite que o ciclo de estudo vá a NULL para a base de dados
+                insertCourse.Parameters.Add(new NpgsqlParameter("id_ciclo_estudo", NpgsqlDbType.Uuid) { Value = (object?)discipline.IdCicloEstudo ?? DBNull.Value });
+                
                 insertCourse.Parameters.AddWithValue("name", disciplinaNome);
                 insertCourse.Parameters.Add(new NpgsqlParameter("description", NpgsqlDbType.Text) { Value = (object?)Normalize(input.Description) ?? DBNull.Value });
                 insertCourse.Parameters.Add(new NpgsqlParameter("level_of_education", NpgsqlDbType.Varchar) { Value = (object?)cicloNome ?? DBNull.Value });
@@ -136,7 +136,10 @@ SET id_ciclo_estudo = @id_ciclo_estudo,
     updated_at = now()
 WHERE id_course = @id_course;";
                 updateCourse.Parameters.AddWithValue("id_course", courseId.Value);
-                updateCourse.Parameters.AddWithValue("id_ciclo_estudo", discipline.IdCicloEstudo.Value);
+                
+                // CORREÇÃO: Permite que o ciclo de estudo vá a NULL para a base de dados
+                updateCourse.Parameters.Add(new NpgsqlParameter("id_ciclo_estudo", NpgsqlDbType.Uuid) { Value = (object?)discipline.IdCicloEstudo ?? DBNull.Value });
+                
                 updateCourse.Parameters.AddWithValue("name", disciplinaNome);
                 updateCourse.Parameters.Add(new NpgsqlParameter("description", NpgsqlDbType.Text) { Value = (object?)Normalize(input.Description) ?? DBNull.Value });
                 updateCourse.Parameters.Add(new NpgsqlParameter("level_of_education", NpgsqlDbType.Varchar) { Value = (object?)cicloNome ?? DBNull.Value });

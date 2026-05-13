@@ -20,6 +20,9 @@ import 'package:aula_extra/features/professor/minhas_disciplinas/widgets/minhas_
 import 'package:aula_extra/features/professor/minhas_disciplinas/widgets/minhas_disciplinas_summary_box.dart';
 import 'package:aula_extra/features/professor/minhas_disciplinas/widgets/professor_disciplina_dialog.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:aula_extra/core/providers/user_provider.dart';
+import 'package:aula_extra/core/config/teaching_roles_config.dart';
 
 class MinhasDisciplinasProfessorContentSection extends StatefulWidget {
   const MinhasDisciplinasProfessorContentSection({
@@ -57,10 +60,25 @@ class _MinhasDisciplinasProfessorContentSectionState
   }
 
   Future<List<DisciplinaDto>> _loadDisciplinas() async {
-    final disciplinas = await _professorsService.getMyDisciplinas();
-    _disciplinas = disciplinas
-        .where((item) => item.isActive)
-        .toList(growable: false);
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    final currentTargetRole = userProvider.role == Role.psychologist ? 'psicologia' 
+                            : userProvider.role == Role.tutor ? 'tutoria' 
+                            : 'ensino';
+
+    final results = await Future.wait([
+      _professorsService.getMyDisciplinas(),
+      _educationService.getAreas(targetRole: currentTargetRole),
+    ]);
+
+    final allDisciplinas = results[0] as List<DisciplinaDto>;
+    final allowedAreas = results[1] as List<AreaDto>;
+    final allowedAreaIds = allowedAreas.map((a) => a.idArea).toSet();
+
+    _disciplinas = allDisciplinas.where((item) {
+      if (!item.isActive) return false;
+      return allowedAreaIds.contains(item.idArea);
+    }).toList(growable: false);
+
     return _disciplinas;
   }
 
@@ -74,8 +92,13 @@ class _MinhasDisciplinasProfessorContentSectionState
 
   Future<void> _openDisciplinaDialog({DisciplinaDto? disciplina}) async {
     try {
+      final userProvider = Provider.of<UserProvider>(context, listen: false);
+      final currentTargetRole = userProvider.role == Role.psychologist ? 'psicologia' 
+                              : userProvider.role == Role.tutor ? 'tutoria' 
+                              : 'ensino';
+
       final results = await Future.wait([
-        _educationService.getAreas(),
+        _educationService.getAreas(targetRole: currentTargetRole),
         _educationService.getCiclosEstudo(),
         _educationService.getCatalog(),
       ]);
@@ -94,45 +117,44 @@ class _MinhasDisciplinasProfessorContentSectionState
 
       if (formResult == null) return;
 
-      final updated = disciplina == null
-          ? await _professorsService.createMyDisciplina(
+      await (disciplina == null
+          ? _professorsService.createMyDisciplina(
               idDisciplina: formResult.idDisciplina,
               idArea: formResult.idArea,
               idCicloEstudo: formResult.idCicloEstudo,
               nome: formResult.nome,
               descricao: formResult.descricao,
             )
-          : await _professorsService.updateMyDisciplina(
+          : _professorsService.updateMyDisciplina(
               currentIdDisciplina: disciplina.idDisciplina,
               idDisciplina: formResult.idDisciplina,
               idArea: formResult.idArea,
               idCicloEstudo: formResult.idCicloEstudo,
               nome: formResult.nome,
               descricao: formResult.descricao,
-            );
+            ));
 
       if (!mounted) return;
-      setState(() {
-        _disciplinas = updated
-            .where((item) => item.isActive)
-            .toList(growable: false);
-        _disciplinasFuture = Future.value(_disciplinas);
-      });
+      
+      await _refresh();
+      
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
             disciplina == null
-                ? 'Não foi possível criar a disciplina: $error'
-                : 'Não foi possível atualizar a disciplina: $error',
+                ? 'Não foi possível criar a área: $error'
+                : 'Não foi possível atualizar a área: $error',
           ),
         ),
       );
     }
   }
 
-  Future<void> _removeDisciplina(DisciplinaDto disciplina) async {
+  Future<void> _removeDisciplina(DisciplinaDto disciplina, TeachingRoleConfig config) async {
+    final areaLabel = config.perfil.subjectsSectionTitle.toLowerCase();
+    
     final confirmed = await showAppConfirmationDialog(
       context,
       title: 'Eliminar',
@@ -202,8 +224,8 @@ class _MinhasDisciplinasProfessorContentSectionState
                   fontWeight: FontWeight.w400,
                 ),
                 children: [
-                  const TextSpan(
-                    text: 'Tem certeza que deseja eliminar a disciplina ',
+                  TextSpan(
+                    text: 'Tem certeza que deseja eliminar a $areaLabel ',
                   ),
                   TextSpan(
                     text: disciplina.nome,
@@ -237,21 +259,16 @@ class _MinhasDisciplinasProfessorContentSectionState
     if (confirmed != true) return;
 
     try {
-      final updated = await _professorsService.removeMyDisciplina(
+      await _professorsService.removeMyDisciplina(
         idDisciplina: disciplina.idDisciplina,
       );
       if (!mounted) return;
-      setState(() {
-        _disciplinas = updated
-            .where((item) => item.isActive)
-            .toList(growable: false);
-        _disciplinasFuture = Future.value(_disciplinas);
-      });
+      await _refresh();
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Não foi possível eliminar a disciplina: $error'),
+          content: Text('Não foi possível eliminar a $areaLabel: $error'),
         ),
       );
     }
@@ -279,7 +296,7 @@ class _MinhasDisciplinasProfessorContentSectionState
     return palette[hash % palette.length];
   }
 
-  Widget _buildMobileContent() {
+  Widget _buildMobileContent(TeachingRoleConfig config) {
     return Container(
       width: double.infinity,
       color: MinhasDisciplinasProfessorColors.background,
@@ -301,7 +318,7 @@ class _MinhasDisciplinasProfessorContentSectionState
 
           if (snapshot.hasError) {
             return MinhasDisciplinasProfessorMobileEmptyState(
-              title: 'Não foi possível carregar as disciplinas.',
+              title: 'Não foi possível carregar as ${config.perfil.subjectsSectionTitle.toLowerCase()}.',
               message: 'Erro: ${snapshot.error}',
               buttonLabel: 'Tentar novamente',
               onTap: _refresh,
@@ -309,16 +326,16 @@ class _MinhasDisciplinasProfessorContentSectionState
           }
 
           final disciplinas = snapshot.data ?? const <DisciplinaDto>[];
-          _disciplinas = disciplinas;
 
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               MinhasDisciplinasProfessorMobileIntro(
-                title: 'Minhas Disciplinas',
+                title: config.perfil.subjectsSectionTitle,
                 subtitle:
-                    'Crie, edite e organize as disciplinas que leciona no formato mobile.',
+                    'Crie, edite e organize as suas ${config.perfil.subjectsSectionTitle.toLowerCase()} no formato mobile.',
                 onCreate: _openDisciplinaDialog,
+                activeColor: config.primaryColor, 
               ),
               const SizedBox(
                 height: MinhasDisciplinasProfessorLayout.mobileSectionGap,
@@ -327,9 +344,10 @@ class _MinhasDisciplinasProfessorContentSectionState
                 children: [
                   Expanded(
                     child: MinhasDisciplinasProfessorMobileStatCard(
-                      label: 'Disciplinas',
+                      label: config.perfil.subjectsSectionTitle,
                       value: '${disciplinas.length}',
                       helper: 'ativas',
+                      activeColor: config.primaryColor,
                     ),
                   ),
                   const SizedBox(
@@ -337,9 +355,10 @@ class _MinhasDisciplinasProfessorContentSectionState
                   ),
                   Expanded(
                     child: MinhasDisciplinasProfessorMobileStatCard(
-                      label: 'Alunos',
+                      label: config.studentsLabel.replaceAll('Meus ', ''), 
                       value: '${_totalStudents(disciplinas)}',
                       helper: 'ativos',
+                      activeColor: config.primaryColor,
                     ),
                   ),
                   const SizedBox(
@@ -349,7 +368,8 @@ class _MinhasDisciplinasProfessorContentSectionState
                     child: MinhasDisciplinasProfessorMobileStatCard(
                       label: 'Média',
                       value: '${_averageStudents(disciplinas)}',
-                      helper: 'por disciplina',
+                      helper: 'por ${config.perfil.subjectsSectionTitle.toLowerCase()}',
+                      activeColor: config.primaryColor,
                     ),
                   ),
                 ],
@@ -357,10 +377,10 @@ class _MinhasDisciplinasProfessorContentSectionState
               const SizedBox(height: 20),
               if (disciplinas.isEmpty)
                 MinhasDisciplinasProfessorMobileEmptyState(
-                  title: 'Ainda não tem disciplinas configuradas.',
+                  title: 'Ainda não tem ${config.perfil.subjectsSectionTitle.toLowerCase()} configuradas.',
                   message:
-                      'Adicione disciplinas ao seu perfil com área e ciclo de estudos para geri-las aqui.',
-                  buttonLabel: 'Adicionar disciplina',
+                      'Adicione ${config.perfil.subjectsSectionTitle.toLowerCase()} ao seu perfil para geri-las aqui.',
+                  buttonLabel: 'Adicionar nova',
                   onTap: _openDisciplinaDialog,
                 )
               else
@@ -370,7 +390,9 @@ class _MinhasDisciplinasProfessorContentSectionState
                     color: _disciplineColor(disciplinas[index].nome),
                     onEdit: () =>
                         _openDisciplinaDialog(disciplina: disciplinas[index]),
-                    onDelete: () => _removeDisciplina(disciplinas[index]),
+                    onDelete: () => _removeDisciplina(disciplinas[index], config),
+                    studentLabel: config.studentsLabel.toLowerCase(), 
+                    activeColor: config.primaryColor, 
                   ),
                   if (index != disciplinas.length - 1)
                     const SizedBox(
@@ -384,7 +406,7 @@ class _MinhasDisciplinasProfessorContentSectionState
     );
   }
 
-  Widget _buildMainContent(double width) {
+  Widget _buildMainContent(double width, TeachingRoleConfig config) {
     return SizedBox(
       width: width,
       child: FutureBuilder<List<DisciplinaDto>>(
@@ -402,10 +424,10 @@ class _MinhasDisciplinasProfessorContentSectionState
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Minhas Disciplinas', style: _pageTitleStyle),
+                Text(config.perfil.subjectsSectionTitle, style: _pageTitleStyle),
                 const SizedBox(height: 12),
                 Text(
-                  'Não foi possível carregar as disciplinas: ${snapshot.error}',
+                  'Não foi possível carregar as ${config.perfil.subjectsSectionTitle.toLowerCase()}: ${snapshot.error}',
                   style: const TextStyle(color: Color(0xFFB42318)),
                 ),
                 const SizedBox(height: 16),
@@ -418,13 +440,16 @@ class _MinhasDisciplinasProfessorContentSectionState
           }
 
           final disciplinas = snapshot.data ?? const <DisciplinaDto>[];
-          _disciplinas = disciplinas;
 
           return Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              MinhasDisciplinasSectionHeader(onCreate: _openDisciplinaDialog),
+              MinhasDisciplinasSectionHeader(
+                onCreate: _openDisciplinaDialog,
+                title: config.perfil.subjectsSectionTitle,
+                activeColor: config.primaryColor,
+              ),
               const SizedBox(
                 height: MinhasDisciplinasProfessorLayout.titleBottomGap,
               ),
@@ -462,17 +487,17 @@ class _MinhasDisciplinasProfessorContentSectionState
                     children: [
                       MinhasDisciplinasSummaryBox(
                         width: summaryWidth,
-                        label: 'Total de Disciplinas',
+                        label: 'Total de ${config.perfil.subjectsSectionTitle}',
                         value: '${disciplinas.length}',
                       ),
                       MinhasDisciplinasSummaryBox(
                         width: summaryWidth,
-                        label: 'Total de Alunos',
+                        label: 'Total de ${config.studentsLabel.replaceAll('Meus ', '')}',
                         value: '${_totalStudents(disciplinas)}',
                       ),
                       MinhasDisciplinasSummaryBox(
                         width: summaryWidth,
-                        label: 'Média por Disciplina',
+                        label: 'Média por ${config.perfil.subjectsSectionTitle.toLowerCase().replaceAll('s', '')}', 
                         value: '${_averageStudents(disciplinas)}',
                       ),
                     ],
@@ -481,7 +506,10 @@ class _MinhasDisciplinasProfessorContentSectionState
               ),
               const SizedBox(height: 27.394),
               if (disciplinas.isEmpty)
-                MinhasDisciplinasEmptyStateCard(onTap: _openDisciplinaDialog)
+                MinhasDisciplinasEmptyStateCard(
+                  onTap: _openDisciplinaDialog,
+                  message: 'Ainda não tem ${config.perfil.subjectsSectionTitle.toLowerCase()} configuradas.',
+                )
               else
                 LayoutBuilder(
                   builder: (context, constraints) {
@@ -519,9 +547,11 @@ class _MinhasDisciplinasProfessorContentSectionState
                               disciplina: disciplina,
                               color: color,
                               width: cardWidth,
+                              studentLabel: config.studentsLabel.toLowerCase(),
+                              activeColor: config.primaryColor, 
                               onEdit: () =>
                                   _openDisciplinaDialog(disciplina: disciplina),
-                              onDelete: () => _removeDisciplina(disciplina),
+                              onDelete: () => _removeDisciplina(disciplina, config),
                             );
                           })
                           .toList(growable: false),
@@ -537,12 +567,15 @@ class _MinhasDisciplinasProfessorContentSectionState
 
   @override
   Widget build(BuildContext context) {
+    final userProvider = Provider.of<UserProvider>(context);
+    final config = TeachingRoleConfig.fromRole(userProvider.role);
+
     final isMobile =
         widget.isMobile ||
         MediaQuery.sizeOf(context).width <= AppHeader.mobileBreakpoint;
 
     if (isMobile) {
-      return _buildMobileContent();
+      return _buildMobileContent(config);
     }
 
     return Container(
@@ -578,19 +611,19 @@ class _MinhasDisciplinasProfessorContentSectionState
               ? Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const ProfessorMenuNav(selectedIndex: 1),
+                    const ProfessorMenuNav(selectedIndex: 1), 
                     const SizedBox(
                       width: MinhasDisciplinasProfessorLayout.sidebarContentGap,
                     ),
-                    _buildMainContent(mainContentWidth),
+                    _buildMainContent(mainContentWidth, config),
                   ],
                 )
               : Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const ProfessorMenuNav(selectedIndex: 1),
+                    const ProfessorMenuNav(selectedIndex: 1), 
                     const SizedBox(height: 28),
-                    _buildMainContent(mainContentWidth),
+                    _buildMainContent(mainContentWidth, config),
                   ],
                 );
 

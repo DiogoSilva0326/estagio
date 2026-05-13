@@ -1,9 +1,17 @@
 import 'package:flutter/material.dart';
 
+import '../services/backoffice_avaliacoes_service.dart';
 import '../widgets/avaliacao_metric_card.dart';
 
 class AvaliacoesMetricsSection extends StatelessWidget {
-  const AvaliacoesMetricsSection({super.key});
+  const AvaliacoesMetricsSection({
+    required this.summary,
+    required this.scopeLabel,
+    super.key,
+  });
+
+  final BackofficeAvaliacoesSummary summary;
+  final String scopeLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -12,21 +20,21 @@ class AvaliacoesMetricsSection extends StatelessWidget {
         final isSingleColumn = constraints.maxWidth < 920;
 
         if (isSingleColumn) {
-          return const Column(
+          return Column(
             children: [
               AvaliacaoMetricCard(
-                title: 'Avaliação Média Global',
-                value: '4.8',
-                caption: 'Baseado em 1.200 avaliações',
+                title: 'Avaliação Média $scopeLabel',
+                value: summary.averageRating.toStringAsFixed(1),
+                caption: 'Baseado em ${summary.totalEvaluations} avaliacoes',
                 icon: Icons.star_rounded,
                 iconBackgroundColor: Color(0x1AF79009),
                 iconColor: Color(0xFFF79009),
               ),
-              SizedBox(height: 18.637),
+              const SizedBox(height: 18.637),
               AvaliacaoMetricCard(
                 title: 'Pendentes de Moderação',
-                value: '14',
-                caption: 'Aguardam revisão manual',
+                value: '${summary.pendingModeration}',
+                caption: 'Aguardam revisao manual nesta listagem',
                 icon: Icons.pending_actions_rounded,
                 iconBackgroundColor: Color(0x1AFC9039),
                 iconColor: Color(0xFFFC9039),
@@ -36,26 +44,26 @@ class AvaliacoesMetricsSection extends StatelessWidget {
         }
 
         return Row(
-          children: const [
+          children: [
             Expanded(
               child: AvaliacaoMetricCard(
-                title: 'Avaliação Média Global',
-                value: '4.8',
-                caption: 'Baseado em 1.200 avaliações',
+                title: 'Avaliação Média $scopeLabel',
+                value: summary.averageRating.toStringAsFixed(1),
+                caption: 'Baseado em ${summary.totalEvaluations} avaliacoes',
                 icon: Icons.star_rounded,
-                iconBackgroundColor: Color(0x1AF79009),
-                iconColor: Color(0xFFF79009),
+                iconBackgroundColor: const Color(0x1AF79009),
+                iconColor: const Color(0xFFF79009),
               ),
             ),
-            SizedBox(width: 27.955),
+            const SizedBox(width: 27.955),
             Expanded(
               child: AvaliacaoMetricCard(
                 title: 'Pendentes de Moderação',
-                value: '14',
-                caption: 'Aguardam revisão manual',
+                value: '${summary.pendingModeration}',
+                caption: 'Aguardam revisao manual nesta listagem',
                 icon: Icons.pending_actions_rounded,
-                iconBackgroundColor: Color(0x1AFC9039),
-                iconColor: Color(0xFFFC9039),
+                iconBackgroundColor: const Color(0x1AFC9039),
+                iconColor: const Color(0xFFFC9039),
               ),
             ),
           ],

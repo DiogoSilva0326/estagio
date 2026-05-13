@@ -3,7 +3,10 @@ import 'package:flutter/material.dart';
 import '../../../design/theme/app_colors.dart';
 
 class ExplicadoresSearchField extends StatelessWidget {
-  const ExplicadoresSearchField({super.key});
+  const ExplicadoresSearchField({super.key, this.controller, this.onChanged});
+
+  final TextEditingController? controller;
+  final ValueChanged<String>? onChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -23,17 +26,33 @@ class ExplicadoresSearchField extends StatelessWidget {
         ],
       ),
       padding: const EdgeInsets.symmetric(horizontal: 13.98),
-      child: const Row(
+      child: Row(
         children: [
-          Icon(Icons.search_rounded, size: 18.637, color: AppColors.textMuted),
-          SizedBox(width: 13.98),
+          const Icon(
+            Icons.search_rounded,
+            size: 18.637,
+            color: AppColors.textMuted,
+          ),
+          const SizedBox(width: 13.98),
           Expanded(
-            child: Text(
-              'Pesquisar...',
-              style: TextStyle(
-                color: Color(0x80101828),
+            child: TextField(
+              controller: controller,
+              onChanged: onChanged,
+              decoration: const InputDecoration(
+                isDense: true,
+                border: InputBorder.none,
+                hintText: 'Pesquisar por nome, email, área...',
+                hintStyle: TextStyle(
+                  color: Color(0x80101828),
+                  fontSize: 16.307,
+                  fontWeight: FontWeight.w400,
+                  letterSpacing: -0.18,
+                ),
+              ),
+              style: const TextStyle(
+                color: Color(0xFF101828),
                 fontSize: 16.307,
-                fontWeight: FontWeight.w400,
+                fontWeight: FontWeight.w500,
                 letterSpacing: -0.18,
               ),
             ),

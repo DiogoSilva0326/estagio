@@ -12,6 +12,8 @@ using ConfidantPostgreSQL.Integrations.CloudflareImages;
 using ConfidantPostgreSQL.Integrations.Email;
 using ConfidantPostgreSQL.Integrations.AgoraLessons;
 
+using ConfidantPostgreSQL.Modules.AdminDashboard.Repository;
+using ConfidantPostgreSQL.Modules.AdminDashboard.Service;
 using ConfidantPostgreSQL.Modules.AgoraAPI.Repository;
 using ConfidantPostgreSQL.Modules.AgoraAPI.Service;
 using ConfidantPostgreSQL.Modules.Communication.Repository;
@@ -40,8 +42,12 @@ using ConfidantPostgreSQL.Modules.Reservations.Repository;
 using ConfidantPostgreSQL.Modules.Reservations.Service;
 using ConfidantPostgreSQL.Modules.Schedule.Repository;
 using ConfidantPostgreSQL.Modules.Schedule.Service;
+using ConfidantPostgreSQL.Modules.SystemSettings.Repository;
+using ConfidantPostgreSQL.Modules.SystemSettings.Service;
 using ConfidantPostgreSQL.Modules.Student.Repository;
 using ConfidantPostgreSQL.Modules.Student.Service;
+using ConfidantPostgreSQL.Modules.Newsletter.Repository;
+using ConfidantPostgreSQL.Modules.Newsletter.Service;
 using ConfidantPostgreSQL.Modules.UserProfile.Repository;
 using ConfidantPostgreSQL.Modules.UserProfile.Service;
 using ConfidantPostgreSQL.Modules.Users.Repository;
@@ -80,6 +86,7 @@ builder.Services.AddControllers().AddJsonOptions(options =>
 });
 
 // Repositories
+builder.Services.AddScoped<IAdminDashboardRepository>(_ => new AdminDashboardRepository(connString));
 builder.Services.AddScoped<IUserRepository>(_ => new UserRepository(connString));
 builder.Services.AddScoped<IMyTutorsRepository>(_ => new MyTutorsRepository(connString));
 builder.Services.AddScoped<IStudentEvaluationsRepository>(_ => new StudentEvaluationsRepository(connString));
@@ -99,8 +106,11 @@ builder.Services.AddScoped<IProfessorAdsRepository>(_ => new ProfessorAdsReposit
 builder.Services.AddScoped<IProfessorsRepository>(_ => new ProfessorsRepository(connString));
 builder.Services.AddScoped<IReservationsRepository>(_ => new ReservationsRepository(connString));
 builder.Services.AddScoped<IScheduleRepository>(_ => new ScheduleRepository(connString));
+builder.Services.AddScoped<ISystemSettingsRepository>(sp => new SystemSettingsRepository(connString, sp.GetService<ILogger<SystemSettingsRepository>>()));
+builder.Services.AddScoped<INewsletterRepository>(_ => new NewsletterRepository(connString));
 
 // Services
+builder.Services.AddScoped<IAdminDashboardService, AdminDashboardService>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IMyTutorsService, MyTutorsService>();
 builder.Services.AddScoped<IStudentEvaluationsService, StudentEvaluationsService>();
@@ -120,9 +130,23 @@ builder.Services.AddScoped<IProfessorAdsService, ProfessorAdsService>();
 builder.Services.AddScoped<IProfessorsService, ProfessorsService>();
 builder.Services.AddScoped<IReservationsService, ReservationsService>();
 builder.Services.AddScoped<IScheduleService, ScheduleService>();
+builder.Services.AddScoped<ISystemSettingsService, SystemSettingsService>();
+builder.Services.AddScoped<INewsletterService, NewsletterService>();
 
 // Integrations
-builder.Services.AddSingleton<IPostmarkService>(_ => PostmarkService.FromEnvironment());
+builder.Services.AddScoped<IPostmarkSettingsProvider, SystemSettingsPostmarkProvider>();
+builder.Services.AddScoped<IPostmarkService>(sp =>
+{
+    var settingsProvider = sp.GetService<IPostmarkSettingsProvider>();
+    var apiKey = Environment.GetEnvironmentVariable("POSTMARK_API_TOKEN");
+
+    if (string.IsNullOrWhiteSpace(apiKey) && settingsProvider == null)
+    {
+        return PostmarkDisabledService.Instance;
+    }
+
+    return PostmarkService.FromEnvironment(settingsProvider);
+});
 builder.Services.AddScoped<IEmailTemplateService, EmailTemplateService>();
 
 builder.Services.Configure<CloudflareImagesOptions>(options =>

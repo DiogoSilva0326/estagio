@@ -2,6 +2,8 @@ import 'package:aula_extra/core/components/header/app_header.dart';
 import 'package:aula_extra/core/data/complaints/complaints_service.dart';
 import 'package:aula_extra/core/data/professors/dtos/professor_aluno_dto.dart';
 import 'package:aula_extra/core/data/professors/professors_service.dart';
+import 'package:aula_extra/core/providers/user_provider.dart';
+import 'package:aula_extra/core/config/teaching_roles_config.dart';
 import 'package:aula_extra/features/shared/complaints/widgets/related_user_complaint_dialog.dart';
 import 'package:aula_extra/features/professor/core/widgets/professor_menu_nav.dart';
 import 'package:aula_extra/features/professor/meus_alunos/constants/meus_alunos_professor_colors.dart';
@@ -13,6 +15,7 @@ import 'package:aula_extra/features/professor/meus_alunos/widgets/alunos_grid.da
 import 'package:aula_extra/features/professor/meus_alunos/widgets/full_bleed_scaled_section.dart';
 import 'package:aula_extra/routes/routes.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 class MeusAlunosProfessorContentSection extends StatefulWidget {
   const MeusAlunosProfessorContentSection({super.key, this.isMobile = false});
@@ -28,21 +31,32 @@ class _MeusAlunosProfessorContentSectionState
     extends State<MeusAlunosProfessorContentSection> {
   final ProfessorsService _professorsService = ProfessorsService();
   final ComplaintsService _complaintsService = ComplaintsService();
-  late Future<List<ProfessorAlunoDto>> _studentsFuture;
+  
+  Future<List<ProfessorAlunoDto>>? _studentsFuture;
 
   @override
   void initState() {
     super.initState();
-    _studentsFuture = _professorsService.fetchMeusAlunos();
   }
 
-  Future<void> _showComplaintDialog(ProfessorAlunoDto aluno) async {
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_studentsFuture == null) {
+      final userProvider = Provider.of<UserProvider>(context, listen: false);
+      final config = TeachingRoleConfig.fromRole(userProvider.role);
+      
+      _studentsFuture = _professorsService.fetchMeusAlunos(role: config.roleName);
+    }
+  }
+
+  Future<void> _showComplaintDialog(ProfessorAlunoDto aluno, TeachingRoleConfig config) async {
     final submitted = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => RelatedUserComplaintDialog(
         targetUserId: aluno.id,
         targetName: aluno.fullName,
-        targetRoleLabel: 'do aluno',
+        targetRoleLabel: 'do ${config.roleName.toLowerCase()}',
         relationshipType: 'student',
         onSubmit: _complaintsService.createRelatedUserComplaint,
       ),
@@ -89,10 +103,12 @@ class _MeusAlunosProfessorContentSectionState
     return subjects.length;
   }
 
-  Widget _buildMobileContent() {
+  Widget _buildMobileContent(TeachingRoleConfig config) {
     return Container(
       width: double.infinity,
-      color: MeusAlunosProfessorColors.pageBackground,
+      color: config.roleName == 'Explicador' 
+          ? MeusAlunosProfessorColors.pageBackground 
+          : const Color(0xFFF9FAFB),
       padding: const EdgeInsets.fromLTRB(
         MeusAlunosProfessorLayout.mobileHorizontalPadding,
         MeusAlunosProfessorLayout.mobileTopPadding,
@@ -111,7 +127,7 @@ class _MeusAlunosProfessorContentSectionState
 
           if (snapshot.hasError) {
             return _MobileStateCard(
-              title: 'Não foi possível carregar os alunos.',
+              title: 'Não foi possível carregar os dados.',
               message: 'Erro: ${snapshot.error}',
             );
           }
@@ -121,63 +137,57 @@ class _MeusAlunosProfessorContentSectionState
           if (alunos.isEmpty) {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: const [
+              children: [
                 MeusAlunosProfessorMobileIntro(
-                  title: 'Meus Alunos',
-                  subtitle:
-                      'Acompanhe os alunos associados, o progresso e as ações mais rápidas no telemóvel.',
+                  title: config.studentsLabel,
+                  subtitle: config.meusAlunos.pageDescription,
                 ),
-                SizedBox(height: MeusAlunosProfessorLayout.mobileSectionGap),
+                const SizedBox(height: MeusAlunosProfessorLayout.mobileSectionGap),
                 _MobileStateCard(
-                  title: 'Ainda não tens alunos associados.',
-                  message:
-                      'Quando um aluno reservar aulas contigo, ele vai aparecer aqui automaticamente.',
+                  title: config.meusAlunos.emptyStateTitle,
+                  message: config.meusAlunos.emptyStateDescription,
                 ),
               ],
             );
           }
 
-          final averageProgress = _averageProgress(alunos);
-          final subjectsCount = _uniqueSubjectsCount(alunos);
+          final averageProgressValue = _averageProgress(alunos);
+          final subjectsCountValue = _uniqueSubjectsCount(alunos);
 
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const MeusAlunosProfessorMobileIntro(
-                title: 'Meus Alunos',
-                subtitle:
-                    'Acompanhe os alunos associados, o progresso e as ações mais rápidas no telemóvel.',
+              MeusAlunosProfessorMobileIntro(
+                title: config.studentsLabel,
+                subtitle: config.meusAlunos.pageDescription,
               ),
-              const SizedBox(
-                height: MeusAlunosProfessorLayout.mobileSectionGap,
-              ),
+              const SizedBox(height: MeusAlunosProfessorLayout.mobileSectionGap),
               Row(
                 children: [
                   Expanded(
                     child: MeusAlunosProfessorMobileStatCard(
-                      label: 'Alunos',
+                      label: config.studentsLabel,
                       value: '${alunos.length}',
                       helper: 'ativos',
+                      activeColor: config.primaryColor, 
                     ),
                   ),
-                  const SizedBox(
-                    width: MeusAlunosProfessorLayout.mobileStatGap,
-                  ),
+                  const SizedBox(width: MeusAlunosProfessorLayout.mobileStatGap),
                   Expanded(
                     child: MeusAlunosProfessorMobileStatCard(
                       label: 'Progresso médio',
-                      value: '$averageProgress%',
-                      helper: 'turma',
+                      value: '$averageProgressValue%',
+                      helper: config.meusAlunos.statsProgressHelper, 
+                      activeColor: config.primaryColor,
                     ),
                   ),
-                  const SizedBox(
-                    width: MeusAlunosProfessorLayout.mobileStatGap,
-                  ),
+                  const SizedBox(width: MeusAlunosProfessorLayout.mobileStatGap),
                   Expanded(
                     child: MeusAlunosProfessorMobileStatCard(
-                      label: 'Disciplinas',
-                      value: '$subjectsCount',
+                      label: config.meusAlunos.statsSubjectsLabel, 
+                      value: '$subjectsCountValue',
                       helper: 'únicas',
+                      activeColor: config.primaryColor, 
                     ),
                   ),
                 ],
@@ -188,12 +198,10 @@ class _MeusAlunosProfessorContentSectionState
                   aluno: alunos[index],
                   onChatTap: () => _openChat(alunos[index]),
                   onFilesTap: _openArquivos,
-                  onComplaintTap: () => _showComplaintDialog(alunos[index]),
+                  onComplaintTap: () => _showComplaintDialog(alunos[index], config),
                 ),
                 if (index != alunos.length - 1)
-                  const SizedBox(
-                    height: MeusAlunosProfessorLayout.mobileSectionGap,
-                  ),
+                  const SizedBox(height: MeusAlunosProfessorLayout.mobileSectionGap),
               ],
             ],
           );
@@ -204,6 +212,9 @@ class _MeusAlunosProfessorContentSectionState
 
   @override
   Widget build(BuildContext context) {
+    final userProvider = Provider.of<UserProvider>(context);
+    final config = TeachingRoleConfig.fromRole(userProvider.role);
+
     final isMobile =
         widget.isMobile ||
         MediaQuery.sizeOf(context).width <= AppHeader.mobileBreakpoint;
@@ -212,17 +223,18 @@ class _MeusAlunosProfessorContentSectionState
       color: MeusAlunosProfessorColors.title,
       fontWeight: FontWeight.w800,
       fontSize: MeusAlunosProfessorLayout.titleFontSize,
-      height:
-          MeusAlunosProfessorLayout.titleLineHeight /
+      height: MeusAlunosProfessorLayout.titleLineHeight /
           MeusAlunosProfessorLayout.titleFontSize,
     );
 
     if (isMobile) {
-      return _buildMobileContent();
+      return _buildMobileContent(config);
     }
 
     return Container(
-      color: MeusAlunosProfessorColors.background,
+      color: config.roleName == 'Explicador' 
+          ? MeusAlunosProfessorColors.background 
+          : const Color(0xFFF9FAFB),
       child: FullBleedScaledSection(
         child: Padding(
           padding: const EdgeInsets.only(
@@ -241,22 +253,17 @@ class _MeusAlunosProfessorContentSectionState
                 ganhosPendentes: '120€',
                 alunosAtivos: 12,
               ),
-              const SizedBox(
-                width: MeusAlunosProfessorLayout.sidebarContentGap,
-              ),
+              const SizedBox(width: MeusAlunosProfessorLayout.sidebarContentGap),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Meus Alunos', style: titleStyle),
-                    const SizedBox(
-                      height: MeusAlunosProfessorLayout.titleBottomGap,
-                    ),
+                    Text(config.studentsLabel, style: titleStyle),
+                    const SizedBox(height: MeusAlunosProfessorLayout.titleBottomGap),
                     FutureBuilder<List<ProfessorAlunoDto>>(
                       future: _studentsFuture,
                       builder: (context, snapshot) {
-                        if (snapshot.connectionState ==
-                            ConnectionState.waiting) {
+                        if (snapshot.connectionState == ConnectionState.waiting) {
                           return const Padding(
                             padding: EdgeInsets.all(40),
                             child: Center(child: CircularProgressIndicator()),
@@ -272,17 +279,16 @@ class _MeusAlunosProfessorContentSectionState
                           );
                         }
 
-                        final alunos =
-                            snapshot.data ?? const <ProfessorAlunoDto>[];
+                        final alunos = snapshot.data ?? const <ProfessorAlunoDto>[];
                         if (alunos.isEmpty) {
-                          return const Center(
-                            child: Text('Ainda não tens alunos associados.'),
+                          return Center(
+                            child: Text(config.meusAlunos.emptyStateTitle),
                           );
                         }
 
                         return AlunosGrid(
                           alunos: alunos,
-                          onComplaintTap: _showComplaintDialog,
+                          onComplaintTap: (aluno) => _showComplaintDialog(aluno, config),
                         );
                       },
                     ),

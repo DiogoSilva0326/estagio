@@ -17,6 +17,8 @@ namespace ConfidantPostgreSQL.Modules.Professors.Service
         }
 
         public Task<IEnumerable<Professor>> GetProfessorsAllAsync() => _repo.GetProfessorsAllAsync();
+        public Task<IEnumerable<AdminProfessionalDirectoryItem>> GetAdminProfessionalDirectoryAsync(string? category) =>
+            _repo.GetAdminProfessionalDirectoryAsync(category);
         public Task<TutorBrowseResponse> BrowseTutorsAsync(TutorBrowseQuery query) => _repo.BrowseTutorsAsync(query);
         public Task<Professor?> GetProfessorByIdAsync(Guid idProfessor) => _repo.GetProfessorByIdAsync(idProfessor);
         public Task<Professor?> GetProfessorByUserIdAsync(Guid idUser) => _repo.GetProfessorByUserIdAsync(idUser);
@@ -45,7 +47,7 @@ namespace ConfidantPostgreSQL.Modules.Professors.Service
         public Task<int> UpdateProfessorRoomAsync(ProfessorRoom room) => _repo.UpdateProfessorRoomAsync(room);
         public Task<int> DeleteProfessorRoomAsync(Guid id) => _repo.DeleteProfessorRoomAsync(id);
 
-        public Task<IEnumerable<ProfessorStudentDto>> GetAlunosByProfessorIdAsync(Guid professorUserId) => _repo.GetAlunosByProfessorIdAsync(professorUserId);
+        public Task<IEnumerable<ProfessorStudentDto>> GetAlunosByProfessorIdAsync(Guid professorUserId, string? role = null) => _repo.GetAlunosByProfessorIdAsync(professorUserId, role);
 
         public Task<IEnumerable<Disciplina>> GetDisciplinasByProfessorIdAsync(Guid idProfessor) =>
             _repo.GetDisciplinasByProfessorIdAsync(idProfessor);

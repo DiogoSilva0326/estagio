@@ -1,4 +1,6 @@
+import 'package:aula_extra/core/data/education/dtos/area_dto.dart';
 import 'package:aula_extra/core/data/education/dtos/disciplina_dto.dart';
+import 'package:aula_extra/core/data/education/education_service.dart';
 import 'package:aula_extra/core/data/professor_ads/dtos/professor_ad_dto.dart';
 import 'package:aula_extra/core/data/professor_ads/dtos/professor_ads_form_data_dto.dart';
 import 'package:aula_extra/core/data/professor_ads/dtos/tutoring_type_option_dto.dart';
@@ -6,6 +8,7 @@ import 'package:aula_extra/core/data/professor_ads/professor_ads_api.dart';
 import 'package:aula_extra/core/data/professor_ads/professor_ads_service.dart';
 import 'package:aula_extra/core/data/users/users_service.dart';
 import 'package:aula_extra/core/providers/user_provider.dart';
+import 'package:aula_extra/core/config/teaching_roles_config.dart'; 
 import 'package:aula_extra/features/home/widgets/full_bleed_scaled_section.dart';
 import 'package:aula_extra/features/professor/core/widgets/professor_menu_nav.dart';
 import 'package:aula_extra/features/professor/publicar_anuncio/constants/publicar_anuncio_professor_constants.dart';
@@ -37,7 +40,9 @@ class PublicarAnuncioProfessorContentSection extends StatefulWidget {
 class _PublicarAnuncioProfessorContentSectionState
     extends State<PublicarAnuncioProfessorContentSection> {
   final ProfessorAdsService _adsService = ProfessorAdsService();
+  final EducationService _educationService = EducationService();
   final UsersService _usersService = UsersService();
+  
   final TextEditingController _descriptionController = TextEditingController();
   final TextEditingController _priceController = TextEditingController();
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
@@ -84,11 +89,43 @@ class _PublicarAnuncioProfessorContentSectionState
     });
 
     try {
-      final data = await _adsService.getMyData();
+      final userProvider = Provider.of<UserProvider>(context, listen: false);
+      final currentTargetRole = userProvider.role == Role.psychologist ? 'psicologia' 
+                              : userProvider.role == Role.tutor ? 'tutoria' 
+                              : 'ensino';
+
+      final results = await Future.wait([
+        _adsService.getMyData(),
+        _educationService.getAreas(targetRole: currentTargetRole),
+      ]);
+
+      final rawData = results[0] as ProfessorAdsFormDataDto;
+      final allowedAreas = results[1] as List<AreaDto>;
+      
+      final allowedAreaIds = allowedAreas.map((a) => a.idArea).toSet();
+
+      final filteredDisciplinas = rawData.disciplinas.where((d) {
+        return allowedAreaIds.contains(d.idArea);
+      }).toList(growable: false);
+
+      final filteredAds = rawData.ads.where((ad) {
+        final d = rawData.disciplinas.cast<DisciplinaDto?>().firstWhere(
+          (x) => x?.idDisciplina == ad.idDisciplina,
+          orElse: () => null,
+        );
+        if (d == null) return false;
+        return allowedAreaIds.contains(d.idArea);
+      }).toList(growable: false);
+
       if (!mounted) return;
 
       setState(() {
-        _data = data;
+        _data = ProfessorAdsFormDataDto(
+          profilePhotoUrl: rawData.profilePhotoUrl,
+          disciplinas: filteredDisciplinas,
+          tutoringTypes: rawData.tutoringTypes,
+          ads: filteredAds,
+        );
         _loading = false;
       });
 
@@ -202,7 +239,7 @@ class _PublicarAnuncioProfessorContentSectionState
     }
   }
 
-  void _openPublicProfile(String displayName) {
+  void _openPublicProfile(String displayName, TeachingRoleConfig config) {
     final ad = _selectedAd ?? widget.initialAd;
     if (ad == null) return;
 
@@ -218,8 +255,8 @@ class _PublicarAnuncioProfessorContentSectionState
             ? _descriptionController.text.trim()
             : (ad.description?.trim().isNotEmpty == true
                   ? ad.description!.trim()
-                  : 'Professor disponível para novas aulas.'),
-        lessonsText: 'Professor Aula Extra',
+                  : config.publicarAnuncio.defaultProfileDescription),
+        lessonsText: config.publicarAnuncio.profileBadgeText,
         pricePerHour:
             (_parsePrice(_priceController.text) ?? ad.sessionPrice ?? 0)
                 .round(),
@@ -312,7 +349,7 @@ class _PublicarAnuncioProfessorContentSectionState
   Future<void> _saveAd() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
     if (_selectedDisciplinaId == null || _selectedTutoringTypeId == null) {
-      _showSnackBar('Selecione a disciplina e o tipo de aula.');
+      _showSnackBar('Selecione a disciplina e o tipo de serviço.');
       return;
     }
 
@@ -382,15 +419,18 @@ class _PublicarAnuncioProfessorContentSectionState
 
   @override
   Widget build(BuildContext context) {
-    final account = context.watch<UserProvider>().account;
+    final userProvider = Provider.of<UserProvider>(context);
+    final account = userProvider.account;
+    final config = TeachingRoleConfig.fromRole(userProvider.role);
+
     final displayName = (account?.fullName?.trim().isNotEmpty ?? false)
         ? account!.fullName!.trim()
         : (account?.username?.trim().isNotEmpty ?? false)
         ? account!.username!.trim()
-        : 'Professor';
+        : config.roleName;
 
     if (widget.isMobile) {
-      return _buildMobileShell(displayName);
+      return _buildMobileShell(displayName, config);
     }
 
     return Container(
@@ -416,6 +456,7 @@ class _PublicarAnuncioProfessorContentSectionState
                       displayName: displayName,
                       splitCards: splitCards,
                       showSidebar: showSidebar,
+                      config: config,
                     ),
                   ),
                 ],
@@ -427,7 +468,7 @@ class _PublicarAnuncioProfessorContentSectionState
     );
   }
 
-  Widget _buildMobileShell(String displayName) {
+  Widget _buildMobileShell(String displayName, TeachingRoleConfig config) {
     if (_loading) {
       return const Center(
         child: Padding(
@@ -490,18 +531,18 @@ class _PublicarAnuncioProfessorContentSectionState
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Primeiro adicione uma disciplina.',
-                style: TextStyle(
+              Text(
+                config.publicarAnuncio.emptyStateTitle,
+                style: const TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.w700,
                   color: PublicarAnuncioProfessorColors.title,
                 ),
               ),
               const SizedBox(height: 10),
-              const Text(
-                'Só pode publicar anúncios para disciplinas já configuradas em Minhas Disciplinas.',
-                style: TextStyle(
+              Text(
+                config.publicarAnuncio.emptyStateSubtitle,
+                style: const TextStyle(
                   fontSize: 14,
                   color: PublicarAnuncioProfessorColors.mutedText,
                   height: 1.5,
@@ -512,7 +553,7 @@ class _PublicarAnuncioProfessorContentSectionState
                 onPressed: () => Navigator.of(
                   context,
                 ).pushNamed(Routes.professorMinhasDisciplinas),
-                child: const Text('Ir para Minhas Disciplinas'),
+                child: Text(config.publicarAnuncio.emptyStateButton),
               ),
             ],
           ),
@@ -556,7 +597,7 @@ class _PublicarAnuncioProfessorContentSectionState
           if (_selectedMobileTab == PublicarAnuncioMobileTab.informacoes)
             _buildFormCard(isMobile: true)
           else
-            _buildPreviewCard(displayName, isMobile: true),
+            _buildPreviewCard(displayName, config, isMobile: true),
         ],
       ),
     );
@@ -567,6 +608,7 @@ class _PublicarAnuncioProfessorContentSectionState
     required String displayName,
     required bool splitCards,
     required bool showSidebar,
+    required TeachingRoleConfig config,
   }) {
     if (_loading) {
       return const Center(
@@ -617,18 +659,18 @@ class _PublicarAnuncioProfessorContentSectionState
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Primeiro adicione uma disciplina.',
-              style: TextStyle(
+            Text(
+              config.publicarAnuncio.emptyStateTitle,
+              style: const TextStyle(
                 fontSize: 26,
                 fontWeight: FontWeight.w700,
                 color: PublicarAnuncioProfessorColors.title,
               ),
             ),
             const SizedBox(height: 10),
-            const Text(
-              'Só pode publicar anúncios para disciplinas já configuradas em Minhas Disciplinas.',
-              style: TextStyle(
+            Text(
+              config.publicarAnuncio.emptyStateSubtitle,
+              style: const TextStyle(
                 fontSize: 15,
                 color: PublicarAnuncioProfessorColors.mutedText,
                 height: 1.5,
@@ -639,7 +681,7 @@ class _PublicarAnuncioProfessorContentSectionState
               onPressed: () => Navigator.of(
                 context,
               ).pushNamed(Routes.professorMinhasDisciplinas),
-              child: const Text('Ir para Minhas Disciplinas'),
+              child: Text(config.publicarAnuncio.emptyStateButton),
             ),
           ],
         ),
@@ -661,8 +703,8 @@ class _PublicarAnuncioProfessorContentSectionState
         const SizedBox(height: 10),
         Text(
           _isEditing
-              ? 'Atualize os campos do anúncio selecionado. O nível de ensino continua bloqueado automaticamente pela disciplina.'
-              : 'Selecione uma das suas disciplinas, confirme o tipo de aula e publique o anúncio com o nível de ensino bloqueado automaticamente.',
+              ? config.publicarAnuncio.pageSubtitleEdit
+              : config.publicarAnuncio.pageSubtitleNew,
           style: const TextStyle(
             fontSize: 15,
             color: PublicarAnuncioProfessorColors.mutedText,
@@ -681,13 +723,13 @@ class _PublicarAnuncioProfessorContentSectionState
             children: [
               Expanded(child: _buildFormCard()),
               const SizedBox(width: 24),
-              SizedBox(width: 420, child: _buildPreviewCard(displayName)),
+              SizedBox(width: 420, child: _buildPreviewCard(displayName, config)),
             ],
           )
         else ...[
           _buildFormCard(),
           const SizedBox(height: 24),
-          _buildPreviewCard(displayName),
+          _buildPreviewCard(displayName, config),
         ],
       ],
     );
@@ -724,12 +766,12 @@ class _PublicarAnuncioProfessorContentSectionState
     );
   }
 
-  Widget _buildPreviewCard(String displayName, {bool isMobile = false}) {
+  Widget _buildPreviewCard(String displayName, TeachingRoleConfig config, {bool isMobile = false}) {
     final selectedDisciplina = _selectedDisciplina;
     final selectedType = _selectedTutoringType;
     final selectedAd = _selectedAd;
     final description = _descriptionController.text.trim().isEmpty
-        ? 'Adicione uma descrição para mostrar como ensina e o valor da sua experiência.'
+        ? 'Adicione uma descrição para mostrar como atua e o valor da sua experiência.'
         : _descriptionController.text.trim();
     final price = _parsePrice(_priceController.text);
 
@@ -742,7 +784,7 @@ class _PublicarAnuncioProfessorContentSectionState
       formattedPrice: price == null ? '—€' : '${_formatPrice(price)}€',
       photoUrl: _photoUrl,
       isMobile: isMobile,
-      onViewProfile: () => _openPublicProfile(displayName),
+      onViewProfile: () => _openPublicProfile(displayName, config),
     );
   }
 

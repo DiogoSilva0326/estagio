@@ -7,6 +7,7 @@ namespace ConfidantPostgreSQL.Modules.Education.Models
         public Guid IdArea { get; set; }
         public string Nome { get; set; } = string.Empty;
         public string? Descricao { get; set; }
+        public string TargetRole { get; set; } = "ensino";
         public int ProfessorCount { get; set; }
         public DateTime? CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }

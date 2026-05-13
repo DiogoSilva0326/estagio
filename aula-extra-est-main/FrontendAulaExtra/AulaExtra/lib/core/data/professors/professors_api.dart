@@ -253,9 +253,11 @@ class ProfessorsApi {
     return ProfessorEvaluationsOverviewDto.fromJson(obj);
   }
 
-  Future<List<ProfessorAlunoDto>> getMeusAlunos({required String token}) async {
+  Future<List<ProfessorAlunoDto>> getMeusAlunos({required String token, String? role}) async {
+    final query = role != null && role.isNotEmpty ? '?role=${Uri.encodeComponent(role)}' : '';
+    
     final res = await http.get(
-      ApiConfig.uri('/api/Professors/me/students'),
+      ApiConfig.uri('/api/Professors/me/students$query'),
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',
@@ -356,7 +358,7 @@ class ProfessorsApi {
     required String token,
     String? idDisciplina,
     required String idArea,
-    required String idCicloEstudo,
+    String? idCicloEstudo,
     required String nome,
     String? descricao,
   }) async {
@@ -405,7 +407,7 @@ class ProfessorsApi {
     required String currentIdDisciplina,
     String? idDisciplina,
     required String idArea,
-    required String idCicloEstudo,
+    String? idCicloEstudo,
     required String nome,
     String? descricao,
   }) async {

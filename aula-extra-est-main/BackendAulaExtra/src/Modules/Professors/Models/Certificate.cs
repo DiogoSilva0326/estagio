@@ -9,6 +9,8 @@ namespace ConfidantPostgreSQL.Modules.Professors.Models
         public string? Name { get; set; }
         public string? Description { get; set; }
         public string? FileUrl { get; set; }
+        public bool? Approved { get; set; }
+        public Guid? ApprovedByUserId { get; set; }
         public bool? Verified { get; set; }
         public Guid? VerifiedByUserId { get; set; }
         public DateTime? CreatedAt { get; set; }

@@ -3,16 +3,32 @@ import 'package:flutter/material.dart';
 import '../../../design/theme/app_colors.dart';
 import '../../dashboard/widgets/dashboard_status_badge.dart';
 import '../../dashboard/widgets/dashboard_surface_card.dart';
-import '../constants/sessoes_aulas_mock_data.dart';
 import '../models/sessao_aula_item.dart';
 import '../widgets/sessao_link_button.dart';
 import '../widgets/sessoes_aulas_filter_chip.dart';
 
 class SessoesAulasTableSection extends StatelessWidget {
-  const SessoesAulasTableSection({super.key});
+  const SessoesAulasTableSection({
+    required this.items,
+    required this.selectedIds,
+    required this.onSelectionChanged,
+    required this.onSelectAll,
+    required this.onOpenLink,
+    super.key,
+  });
+
+  final List<SessaoAulaItem> items;
+  final Set<String> selectedIds;
+  final void Function(String id, bool selected) onSelectionChanged;
+  final ValueChanged<bool> onSelectAll;
+  final ValueChanged<SessaoAulaItem> onOpenLink;
 
   @override
   Widget build(BuildContext context) {
+    final selectedCount = items.where((item) => selectedIds.contains(item.id)).length;
+    final allSelected = items.isNotEmpty && selectedCount == items.length;
+    final hasPartialSelection = selectedCount > 0 && !allSelected;
+
     return DashboardSurfaceCard(
       padding: EdgeInsets.zero,
       borderRadius: 27.955,
@@ -26,16 +42,19 @@ class SessoesAulasTableSection extends StatelessWidget {
               horizontal: 37.273,
               vertical: 23.296,
             ),
-            child: const SingleChildScrollView(
+            child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               physics: BouncingScrollPhysics(),
               child: Row(
                 children: [
-                  SessoesAulasFilterChip(label: 'DATA: TODAS', width: 164.818),
+                  SessoesAulasFilterChip(
+                    label: 'RESULTADOS: ${items.length}',
+                    width: 174.137,
+                  ),
                   SizedBox(width: 18.637),
                   SessoesAulasFilterChip(
-                    label: 'ESTADO: TODOS',
-                    width: 174.137,
+                    label: 'SELECIONADAS: $selectedCount',
+                    width: 194.137,
                   ),
                 ],
               ),
@@ -45,22 +64,27 @@ class SessoesAulasTableSection extends StatelessWidget {
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: ConstrainedBox(
-              constraints: const BoxConstraints(minWidth: 1417.909),
+              constraints: const BoxConstraints(minWidth: 1490),
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(9.318, 9.318, 27.955, 18),
                 child: Column(
                   children: [
-                    const _SessoesAulasTableHeader(),
-                    for (
-                      var index = 0;
-                      index < SessoesAulasMockData.sessoes.length;
-                      index++
-                    )
-                      _SessoesAulasTableRow(
-                        item: SessoesAulasMockData.sessoes[index],
-                        showDivider:
-                            index != SessoesAulasMockData.sessoes.length - 1,
-                      ),
+                    _SessoesAulasTableHeader(
+                      allSelected: allSelected,
+                      hasPartialSelection: hasPartialSelection,
+                      onSelectAll: onSelectAll,
+                    ),
+                    if (items.isEmpty)
+                      const _EmptyStateRow()
+                    else
+                      for (var index = 0; index < items.length; index++)
+                        _SessoesAulasTableRow(
+                          item: items[index],
+                          selected: selectedIds.contains(items[index].id),
+                          onSelectionChanged: onSelectionChanged,
+                          onOpenLink: onOpenLink,
+                          showDivider: index != items.length - 1,
+                        ),
                   ],
                 ),
               ),
@@ -73,22 +97,40 @@ class SessoesAulasTableSection extends StatelessWidget {
 }
 
 class _SessoesAulasTableHeader extends StatelessWidget {
-  const _SessoesAulasTableHeader();
+  const _SessoesAulasTableHeader({
+    required this.allSelected,
+    required this.hasPartialSelection,
+    required this.onSelectAll,
+  });
+
+  final bool allSelected;
+  final bool hasPartialSelection;
+  final ValueChanged<bool> onSelectAll;
 
   @override
   Widget build(BuildContext context) {
-    return const SizedBox(
+    return SizedBox(
       height: 75.712,
       child: Row(
         children: [
-          _HeaderCell('SESSÕES', 149.749),
-          _HeaderCell('ALUNO', 166.593),
-          _HeaderCell('EXPLICADOR', 175.092),
-          _HeaderCell('DISCIPLINA', 150.468),
-          _HeaderCell('DATA / HORA', 148.593),
-          _HeaderCell('DURAÇÃO', 198.461),
-          _HeaderCell('LINK SALA', 203.402),
-          _HeaderCell('ESTADO', 169.641),
+          SizedBox(
+            width: 72,
+            child: Center(
+              child: Checkbox(
+                value: hasPartialSelection ? null : allSelected,
+                tristate: true,
+                onChanged: (value) => onSelectAll(value ?? false),
+              ),
+            ),
+          ),
+          const _HeaderCell('SESSÕES', 149.749),
+          const _HeaderCell('ALUNO', 166.593),
+          const _HeaderCell('EXPLICADOR', 175.092),
+          const _HeaderCell('DISCIPLINA', 150.468),
+          const _HeaderCell('DATA / HORA', 148.593),
+          const _HeaderCell('DURAÇÃO', 198.461),
+          const _HeaderCell('LINK SALA', 203.402),
+          const _HeaderCell('ESTADO', 169.641),
         ],
       ),
     );
@@ -123,9 +165,18 @@ class _HeaderCell extends StatelessWidget {
 }
 
 class _SessoesAulasTableRow extends StatelessWidget {
-  const _SessoesAulasTableRow({required this.item, required this.showDivider});
+  const _SessoesAulasTableRow({
+    required this.item,
+    required this.selected,
+    required this.onSelectionChanged,
+    required this.onOpenLink,
+    required this.showDivider,
+  });
 
   final SessaoAulaItem item;
+  final bool selected;
+  final void Function(String id, bool selected) onSelectionChanged;
+  final ValueChanged<SessaoAulaItem> onOpenLink;
   final bool showDivider;
 
   @override
@@ -134,6 +185,16 @@ class _SessoesAulasTableRow extends StatelessWidget {
       height: 71.052,
       child: Row(
         children: [
+          SizedBox(
+            width: 72,
+            child: Center(
+              child: Checkbox(
+                value: selected,
+                onChanged: (value) =>
+                    onSelectionChanged(item.id, value ?? false),
+              ),
+            ),
+          ),
           _BodyCell(item.codigo, width: 149.749),
           _BodyCell(item.aluno, width: 166.593),
           _BodyCell(item.explicador, width: 175.092),
@@ -149,17 +210,7 @@ class _SessoesAulasTableRow extends StatelessWidget {
                 child: item.canEnterRoom
                     ? SessaoLinkButton(
                         label: item.linkSalaLabel,
-                        onPressed: () {
-                          ScaffoldMessenger.of(context)
-                            ..hideCurrentSnackBar()
-                            ..showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  'Ligação à sala `${item.codigo}` pode ser ligada a seguir.',
-                                ),
-                              ),
-                            );
-                        },
+                        onPressed: () => onOpenLink(item),
                       )
                     : const Text(
                         '-',
@@ -198,6 +249,28 @@ class _SessoesAulasTableRow extends StatelessWidget {
         row,
         const Divider(height: 1.165, color: Color(0x80F9FAFB)),
       ],
+    );
+  }
+}
+
+class _EmptyStateRow extends StatelessWidget {
+  const _EmptyStateRow();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 27.955, vertical: 36),
+      alignment: Alignment.centerLeft,
+      child: const Text(
+        'Nenhuma sessão encontrada para os filtros atuais.',
+        style: TextStyle(
+          color: AppColors.textSecondary,
+          fontSize: 16.307,
+          fontWeight: FontWeight.w500,
+          letterSpacing: -0.18,
+        ),
+      ),
     );
   }
 }

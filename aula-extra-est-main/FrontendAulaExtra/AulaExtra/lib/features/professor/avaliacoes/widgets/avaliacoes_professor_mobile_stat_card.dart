@@ -1,5 +1,8 @@
 import 'package:aula_extra/features/professor/avaliacoes/constants/avaliacoes_professor_layout.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:aula_extra/core/providers/user_provider.dart';
+import 'package:aula_extra/core/config/teaching_roles_config.dart';
 
 class AvaliacoesProfessorMobileStatCard extends StatelessWidget {
   const AvaliacoesProfessorMobileStatCard({
@@ -13,15 +16,20 @@ class AvaliacoesProfessorMobileStatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final userProvider = Provider.of<UserProvider>(context);
+    final config = TeachingRoleConfig.fromRole(userProvider.role);
+    final isOrange = config.roleName == 'Explicador';
+
     return Container(
       width: double.infinity,
       height: AvaliacoesProfessorLayout.mobileSummaryCardHeight,
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
+        color: isOrange ? null : config.primaryColor,
+        gradient: isOrange ? const LinearGradient(
           begin: Alignment(0.50, 0.00),
           end: Alignment(0.50, 1.00),
           colors: [Color(0xFFFF6B00), Color(0xFFFF9966)],
-        ),
+        ) : null,
         borderRadius: BorderRadius.circular(
           AvaliacoesProfessorLayout.mobileSummaryCardRadius,
         ),

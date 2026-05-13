@@ -2,8 +2,12 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net.Http.Headers;
+using System.Text;
+using System.Text.Json;
 using System.Threading.Tasks;
 using ConfidantPostgreSQL.Auth;
+using ConfidantPostgreSQL.Integrations.AgoraLessons;
 using ConfidantPostgreSQL.Modules.Education.Models;
 using ConfidantPostgreSQL.Modules.Lessons.Service;
 using ConfidantPostgreSQL.Modules.Professors.Models;
@@ -40,6 +44,8 @@ namespace ConfidantPostgreSQL.Modules.Professors.Controllers
         private readonly IUserProfileService _userProfiles;
         private readonly IUserService _users;
         private readonly IWebHostEnvironment _environment;
+        private readonly IHttpClientFactory _httpClientFactory;
+        private readonly AgoraLessonOptions _agoraLessonOptions;
 
         public ProfessorsController(
             IProfessorsService service,
@@ -47,7 +53,9 @@ namespace ConfidantPostgreSQL.Modules.Professors.Controllers
             IScheduleService scheduleService,
             IUserProfileService userProfiles,
             IUserService users,
-            IWebHostEnvironment environment)
+            IWebHostEnvironment environment,
+            IHttpClientFactory httpClientFactory,
+            AgoraLessonOptions agoraLessonOptions)
         {
             _service = service;
             _lessonsService = lessonsService;
@@ -55,6 +63,8 @@ namespace ConfidantPostgreSQL.Modules.Professors.Controllers
             _userProfiles = userProfiles;
             _users = users;
             _environment = environment;
+            _httpClientFactory = httpClientFactory;
+            _agoraLessonOptions = agoraLessonOptions;
         }
 
         private bool TryGetAuthenticatedUserId(out Guid userId)
@@ -102,6 +112,12 @@ namespace ConfidantPostgreSQL.Modules.Professors.Controllers
             public string? Description { get; set; }
             public string? FileUrl { get; set; }
             public IFormFile? File { get; set; }
+        }
+
+        public class ReviewCertificateRequest
+        {
+            public bool? Approved { get; set; }
+            public bool? Verified { get; set; }
         }
 
         public class SetMyDisciplinasRequest
@@ -176,12 +192,195 @@ namespace ConfidantPostgreSQL.Modules.Professors.Controllers
             return false;
         }
 
+        private async Task<object> BuildProfessorAdminReviewPayloadAsync(Professor professor, Modules.Users.Models.User user)
+        {
+            var displayName = !string.IsNullOrWhiteSpace(user.DisplayName)
+                ? user.DisplayName.Trim()
+                : string.Join(" ", new[] { user.FirstName?.Trim(), user.LastName?.Trim() }
+                    .Where(value => !string.IsNullOrWhiteSpace(value))).Trim();
+
+            if (string.IsNullOrWhiteSpace(displayName))
+            {
+                displayName = !string.IsNullOrWhiteSpace(user.Username)
+                    ? user.Username.Trim()
+                    : "Professor";
+            }
+
+            var stats = await _service.GetProfessorStatsAsync(professor.IdProfessor);
+            var disciplinas = (await _service.GetDisciplinasByProfessorIdAsync(professor.IdProfessor)).ToArray();
+            var languages = (await _service.GetLanguagesByProfessorIdAsync(professor.IdProfessor)).ToArray();
+            var profile = await _userProfiles.GetByUserIdAsync(professor.IdUser);
+            var days = (await _scheduleService.GetDaysAllAsync())
+                .Where(day => day.DayIndex.HasValue)
+                .ToDictionary(day => day.IdDay, day => day.DayIndex!.Value);
+            var availability = (await _scheduleService.GetScheduleBlocksAllAsync())
+                .Where(item => item.IdProfessor == professor.IdProfessor)
+                .Where(item => item.StartTime.HasValue)
+                .OrderBy(item => item.StartTime ?? DateTime.MaxValue)
+                .Select(item => new
+                {
+                    idScheduleBlock = item.IdScheduleBlock,
+                    dayIndex = item.IdDay.HasValue && days.TryGetValue(item.IdDay.Value, out var mappedDayIndex)
+                        ? mappedDayIndex
+                        : (((int)item.StartTime!.Value.DayOfWeek + 6) % 7),
+                    startTime = item.StartTime,
+                    endTime = item.EndTime,
+                    isAvailable = item.IsAvailable ?? true,
+                    defaultDurationMinutes = item.DefaultDurationMinutes,
+                    recurrenceRule = item.RecurrenceRule,
+                })
+                .ToArray();
+            var certificates = (await _service.GetCertificatesByProfessorIdAsync(professor.IdProfessor))
+                .Where(item => !string.IsNullOrWhiteSpace(item.Name) || !string.IsNullOrWhiteSpace(item.FileUrl))
+                .OrderBy(item => item.Name ?? item.FileUrl ?? string.Empty)
+                .Select(item => new
+                {
+                    idCertificate = item.IdCertificate,
+                    idProfessor = item.IdProfessor,
+                    name = string.IsNullOrWhiteSpace(item.Name) ? null : item.Name.Trim(),
+                    description = string.IsNullOrWhiteSpace(item.Description) ? null : item.Description.Trim(),
+                    fileUrl = string.IsNullOrWhiteSpace(item.FileUrl) ? null : item.FileUrl.Trim(),
+                    approved = item.Approved ?? false,
+                    approvedByUserId = item.ApprovedByUserId,
+                    verified = item.Verified ?? false,
+                    verifiedByUserId = item.VerifiedByUserId,
+                    createdAt = item.CreatedAt,
+                    updatedAt = item.UpdatedAt,
+                })
+                .ToArray();
+            var reviews = (await _service.GetProfessorFeedbackAllAsync())
+                .Where(item => item.IdProfessor == professor.IdProfessor)
+                .Where(item => item.IsValid != false)
+                .Where(item => item.Rating.HasValue || !string.IsNullOrWhiteSpace(item.Comments))
+                .OrderByDescending(item => item.CreatedAt ?? DateTime.MinValue)
+                .Take(10)
+                .ToArray();
+
+            var reviewItems = await Task.WhenAll(reviews.Select(async review =>
+            {
+                var reviewUser = await _users.GetByIdAsync(review.IdUser);
+                var reviewProfile = await _userProfiles.GetByUserIdAsync(review.IdUser);
+
+                var reviewDisplayName = reviewUser == null
+                    ? "Aluno"
+                    : !string.IsNullOrWhiteSpace(reviewUser.DisplayName)
+                        ? reviewUser.DisplayName.Trim()
+                        : string.Join(" ", new[] { reviewUser.FirstName?.Trim(), reviewUser.LastName?.Trim() }
+                            .Where(value => !string.IsNullOrWhiteSpace(value))).Trim();
+
+                if (string.IsNullOrWhiteSpace(reviewDisplayName))
+                {
+                    reviewDisplayName = !string.IsNullOrWhiteSpace(reviewUser?.Username)
+                        ? reviewUser!.Username!.Trim()
+                        : "Aluno";
+                }
+
+                return new
+                {
+                    idProfessorFeedback = review.IdProfessorFeedback,
+                    idUser = review.IdUser,
+                    reviewerName = reviewDisplayName,
+                    reviewerImageUrl = reviewProfile?.ProfileImageUrl,
+                    rating = review.Rating ?? 0,
+                    comment = string.IsNullOrWhiteSpace(review.Comments)
+                        ? null
+                        : review.Comments!.Trim(),
+                    createdAt = review.CreatedAt,
+                };
+            }));
+
+            var isApproved = professor.IsVerified == true
+                && professor.IsVerifiedIban == true
+                && professor.IsActive == true
+                && professor.IsRejected != true;
+            var statusLabel = professor.IsRejected == true
+                ? "REJEITADO"
+                : isApproved
+                    ? "APROVADO"
+                    : "PENDENTE";
+
+            return new
+            {
+                idProfessor = professor.IdProfessor,
+                idUser = professor.IdUser,
+                displayName,
+                username = user.Username,
+                email = user.Email,
+                mobileNumber = user.MobileNumber,
+                phoneNumber = user.PhoneNumber,
+                educationLevel = user.EducationLevel,
+                website = user.Website,
+                photo = !string.IsNullOrWhiteSpace(professor.Photo) ? professor.Photo : profile?.ProfileImageUrl,
+                profileImageUrl = profile?.ProfileImageUrl,
+                biography = professor.Biography,
+                presentationVideoUrl = professor.PresentationVideoUrl,
+                currentSchool = professor.CurrentSchool,
+                yearsExperience = professor.YearsExperience,
+                ibanDocumentUrl = professor.IbanDocumentUrl,
+                memberSince = user.CreationDate,
+                isApproved,
+                isActive = professor.IsActive ?? false,
+                isVerified = professor.IsVerified ?? false,
+                isVerifiedIban = professor.IsVerifiedIban ?? false,
+                isRejected = professor.IsRejected ?? false,
+                statusLabel,
+                stats = new
+                {
+                    lessonsCount = stats.LessonsCount,
+                    avgRating = stats.AvgRating,
+                    reviewCount = stats.ReviewCount,
+                },
+                areaNames = disciplinas
+                    .Select(item => item.AreaNome)
+                    .Where(value => !string.IsNullOrWhiteSpace(value))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToArray(),
+                disciplinas = disciplinas.Select(item => new
+                {
+                    idDisciplina = item.IdDisciplina,
+                    nome = item.Nome,
+                    areaNome = item.AreaNome,
+                }).ToArray(),
+                languages = languages.Select(item => new
+                {
+                    idLanguage = item.IdLanguage,
+                    nome = item.Nome,
+                    proficiencyLevel = item.ProficiencyLevel,
+                }).ToArray(),
+                availability,
+                certificates,
+                reviews = reviewItems,
+            };
+        }
+
         // PROFESSORS
         [HttpGet("professors")]
         public async Task<IActionResult> GetProfessors()
         {
            //if (!TryAuthorize(out var unauthorized)) return unauthorized!;
             return Ok(await _service.GetProfessorsAllAsync());
+        }
+
+        [HttpGet("admin-directory")]
+        public async Task<IActionResult> GetAdminDirectory([FromQuery] string? category)
+        {
+            if (!TryGetAuthenticatedUserId(out var userId)) return Unauthorized();
+            if (!await CurrentUserIsAdminAsync(userId)) return Forbid();
+
+            var normalizedCategory = string.IsNullOrWhiteSpace(category)
+                ? null
+                : category.Trim().ToLowerInvariant();
+
+            if (normalizedCategory != null
+                && normalizedCategory != "explicadores"
+                && normalizedCategory != "tutores"
+                && normalizedCategory != "psicologos")
+            {
+                return BadRequest(new { error = "A categoria deve ser explicadores, tutores ou psicologos." });
+            }
+
+            var items = await _service.GetAdminProfessionalDirectoryAsync(normalizedCategory);
+            return Ok(new { items });
         }
 
         // Public browse endpoint for "Mais explicadores" (student role).
@@ -411,10 +610,6 @@ namespace ConfidantPostgreSQL.Modules.Professors.Controllers
                 return BadRequest(new { message = "Área é obrigatória." });
             }
 
-            if (request.IdCicloEstudo == null || request.IdCicloEstudo == Guid.Empty)
-            {
-                return BadRequest(new { message = "Ciclo de estudos é obrigatório." });
-            }
 
             var nome = request.Nome?.Trim();
             if (string.IsNullOrWhiteSpace(nome))
@@ -426,7 +621,7 @@ namespace ConfidantPostgreSQL.Modules.Professors.Controllers
             {
                 IdDisciplina = request.IdDisciplina,
                 IdArea = request.IdArea.Value,
-                IdCicloEstudo = request.IdCicloEstudo.Value,
+                IdCicloEstudo = request.IdCicloEstudo,
                 Nome = nome,
                 Descricao = string.IsNullOrWhiteSpace(request.Descricao) ? null : request.Descricao.Trim(),
                 IsActive = request.IsActive ?? true,
@@ -469,11 +664,6 @@ namespace ConfidantPostgreSQL.Modules.Professors.Controllers
             if (request?.IdArea == null || request.IdArea == Guid.Empty)
             {
                 return BadRequest(new { message = "Área é obrigatória." });
-            }
-
-            if (request.IdCicloEstudo == null || request.IdCicloEstudo == Guid.Empty)
-            {
-                return BadRequest(new { message = "Ciclo de estudos é obrigatório." });
             }
 
             var nome = request.Nome?.Trim();
@@ -570,6 +760,8 @@ namespace ConfidantPostgreSQL.Modules.Professors.Controllers
                 Name = request.Name!.Trim(),
                 Description = string.IsNullOrWhiteSpace(request.Description) ? null : request.Description.Trim(),
                 FileUrl = fileUrl,
+                Approved = false,
+                ApprovedByUserId = null,
                 Verified = false,
                 VerifiedByUserId = null,
                 CreatedAt = DateTime.UtcNow,
@@ -617,6 +809,8 @@ namespace ConfidantPostgreSQL.Modules.Professors.Controllers
             existing.Name = request.Name?.Trim();
             existing.Description = string.IsNullOrWhiteSpace(request.Description) ? null : request.Description.Trim();
             existing.FileUrl = fileUrl;
+            existing.Approved = false;
+            existing.ApprovedByUserId = null;
             existing.Verified = false;
             existing.VerifiedByUserId = null;
             existing.UpdatedAt = DateTime.UtcNow;
@@ -625,7 +819,7 @@ namespace ConfidantPostgreSQL.Modules.Professors.Controllers
 
             if (request.File != null)
             {
-                TryDeleteLocalProfessorDocument(previousFileUrl);
+                await TryDeleteProfessorDocumentAsync(previousFileUrl, HttpContext.RequestAborted);
             }
 
             return Ok(existing);
@@ -649,7 +843,7 @@ namespace ConfidantPostgreSQL.Modules.Professors.Controllers
             var rows = await _service.DeleteCertificateAsync(idCertificate);
             if (rows == 0) return NotFound(new { message = "Documento não encontrado" });
 
-            TryDeleteLocalProfessorDocument(existing.FileUrl);
+            await TryDeleteProfessorDocumentAsync(existing.FileUrl, HttpContext.RequestAborted);
             return NoContent();
         }
 
@@ -784,11 +978,11 @@ namespace ConfidantPostgreSQL.Modules.Professors.Controllers
         }
 
         [HttpGet("me/students")]
-        public async Task<IActionResult> GetStudents()
+        public async Task<IActionResult> GetStudents([FromQuery] string? role)
         {
             if (!TryGetAuthenticatedUserId(out var userId)) return Unauthorized();
 
-            var students = await _service.GetAlunosByProfessorIdAsync(userId);
+            var students = await _service.GetAlunosByProfessorIdAsync(userId, role);
             return Ok(students);
         }
 
@@ -798,6 +992,21 @@ namespace ConfidantPostgreSQL.Modules.Professors.Controllers
            //if (!TryAuthorize(out var unauthorized)) return unauthorized!;
             var item = await _service.GetProfessorByIdAsync(idProfessor);
             return item == null ? NotFound() : Ok(item);
+        }
+
+        [HttpGet("professors/{idProfessor:guid}/admin-review")]
+        public async Task<IActionResult> GetProfessorAdminReview(Guid idProfessor)
+        {
+            if (!TryGetAuthenticatedUserId(out var actorUserId)) return Unauthorized();
+            if (!await CurrentUserIsAdminAsync(actorUserId)) return Forbid();
+
+            var professor = await _service.GetProfessorByIdAsync(idProfessor);
+            if (professor == null) return NotFound();
+
+            var user = await _users.GetByIdAsync(professor.IdUser);
+            if (user == null) return NotFound();
+
+            return Ok(await BuildProfessorAdminReviewPayloadAsync(professor, user));
         }
 
         [AllowAnonymous]
@@ -949,6 +1158,7 @@ namespace ConfidantPostgreSQL.Modules.Professors.Controllers
             professor.IsVerifiedIban = true;
             professor.IsActive = true;
             professor.IsVerified = true;
+            professor.IsRejected = false;
             await _service.UpdateProfessorAsync(professor);
 
             // Grant role after approval.
@@ -959,6 +1169,29 @@ namespace ConfidantPostgreSQL.Modules.Professors.Controllers
                 idProfessor = professor.IdProfessor,
                 idUser = professor.IdUser,
                 message = "Professor aprovado e role atribuída. O utilizador deve renovar o token para refletir a nova role."
+            });
+        }
+
+        [HttpPut("professors/{idProfessor:guid}/reject")]
+        public async Task<IActionResult> RejectProfessor(Guid idProfessor)
+        {
+            if (!TryGetAuthenticatedUserId(out var actorUserId)) return Unauthorized();
+            if (!await CurrentUserIsAdminAsync(actorUserId)) return Forbid();
+
+            var professor = await _service.GetProfessorByIdAsync(idProfessor);
+            if (professor == null) return NotFound();
+
+            professor.IsVerifiedIban = false;
+            professor.IsActive = false;
+            professor.IsVerified = false;
+            professor.IsRejected = true;
+            await _service.UpdateProfessorAsync(professor);
+
+            return Ok(new
+            {
+                idProfessor = professor.IdProfessor,
+                idUser = professor.IdUser,
+                message = "Professor rejeitado com sucesso."
             });
         }
 
@@ -1064,6 +1297,39 @@ namespace ConfidantPostgreSQL.Modules.Professors.Controllers
             return rows == 0 ? NotFound() : NoContent();
         }
 
+        [HttpPut("certificates/{idCertificate:guid}/review")]
+        public async Task<IActionResult> ReviewCertificate(Guid idCertificate, [FromBody] ReviewCertificateRequest? request)
+        {
+            if (!TryGetAuthenticatedUserId(out var actorUserId)) return Unauthorized();
+            if (!await CurrentUserIsAdminAsync(actorUserId)) return Forbid();
+            if (request == null || (request.Approved == null && request.Verified == null))
+            {
+                return BadRequest(new { message = "Indique se o ficheiro foi aprovado e/ou verificado." });
+            }
+
+            var existing = await _service.GetCertificateByIdAsync(idCertificate);
+            if (existing == null) return NotFound();
+
+            if (request.Approved.HasValue)
+            {
+                existing.Approved = request.Approved.Value;
+                existing.ApprovedByUserId = request.Approved.Value ? actorUserId : null;
+            }
+
+            if (request.Verified.HasValue)
+            {
+                existing.Verified = request.Verified.Value;
+                existing.VerifiedByUserId = request.Verified.Value ? actorUserId : null;
+            }
+
+            existing.UpdatedAt = DateTime.UtcNow;
+
+            var rows = await _service.UpdateCertificateAsync(existing);
+            if (rows == 0) return NotFound();
+
+            return Ok(existing);
+        }
+
         [HttpDelete("certificates/{idCertificate:guid}")]
         public async Task<IActionResult> DeleteCertificate(Guid idCertificate)
         {
@@ -1072,7 +1338,7 @@ namespace ConfidantPostgreSQL.Modules.Professors.Controllers
             var rows = await _service.DeleteCertificateAsync(idCertificate);
             if (rows > 0)
             {
-                TryDeleteLocalProfessorDocument(existing?.FileUrl);
+                await TryDeleteProfessorDocumentAsync(existing?.FileUrl, HttpContext.RequestAborted);
             }
             return rows == 0 ? NotFound() : NoContent();
         }
@@ -1131,6 +1397,11 @@ namespace ConfidantPostgreSQL.Modules.Professors.Controllers
                 return NormalizeCertificateFileReference(request.FileUrl);
             }
 
+            if (!string.IsNullOrWhiteSpace(_agoraLessonOptions.BaseUrl))
+            {
+                return await UploadProfessorDocumentAsync(request.File, HttpContext?.RequestAborted ?? default);
+            }
+
             var folderPath = Path.Combine(_environment.ContentRootPath, "uploads", "professor-documents");
             Directory.CreateDirectory(folderPath);
 
@@ -1146,18 +1417,171 @@ namespace ConfidantPostgreSQL.Modules.Professors.Controllers
             return storedFileName;
         }
 
-        private void TryDeleteLocalProfessorDocument(string? fileUrl)
+        private async Task<string> UploadProfessorDocumentAsync(IFormFile file, CancellationToken cancellationToken)
+        {
+            var objectKey = BuildProfessorDocumentObjectKey(file.FileName, DateTime.UtcNow);
+            var baseUrl = NormalizeBaseUrl(_agoraLessonOptions.BaseUrl);
+
+            if (string.IsNullOrWhiteSpace(baseUrl))
+            {
+                throw new InvalidOperationException("O Agora Integrator não está configurado para receber documentos.");
+            }
+
+            using var request = new MultipartFormDataContent();
+            await using var stream = file.OpenReadStream();
+            using var fileContent = new StreamContent(stream);
+
+            fileContent.Headers.ContentType = MediaTypeHeaderValue.Parse(
+                string.IsNullOrWhiteSpace(file.ContentType) ? "application/octet-stream" : file.ContentType);
+            request.Add(fileContent, "file", file.FileName);
+
+            using var client = _httpClientFactory.CreateClient();
+            using var response = await client.PostAsync(
+                $"{baseUrl}/api/files/upload?key={Uri.EscapeDataString(objectKey)}",
+                request,
+                cancellationToken);
+
+            var payload = await response.Content.ReadAsStringAsync(cancellationToken);
+            if (!response.IsSuccessStatusCode)
+            {
+                throw new InvalidOperationException(
+                    $"Não foi possível guardar o documento na Cloudflare ({(int)response.StatusCode}).");
+            }
+
+            var result = JsonSerializer.Deserialize<AgoraUploadedFileResponse>(
+                payload,
+                new JsonSerializerOptions(JsonSerializerDefaults.Web));
+
+            var fileUrl = result?.FileUrl?.Trim();
+            if (string.IsNullOrWhiteSpace(fileUrl))
+            {
+                throw new InvalidOperationException("O upload do documento não devolveu um URL utilizável.");
+            }
+
+            return fileUrl;
+        }
+
+        private async Task TryDeleteProfessorDocumentAsync(string? fileUrl, CancellationToken cancellationToken)
         {
             var localPath = TryResolveLocalProfessorDocumentPath(fileUrl);
-            if (localPath == null || !System.IO.File.Exists(localPath)) return;
+            if (localPath != null && System.IO.File.Exists(localPath))
+            {
+                try
+                {
+                    System.IO.File.Delete(localPath);
+                }
+                catch
+                {
+                }
+
+                return;
+            }
+
+            await TryDeleteRemoteProfessorDocumentAsync(fileUrl, cancellationToken);
+        }
+
+        private async Task TryDeleteRemoteProfessorDocumentAsync(string? fileUrl, CancellationToken cancellationToken)
+        {
+            var objectKey = TryExtractProfessorDocumentObjectKey(fileUrl);
+            if (string.IsNullOrWhiteSpace(objectKey))
+            {
+                return;
+            }
+
+            var r2BaseUrl = NormalizeBaseUrl(Environment.GetEnvironmentVariable("R2_INTEGRATOR_BASE_URL") ?? string.Empty);
+            if (string.IsNullOrWhiteSpace(r2BaseUrl))
+            {
+                return;
+            }
+
+            var encodedObjectKey = string.Join(
+                '/',
+                objectKey
+                    .Split('/', StringSplitOptions.RemoveEmptyEntries)
+                    .Select(Uri.EscapeDataString));
 
             try
             {
-                System.IO.File.Delete(localPath);
+                using var client = _httpClientFactory.CreateClient();
+                await client.DeleteAsync($"{r2BaseUrl}/api/files/{encodedObjectKey}", cancellationToken);
             }
             catch
             {
             }
+        }
+
+        private static string BuildProfessorDocumentObjectKey(string originalFileName, DateTime createdAtUtc)
+        {
+            return $"professor-documents/{createdAtUtc:yyyy/MM}/{Guid.NewGuid():N}-{SlugifyFileName(originalFileName)}";
+        }
+
+        private static string SlugifyFileName(string fileName)
+        {
+            var extension = Path.GetExtension(fileName).ToLowerInvariant();
+            var nameWithoutExtension = Path.GetFileNameWithoutExtension(fileName);
+            var normalized = nameWithoutExtension.Normalize(NormalizationForm.FormD);
+            var builder = new StringBuilder(normalized.Length);
+
+            foreach (var character in normalized)
+            {
+                var category = System.Globalization.CharUnicodeInfo.GetUnicodeCategory(character);
+                if (category == System.Globalization.UnicodeCategory.NonSpacingMark)
+                {
+                    continue;
+                }
+
+                if (char.IsLetterOrDigit(character))
+                {
+                    builder.Append(char.ToLowerInvariant(character));
+                    continue;
+                }
+
+                builder.Append('-');
+            }
+
+            var slug = System.Text.RegularExpressions.Regex.Replace(builder.ToString(), "-+", "-").Trim('-');
+            if (string.IsNullOrWhiteSpace(slug))
+            {
+                slug = "ficheiro";
+            }
+
+            return string.IsNullOrWhiteSpace(extension) ? slug : $"{slug}{extension}";
+        }
+
+        private static string NormalizeBaseUrl(string value)
+        {
+            var trimmed = value.Trim();
+            if (string.IsNullOrWhiteSpace(trimmed))
+            {
+                return string.Empty;
+            }
+
+            return trimmed.EndsWith('/') ? trimmed[..^1] : trimmed;
+        }
+
+        private string? TryExtractProfessorDocumentObjectKey(string? fileUrl)
+        {
+            if (string.IsNullOrWhiteSpace(fileUrl) ||
+                !Uri.TryCreate(fileUrl, UriKind.Absolute, out var storageUri))
+            {
+                return null;
+            }
+
+            var agoraBaseUrl = NormalizeBaseUrl(_agoraLessonOptions.BaseUrl);
+            if (!string.IsNullOrWhiteSpace(agoraBaseUrl) &&
+                Uri.TryCreate(agoraBaseUrl, UriKind.Absolute, out var agoraUri) &&
+                string.Equals(agoraUri.Host, storageUri.Host, StringComparison.OrdinalIgnoreCase))
+            {
+                var basePath = agoraUri.AbsolutePath.TrimEnd('/');
+                var absolutePath = storageUri.AbsolutePath;
+
+                if (!string.IsNullOrWhiteSpace(basePath) && absolutePath.StartsWith(basePath, StringComparison.OrdinalIgnoreCase))
+                {
+                    return Uri.UnescapeDataString(absolutePath[basePath.Length..].TrimStart('/'));
+                }
+            }
+
+            return Uri.UnescapeDataString(storageUri.AbsolutePath.TrimStart('/'));
         }
 
         private string? TryResolveLocalProfessorDocumentPath(string? fileUrl)
@@ -1208,6 +1632,11 @@ namespace ConfidantPostgreSQL.Modules.Professors.Controllers
 
             normalized = Path.GetFileName(normalized);
             return string.IsNullOrWhiteSpace(normalized) ? null : normalized;
+        }
+
+        private sealed class AgoraUploadedFileResponse
+        {
+            public string? FileUrl { get; set; }
         }
 
         // ROOMS

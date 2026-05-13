@@ -13,8 +13,18 @@ class AreasAlunoMobileAreaCard extends StatelessWidget {
   final VoidCallback onViewDetails;
   final VoidCallback onMarkLesson;
 
+  bool _isSessao(String name) {
+    final n = name.trim().toLowerCase();
+    return n.contains('psicolog') || n.contains('terapia') || n.contains('ansiedade') || 
+           n.contains('orientação') || n.contains('tutor') || n.contains('mentoria');
+  }
+
   @override
   Widget build(BuildContext context) {
+    final isSessao = area.targetRole != 'ensino';
+    final singularTerm = isSessao ? 'Sessão' : 'Aula';
+    final pluralTerm = isSessao ? 'Sessões' : 'Aulas';
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
@@ -69,7 +79,7 @@ class AreasAlunoMobileAreaCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 10),
                     _MetricRow(
-                      label: 'Aulas marcadas:',
+                      label: '$pluralTerm marcadas:',
                       value: '${area.scheduledLessons}',
                     ),
                     const SizedBox(height: 8),
@@ -80,7 +90,7 @@ class AreasAlunoMobileAreaCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 8),
                     _MetricRow(
-                      label: 'Próxima aula:',
+                      label: 'Próxima ${singularTerm.toLowerCase()}:',
                       value: area.nextLessonText,
                       valueColor: area.nextLessonColor,
                     ),
@@ -134,9 +144,9 @@ class AreasAlunoMobileAreaCard extends StatelessWidget {
                       borderRadius: BorderRadius.circular(14),
                     ),
                   ),
-                  child: const Text(
-                    'Marcar Aula',
-                    style: TextStyle(
+                  child: Text(
+                    'Marcar $singularTerm',
+                    style: const TextStyle(
                       fontSize: 15,
                       height: 1.2,
                       fontWeight: FontWeight.w700,

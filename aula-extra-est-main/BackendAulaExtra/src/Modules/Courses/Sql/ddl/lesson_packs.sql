@@ -2,6 +2,7 @@ CREATE TABLE IF NOT EXISTS lesson_packs (
   id_lesson_pack UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   id_course UUID NOT NULL REFERENCES courses(id_course) ON DELETE CASCADE,
   name VARCHAR(200),
+  description TEXT,
   number_of_lessons INTEGER NOT NULL,
   session_duration_minutes INTEGER,
   total_price NUMERIC(12,2),

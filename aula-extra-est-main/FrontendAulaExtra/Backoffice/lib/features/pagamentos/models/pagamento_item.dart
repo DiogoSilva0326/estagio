@@ -1,10 +1,16 @@
 import 'package:flutter/material.dart';
 
-enum PagamentoStatus { pago, pendente, emProcessamento }
-
 class PagamentoItem {
   const PagamentoItem({
+    required this.id,
     required this.code,
+    required this.subject,
+    required this.paymentDate,
+    required this.reference,
+    required this.currency,
+    required this.grossAmountValue,
+    required this.platformFeeAmountValue,
+    required this.teacherAmountValue,
     required this.dateLabel,
     required this.aluno,
     required this.explicador,
@@ -14,44 +20,62 @@ class PagamentoItem {
     required this.status,
   });
 
+  final String id;
   final String code;
+  final String subject;
+  final DateTime? paymentDate;
+  final String reference;
+  final String currency;
+  final double grossAmountValue;
+  final double platformFeeAmountValue;
+  final double teacherAmountValue;
   final String dateLabel;
   final String aluno;
   final String explicador;
   final String totalAmount;
   final String commissionLabel;
   final String teacherAmount;
-  final PagamentoStatus status;
+  final String status;
 
   String get statusLabel {
-    switch (status) {
-      case PagamentoStatus.pago:
+    switch (status.toLowerCase()) {
+      case 'paid':
+      case 'pago':
+      case 'success':
+      case 'succeeded':
         return 'Pago';
-      case PagamentoStatus.pendente:
+      case 'pending':
+      case 'pendente':
         return 'Pendente';
-      case PagamentoStatus.emProcessamento:
+      case 'processing':
+      case 'em processamento':
+      case 'in_process':
         return 'Em processamento';
+      default:
+        return 'Pendente';
     }
   }
 
   Color get statusColor {
-    switch (status) {
-      case PagamentoStatus.pago:
+    switch (statusLabel) {
+      case 'Pago':
         return const Color(0xFF027A48);
-      case PagamentoStatus.pendente:
+      case 'Pendente':
         return const Color(0xFFB54708);
-      case PagamentoStatus.emProcessamento:
+      case 'Em processamento':
+      default:
         return const Color(0xFF4F46E5);
     }
   }
 
   Color get statusBackgroundColor {
-    switch (status) {
-      case PagamentoStatus.pago:
+    switch (statusLabel) {
+      case 'Pago':
         return const Color(0xFFEAFBF3);
-      case PagamentoStatus.pendente:
+      case 'Pendente':
         return const Color(0xFFFFF4E5);
-      case PagamentoStatus.emProcessamento:
+      case 'Em processamento':
+      default:
         return const Color(0xFFEEF2FF);
     }
   }

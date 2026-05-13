@@ -13,6 +13,10 @@ import 'package:aula_extra/features/professor/notificacoes/widgets/notificacoes_
 import 'package:aula_extra/features/professor/notificacoes/widgets/notificacoes_professor_unread_summary_card.dart';
 import 'package:flutter/material.dart';
 
+import 'package:provider/provider.dart';
+import 'package:aula_extra/core/providers/user_provider.dart';
+import 'package:aula_extra/core/config/teaching_roles_config.dart';
+
 class NotificacoesProfessorContentSection extends StatefulWidget {
   const NotificacoesProfessorContentSection({super.key, this.isMobile = false});
 
@@ -107,26 +111,35 @@ class _NotificacoesProfessorContentSectionState
     }
   }
 
-  Future<void> _handleCancellationDecision(UserNotificationDto item) async {
+  Future<void> _handleCancellationDecision(
+      UserNotificationDto item, TeachingRoleConfig config) async {
     final decision = await showDialog<bool>(
       context: context,
-      builder: (context) => NotificacoesProfessorCancellationDialog(item: item),
+      builder: (context) => NotificacoesProfessorCancellationDialog(
+        item: item,
+        config: config,
+      ),
     );
 
     if (decision == null) return;
-    await _applyCancellationDecision(item, forgivePenalty: decision);
+    await _applyCancellationDecision(item,
+        forgivePenalty: decision, config: config);
   }
 
   Future<void> _applyCancellationDecision(
     UserNotificationDto item, {
     required bool forgivePenalty,
+    required TeachingRoleConfig config,
   }) async {
     final studentUserId = item.studentUserId?.trim();
+    
+    final studentLabel = config.studentsLabel.toLowerCase().replaceAll('meus ', '').replaceAll('s', '');
+
     if (studentUserId == null || studentUserId.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text(
-            'Não foi possível identificar o aluno desta notificação.',
+            'Não foi possível identificar o $studentLabel desta notificação.',
           ),
         ),
       );
@@ -140,8 +153,8 @@ class _NotificacoesProfessorContentSectionState
         idUser: studentUserId,
         type: forgivePenalty ? 'Falta Perdoada' : 'Justificação Recusada',
         message: forgivePenalty
-            ? 'O professor aceitou a tua justificação e a penalidade foi perdoada.'
-            : 'O professor não aceitou a tua justificação e a penalidade da aula foi mantida.',
+            ? 'O ${config.roleName.toLowerCase()} aceitou a tua justificação e a penalidade foi perdoada.'
+            : 'O ${config.roleName.toLowerCase()} não aceitou a tua justificação e a penalidade da ${config.sessionsLabel} foi mantida.',
       );
 
       await _notificationsService.markAsRead(item.id);
@@ -181,7 +194,7 @@ class _NotificacoesProfessorContentSectionState
     }
   }
 
-  Widget _buildFilters() {
+  Widget _buildFilters(TeachingRoleConfig config) {
     final filters = NotificacoesProfessorFiltro.values;
     final spacing = widget.isMobile ? 10.0 : 16.865;
 
@@ -190,15 +203,22 @@ class _NotificacoesProfessorContentSectionState
       child: Row(
         children: List.generate(filters.length, (index) {
           final filter = filters[index];
+          
+          String label = filter.label;
+          if (filter == NotificacoesProfessorFiltro.aulas) {
+            final text = config.sessionsLabel;
+            label = text.isNotEmpty ? text[0].toUpperCase() + text.substring(1) : text;
+          }
 
           return Padding(
             padding: EdgeInsets.only(
               right: index == filters.length - 1 ? 0 : spacing,
             ),
             child: NotificacoesFilterPill(
-              label: filter.label,
+              label: label,
               selected: _filtro == filter,
               isMobile: widget.isMobile,
+              activeColor: config.primaryColor, 
               onTap: () => setState(() => _filtro = filter),
             ),
           );
@@ -207,10 +227,11 @@ class _NotificacoesProfessorContentSectionState
     );
   }
 
-  Widget _buildUnreadSummaryCard() {
+  Widget _buildUnreadSummaryCard(TeachingRoleConfig config) {
     return NotificacoesProfessorUnreadSummaryCard(
       unreadCount: _unreadCount,
       isMobile: widget.isMobile,
+      config: config,
     );
   }
 
@@ -238,7 +259,7 @@ class _NotificacoesProfessorContentSectionState
     );
   }
 
-  Widget _buildNotificationsList() {
+  Widget _buildNotificationsList(TeachingRoleConfig config) {
     if (_filteredItems.isEmpty) {
       return _buildEmptyState();
     }
@@ -262,7 +283,7 @@ class _NotificacoesProfessorContentSectionState
                 item.isJustifiedCancellationRequest &&
                     !item.decisionMade &&
                     _processingNotificationId != item.id
-                ? () => _handleCancellationDecision(item)
+                ? () => _handleCancellationDecision(item, config)
                 : null,
             primaryActionLabel:
                 item.isJustifiedCancellationRequest && !item.decisionMade
@@ -275,7 +296,7 @@ class _NotificacoesProfessorContentSectionState
     );
   }
 
-  Widget _buildDesktopContent(TextStyle titleStyle, TextStyle subtitleStyle) {
+  Widget _buildDesktopContent(TextStyle titleStyle, TextStyle subtitleStyle, TeachingRoleConfig config) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -293,7 +314,7 @@ class _NotificacoesProfessorContentSectionState
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    'Você tem $_unreadCount notificações não lidas',
+                    'Tem $_unreadCount notificações não lidas',
                     style: subtitleStyle,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -304,20 +325,21 @@ class _NotificacoesProfessorContentSectionState
             NotificacoesProfessorMarkAllButton(
               enabled: _unreadCount > 0,
               onTap: _markAllAsRead,
+              config: config,
             ),
           ],
         ),
         const SizedBox(height: 28.737),
-        _buildUnreadSummaryCard(),
+        _buildUnreadSummaryCard(config),
         const SizedBox(height: 28.737),
-        _buildFilters(),
+        _buildFilters(config),
         const SizedBox(height: 28.737),
-        _buildNotificationsList(),
+        _buildNotificationsList(config),
       ],
     );
   }
 
-  Widget _buildMobileContent() {
+  Widget _buildMobileContent(TeachingRoleConfig config) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -325,13 +347,14 @@ class _NotificacoesProfessorContentSectionState
           unreadCount: _unreadCount,
           canMarkAll: _unreadCount > 0,
           onMarkAllTap: _markAllAsRead,
+          config: config,
         ),
         const SizedBox(height: 20),
-        _buildUnreadSummaryCard(),
+        _buildUnreadSummaryCard(config),
         const SizedBox(height: 18),
-        _buildFilters(),
+        _buildFilters(config),
         const SizedBox(height: 18),
-        _buildNotificationsList(),
+        _buildNotificationsList(config),
       ],
     );
   }
@@ -369,7 +392,7 @@ class _NotificacoesProfessorContentSectionState
     );
   }
 
-  Widget _buildAsyncContent({TextStyle? titleStyle, TextStyle? subtitleStyle}) {
+  Widget _buildAsyncContent({TextStyle? titleStyle, TextStyle? subtitleStyle, required TeachingRoleConfig config}) {
     return FutureBuilder<void>(
       future: _loadFuture,
       builder: (context, snapshot) {
@@ -388,16 +411,19 @@ class _NotificacoesProfessorContentSectionState
         }
 
         if (widget.isMobile) {
-          return _buildMobileContent();
+          return _buildMobileContent(config);
         }
 
-        return _buildDesktopContent(titleStyle!, subtitleStyle!);
+        return _buildDesktopContent(titleStyle!, subtitleStyle!, config);
       },
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final userProvider = Provider.of<UserProvider>(context);
+    final config = TeachingRoleConfig.fromRole(userProvider.role);
+
     final titleStyle = TextStyle(
       color: NotificacoesProfessorColors.title,
       fontSize: NotificacoesProfessorLayout.titleFontSize,
@@ -421,7 +447,7 @@ class _NotificacoesProfessorContentSectionState
         width: double.infinity,
         color: const Color(0xFFFFFBF7),
         padding: const EdgeInsets.fromLTRB(20, 24, 20, 32),
-        child: _buildAsyncContent(),
+        child: _buildAsyncContent(config: config),
       );
     }
 
@@ -438,7 +464,10 @@ class _NotificacoesProfessorContentSectionState
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              ProfessorMenuNav(notificationCount: _unreadCount),
+              ProfessorMenuNav(
+                selectedIndex: 11,
+                notificationCount: _unreadCount,
+              ),
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(
@@ -450,6 +479,7 @@ class _NotificacoesProfessorContentSectionState
                   child: _buildAsyncContent(
                     titleStyle: titleStyle,
                     subtitleStyle: subtitleStyle,
+                    config: config,
                   ),
                 ),
               ),

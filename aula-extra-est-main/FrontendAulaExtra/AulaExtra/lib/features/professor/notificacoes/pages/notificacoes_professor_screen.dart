@@ -13,21 +13,10 @@ class NotificacoesProfessorScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final role = context.watch<UserProvider>().role;
-    final isTeacher = role == Role.teacher;
     final isMobile =
         MediaQuery.of(context).size.width <= AppHeader.mobileBreakpoint;
 
-    if (!isTeacher) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!context.mounted) return;
-        Navigator.of(
-          context,
-        ).pushNamedAndRemoveUntil(Routes.home, (route) => false);
-      });
-    }
-
-    if (isTeacher && isMobile) {
+    if (isMobile) {
       return const NotificacoesProfessorMobilePage();
     }
 

@@ -13,7 +13,7 @@ class ProfessorAulaCardData {
     required this.subject,
     required this.weekdayAndDate,
     required this.timeRange,
-    this.primaryActionLabel = 'Entrar na Aula',
+    this.primaryActionLabel = 'Entrar',
     this.primaryActionEnabled = true,
     this.showPrimaryAction = true,
   });

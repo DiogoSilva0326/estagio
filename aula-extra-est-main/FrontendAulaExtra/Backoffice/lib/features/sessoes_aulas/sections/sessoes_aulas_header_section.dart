@@ -5,7 +5,18 @@ import '../../alunos/widgets/export_csv_button.dart';
 import '../widgets/sessoes_aulas_search_field.dart';
 
 class SessoesAulasHeaderSection extends StatelessWidget {
-  const SessoesAulasHeaderSection({super.key});
+  const SessoesAulasHeaderSection({
+    super.key,
+    this.searchController,
+    this.onSearchChanged,
+    this.onExportPressed,
+    this.exportEnabled = false,
+  });
+
+  final TextEditingController? searchController;
+  final ValueChanged<String>? onSearchChanged;
+  final Future<void> Function()? onExportPressed;
+  final bool exportEnabled;
 
   @override
   Widget build(BuildContext context) {
@@ -26,14 +37,20 @@ class SessoesAulasHeaderSection extends StatelessWidget {
           );
         }
 
-        return const Row(
+        return Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Expanded(child: _HeaderText()),
-            SizedBox(width: 24),
-            SessoesAulasSearchField(),
-            SizedBox(width: 18.637),
-            ExportCsvButton(),
+            const Expanded(child: _HeaderText()),
+            const SizedBox(width: 24),
+            SessoesAulasSearchField(
+              controller: searchController,
+              onChanged: onSearchChanged,
+            ),
+            const SizedBox(width: 18.637),
+            ExportCsvButton(
+              onConfirm: onExportPressed,
+              enabled: exportEnabled,
+            ),
           ],
         );
       },

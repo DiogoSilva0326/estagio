@@ -96,7 +96,7 @@ class _AvaliacoesContentSectionState extends State<AvaliacoesContentSection> {
     SubmittedProfessorEvaluationDto dto,
   ) {
     final tutorName = dto.professorName.trim().isEmpty
-        ? 'Professor'
+        ? 'Profissional'
         : dto.professorName.trim();
     final rating = (dto.rating ?? 0).toDouble();
     final comment = (dto.comments == null || dto.comments!.trim().isEmpty)
@@ -106,7 +106,7 @@ class _AvaliacoesContentSectionState extends State<AvaliacoesContentSection> {
 
     return AvaliacaoReview(
       tutorName: tutorName,
-      subject: 'Avaliação de Professor',
+      subject: 'Avaliação de Profisional',
       rating: rating,
       comment: comment,
       dateLabel: dateLabel,
@@ -195,14 +195,14 @@ class _AvaliacoesContentSectionState extends State<AvaliacoesContentSection> {
           children: [
             tab(
               width: 180,
-              text: 'Aulas',
+              text: 'Sessões',
               selected: _mode == _AvaliacoesMode.aulas,
               onTap: () => setState(() => _mode = _AvaliacoesMode.aulas),
             ),
             const SizedBox(width: 22.404),
             tab(
               width: 220,
-              text: 'Professor',
+              text: 'Profissional',
               selected: _mode == _AvaliacoesMode.professores,
               onTap: () => setState(() => _mode = _AvaliacoesMode.professores),
             ),
@@ -281,17 +281,17 @@ class _AvaliacoesContentSectionState extends State<AvaliacoesContentSection> {
   Widget _buildMobileCallToAction() {
     if (_mode == _AvaliacoesMode.aulas) {
       return AvaliacoesMobileCtaCard(
-        title: 'Tem uma aula recente para avaliar?',
-        subtitle: 'Ajude outros estudantes compartilhando a sua experiência.',
-        buttonLabel: 'Avaliar Última Aula',
+        title: 'Tem uma sessão recente para avaliar?',
+        subtitle: 'Ajude outros membros compartilhando a sua experiência.',
+        buttonLabel: 'Avaliar Última Sessão',
         onTap: _showLessonEvaluationDialog,
       );
     }
 
     return AvaliacoesMobileCtaCard(
-      title: 'Quer avaliar um professor?',
-      subtitle: 'Só é possível avaliar uma vez por professor.',
-      buttonLabel: 'Avaliar Professor',
+      title: 'Quer avaliar um profissional?',
+      subtitle: 'Só é possível avaliar uma vez por profissional.',
+      buttonLabel: 'Avaliar Profissional',
       onTap: _showProfessorEvaluationDialog,
     );
   }
@@ -522,7 +522,7 @@ class _AvaliacoesContentSectionState extends State<AvaliacoesContentSection> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const AlunoMenuNav(selectedIndex: 6),
+          const AlunoMenuNav(),
           const SizedBox(width: 40),
           Expanded(
             child: Column(
@@ -531,7 +531,7 @@ class _AvaliacoesContentSectionState extends State<AvaliacoesContentSection> {
                 const Text('Avaliações', style: AvaliacoesConstants.titleStyle),
                 const SizedBox(height: AvaliacoesConstants.gapSmall),
                 const Text(
-                  'Avalie seus explicadores e ajude outros estudantes',
+                  'Avalie os seus apoios e ajude outros estudantes',
                   style: AvaliacoesConstants.subtitleStyle,
                 ),
                 const SizedBox(height: AvaliacoesConstants.gapLarge),

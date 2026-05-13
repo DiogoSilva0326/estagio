@@ -1,8 +1,11 @@
 class AppRoutes {
   const AppRoutes._();
 
+  static const String login = '/login';
   static const String dashboard = '/';
   static const String explicadores = '/utilizadores/explicadores';
+  static const String tutores = '/utilizadores/tutores';
+  static const String psicologos = '/utilizadores/psicologos';
   static const String alunos = '/utilizadores/alunos';
   static const String areasDisciplinas = '/catalogo/areas-disciplinas';
   static const String sessoesAulas = '/operacoes/sessoes-aulas';

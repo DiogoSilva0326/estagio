@@ -70,7 +70,7 @@ class ExplicadoresMobileContentHeaderSection extends StatelessWidget {
             children: [
               const Expanded(
                 child: Text(
-                  'Explore todos os nossos Explicadores',
+                  'Explore todos os nossos Apoios',
                   style: TextStyle(
                     fontSize: 30,
                     height: 1.2,

@@ -47,7 +47,7 @@ class MainContentHeaderSection extends StatelessWidget {
           ),
           const SizedBox(height: 20.426),
           const Text(
-            'Explore todos os nossos Explicadores',
+            'Explore todos os nossos Apoios',
             style: TextStyle(
               fontSize: 30.638,
               height: 40.851 / 30.638,

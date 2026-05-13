@@ -5,7 +5,14 @@ import '../widgets/explicadores_add_button.dart';
 import '../widgets/explicadores_search_field.dart';
 
 class ExplicadoresHeaderSection extends StatelessWidget {
-  const ExplicadoresHeaderSection({super.key});
+  const ExplicadoresHeaderSection({
+    super.key,
+    this.searchController,
+    this.onSearchChanged,
+  });
+
+  final TextEditingController? searchController;
+  final ValueChanged<String>? onSearchChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -16,12 +23,15 @@ class ExplicadoresHeaderSection extends StatelessWidget {
         if (stacked) {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            children: const [
-              _HeaderText(),
-              SizedBox(height: 24),
-              ExplicadoresSearchField(),
-              SizedBox(height: 16),
-              Align(
+            children: [
+              const _HeaderText(),
+              const SizedBox(height: 24),
+              ExplicadoresSearchField(
+                controller: searchController,
+                onChanged: onSearchChanged,
+              ),
+              const SizedBox(height: 16),
+              const Align(
                 alignment: Alignment.centerLeft,
                 child: ExplicadoresAddButton(),
               ),
@@ -29,14 +39,17 @@ class ExplicadoresHeaderSection extends StatelessWidget {
           );
         }
 
-        return const Row(
+        return Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Expanded(child: _HeaderText()),
-            SizedBox(width: 24),
-            ExplicadoresSearchField(),
-            SizedBox(width: 18.637),
-            ExplicadoresAddButton(),
+            const Expanded(child: _HeaderText()),
+            const SizedBox(width: 24),
+            ExplicadoresSearchField(
+              controller: searchController,
+              onChanged: onSearchChanged,
+            ),
+            const SizedBox(width: 18.637),
+            const ExplicadoresAddButton(),
           ],
         );
       },

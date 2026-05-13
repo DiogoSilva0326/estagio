@@ -22,6 +22,9 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+
+import 'package:aula_extra/core/config/teaching_roles_config.dart';
+
 class ArquivosProfessorContentSection extends StatefulWidget {
   const ArquivosProfessorContentSection({super.key, this.isMobile = false});
 
@@ -90,7 +93,7 @@ class _ArquivosProfessorContentSectionState
     final me = await _usersService.getMe();
     final username = me.username?.trim();
     if (username == null || username.isEmpty) {
-      throw Exception('Não foi possível identificar o professor.');
+      throw Exception('Não foi possível identificar o profissional.');
     }
     return username;
   }
@@ -285,6 +288,146 @@ class _ArquivosProfessorContentSectionState
     }
   }
 
+  Widget _buildMobileContent() {
+    final recentFiles = _filteredFiles.take(3).toList(growable: false);
+    
+    final userProvider = Provider.of<UserProvider>(context);
+    final config = TeachingRoleConfig.fromRole(userProvider.role);
+    final isOrange = config.roleName == 'Explicador';
+
+    return Container(
+      width: double.infinity,
+      color: const Color(0xFFF9FAFB),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ArquivosMobileIntro(
+            title: 'Arquivos',
+            subtitle: 'Gerencie documentos e materiais dos seus ${config.studentsLabel.toLowerCase().replaceAll('meus ', '')}',
+          ),
+          const SizedBox(height: 16),
+          Theme(
+            data: Theme.of(context).copyWith(
+              colorScheme: Theme.of(context).colorScheme.copyWith(
+                primary: isOrange ? null : config.primaryColor,
+              ),
+            ),
+            child: ArquivosProfessorMobileSearchUpload(
+              onChanged: (value) => setState(() => _query = value),
+              onUpload: _handleUpload,
+              isUploading: _isUploading,
+            ),
+          ),
+          if (_errorMessage != null) ...[
+            const SizedBox(height: 12),
+            Text(
+              _errorMessage!,
+              style: const TextStyle(color: Colors.redAccent),
+            ),
+          ],
+          const SizedBox(height: 24),
+          const Text(
+            'Pastas',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w500,
+              color: Color(0xFF101828),
+              height: 28 / 18,
+            ),
+          ),
+          const SizedBox(height: 16),
+          if (_mobileFolders.isEmpty)
+            _buildEmptyMobileCard('Ainda não existem pastas disponíveis.')
+          else
+            Column(
+              children: [
+                for (var index = 0; index < _mobileFolders.length; index++) ...[
+                  ArquivosProfessorMobileFolderCard(
+                    color: _mobileFolders[index].color,
+                    title: _mobileFolders[index].name,
+                    subtitle: _mobileFolders[index].countLabel,
+                    onTap: () =>
+                        setState(() => _query = _mobileFolders[index].name),
+                  ),
+                  if (index != _mobileFolders.length - 1)
+                    const SizedBox(height: 12),
+                ],
+              ],
+            ),
+          const SizedBox(height: 24),
+          const Text(
+            'Arquivos Recentes',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w500,
+              color: Color(0xFF101828),
+              height: 28 / 18,
+            ),
+          ),
+          const SizedBox(height: 16),
+          if (_isLoading)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 48),
+              child: Center(child: CircularProgressIndicator()),
+            )
+          else if (recentFiles.isEmpty)
+            _buildEmptyMobileCard('Nenhum ficheiro encontrado.')
+          else
+            Column(
+              children: [
+                for (var index = 0; index < recentFiles.length; index++) ...[
+                  ArquivosProfessorMobileFileCard(
+                    fileName: recentFiles[index].fileName,
+                    fileTypeLabel: _mobileFileTypeLabel(recentFiles[index]),
+                    ownerLabel: recentFiles[index].uploadedByDisplayName,
+                    dateLabel: _mobileDateLabel(recentFiles[index].createdAt),
+                    sizeLabel: _formatFileSize(
+                      recentFiles[index].fileSizeBytes,
+                    ),
+                    onDeleteTap: () => _deleteFile(recentFiles[index]),
+                    onShareTap: () => _shareFile(recentFiles[index]),
+                    onDownloadTap: () => _openFile(recentFiles[index]),
+                  ),
+                  if (index != recentFiles.length - 1)
+                    const SizedBox(height: 12),
+                ],
+              ],
+            ),
+          const SizedBox(height: 16),
+          ArquivosProfessorMobileStatsCard(
+            firstLabel: 'Arquivos totais:',
+            firstValue: _files.length.toString(),
+            secondLabel: 'Ficheiros PDF:',
+            secondValue: _pdfFileCount.toString(),
+            thirdLabel: 'Armazenamento:',
+            thirdValue: _formatStorageTotal(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyMobileCard(String message) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: ArquivosProfessorColors.cardBorder),
+      ),
+      child: Text(
+        message,
+        style: const TextStyle(
+          fontSize: 14,
+          height: 20 / 14,
+          color: ArquivosProfessorColors.textSecondary,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isMobile =
@@ -474,9 +617,9 @@ class _ArquivosProfessorContentSectionState
                                                     ArquivoRow(
                                                       leadingBackground:
                                                           _fileBackground(
-                                                            _filteredFiles[i]
-                                                                .contentType,
-                                                          ),
+                                                        _filteredFiles[i]
+                                                            .contentType,
+                                                      ),
                                                       leadingIcon: _fileIcon(
                                                         _filteredFiles[i]
                                                             .contentType,
@@ -488,21 +631,21 @@ class _ArquivosProfessorContentSectionState
                                                           .uploadedByDisplayName,
                                                       sizeLabel:
                                                           _formatFileSize(
-                                                            _filteredFiles[i]
-                                                                .fileSizeBytes,
-                                                          ),
+                                                        _filteredFiles[i]
+                                                            .fileSizeBytes,
+                                                      ),
                                                       dateLabel: _formatDate(
                                                         _filteredFiles[i]
                                                             .createdAt,
                                                       ),
                                                       onDownloadTap: () =>
                                                           _openFile(
-                                                            _filteredFiles[i],
-                                                          ),
+                                                        _filteredFiles[i],
+                                                      ),
                                                       onDeleteTap: () =>
                                                           _deleteFile(
-                                                            _filteredFiles[i],
-                                                          ),
+                                                        _filteredFiles[i],
+                                                      ),
                                                       showDivider:
                                                           i !=
                                                           _filteredFiles
@@ -540,135 +683,6 @@ class _ArquivosProfessorContentSectionState
               ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildMobileContent() {
-    final recentFiles = _filteredFiles.take(3).toList(growable: false);
-
-    return Container(
-      width: double.infinity,
-      color: const Color(0xFFF9FAFB),
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const ArquivosMobileIntro(
-            title: 'Arquivos',
-            subtitle: 'Gerencie seus documentos e materiais de estudo',
-          ),
-          const SizedBox(height: 16),
-          ArquivosProfessorMobileSearchUpload(
-            onChanged: (value) => setState(() => _query = value),
-            onUpload: _handleUpload,
-            isUploading: _isUploading,
-          ),
-          if (_errorMessage != null) ...[
-            const SizedBox(height: 12),
-            Text(
-              _errorMessage!,
-              style: const TextStyle(color: Colors.redAccent),
-            ),
-          ],
-          const SizedBox(height: 24),
-          const Text(
-            'Pastas',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w500,
-              color: Color(0xFF101828),
-              height: 28 / 18,
-            ),
-          ),
-          const SizedBox(height: 16),
-          if (_mobileFolders.isEmpty)
-            _buildEmptyMobileCard('Ainda não existem pastas disponíveis.')
-          else
-            Column(
-              children: [
-                for (var index = 0; index < _mobileFolders.length; index++) ...[
-                  ArquivosProfessorMobileFolderCard(
-                    color: _mobileFolders[index].color,
-                    title: _mobileFolders[index].name,
-                    subtitle: _mobileFolders[index].countLabel,
-                    onTap: () =>
-                        setState(() => _query = _mobileFolders[index].name),
-                  ),
-                  if (index != _mobileFolders.length - 1)
-                    const SizedBox(height: 12),
-                ],
-              ],
-            ),
-          const SizedBox(height: 24),
-          const Text(
-            'Arquivos Recentes',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w500,
-              color: Color(0xFF101828),
-              height: 28 / 18,
-            ),
-          ),
-          const SizedBox(height: 16),
-          if (_isLoading)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 48),
-              child: Center(child: CircularProgressIndicator()),
-            )
-          else if (recentFiles.isEmpty)
-            _buildEmptyMobileCard('Nenhum ficheiro encontrado.')
-          else
-            Column(
-              children: [
-                for (var index = 0; index < recentFiles.length; index++) ...[
-                  ArquivosProfessorMobileFileCard(
-                    fileName: recentFiles[index].fileName,
-                    fileTypeLabel: _mobileFileTypeLabel(recentFiles[index]),
-                    ownerLabel: recentFiles[index].uploadedByDisplayName,
-                    dateLabel: _mobileDateLabel(recentFiles[index].createdAt),
-                    sizeLabel: _formatFileSize(
-                      recentFiles[index].fileSizeBytes,
-                    ),
-                    onDeleteTap: () => _deleteFile(recentFiles[index]),
-                    onShareTap: () => _shareFile(recentFiles[index]),
-                    onDownloadTap: () => _openFile(recentFiles[index]),
-                  ),
-                  if (index != recentFiles.length - 1)
-                    const SizedBox(height: 12),
-                ],
-              ],
-            ),
-          const SizedBox(height: 16),
-          ArquivosProfessorMobileStatsCard(
-            firstLabel: 'Arquivos totais:',
-            firstValue: _files.length.toString(),
-            secondLabel: 'Ficheiros PDF:',
-            secondValue: _pdfFileCount.toString(),
-            thirdLabel: 'Armazenamento:',
-            thirdValue: _formatStorageTotal(),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildEmptyMobileCard(String message) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: ArquivosProfessorColors.cardBorder),
-      ),
-      child: Text(
-        message,
-        style: const TextStyle(
-          fontSize: 14,
-          height: 20 / 14,
-          color: ArquivosProfessorColors.textSecondary,
         ),
       ),
     );

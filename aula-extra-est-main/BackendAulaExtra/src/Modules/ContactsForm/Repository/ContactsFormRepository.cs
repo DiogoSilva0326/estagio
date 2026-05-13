@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using ConfidantPostgreSQL.Modules.ContactsForm.Models;
 using Npgsql;
+using NpgsqlTypes;
 
 namespace ConfidantPostgreSQL.Modules.ContactsForm.Repository
 {
@@ -62,9 +63,9 @@ namespace ConfidantPostgreSQL.Modules.ContactsForm.Repository
             );";
 
             cmd.Parameters.AddWithValue("name", category.Name);
-            cmd.Parameters.AddWithValue("description", (object?)category.Description ?? DBNull.Value);
-            cmd.Parameters.AddWithValue("created_at", category.CreatedAt == default ? DBNull.Value : category.CreatedAt);
-            cmd.Parameters.AddWithValue("updated_at", category.UpdatedAt == default ? DBNull.Value : category.UpdatedAt);
+            AddNullableTextParameter(cmd, "description", category.Description);
+            AddNullableTimestampTzParameter(cmd, "created_at", category.CreatedAt == default ? null : category.CreatedAt);
+            AddNullableTimestampTzParameter(cmd, "updated_at", category.UpdatedAt == default ? null : category.UpdatedAt);
 
             var res = await cmd.ExecuteScalarAsync();
             return res == null || res == DBNull.Value ? Guid.Empty : (Guid)res;
@@ -85,8 +86,8 @@ namespace ConfidantPostgreSQL.Modules.ContactsForm.Repository
 
             cmd.Parameters.AddWithValue("id_contact_form_category", category.IdContactFormCategory);
             cmd.Parameters.AddWithValue("name", category.Name);
-            cmd.Parameters.AddWithValue("description", (object?)category.Description ?? DBNull.Value);
-            cmd.Parameters.AddWithValue("updated_at", category.UpdatedAt == default ? DBNull.Value : category.UpdatedAt);
+            AddNullableTextParameter(cmd, "description", category.Description);
+            AddNullableTimestampTzParameter(cmd, "updated_at", category.UpdatedAt == default ? null : category.UpdatedAt);
 
             var res = await cmd.ExecuteScalarAsync();
             return res == null || res == DBNull.Value ? 0 : Convert.ToInt32(res);
@@ -113,7 +114,7 @@ namespace ConfidantPostgreSQL.Modules.ContactsForm.Repository
 
             await using var cmd = conn.CreateCommand();
             cmd.CommandText = "SELECT * FROM public.usp_contact_form_submissions_select_all01(@status);";
-            cmd.Parameters.AddWithValue("status", (object?)status ?? DBNull.Value);
+            AddNullableTextParameter(cmd, "status", status);
 
             await using var reader = await cmd.ExecuteReaderAsync();
             while (await reader.ReadAsync())
@@ -158,16 +159,16 @@ namespace ConfidantPostgreSQL.Modules.ContactsForm.Repository
                 @updated_at
             );";
 
-            cmd.Parameters.AddWithValue("id_contact_form_category", (object?)submission.IdContactFormCategory ?? DBNull.Value);
+            AddNullableUuidParameter(cmd, "id_contact_form_category", submission.IdContactFormCategory);
             cmd.Parameters.AddWithValue("name", submission.Name);
             cmd.Parameters.AddWithValue("email", submission.Email);
             cmd.Parameters.AddWithValue("subject", submission.Subject);
             cmd.Parameters.AddWithValue("message", submission.Message);
             cmd.Parameters.AddWithValue("status", submission.Status);
-            cmd.Parameters.AddWithValue("user_id", (object?)submission.UserId ?? DBNull.Value);
-            cmd.Parameters.AddWithValue("user_id_response", (object?)submission.UserIdResponse ?? DBNull.Value);
-            cmd.Parameters.AddWithValue("created_at", submission.CreatedAt == default ? DBNull.Value : submission.CreatedAt);
-            cmd.Parameters.AddWithValue("updated_at", submission.UpdatedAt == default ? DBNull.Value : submission.UpdatedAt);
+            AddNullableUuidParameter(cmd, "user_id", submission.UserId);
+            AddNullableUuidParameter(cmd, "user_id_response", submission.UserIdResponse);
+            AddNullableTimestampTzParameter(cmd, "created_at", submission.CreatedAt == default ? null : submission.CreatedAt);
+            AddNullableTimestampTzParameter(cmd, "updated_at", submission.UpdatedAt == default ? null : submission.UpdatedAt);
 
             var res = await cmd.ExecuteScalarAsync();
             return res == null || res == DBNull.Value ? Guid.Empty : (Guid)res;
@@ -193,15 +194,15 @@ namespace ConfidantPostgreSQL.Modules.ContactsForm.Repository
             );";
 
             cmd.Parameters.AddWithValue("id_contact_form_submission", submission.IdContactFormSubmission);
-            cmd.Parameters.AddWithValue("id_contact_form_category", (object?)submission.IdContactFormCategory ?? DBNull.Value);
+            AddNullableUuidParameter(cmd, "id_contact_form_category", submission.IdContactFormCategory);
             cmd.Parameters.AddWithValue("name", submission.Name);
             cmd.Parameters.AddWithValue("email", submission.Email);
             cmd.Parameters.AddWithValue("subject", submission.Subject);
             cmd.Parameters.AddWithValue("message", submission.Message);
             cmd.Parameters.AddWithValue("status", submission.Status);
-            cmd.Parameters.AddWithValue("user_id", (object?)submission.UserId ?? DBNull.Value);
-            cmd.Parameters.AddWithValue("user_id_response", (object?)submission.UserIdResponse ?? DBNull.Value);
-            cmd.Parameters.AddWithValue("updated_at", submission.UpdatedAt == default ? DBNull.Value : submission.UpdatedAt);
+            AddNullableUuidParameter(cmd, "user_id", submission.UserId);
+            AddNullableUuidParameter(cmd, "user_id_response", submission.UserIdResponse);
+            AddNullableTimestampTzParameter(cmd, "updated_at", submission.UpdatedAt == default ? null : submission.UpdatedAt);
 
             var res = await cmd.ExecuteScalarAsync();
             return res == null || res == DBNull.Value ? 0 : Convert.ToInt32(res);
@@ -224,6 +225,21 @@ namespace ConfidantPostgreSQL.Modules.ContactsForm.Repository
         {
             var idx = reader.GetOrdinal(column);
             return reader.IsDBNull(idx) ? null : reader.GetString(idx);
+        }
+
+        private static void AddNullableTextParameter(NpgsqlCommand cmd, string name, string? value)
+        {
+            cmd.Parameters.AddWithValue(name, NpgsqlDbType.Text, (object?)value ?? DBNull.Value);
+        }
+
+        private static void AddNullableUuidParameter(NpgsqlCommand cmd, string name, Guid? value)
+        {
+            cmd.Parameters.AddWithValue(name, NpgsqlDbType.Uuid, (object?)value ?? DBNull.Value);
+        }
+
+        private static void AddNullableTimestampTzParameter(NpgsqlCommand cmd, string name, DateTimeOffset? value)
+        {
+            cmd.Parameters.AddWithValue(name, NpgsqlDbType.TimestampTz, (object?)value ?? DBNull.Value);
         }
 
         private static Guid? GetNullableGuid(NpgsqlDataReader reader, string column)

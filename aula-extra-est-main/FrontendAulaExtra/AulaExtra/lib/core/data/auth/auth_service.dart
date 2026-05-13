@@ -3,6 +3,7 @@ import 'package:aula_extra/core/data/auth/dtos/auth_user_dto.dart';
 import 'package:aula_extra/core/data/session/jwt_utils.dart';
 import 'package:aula_extra/core/data/session/token_storage.dart';
 import 'package:aula_extra/core/providers/user_provider.dart';
+import 'package:aula_extra/core/data/session/preferences_service.dart';
 
 class AuthService {
   AuthService({
@@ -37,11 +38,20 @@ class AuthService {
     await _tokenStorage.saveToken(res.token);
 
     final roles = res.roles.isNotEmpty ? res.roles : JwtUtils.extractRoles(res.token);
+    
+    // ADICIONA ESTAS LINHAS:
+    final savedRoleString = await PreferencesService.loadPreferredRole();
+    Role? preferredRole;
+    if (savedRoleString != null) {
+      final clean = savedRoleString.toLowerCase().replaceAll('role.', '');
+      preferredRole = Role.values.firstWhere((r) => r.name == clean, orElse: () => Role.none);
+    }
 
     return AuthSession(
       token: res.token,
       backendRoles: roles,
-      appRole: mapBackendRolesToAppRole(roles),
+      // PASSA O preferredRole AQUI TAMBÉM
+      appRole: mapBackendRolesToAppRole(roles, preferredRole: preferredRole),
       email: res.user?.email ?? email,
       username: res.user?.username,
       fullName: _deriveFullName(res.user),
@@ -94,29 +104,53 @@ class AuthService {
 
     final roles = res.roles.isNotEmpty ? res.roles : JwtUtils.extractRoles(res.token);
 
+    // 1. LEITURA ROBUSTA DA PREFERÊNCIA
+    final savedRoleString = await PreferencesService.loadPreferredRole();
+    Role? preferredRole;
+    
+    if (savedRoleString != null) {
+      // Limpa a string de "Role.tutor" para "tutor"
+      final clean = savedRoleString.toLowerCase().replaceAll('role.', '');
+      // Procura no Enum o valor correspondente
+      preferredRole = Role.values.firstWhere(
+        (r) => r.name.toLowerCase() == clean, 
+        orElse: () => Role.none
+      );
+    }
+
     return AuthSession(
       token: res.token,
       backendRoles: roles,
-      appRole: mapBackendRolesToAppRole(roles),
+      appRole: mapBackendRolesToAppRole(roles, preferredRole: preferredRole),
       email: res.user?.email,
       username: res.user?.username,
       fullName: _deriveFullName(res.user),
     );
   }
 
-  static Role mapBackendRolesToAppRole(List<String> roles) {
-    final normalized = roles.map((r) => r.trim().toLowerCase()).where((r) => r.isNotEmpty).toSet();
+  static Role mapBackendRolesToAppRole(List<String> roles, {Role? preferredRole}) {
+    final normalized = roles.map((r) => r.trim().toLowerCase()).toSet();
 
-    if (normalized.contains('professor') || normalized.contains('teacher') || normalized.contains('admin')) {
-      return Role.teacher;
+    // Verifica se o user é Professor/Admin no banco de dados
+    final isActualTeacher = normalized.contains('professor') || 
+                            normalized.contains('teacher') || 
+                            normalized.contains('admin');
+
+    // REGRA DE IMPERSONATION: Se for professor, ele pode ser o que quiser (para testes)
+    if (isActualTeacher) {
+      if (preferredRole != null && preferredRole != Role.none) {
+        return preferredRole;
+      }
+      return Role.teacher; // Default se não houver preferência
     }
 
-    if (normalized.contains('aluno') || normalized.contains('student') || normalized.contains('standard')) {
-      return Role.student;
-    }
-
-    return Role.none;
+    // Se não for professor, segue a regra normal de permissões reais
+    if (preferredRole == Role.student) return Role.student;
+    
+    // Fallback para utilizadores normais
+    return Role.student;
   }
+
 
   static void applySessionToProvider(UserProvider user, AuthSession session) {
     user.setAccount(

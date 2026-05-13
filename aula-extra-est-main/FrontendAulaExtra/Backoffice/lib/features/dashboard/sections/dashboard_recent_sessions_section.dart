@@ -1,16 +1,18 @@
 import 'package:flutter/material.dart';
 
-import '../constants/dashboard_mock_data.dart';
+import '../models/dashboard_session_item.dart';
 import '../../../routes/app_routes.dart';
 import '../widgets/dashboard_sessions_table_card.dart';
 
 class DashboardRecentSessionsSection extends StatelessWidget {
-  const DashboardRecentSessionsSection({super.key});
+  const DashboardRecentSessionsSection({required this.sessions, super.key});
+
+  final List<DashboardSessionItem> sessions;
 
   @override
   Widget build(BuildContext context) {
     return DashboardSessionsTableCard(
-      sessions: DashboardMockData.recentSessions,
+      sessions: sessions,
       title: 'Sessões Recentes',
       subtitle: 'Acompanha as videochamadas em tempo real',
       action: _SeeAllButton(

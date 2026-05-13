@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 
 import '../../../design/widgets/backoffice_scaffold.dart';
 import '../../../routes/app_routes.dart';
-import '../constants/areas_disciplinas_mock_data.dart';
+import '../../explicadores/widgets/professional_directory_notice_card.dart';
 import '../models/area_disciplinas_item.dart';
 import '../sections/areas_disciplinas_overview_section.dart';
+import '../services/backoffice_areas_disciplinas_service.dart';
 import '../widgets/area_disciplinas_dialog.dart';
 
 class AreasDisciplinasPage extends StatefulWidget {
@@ -17,7 +18,8 @@ class AreasDisciplinasPage extends StatefulWidget {
 }
 
 class _AreasDisciplinasPageState extends State<AreasDisciplinasPage> {
-  late final List<AreaDisciplinasItem> _items;
+  late Future<BackofficeAreasDisciplinasViewData> _future;
+  late final BackofficeAreasDisciplinasService _service;
 
   static const List<_AreaVisualStyle> _visualStyles = [
     _AreaVisualStyle(
@@ -45,7 +47,16 @@ class _AreasDisciplinasPageState extends State<AreasDisciplinasPage> {
   @override
   void initState() {
     super.initState();
-    _items = List<AreaDisciplinasItem>.from(areasDisciplinasMockData);
+    _service = BackofficeAreasDisciplinasService();
+    _future = _load();
+  }
+
+  Future<BackofficeAreasDisciplinasViewData> _load() => _service.fetch();
+
+  void _reload() {
+    setState(() {
+      _future = _load();
+    });
   }
 
   @override
@@ -55,7 +66,8 @@ class _AreasDisciplinasPageState extends State<AreasDisciplinasPage> {
       title: 'Áreas e Disciplinas',
       showTopBar: false,
       body: _AreasDisciplinasBody(
-        items: _items,
+        future: _future,
+        onRetry: _reload,
         onAddArea: _openAddAreaDialog,
         onEditArea: _openEditAreaDialog,
         onAddDisciplina: _openAddDisciplinaDialog,
@@ -64,7 +76,7 @@ class _AreasDisciplinasPageState extends State<AreasDisciplinasPage> {
   }
 
   Future<void> _openAddAreaDialog() async {
-    final style = _visualStyles[_items.length % _visualStyles.length];
+    final style = _visualStyles[DateTime.now().millisecond % _visualStyles.length];
     final result = await showDialog<AreaDisciplinasDialogResult>(
       context: context,
       builder: (dialogContext) => AreaDisciplinasDialog(
@@ -79,28 +91,24 @@ class _AreasDisciplinasPageState extends State<AreasDisciplinasPage> {
       return;
     }
 
-    setState(() {
-      _items.add(
-        AreaDisciplinasItem(
-          nome: result.areaName,
-          explicadores: 0,
-          disciplinas: result.disciplinas,
-          icon: style.icon,
-          iconBackgroundColor: style.iconBackgroundColor,
-          iconColor: style.iconColor,
-        ),
-      );
-    });
+    await _runMutation(
+      () => _service.createArea(
+        areaName: result.areaName,
+        disciplinaNames: result.disciplinas,
+        targetRole: result.targetRole,
+      ),
+      successMessage: 'Área criada com sucesso.',
+    );
   }
 
-  Future<void> _openEditAreaDialog(int index) async {
-    final item = _items[index];
+  Future<void> _openEditAreaDialog(AreaDisciplinasItem item) async {
     final result = await showDialog<AreaDisciplinasDialogResult>(
       context: context,
       builder: (dialogContext) => AreaDisciplinasDialog(
         mode: AreaDisciplinasDialogMode.area,
         initialAreaName: item.nome,
-        initialDisciplinas: item.disciplinas,
+        initialTargetRole: item.targetRole, 
+        initialDisciplinas: item.disciplinas.map((disciplina) => disciplina.nome).toList(growable: false),
         icon: item.icon,
         iconBackgroundColor: item.iconBackgroundColor,
         iconColor: item.iconColor,
@@ -111,22 +119,25 @@ class _AreasDisciplinasPageState extends State<AreasDisciplinasPage> {
       return;
     }
 
-    setState(() {
-      _items[index] = item.copyWith(
-        nome: result.areaName,
-        disciplinas: result.disciplinas,
-      );
-    });
+    await _runMutation(
+      () => _service.updateAreaAndDisciplinas(
+        area: item,
+        areaName: result.areaName,
+        disciplinaNames: result.disciplinas,
+        targetRole: result.targetRole, 
+      ),
+      successMessage: 'Área atualizada com sucesso.',
+    );
   }
 
-  Future<void> _openAddDisciplinaDialog(int index) async {
-    final item = _items[index];
+  Future<void> _openAddDisciplinaDialog(AreaDisciplinasItem item) async {
     final result = await showDialog<AreaDisciplinasDialogResult>(
       context: context,
       builder: (dialogContext) => AreaDisciplinasDialog(
         mode: AreaDisciplinasDialogMode.disciplina,
         initialAreaName: item.nome,
-        initialDisciplinas: item.disciplinas,
+        initialTargetRole: item.targetRole, 
+        initialDisciplinas: item.disciplinas.map((disciplina) => disciplina.nome).toList(growable: false),
         icon: item.icon,
         iconBackgroundColor: item.iconBackgroundColor,
         iconColor: item.iconColor,
@@ -137,24 +148,57 @@ class _AreasDisciplinasPageState extends State<AreasDisciplinasPage> {
       return;
     }
 
-    setState(() {
-      _items[index] = item.copyWith(disciplinas: result.disciplinas);
-    });
+    await _runMutation(
+      () => _service.updateAreaAndDisciplinas(
+        area: item,
+        areaName: item.nome,
+        disciplinaNames: result.disciplinas,
+        targetRole: item.targetRole,
+      ),
+      successMessage: 'Disciplinas atualizadas com sucesso.',
+    );
+  }
+
+  Future<void> _runMutation(
+    Future<void> Function() action, {
+    required String successMessage,
+  }) async {
+    try {
+      await action();
+      if (!mounted) {
+        return;
+      }
+
+      _reload();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(successMessage)),
+      );
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Não foi possível concluir a ação: $error')),
+      );
+    }
   }
 }
 
 class _AreasDisciplinasBody extends StatelessWidget {
   const _AreasDisciplinasBody({
-    required this.items,
+    required this.future,
+    required this.onRetry,
     required this.onAddArea,
     required this.onEditArea,
     required this.onAddDisciplina,
   });
 
-  final List<AreaDisciplinasItem> items;
+  final Future<BackofficeAreasDisciplinasViewData> future;
+  final VoidCallback onRetry;
   final VoidCallback onAddArea;
-  final ValueChanged<int> onEditArea;
-  final ValueChanged<int> onAddDisciplina;
+  final ValueChanged<AreaDisciplinasItem> onEditArea;
+  final ValueChanged<AreaDisciplinasItem> onAddDisciplina;
 
   @override
   Widget build(BuildContext context) {
@@ -165,24 +209,56 @@ class _AreasDisciplinasBody extends StatelessWidget {
 
         return Align(
           alignment: Alignment.topCenter,
-          child: SingleChildScrollView(
-            padding: EdgeInsets.fromLTRB(
-              horizontalPadding,
-              verticalPadding,
-              horizontalPadding,
-              verticalPadding,
-            ),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(
-                maxWidth: AreasDisciplinasPage._contentMaxWidth,
-              ),
-              child: AreasDisciplinasOverviewSection(
-                items: items,
-                onAddArea: onAddArea,
-                onEditArea: onEditArea,
-                onAddDisciplina: onAddDisciplina,
-              ),
-            ),
+          child: FutureBuilder<BackofficeAreasDisciplinasViewData>(
+            future: future,
+            builder: (context, snapshot) {
+              final data = snapshot.data ??
+                  const BackofficeAreasDisciplinasViewData(
+                    items: <AreaDisciplinasItem>[],
+                  );
+
+              if (snapshot.connectionState == ConnectionState.waiting &&
+                  !snapshot.hasData) {
+                return const Center(
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(vertical: 48),
+                    child: CircularProgressIndicator(),
+                  ),
+                );
+              }
+
+              return SingleChildScrollView(
+                padding: EdgeInsets.fromLTRB(
+                  horizontalPadding,
+                  verticalPadding,
+                  horizontalPadding,
+                  verticalPadding,
+                ),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(
+                    maxWidth: AreasDisciplinasPage._contentMaxWidth,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (data.warningMessage != null) ...[
+                        ProfessionalDirectoryNoticeCard(
+                          message: data.warningMessage!,
+                          onRetry: onRetry,
+                        ),
+                        const SizedBox(height: 24),
+                      ],
+                      AreasDisciplinasOverviewSection(
+                        items: data.items,
+                        onAddArea: onAddArea,
+                        onEditArea: onEditArea,
+                        onAddDisciplina: onAddDisciplina,
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
           ),
         );
       },

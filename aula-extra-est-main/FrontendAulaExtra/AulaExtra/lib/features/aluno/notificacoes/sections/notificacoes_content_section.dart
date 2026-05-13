@@ -127,7 +127,7 @@ class _NotificacoesContentSectionState
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
-              'Esta aula já foi decidida e deixou de estar pendente.',
+              'Esta sessão já foi decidida e deixou de estar pendente.',
             ),
           ),
         );
@@ -237,7 +237,7 @@ class _NotificacoesContentSectionState
           ),
           SizedBox(width: isMobile ? 10 : 16.865),
           NotificacoesFilterPill(
-            label: 'Aulas',
+            label: 'Sessões',
             selected: _filtro == NotificacoesFiltro.aulas,
             onTap: () => setState(() => _filtro = NotificacoesFiltro.aulas),
             isMobile: isMobile,
@@ -310,7 +310,7 @@ class _NotificacoesContentSectionState
                 ? () => _reviewLessonRequest(item)
                 : null,
             primaryActionLabel: item.isLessonReviewRequest
-                ? 'Rever aula'
+                ? 'Rever sessão'
                 : null,
             onMarkAsRead: item.unread ? () => _markAsRead(item.id) : null,
           ),
@@ -422,7 +422,7 @@ class _NotificacoesContentSectionState
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          AlunoMenuNav(selectedIndex: 8, notificationCount: _unreadCount),
+          AlunoMenuNav(notificationCount: _unreadCount),
           const SizedBox(width: 40),
           Expanded(
             child: FutureBuilder<void>(

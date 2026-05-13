@@ -15,12 +15,9 @@ namespace ConfidantPostgreSQL.Modules.Student.Service
             _repo = repo;
         }
 
-        public Task<IReadOnlyList<MyTutorDto>> GetMyTutorsAsync(Guid studentUserId, Guid? areaId = null)
+        public Task<IReadOnlyList<MyTutorDto>> GetMyTutorsAsync(Guid studentUserId, Guid? areaId = null, string? role = null)
         {
-            if (studentUserId == Guid.Empty)
-                return Task.FromResult<IReadOnlyList<MyTutorDto>>(Array.Empty<MyTutorDto>());
-
-            return _repo.GetMyTutorsAsync(studentUserId, areaId);
+            return _repo.GetMyTutorsAsync(studentUserId, areaId, role);
         }
     }
 }

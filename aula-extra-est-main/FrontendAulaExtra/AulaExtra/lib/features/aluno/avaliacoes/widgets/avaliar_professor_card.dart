@@ -31,7 +31,7 @@ class AvaliarProfessorCard extends StatelessWidget {
       child: Column(
         children: [
           const Text(
-            'Quer avaliar um professor? ',
+            'Quer avaliar um profissional? ',
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 27.481,
@@ -42,7 +42,7 @@ class AvaliarProfessorCard extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           const Text(
-            'Só é possível avaliar uma vez por professor',
+            'Só é possível avaliar uma vez por profissional',
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 21.985,
@@ -83,7 +83,7 @@ class AvaliarProfessorCard extends StatelessWidget {
                   });
                 },
                 child: const Text(
-                  'Avaliar Professor',
+                  'Avaliar Profissional',
                   style: TextStyle(
                     fontSize: 21.985,
                     fontWeight: FontWeight.w400,

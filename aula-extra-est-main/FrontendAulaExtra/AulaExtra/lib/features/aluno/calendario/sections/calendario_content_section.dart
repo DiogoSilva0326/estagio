@@ -44,7 +44,7 @@ class CalendarioContentSection extends StatelessWidget {
             const CalendarioMobileIntro(
               title: 'Calendário',
               subtitle:
-                  'Escolhe uma área ou disciplina específica para encontrar as tuas próximas aulas.',
+                  'Escolhe uma área ou disciplina específica para encontrar os teus próximos apoios.',
             ),
             const SizedBox(height: CalendarioConstants.mobileSectionSpacing),
             CalendarioModeTabs(
@@ -68,7 +68,7 @@ class CalendarioContentSection extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const AlunoMenuNav(selectedIndex: 2),
+          const AlunoMenuNav(),
           const SizedBox(width: 40),
           Expanded(
             child: SingleChildScrollView(
@@ -82,7 +82,7 @@ class CalendarioContentSection extends StatelessWidget {
                   ),
                   const SizedBox(height: 11.202),
                   const Text(
-                    'Organize suas aulas e compromissos',
+                    'Organize os seus apoios e compromissos',
                     style: CalendarioConstants.subtitleStyle,
                   ),
                   const SizedBox(height: 33.607),
@@ -224,7 +224,7 @@ class _UpcomingLessonsListState extends State<_UpcomingLessonsList> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-            'Podes entrar na aula 10 minutos antes do início e até 15 minutos após o fim.',
+            'Podes entrar na sessão 10 minutos antes do início e até 15 minutos após o fim.',
           ),
         ),
       );
@@ -263,7 +263,7 @@ class _UpcomingLessonsListState extends State<_UpcomingLessonsList> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-            'Aceita ou revê primeiro o pedido da aula antes de a cancelar.',
+            'Aceita ou revê primeiro o pedido da sessão antes de a cancelar.',
           ),
         ),
       );
@@ -309,11 +309,11 @@ class _UpcomingLessonsListState extends State<_UpcomingLessonsList> {
           children: [
             Icon(Icons.warning_amber_rounded, color: Color(0xFFFF6B00)),
             SizedBox(width: 8),
-            Text('Cancelar aula'),
+            Text('Cancelar sessão'),
           ],
         ),
         content: const Text(
-          'Tens a certeza que pretendes cancelar esta aula?\n\nComo faltam mais de 24 horas, não sofrerás qualquer penalidade.',
+          'Tens a certeza que pretendes cancelar esta sessão?\n\nComo faltam mais de 24 horas, não sofrerás qualquer penalidade.',
         ),
         actions: [
           TextButton(
@@ -347,7 +347,7 @@ class _UpcomingLessonsListState extends State<_UpcomingLessonsList> {
           ],
         ),
         content: const Text(
-          'Faltam menos de 24 horas para o início desta aula.\n\nO cancelamento agora implica uma penalidade. Podes cancelar diretamente ou enviar uma justificação ao professor.',
+          'Faltam menos de 24 horas para o início desta sessão.\n\nO cancelamento agora implica uma penalidade. Podes cancelar diretamente ou enviar uma justificação ao profissional.',
         ),
         actions: [
           TextButton(
@@ -395,7 +395,7 @@ class _UpcomingLessonsListState extends State<_UpcomingLessonsList> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'Escreve o motivo do cancelamento. O professor irá analisar o teu pedido.',
+              'Escreve o motivo do cancelamento. O profissional irá analisar o teu pedido.',
             ),
             const SizedBox(height: 16),
             TextField(
@@ -444,7 +444,7 @@ class _UpcomingLessonsListState extends State<_UpcomingLessonsList> {
   }) async {
     if (item.professorUserId == null || item.professorUserId!.trim().isEmpty) {
       throw const StudentCalendarException(
-        'Não foi possível identificar o professor desta aula.',
+        'Não foi possível identificar o profissional desta sessão.',
       );
     }
 
@@ -462,13 +462,13 @@ class _UpcomingLessonsListState extends State<_UpcomingLessonsList> {
           ? (justification == null || justification.isEmpty
                 ? 'Cancelamento Tardio'
                 : 'Cancelamento Justificado')
-          : 'Aula Cancelada';
+          : 'Sessão Cancelada';
 
       final visibleMessage = !lessThan24Hours
-          ? '$studentName cancelou a aula de ${item.disciplinaName} com antecedência. O teu calendário foi libertado.'
+          ? '$studentName cancelou a sessão de ${item.disciplinaName} com antecedência. O teu calendário foi libertado.'
           : (justification == null || justification.isEmpty
-                ? '$studentName cancelou a aula de ${item.disciplinaName} a menos de 24h sem apresentar justificação.'
-                : '$studentName cancelou a aula de ${item.disciplinaName} a menos de 24h e enviou uma justificação.');
+                ? '$studentName cancelou a sessão de ${item.disciplinaName} a menos de 24h sem apresentar justificação.'
+                : '$studentName cancelou a sessão de ${item.disciplinaName} a menos de 24h e enviou uma justificação.');
 
       final message = _appendNotificationMetadata(visibleMessage, {
         'reservationId': item.idReservation,
@@ -493,7 +493,7 @@ class _UpcomingLessonsListState extends State<_UpcomingLessonsList> {
       _reload();
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Aula cancelada com sucesso.'),
+          content: Text('Sessão cancelada com sucesso.'),
           backgroundColor: Color(0xFF00A63E),
         ),
       );
@@ -591,7 +591,7 @@ class _UpcomingLessonsListState extends State<_UpcomingLessonsList> {
                 const _MobileUpcomingLessonsEmptyState(),
                 const SizedBox(height: 16),
                 CalendarioMobileCtaButton(
-                  label: 'Marcar Nova Aula',
+                  label: 'Marcar Nova Sessão',
                   onTap: () =>
                       Navigator.of(context).pushNamed(Routes.explicadores),
                 ),
@@ -668,7 +668,7 @@ class _UpcomingLessonsListState extends State<_UpcomingLessonsList> {
                     primaryLabel: isPending
                         ? 'Rever pedido'
                         : canEnter
-                        ? 'Entrar na Aula'
+                        ? 'Entrar na Sessão'
                         : 'Ver Detalhes',
                     onPrimaryTap: () => _handlePrimaryAction(item),
                     onSecondaryTap: canShowCancel
@@ -698,7 +698,7 @@ class _UpcomingLessonsListState extends State<_UpcomingLessonsList> {
                   primaryActionLabel: isPending
                       ? 'Rever pedido'
                       : canEnter
-                      ? 'Entrar na Aula'
+                      ? 'Entrar na Sessão'
                       : 'Ver Detalhes',
                   onPrimaryTap: () => _handlePrimaryAction(item),
                   onSecondaryTap: isPending
@@ -722,13 +722,13 @@ class _UpcomingLessonsListState extends State<_UpcomingLessonsList> {
                     color: Color(0xFF4A5565),
                   ),
                   label: Text(
-                    'Ver mais aulas',
+                    'Ver mais apoios',
                     style: TextStyle(
                       fontSize: widget.isMobile ? 15 : 22.404,
                       fontWeight: widget.isMobile
                           ? FontWeight.w600
                           : FontWeight.w400,
-                      color: Color(0xFF4A5565),
+                      color: const Color(0xFF4A5565),
                       height: widget.isMobile ? 22 / 15 : 33.607 / 22.404,
                     ),
                   ),
@@ -748,7 +748,7 @@ class _UpcomingLessonsListState extends State<_UpcomingLessonsList> {
             if (widget.isMobile) ...[
               const SizedBox(height: 16),
               CalendarioMobileCtaButton(
-                label: 'Marcar Nova Aula',
+                label: 'Marcar Nova Sessão',
                 onTap: () =>
                     Navigator.of(context).pushNamed(Routes.explicadores),
               ),
@@ -788,7 +788,7 @@ class _MobileUpcomingLessonsEmptyState extends StatelessWidget {
           ),
           SizedBox(height: 16),
           Text(
-            'Ainda não tens próximas aulas marcadas',
+            'Ainda não tens próximos apoios marcados',
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 20,
@@ -799,7 +799,7 @@ class _MobileUpcomingLessonsEmptyState extends StatelessWidget {
           ),
           SizedBox(height: 8),
           Text(
-            'Explora os explicadores disponíveis e agenda a tua próxima explicação.',
+            'Explora os profissionais disponíveis e agenda a tua próxima sessão.',
             textAlign: TextAlign.center,
             style: CalendarioConstants.mobileCardSubtitleStyle,
           ),
@@ -843,7 +843,7 @@ class _UpcomingLessonsEmptyState extends StatelessWidget {
           ),
           const SizedBox(height: 20),
           const Text(
-            'Ainda não tem próximas aulas marcadas',
+            'Ainda não tem próximas sessões marcadas',
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 28,
@@ -854,7 +854,7 @@ class _UpcomingLessonsEmptyState extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           const Text(
-            'Explore os explicadores disponíveis e reserve a sua próxima explicação!',
+            'Explore os profissionais disponíveis e reserve a sua próxima sessão!',
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 18,
@@ -889,7 +889,7 @@ class _UpcomingLessonsEmptyState extends StatelessWidget {
                     height: 24 / 18,
                   ),
                 ),
-                child: const Text('Marque a sua próxima explicação'),
+                child: const Text('Marque a sua próxima sessão'),
               ),
             ),
           ),

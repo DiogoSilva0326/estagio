@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using ConfidantPostgreSQL.Integrations.Email;
 using ConfidantPostgreSQL.Modules.Payments.Models;
 using ConfidantPostgreSQL.Modules.Payments.Repository;
 
@@ -10,10 +11,12 @@ namespace ConfidantPostgreSQL.Modules.Payments.Service
     public class PaymentsService : IPaymentsService
     {
         private readonly IPaymentsRepository _repo;
+        private readonly IPostmarkService _postmarkService;
 
-        public PaymentsService(IPaymentsRepository repo)
+        public PaymentsService(IPaymentsRepository repo, IPostmarkService postmarkService)
         {
             _repo = repo;
+            _postmarkService = postmarkService;
         }
 
         public Task<IEnumerable<Wallet>> GetWalletsAllAsync() => _repo.GetWalletsAllAsync();
@@ -33,6 +36,7 @@ namespace ConfidantPostgreSQL.Modules.Payments.Service
         public Task<IEnumerable<Invoice>> GetInvoicesAllAsync() => _repo.GetInvoicesAllAsync();
         public Task<Invoice?> GetInvoiceByIdAsync(Guid idInvoice) => _repo.GetInvoiceByIdAsync(idInvoice);
         public Task<IEnumerable<Invoice>> GetInvoicesByUserIdAsync(Guid idUser) => _repo.GetInvoicesByUserIdAsync(idUser);
+        public Task<IEnumerable<AdminPaymentOverviewItemDto>> GetAdminPaymentOverviewAsync() => _repo.GetAdminPaymentOverviewAsync();
         public Task<IEnumerable<StudentPaymentHistoryItemDto>> GetStudentPaymentHistoryAsync(Guid idUser) => _repo.GetStudentPaymentHistoryAsync(idUser);
         public Task<IEnumerable<ProfessorPaymentHistoryItemDto>> GetProfessorPaymentHistoryAsync(Guid idUser) => _repo.GetProfessorPaymentHistoryAsync(idUser);
 
@@ -179,6 +183,62 @@ namespace ConfidantPostgreSQL.Modules.Payments.Service
         }
         public Task<Guid> InsertDisputeAsync(Dispute dispute) => _repo.InsertDisputeAsync(dispute);
         public Task<int> UpdateDisputeAsync(Dispute dispute) => _repo.UpdateDisputeAsync(dispute);
+        public async Task<bool> ReplyToDisputeAsync(Guid idDispute, string? responseMessage, string? status)
+        {
+            var dispute = await _repo.GetDisputeByIdAsync(idDispute);
+            if (dispute == null)
+            {
+                return false;
+            }
+
+            var normalizedStatus = NormalizeDisputeReplyStatus(status, hasResponseMessage: !string.IsNullOrWhiteSpace(responseMessage));
+            var trimmedResponse = responseMessage?.Trim();
+
+            if (!string.IsNullOrWhiteSpace(trimmedResponse))
+            {
+                if (string.IsNullOrWhiteSpace(dispute.ReporterEmail))
+                {
+                    throw new InvalidOperationException("A reclamação de pagamento não tem email disponível.");
+                }
+
+                var subject = string.IsNullOrWhiteSpace(dispute.Subject)
+                    ? "Resposta à sua reclamação de pagamento"
+                    : $"Resposta à sua reclamação de pagamento: {dispute.Subject.Trim()}";
+                var originalMessage = string.IsNullOrWhiteSpace(dispute.Reason)
+                    ? "Sem mensagem original disponível."
+                    : dispute.Reason.Trim();
+                var plainBody =
+                    $"Recebemos a sua reclamação de pagamento na Aula Extra.\n\n" +
+                    $"Assunto: {(dispute.Subject?.Trim() ?? "Sem assunto")}\n\n" +
+                    $"Resposta da equipa:\n{trimmedResponse}\n\n" +
+                    $"Mensagem original:\n{originalMessage}";
+
+                var dto = new EmailSenderDto
+                {
+                    To = dispute.ReporterEmail,
+                    Subject = subject,
+                    TextBody = plainBody,
+                    HtmlBody = EmailTemplates.Jacurvas(subject, plainBody),
+                    Tag = "payment-dispute-reply",
+                    MessageStream = "outbound"
+                };
+
+                var sent = await _postmarkService.SendEmailAsync(dto);
+                if (!sent)
+                {
+                    throw new InvalidOperationException("Não foi possível enviar a resposta por email.");
+                }
+            }
+
+            dispute.Status = normalizedStatus;
+            dispute.ResolutionNote = !string.IsNullOrWhiteSpace(trimmedResponse)
+                ? trimmedResponse
+                : dispute.ResolutionNote;
+            dispute.UpdatedAt = DateTime.UtcNow;
+
+            var rows = await _repo.UpdateDisputeAsync(dispute);
+            return rows > 0;
+        }
         public Task<int> DeleteDisputeAsync(Guid idDispute) => _repo.DeleteDisputeAsync(idDispute);
 
         public Task<IEnumerable<CommissionRule>> GetCommissionRulesAllAsync() => _repo.GetCommissionRulesAllAsync();
@@ -224,6 +284,25 @@ namespace ConfidantPostgreSQL.Modules.Payments.Service
                 || normalized.Contains("processing")
                 || normalized.Contains("hold")
                 || normalized.Contains("await");
+        }
+
+        private static string NormalizeDisputeReplyStatus(string? status, bool hasResponseMessage)
+        {
+            var normalized = (status ?? string.Empty).Trim().ToLowerInvariant();
+            if (string.IsNullOrWhiteSpace(normalized))
+            {
+                return hasResponseMessage ? "respondida" : "lida";
+            }
+
+            return normalized switch
+            {
+                "lida" => "lida",
+                "respondida" => "respondida",
+                "submetida" => "submetida",
+                "resolvida" => "resolvida",
+                "fechada" => "fechada",
+                _ => throw new ArgumentException("O estado indicado é inválido.")
+            };
         }
     }
 }

@@ -25,14 +25,16 @@ class MenuAlunoItems {
   /// Onde é usado:
   /// - No widget do menu para renderizar a navegação e associar rotas/ações.
   static const List<MenuAlunoItemData> all = [
-    MenuAlunoItemData(label: 'Minhas Áreas', icon: Icons.grid_view_rounded),
-    MenuAlunoItemData(label: 'Meus Explicadores', icon: Icons.groups_rounded),
-    MenuAlunoItemData(label: 'Calendário', icon: Icons.calendar_month_rounded),
-    MenuAlunoItemData(label: 'Arquivos', icon: Icons.folder_rounded),
-    MenuAlunoItemData(label: 'Chats', icon: Icons.chat_bubble_rounded),
-    MenuAlunoItemData(label: 'Pagamentos', icon: Icons.payments_rounded),
-    MenuAlunoItemData(label: 'Avaliações', icon: Icons.star_rounded),
-    MenuAlunoItemData(label: 'Perfil', icon: Icons.person_rounded),
+    MenuAlunoItemData(label: 'Minhas Áreas', icon: Icons.grid_view_rounded),          // Index 0
+    MenuAlunoItemData(label: 'Meus Explicadores', icon: Icons.groups_rounded),        // Index 1
+    MenuAlunoItemData(label: 'Meus Tutores', icon: Icons.school_rounded),             // Index 2
+    MenuAlunoItemData(label: 'Meus Psicólogos', icon: Icons.psychology_rounded),      // Index 3 
+    MenuAlunoItemData(label: 'Calendário', icon: Icons.calendar_month_rounded),       // Index 4
+    MenuAlunoItemData(label: 'Arquivos', icon: Icons.folder_rounded),                 // Index 5
+    MenuAlunoItemData(label: 'Chats', icon: Icons.chat_bubble_rounded),               // Index 6
+    MenuAlunoItemData(label: 'Pagamentos', icon: Icons.payments_rounded),             // Index 7
+    MenuAlunoItemData(label: 'Avaliações', icon: Icons.star_rounded),                 // Index 8
+    MenuAlunoItemData(label: 'Perfil', icon: Icons.person_rounded),                   // Index 9
     MenuAlunoItemData(
       label: 'Notificações',
       icon: Icons.notifications_rounded,

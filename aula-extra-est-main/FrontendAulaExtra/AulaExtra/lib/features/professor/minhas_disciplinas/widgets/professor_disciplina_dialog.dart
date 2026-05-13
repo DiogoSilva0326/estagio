@@ -4,18 +4,22 @@ import 'package:aula_extra/core/data/education/dtos/disciplina_dto.dart';
 import 'package:aula_extra/features/professor/minhas_disciplinas/constants/minhas_disciplinas_professor_colors.dart';
 import 'package:flutter/material.dart';
 
+import 'package:provider/provider.dart';
+import 'package:aula_extra/core/providers/user_provider.dart';
+import 'package:aula_extra/core/config/teaching_roles_config.dart';
+
 class ProfessorDisciplinaDialogResult {
   const ProfessorDisciplinaDialogResult({
     this.idDisciplina,
     required this.idArea,
-    required this.idCicloEstudo,
+    this.idCicloEstudo, 
     required this.nome,
     this.descricao,
   });
 
   final String? idDisciplina;
   final String idArea;
-  final String idCicloEstudo;
+  final String? idCicloEstudo; 
   final String nome;
   final String? descricao;
 }
@@ -138,6 +142,16 @@ class _ProfessorDisciplinaDialogState extends State<ProfessorDisciplinaDialog> {
   @override
   Widget build(BuildContext context) {
     final suggestions = _filteredCatalog;
+    
+    final userProvider = Provider.of<UserProvider>(context);
+    final config = TeachingRoleConfig.fromRole(userProvider.role);
+    
+    final isOrange = config.roleName == 'Explicador';
+    final showNivelCiclo = config.roleName == 'Explicador';
+    
+    final String subjectSingular = config.perfil.subjectsSectionTitle.toLowerCase().endsWith('s') 
+        ? config.perfil.subjectsSectionTitle.substring(0, config.perfil.subjectsSectionTitle.length - 1)
+        : config.perfil.subjectsSectionTitle;
 
     return Dialog(
       insetPadding: const EdgeInsets.all(24),
@@ -170,8 +184,8 @@ class _ProfessorDisciplinaDialogState extends State<ProfessorDisciplinaDialog> {
                               children: [
                                 Text(
                                   _isEditing
-                                      ? 'Editar disciplina'
-                                      : 'Criar disciplina',
+                                      ? 'Editar $subjectSingular'
+                                      : 'Adicionar $subjectSingular',
                                   style: const TextStyle(
                                     fontSize: 28,
                                     fontWeight: FontWeight.w700,
@@ -180,9 +194,9 @@ class _ProfessorDisciplinaDialogState extends State<ProfessorDisciplinaDialog> {
                                   ),
                                 ),
                                 const SizedBox(height: 8),
-                                const Text(
-                                  'Defina a área, a disciplina e o ciclo de estudos para guardar corretamente no seu perfil.',
-                                  style: TextStyle(
+                                Text(
+                                  'Defina os detalhes para que fique visível no seu perfil.',
+                                  style: const TextStyle(
                                     fontSize: 15.5,
                                     color: MinhasDisciplinasProfessorColors
                                         .dialogText,
@@ -204,13 +218,13 @@ class _ProfessorDisciplinaDialogState extends State<ProfessorDisciplinaDialog> {
                         runSpacing: 16,
                         children: [
                           SizedBox(
-                            width: fieldWidth,
+                            width: showNivelCiclo ? fieldWidth : constraints.maxWidth,
                             child: _buildLabeledField(
-                              label: 'Área',
+                              label: 'Categoria / Grupo',
                               child: DropdownButtonFormField<String>(
                                 initialValue: _selectedAreaId,
                                 decoration: _inputDecoration(
-                                  hint: 'Selecione a área',
+                                  hint: 'Selecione',
                                 ),
                                 items: _sortedAreas
                                     .map(
@@ -222,7 +236,7 @@ class _ProfessorDisciplinaDialogState extends State<ProfessorDisciplinaDialog> {
                                     .toList(growable: false),
                                 validator: (value) {
                                   if (value == null || value.trim().isEmpty) {
-                                    return 'Selecione a área.';
+                                    return 'Campo obrigatório.';
                                   }
                                   return null;
                                 },
@@ -246,50 +260,51 @@ class _ProfessorDisciplinaDialogState extends State<ProfessorDisciplinaDialog> {
                               ),
                             ),
                           ),
-                          SizedBox(
-                            width: fieldWidth,
-                            child: _buildLabeledField(
-                              label: 'Ciclo de estudos',
-                              child: DropdownButtonFormField<String>(
-                                initialValue: _selectedCicloId,
-                                decoration: _inputDecoration(
-                                  hint: 'Selecione o ciclo',
+                          if (showNivelCiclo)
+                            SizedBox(
+                              width: fieldWidth,
+                              child: _buildLabeledField(
+                                label: 'Nível / Ciclo', 
+                                child: DropdownButtonFormField<String>(
+                                  initialValue: _selectedCicloId,
+                                  decoration: _inputDecoration(
+                                    hint: 'Selecione',
+                                  ),
+                                  items: _sortedCiclos
+                                      .map(
+                                        (ciclo) => DropdownMenuItem<String>(
+                                          value: ciclo.idCicloEstudo,
+                                          child: Text(ciclo.nome),
+                                        ),
+                                      )
+                                      .toList(growable: false),
+                                  validator: (value) {
+                                    if (value == null || value.trim().isEmpty) {
+                                      return 'Campo obrigatório.';
+                                    }
+                                    return null;
+                                  },
+                                  onChanged: (value) {
+                                    setState(() {
+                                      _selectedCicloId = value;
+                                    });
+                                  },
                                 ),
-                                items: _sortedCiclos
-                                    .map(
-                                      (ciclo) => DropdownMenuItem<String>(
-                                        value: ciclo.idCicloEstudo,
-                                        child: Text(ciclo.nome),
-                                      ),
-                                    )
-                                    .toList(growable: false),
-                                validator: (value) {
-                                  if (value == null || value.trim().isEmpty) {
-                                    return 'Selecione o ciclo de estudos.';
-                                  }
-                                  return null;
-                                },
-                                onChanged: (value) {
-                                  setState(() {
-                                    _selectedCicloId = value;
-                                  });
-                                },
                               ),
                             ),
-                          ),
                         ],
                       ),
                       const SizedBox(height: 16),
                       _buildLabeledField(
-                        label: 'Disciplina',
+                        label: 'Nome da $subjectSingular',
                         child: TextFormField(
                           controller: _nomeController,
                           decoration: _inputDecoration(
-                            hint: 'Escreva ou escolha uma disciplina existente',
+                            hint: 'Escreva ou escolha uma opção existente',
                           ),
                           validator: (value) {
                             if (value == null || value.trim().isEmpty) {
-                              return 'Introduza o nome da disciplina.';
+                              return 'Introduza o nome.';
                             }
                             return null;
                           },
@@ -325,8 +340,8 @@ class _ProfessorDisciplinaDialogState extends State<ProfessorDisciplinaDialog> {
                                 const SizedBox(width: 8),
                                 Text(
                                   _selectedCatalogDisciplinaId == null
-                                      ? 'Nova disciplina personalizada'
-                                      : 'Disciplina existente selecionada',
+                                      ? 'Nome personalizado'
+                                      : 'Opção do catálogo',
                                   style: const TextStyle(
                                     fontSize: 14,
                                     fontWeight: FontWeight.w600,
@@ -339,7 +354,7 @@ class _ProfessorDisciplinaDialogState extends State<ProfessorDisciplinaDialog> {
                             const SizedBox(height: 12),
                             if (suggestions.isEmpty)
                               const Text(
-                                'Sem sugestões para a área selecionada. Pode guardar como nova disciplina.',
+                                'Sem sugestões. Pode guardar como um novo nome.',
                                 style: TextStyle(
                                   fontSize: 14,
                                   color: MinhasDisciplinasProfessorColors
@@ -387,6 +402,7 @@ class _ProfessorDisciplinaDialogState extends State<ProfessorDisciplinaDialog> {
                         _buildPrimaryDialogButton(
                           label: 'Guardar',
                           onTap: _submit,
+                          activeColor: isOrange ? null : config.primaryColor,
                         ),
                       ] else
                         Row(
@@ -402,6 +418,7 @@ class _ProfessorDisciplinaDialogState extends State<ProfessorDisciplinaDialog> {
                               child: _buildPrimaryDialogButton(
                                 label: 'Guardar',
                                 onTap: _submit,
+                                activeColor: isOrange ? null : config.primaryColor,
                               ),
                             ),
                           ],
@@ -421,12 +438,16 @@ class _ProfessorDisciplinaDialogState extends State<ProfessorDisciplinaDialog> {
     if (!(_formKey.currentState?.validate() ?? false)) {
       return;
     }
+    
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    final config = TeachingRoleConfig.fromRole(userProvider.role);
+    final showNivelCiclo = config.roleName == 'Explicador';
 
     Navigator.of(context).pop(
       ProfessorDisciplinaDialogResult(
         idDisciplina: _selectedCatalogDisciplinaId,
         idArea: _selectedAreaId!,
-        idCicloEstudo: _selectedCicloId!,
+        idCicloEstudo: showNivelCiclo ? _selectedCicloId : null,
         nome: _nomeController.text.trim(),
         descricao: _descricaoController.text.trim().isEmpty
             ? null
@@ -489,17 +510,19 @@ class _ProfessorDisciplinaDialogState extends State<ProfessorDisciplinaDialog> {
   Widget _buildPrimaryDialogButton({
     required String label,
     required VoidCallback onTap,
+    Color? activeColor,
   }) {
     return SizedBox(
       width: double.infinity,
       height: 42,
       child: DecoratedBox(
         decoration: ShapeDecoration(
-          gradient: const LinearGradient(
+          color: activeColor,
+          gradient: activeColor == null ? const LinearGradient(
             begin: Alignment(0.0, 0.5),
             end: Alignment(1.0, 0.5),
             colors: MinhasDisciplinasProfessorColors.dialogGradient,
-          ),
+          ) : null,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),
         child: Material(

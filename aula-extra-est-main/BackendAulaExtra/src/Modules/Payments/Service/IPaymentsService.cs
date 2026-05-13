@@ -24,6 +24,7 @@ namespace ConfidantPostgreSQL.Modules.Payments.Service
         Task<IEnumerable<Invoice>> GetInvoicesAllAsync();
         Task<Invoice?> GetInvoiceByIdAsync(Guid idInvoice);
         Task<IEnumerable<Invoice>> GetInvoicesByUserIdAsync(Guid idUser);
+        Task<IEnumerable<AdminPaymentOverviewItemDto>> GetAdminPaymentOverviewAsync();
         Task<IEnumerable<StudentPaymentHistoryItemDto>> GetStudentPaymentHistoryAsync(Guid idUser);
         Task<StudentPaymentSummaryDto> GetStudentPaymentSummaryAsync(Guid idUser);
         Task<IEnumerable<ProfessorPaymentHistoryItemDto>> GetProfessorPaymentHistoryAsync(Guid idUser);
@@ -72,6 +73,7 @@ namespace ConfidantPostgreSQL.Modules.Payments.Service
         Task<Dispute?> CreatePaymentDisputeAsync(Guid idUser, CreatePaymentDisputeRequest request);
         Task<Guid> InsertDisputeAsync(Dispute dispute);
         Task<int> UpdateDisputeAsync(Dispute dispute);
+        Task<bool> ReplyToDisputeAsync(Guid idDispute, string? responseMessage, string? status);
         Task<int> DeleteDisputeAsync(Guid idDispute);
 
         Task<IEnumerable<CommissionRule>> GetCommissionRulesAllAsync();

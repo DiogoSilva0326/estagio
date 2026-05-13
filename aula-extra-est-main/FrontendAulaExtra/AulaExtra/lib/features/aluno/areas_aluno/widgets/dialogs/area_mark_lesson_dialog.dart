@@ -115,7 +115,7 @@ class _AreaMarkLessonDialogState extends State<AreaMarkLessonDialog> {
     return !status.contains('cancel');
   }
 
-  Future<void> _openTutorProfile(MyTutorDto tutor) async {
+  Future<void> _openTutorProfile(MyTutorDto tutor, String singularTerm) async {
     Navigator.of(context).pushNamed(
       Routes.tutorProfile,
       arguments: TutorProfileArgs(
@@ -125,10 +125,10 @@ class _AreaMarkLessonDialogState extends State<AreaMarkLessonDialog> {
         rating: tutor.rating ?? 0,
         reviewCount: 0,
         description:
-            'Perfil do explicador ${tutor.tutorName} para a área selecionada. Pode ver a informação detalhada antes de marcar a próxima aula.',
+            'Perfil do profissional ${tutor.tutorName} para a área selecionada. Pode ver a informação detalhada antes de marcar a próxima $singularTerm.',
         lessonsText: tutor.lastLessonSubject == null || tutor.lastLessonSubject!.trim().isEmpty
-            ? 'Sem aulas registadas'
-            : 'Última aula: ${tutor.lastLessonSubject!.trim()}',
+            ? 'Sem serviço registado'
+            : 'Última $singularTerm: ${tutor.lastLessonSubject!.trim()}',
         pricePerHour: 0,
         tags: widget.area.selectedDisciplinaNames.isEmpty ? [widget.area.name] : widget.area.selectedDisciplinaNames,
       ),
@@ -139,8 +139,8 @@ class _AreaMarkLessonDialogState extends State<AreaMarkLessonDialog> {
     final subject = tutor.lastLessonSubject?.trim().isNotEmpty == true
         ? tutor.lastLessonSubject!.trim()
         : (widget.area.selectedDisciplinaNames.isNotEmpty
-              ? widget.area.selectedDisciplinaNames.first
-              : widget.area.name);
+            ? widget.area.selectedDisciplinaNames.first
+            : widget.area.name);
 
     final navigator = Navigator.of(context);
     navigator.pop();
@@ -181,6 +181,10 @@ class _AreaMarkLessonDialogState extends State<AreaMarkLessonDialog> {
   @override
   Widget build(BuildContext context) {
     final maxHeight = MediaQuery.sizeOf(context).height * 0.9;
+    
+    final isSessao = widget.area.targetRole != 'ensino';
+    final singularTerm = isSessao ? 'Sessão' : 'Aula';
+    final pluralTerm = isSessao ? 'Sessões' : 'Aulas';
 
     return FutureBuilder<_AreaMarkLessonData>(
       future: _dialogFuture,
@@ -231,7 +235,7 @@ class _AreaMarkLessonDialogState extends State<AreaMarkLessonDialog> {
                                   gradientEnd: const Color(0xFFFFFFFF),
                                   icon: Icons.menu_book_outlined,
                                   iconColor: const Color(0xFF155DFC),
-                                  title: 'AULAS ESTA SEMANA',
+                                  title: '${pluralTerm.toUpperCase()} ESTA SEMANA',
                                   titleColor: const Color(0xFF155DFC),
                                   value: '${data.weeklyLessons}',
                                 ),
@@ -244,7 +248,7 @@ class _AreaMarkLessonDialogState extends State<AreaMarkLessonDialog> {
                                   gradientEnd: const Color(0xFFFFFFFF),
                                   icon: Icons.schedule,
                                   iconColor: const Color(0xFF00A63E),
-                                  title: 'PRÓXIMA AULA',
+                                  title: 'PRÓXIMA ${singularTerm.toUpperCase()}',
                                   titleColor: const Color(0xFF00A63E),
                                   value: data.nextLessonText,
                                   valueIsSmall: true,
@@ -254,7 +258,7 @@ class _AreaMarkLessonDialogState extends State<AreaMarkLessonDialog> {
                           ),
                           const SizedBox(height: 24),
                           const Text(
-                            'Seus Explicadores',
+                            'Os Seus Profissionais',
                             style: TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.w600,
@@ -272,9 +276,9 @@ class _AreaMarkLessonDialogState extends State<AreaMarkLessonDialog> {
                                 borderRadius: BorderRadius.circular(16),
                                 border: Border.all(color: const Color(0xFFF3F4F6)),
                               ),
-                              child: const Text(
-                                'Ainda nunca teve uma aula nesta área.',
-                                style: TextStyle(
+                              child: Text(
+                                'Ainda nunca teve uma ${singularTerm.toLowerCase()} nesta área.',
+                                style: const TextStyle(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w400,
                                   color: Color(0xFF4A5565),
@@ -291,11 +295,12 @@ class _AreaMarkLessonDialogState extends State<AreaMarkLessonDialog> {
                                     name: tutors[i].tutorName,
                                     rating: tutors[i].rating?.toStringAsFixed(1) ?? '—',
                                     lessonsText: tutors[i].lastLessonSubject == null || tutors[i].lastLessonSubject!.trim().isEmpty
-                                        ? 'Sem disciplina registada'
-                                        : 'Última aula: ${tutors[i].lastLessonSubject}',
+                                        ? 'Sem serviço registado'
+                                        : 'Última ${singularTerm.toLowerCase()}: ${tutors[i].lastLessonSubject}',
                                     nextLessonPillText: _formatLessonMoment(tutors[i].lastLessonStart),
                                     disciplines: widget.area.selectedDisciplinaNames,
-                                    onOpenProfile: () => _openTutorProfile(tutors[i]),
+                                    singularTerm: singularTerm,
+                                    onOpenProfile: () => _openTutorProfile(tutors[i], singularTerm),
                                     onScheduleLesson: () => _openScheduleLesson(tutors[i]),
                                   ),
                                   if (i < tutors.length - 1) const SizedBox(height: 16),
@@ -331,7 +336,7 @@ class _AreaMarkLessonDialogState extends State<AreaMarkLessonDialog> {
                       ),
                       SizedBox(
                         height: 48,
-                        width: 194.117,
+                        width: 220,
                         child: DecoratedBox(
                           decoration: BoxDecoration(
                             gradient: AreasAlunoConstants.orangeGradient,
@@ -349,7 +354,7 @@ class _AreaMarkLessonDialogState extends State<AreaMarkLessonDialog> {
                               ),
                             ),
                             child: const Text(
-                              'Adicionar Explicador',
+                              'Encontrar Especialistas',
                               style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w400,
@@ -425,8 +430,8 @@ class _Header extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   tutorCount == 0
-                      ? 'Ainda sem explicadores nesta área'
-                      : '$tutorCount explicador${tutorCount == 1 ? '' : 'es'} nesta área',
+                      ? 'Ainda sem profissionais nesta área'
+                      : '$tutorCount profissional${tutorCount == 1 ? '' : 'ais'} nesta área',
                   style: const TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w400,
@@ -552,6 +557,7 @@ class _TutorCard extends StatelessWidget {
     required this.lessonsText,
     required this.nextLessonPillText,
     required this.disciplines,
+    required this.singularTerm,
     required this.onOpenProfile,
     required this.onScheduleLesson,
   });
@@ -562,6 +568,7 @@ class _TutorCard extends StatelessWidget {
   final String lessonsText;
   final String? nextLessonPillText;
   final List<String> disciplines;
+  final String singularTerm;
   final VoidCallback onOpenProfile;
   final VoidCallback onScheduleLesson;
 
@@ -737,9 +744,9 @@ class _TutorCard extends StatelessWidget {
                                 borderRadius: BorderRadius.circular(14),
                               ),
                             ),
-                            child: const Text(
-                              'Marcar Aula',
-                              style: TextStyle(
+                            child: Text(
+                              'Marcar $singularTerm',
+                              style: const TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w500,
                                 height: 20 / 14,

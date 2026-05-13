@@ -23,15 +23,22 @@ class BackofficeSidebarItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    const itemHeight = 51.25;
+    const itemHorizontalPadding = 16.0;
+    const itemVerticalPadding = 12.0;
+    const iconSize = 20.0;
+    const iconSpacing = 14.0;
+    const borderRadiusValue = 16.0;
+
     final textStyle = TextStyle(
       color: isSelected ? Colors.white : AppColors.textSecondary,
-      fontSize: isSelected ? 16.31 : 14,
+      fontSize: 14,
       fontWeight: FontWeight.w700,
-      height: isSelected ? 1.43 : 20 / 14,
-      letterSpacing: isSelected ? -0.18 : -0.15,
+      height: 20 / 14,
+      letterSpacing: -0.15,
     );
 
-    final borderRadius = BorderRadius.circular(isSelected ? 18.64 : 16);
+    final borderRadius = BorderRadius.circular(borderRadiusValue);
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 6),
@@ -42,24 +49,24 @@ class BackofficeSidebarItem extends StatelessWidget {
           onTap: onTap,
           borderRadius: borderRadius,
           child: Ink(
-            height: 51.25,
+            height: itemHeight,
             decoration: ShapeDecoration(
               color: isSelected ? null : Colors.transparent,
               gradient: isSelected ? _selectedGradient : null,
               shape: RoundedRectangleBorder(borderRadius: borderRadius),
             ),
-            padding: EdgeInsets.symmetric(
-              horizontal: isSelected ? 18.64 : 16,
-              vertical: isSelected ? 13.98 : 12,
+            padding: const EdgeInsets.symmetric(
+              horizontal: itemHorizontalPadding,
+              vertical: itemVerticalPadding,
             ),
             child: Row(
               children: [
                 Icon(
                   item.icon,
-                  size: isSelected ? 23.30 : 20,
+                  size: iconSize,
                   color: isSelected ? Colors.white : AppColors.textMuted,
                 ),
-                SizedBox(width: isSelected ? 16.30 : 14),
+                const SizedBox(width: iconSpacing),
                 Expanded(
                   child: Text(
                     item.label,

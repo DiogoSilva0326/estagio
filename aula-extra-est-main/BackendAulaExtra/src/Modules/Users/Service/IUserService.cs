@@ -13,6 +13,7 @@ namespace ConfidantPostgreSQL.Modules.Users.Service
         Task<int> DeleteAsync(Guid id);
         Task<User?> GetByIdAsync(Guid id);
         Task<IEnumerable<User>> GetAllAsync();
+        Task<IEnumerable<AdminStudentDirectoryItem>> GetAdminStudentDirectoryAsync();
         Task<User?> GetByEmailAsync(string email);
         Task<User?> GetByUsernameAsync(string username);
         Task<Guid> RegisterAsync(User user, string password);

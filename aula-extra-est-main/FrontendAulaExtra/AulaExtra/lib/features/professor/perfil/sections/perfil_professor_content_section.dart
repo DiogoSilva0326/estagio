@@ -9,6 +9,7 @@ import 'package:aula_extra/core/data/professors/professors_service.dart';
 import 'package:aula_extra/core/data/users/dtos/user_profile_dto.dart';
 import 'package:aula_extra/core/data/users/users_service.dart';
 import 'package:aula_extra/core/providers/user_provider.dart';
+import 'package:aula_extra/core/config/teaching_roles_config.dart';
 import 'package:aula_extra/design/typography/app_typography.dart';
 import 'package:aula_extra/features/professor/core/widgets/professor_menu_nav.dart';
 import 'package:aula_extra/features/professor/perfil/constants/perfil_professor_colors.dart';
@@ -54,6 +55,8 @@ class _PerfilProfessorContentSectionState
   late final TextEditingController _biographyController;
   late final TextEditingController _presentationVideoUrlController;
 
+  final ScrollController _scrollController = ScrollController();
+
   bool _loading = true;
   bool _saving = false;
   bool _savingProfileImage = false;
@@ -87,6 +90,7 @@ class _PerfilProfessorContentSectionState
 
   @override
   void dispose() {
+    _scrollController.dispose();
     _displayNameController.dispose();
     _usernameController.dispose();
     _emailController.dispose();
@@ -716,6 +720,9 @@ class _PerfilProfessorContentSectionState
 
   @override
   Widget build(BuildContext context) {
+    final userProvider = Provider.of<UserProvider>(context);
+    final config = TeachingRoleConfig.fromRole(userProvider.role);
+
     final titleStyle = TextStyle(
       color: PerfilProfessorColors.title,
       fontSize: widget.isMobile
@@ -735,91 +742,97 @@ class _PerfilProfessorContentSectionState
       return Container(
         width: double.infinity,
         color: PerfilProfessorColors.background,
-        padding: const EdgeInsets.fromLTRB(
-          PerfilProfessorLayout.mobilePageHorizontalPadding,
-          PerfilProfessorLayout.mobilePageTopPadding,
-          PerfilProfessorLayout.mobilePageHorizontalPadding,
-          PerfilProfessorLayout.mobilePageBottomPadding,
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text('Meu Perfil', style: titleStyle),
-            const SizedBox(height: 16),
-            _SaveProfileButton(
-              isSaving: _saving,
-              onTap: _saving ? null : _saveProfile,
-              isMobile: true,
-            ),
-            const SizedBox(height: 20),
-            if (_loading)
-              const Center(
-                child: Padding(
-                  padding: EdgeInsets.all(24),
-                  child: CircularProgressIndicator(),
-                ),
-              )
-            else if (_error != null)
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(_error!, style: const TextStyle(color: Colors.red)),
-                  const SizedBox(height: 12),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: OutlinedButton(
-                      onPressed: _loadProfile,
-                      child: const Text('Tentar novamente'),
-                    ),
-                  ),
-                ],
-              )
-            else
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _LeftProfileCard(
-                    profileImageUrl: _profileImageUrl,
-                    presentationVideoController:
-                        _presentationVideoUrlController,
-                    memberSince: _memberSince,
-                    stats: _stats,
-                    imageBusy: _savingProfileImage,
-                    onPickProfileImage: _pickProfileImage,
-                    onRemoveProfileImage: _removeProfileImage,
-                    isMobile: true,
-                  ),
-                  const SizedBox(height: PerfilProfessorLayout.mobileCardsGap),
-                  _RightInfoCard(
-                    displayNameController: _displayNameController,
-                    usernameController: _usernameController,
-                    emailController: _emailController,
-                    phoneController: _phoneController,
-                    nifController: _nifController,
-                    websiteController: _websiteController,
-                    currentSchoolController: _currentSchoolController,
-                    yearsExperienceController: _yearsExperienceController,
-                    biographyController: _biographyController,
-                    disciplinasCatalog: _disciplinasCatalog,
-                    disciplinasLecionadas: _disciplinasLecionadas,
-                    languagesCatalog: _languagesCatalog,
-                    languagesFalados: _languagesFalados,
-                    certificates: _certificates,
-                    documentsBusy: _documentsBusy,
-                    onAddDisciplina: _addDisciplina,
-                    onRemoveDisciplina: _removeDisciplina,
-                    onAddLanguage: _addLanguage,
-                    onRemoveLanguage: _removeLanguage,
-                    onUpdateLanguageLevel: _updateLanguageLevel,
-                    onAddCertificate: _addCertificate,
-                    onEditCertificate: _editCertificate,
-                    onDeleteCertificate: _deleteCertificate,
-                    onDownloadCertificate: _downloadCertificate,
-                    isMobile: true,
-                  ),
-                ],
+        child: SingleChildScrollView(
+          controller: _scrollController,
+          padding: const EdgeInsets.fromLTRB(
+            PerfilProfessorLayout.mobilePageHorizontalPadding,
+            PerfilProfessorLayout.mobilePageTopPadding,
+            PerfilProfessorLayout.mobilePageHorizontalPadding,
+            PerfilProfessorLayout.mobilePageBottomPadding,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text('Meu Perfil', style: titleStyle),
+              const SizedBox(height: 16),
+              _SaveProfileButton(
+                isSaving: _saving,
+                onTap: _saving ? null : _saveProfile,
+                isMobile: true,
+                config: config, 
               ),
-          ],
+              const SizedBox(height: 20),
+              if (_loading)
+                const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(24),
+                    child: CircularProgressIndicator(),
+                  ),
+                )
+              else if (_error != null)
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(_error!, style: const TextStyle(color: Colors.red)),
+                    const SizedBox(height: 12),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: OutlinedButton(
+                        onPressed: _loadProfile,
+                        child: const Text('Tentar novamente'),
+                      ),
+                    ),
+                  ],
+                )
+              else
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _LeftProfileCard(
+                      profileImageUrl: _profileImageUrl,
+                      presentationVideoController:
+                          _presentationVideoUrlController,
+                      memberSince: _memberSince,
+                      stats: _stats,
+                      imageBusy: _savingProfileImage,
+                      onPickProfileImage: _pickProfileImage,
+                      onRemoveProfileImage: _removeProfileImage,
+                      isMobile: true,
+                      config: config, 
+                    ),
+                    const SizedBox(height: PerfilProfessorLayout.mobileCardsGap),
+                    _RightInfoCard(
+                      displayNameController: _displayNameController,
+                      usernameController: _usernameController,
+                      emailController: _emailController,
+                      phoneController: _phoneController,
+                      nifController: _nifController,
+                      websiteController: _websiteController,
+                      currentSchoolController: _currentSchoolController,
+                      yearsExperienceController: _yearsExperienceController,
+                      biographyController: _biographyController,
+                      disciplinasCatalog: _disciplinasCatalog,
+                      disciplinasLecionadas: _disciplinasLecionadas,
+                      languagesCatalog: _languagesCatalog,
+                      languagesFalados: _languagesFalados,
+                      certificates: _certificates,
+                      documentsBusy: _documentsBusy,
+                      onAddDisciplina: _addDisciplina,
+                      onRemoveDisciplina: _removeDisciplina,
+                      onAddLanguage: _addLanguage,
+                      onRemoveLanguage: _removeLanguage,
+                      onUpdateLanguageLevel: _updateLanguageLevel,
+                      onAddCertificate: _addCertificate,
+                      onEditCertificate: _editCertificate,
+                      onDeleteCertificate: _deleteCertificate,
+                      onDownloadCertificate: _downloadCertificate,
+                      isMobile: true,
+                      config: config, 
+                    ),
+                  ],
+                ),
+            ],
+          ),
         ),
       );
     }
@@ -837,109 +850,115 @@ class _PerfilProfessorContentSectionState
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const ProfessorMenuNav(),
+              const ProfessorMenuNav(selectedIndex: 10),
               Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                    PerfilProfessorLayout.contentPadding,
-                    PerfilProfessorLayout.contentPadding,
-                    PerfilProfessorLayout.contentPadding,
-                    0,
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          SizedBox(
-                            height: PerfilProfessorLayout.titleLineHeight,
-                            child: Text('Meu Perfil', style: titleStyle),
-                          ),
-                          const Spacer(),
-                          _SaveProfileButton(
-                            isSaving: _saving,
-                            onTap: _saving ? null : _saveProfile,
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 29.229),
-                      if (_loading)
-                        const Center(
-                          child: Padding(
-                            padding: EdgeInsets.all(24),
-                            child: CircularProgressIndicator(),
-                          ),
-                        )
-                      else if (_error != null)
+                child: SingleChildScrollView(
+                  controller: _scrollController,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      PerfilProfessorLayout.contentPadding,
+                      PerfilProfessorLayout.contentPadding,
+                      PerfilProfessorLayout.contentPadding,
+                      40, 
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
                         Row(
                           children: [
-                            Expanded(
-                              child: Text(
-                                _error!,
-                                style: const TextStyle(color: Colors.red),
-                              ),
+                            SizedBox(
+                              height: PerfilProfessorLayout.titleLineHeight,
+                              child: Text('Meu Perfil', style: titleStyle),
                             ),
-                            const SizedBox(width: 12),
-                            OutlinedButton(
-                              onPressed: _loadProfile,
-                              child: const Text('Tentar novamente'),
+                            const Spacer(),
+                            _SaveProfileButton(
+                              isSaving: _saving,
+                              onTap: _saving ? null : _saveProfile,
+                              config: config, 
                             ),
                           ],
-                        )
-                      else
-                        IntrinsicHeight(
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                        ),
+                        const SizedBox(height: 29.229),
+                        if (_loading)
+                          const Center(
+                            child: Padding(
+                              padding: EdgeInsets.all(24),
+                              child: CircularProgressIndicator(),
+                            ),
+                          )
+                        else if (_error != null)
+                          Row(
                             children: [
-                              _LeftProfileCard(
-                                profileImageUrl: _profileImageUrl,
-                                presentationVideoController:
-                                    _presentationVideoUrlController,
-                                memberSince: _memberSince,
-                                stats: _stats,
-                                imageBusy: _savingProfileImage,
-                                onPickProfileImage: _pickProfileImage,
-                                onRemoveProfileImage: _removeProfileImage,
-                                isMobile: false,
-                              ),
-                              const SizedBox(
-                                width: PerfilProfessorLayout.cardsGap,
-                              ),
                               Expanded(
-                                child: _RightInfoCard(
-                                  displayNameController: _displayNameController,
-                                  usernameController: _usernameController,
-                                  emailController: _emailController,
-                                  phoneController: _phoneController,
-                                  nifController: _nifController,
-                                  websiteController: _websiteController,
-                                  currentSchoolController:
-                                      _currentSchoolController,
-                                  yearsExperienceController:
-                                      _yearsExperienceController,
-                                  biographyController: _biographyController,
-                                  disciplinasCatalog: _disciplinasCatalog,
-                                  disciplinasLecionadas: _disciplinasLecionadas,
-                                  languagesCatalog: _languagesCatalog,
-                                  languagesFalados: _languagesFalados,
-                                  certificates: _certificates,
-                                  documentsBusy: _documentsBusy,
-                                  onAddDisciplina: _addDisciplina,
-                                  onRemoveDisciplina: _removeDisciplina,
-                                  onAddLanguage: _addLanguage,
-                                  onRemoveLanguage: _removeLanguage,
-                                  onUpdateLanguageLevel: _updateLanguageLevel,
-                                  onAddCertificate: _addCertificate,
-                                  onEditCertificate: _editCertificate,
-                                  onDeleteCertificate: _deleteCertificate,
-                                  onDownloadCertificate: _downloadCertificate,
-                                  isMobile: false,
+                                child: Text(
+                                  _error!,
+                                  style: const TextStyle(color: Colors.red),
                                 ),
                               ),
+                              const SizedBox(width: 12),
+                              OutlinedButton(
+                                onPressed: _loadProfile,
+                                child: const Text('Tentar novamente'),
+                              ),
                             ],
+                          )
+                        else
+                          IntrinsicHeight(
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                _LeftProfileCard(
+                                  profileImageUrl: _profileImageUrl,
+                                  presentationVideoController:
+                                      _presentationVideoUrlController,
+                                  memberSince: _memberSince,
+                                  stats: _stats,
+                                  imageBusy: _savingProfileImage,
+                                  onPickProfileImage: _pickProfileImage,
+                                  onRemoveProfileImage: _removeProfileImage,
+                                  isMobile: false,
+                                  config: config, 
+                                ),
+                                const SizedBox(
+                                  width: PerfilProfessorLayout.cardsGap,
+                                ),
+                                Expanded(
+                                  child: _RightInfoCard(
+                                    displayNameController: _displayNameController,
+                                    usernameController: _usernameController,
+                                    emailController: _emailController,
+                                    phoneController: _phoneController,
+                                    nifController: _nifController,
+                                    websiteController: _websiteController,
+                                    currentSchoolController:
+                                        _currentSchoolController,
+                                    yearsExperienceController:
+                                        _yearsExperienceController,
+                                    biographyController: _biographyController,
+                                    disciplinasCatalog: _disciplinasCatalog,
+                                    disciplinasLecionadas: _disciplinasLecionadas,
+                                    languagesCatalog: _languagesCatalog,
+                                    languagesFalados: _languagesFalados,
+                                    certificates: _certificates,
+                                    documentsBusy: _documentsBusy,
+                                    onAddDisciplina: _addDisciplina,
+                                    onRemoveDisciplina: _removeDisciplina,
+                                    onAddLanguage: _addLanguage,
+                                    onRemoveLanguage: _removeLanguage,
+                                    onUpdateLanguageLevel: _updateLanguageLevel,
+                                    onAddCertificate: _addCertificate,
+                                    onEditCertificate: _editCertificate,
+                                    onDeleteCertificate: _deleteCertificate,
+                                    onDownloadCertificate: _downloadCertificate,
+                                    isMobile: false,
+                                    config: config,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -955,15 +974,19 @@ class _SaveProfileButton extends StatelessWidget {
   const _SaveProfileButton({
     required this.isSaving,
     required this.onTap,
+    required this.config,
     this.isMobile = false,
   });
 
   final bool isSaving;
   final VoidCallback? onTap;
   final bool isMobile;
+  final TeachingRoleConfig config;
 
   @override
   Widget build(BuildContext context) {
+    final isOrange = config.roleName == 'Explicador';
+
     return SizedBox(
       width: isMobile ? double.infinity : null,
       height: isMobile
@@ -974,14 +997,17 @@ class _SaveProfileButton extends StatelessWidget {
           borderRadius: BorderRadius.circular(
             PerfilProfessorLayout.saveButtonRadius,
           ),
-          gradient: const LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              PerfilProfessorColors.primaryGradientTop,
-              PerfilProfessorColors.primaryGradientBottom,
-            ],
-          ),
+          color: isOrange ? null : config.primaryColor,
+          gradient: isOrange 
+            ? const LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  PerfilProfessorColors.primaryGradientTop,
+                  PerfilProfessorColors.primaryGradientBottom,
+                ],
+              )
+            : null,
         ),
         child: InkWell(
           onTap: onTap,
@@ -1012,7 +1038,7 @@ class _SaveProfileButton extends StatelessWidget {
                 const SizedBox(width: 10),
                 Text(
                   isSaving ? 'A guardar...' : 'Salvar Perfil',
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: Colors.white,
                     fontSize: PerfilProfessorLayout.saveButtonFontSize,
                     fontWeight: FontWeight.w600,
@@ -1095,6 +1121,7 @@ class _LeftProfileCard extends StatelessWidget {
     required this.imageBusy,
     required this.onPickProfileImage,
     required this.onRemoveProfileImage,
+    required this.config,
     this.isMobile = false,
   });
 
@@ -1105,6 +1132,7 @@ class _LeftProfileCard extends StatelessWidget {
   final bool imageBusy;
   final VoidCallback onPickProfileImage;
   final VoidCallback onRemoveProfileImage;
+  final TeachingRoleConfig config;
   final bool isMobile;
 
   String _formatDate(DateTime value) {
@@ -1191,6 +1219,7 @@ class _LeftProfileCard extends StatelessWidget {
               busy: imageBusy,
               onPickProfileImage: onPickProfileImage,
               isMobile: isMobile,
+              config: config,
             ),
           ),
           const SizedBox(height: 30.447),
@@ -1229,7 +1258,7 @@ class _LeftProfileCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 14.614),
                   _InfoRow(
-                    label: 'Total de aulas',
+                    label: config.perfil.totalSessionsLabel, 
                     value: _formatLessons(stats),
                     isMobile: isMobile,
                   ),
@@ -1360,12 +1389,14 @@ class _AvatarBlock extends StatelessWidget {
     required this.imageUrl,
     required this.busy,
     required this.onPickProfileImage,
+    required this.config,
     this.isMobile = false,
   });
 
   final String? imageUrl;
   final bool busy;
   final VoidCallback onPickProfileImage;
+  final TeachingRoleConfig config;
   final bool isMobile;
 
   @override
@@ -1377,6 +1408,8 @@ class _AvatarBlock extends StatelessWidget {
         ? PerfilProfessorLayout.mobileAvatarActionSize
         : PerfilProfessorLayout.avatarActionSize;
 
+    final isOrange = config.roleName == 'Explicador';
+
     return SizedBox(
       height: isMobile ? 172 : 199.729,
       child: Column(
@@ -1387,16 +1420,19 @@ class _AvatarBlock extends StatelessWidget {
               Container(
                 width: avatarSize,
                 height: avatarSize,
-                decoration: const BoxDecoration(
+                decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      PerfilProfessorColors.primaryGradientTop,
-                      PerfilProfessorColors.primaryGradientBottom,
-                    ],
-                  ),
+                  color: isOrange ? null : config.primaryColor,
+                  gradient: isOrange 
+                      ? const LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            PerfilProfessorColors.primaryGradientTop,
+                            PerfilProfessorColors.primaryGradientBottom,
+                          ],
+                        )
+                      : null,
                 ),
                 child: ClipOval(
                   child: imageUrl != null && imageUrl!.isNotEmpty
@@ -1574,6 +1610,7 @@ class _RightInfoCard extends StatelessWidget {
     required this.onEditCertificate,
     required this.onDeleteCertificate,
     required this.onDownloadCertificate,
+    required this.config,
     this.isMobile = false,
   });
 
@@ -1604,6 +1641,7 @@ class _RightInfoCard extends StatelessWidget {
   final ValueChanged<ProfessorCertificateDto> onDeleteCertificate;
   final ValueChanged<ProfessorCertificateDto> onDownloadCertificate;
   final bool isMobile;
+  final TeachingRoleConfig config;
 
   @override
   Widget build(BuildContext context) {
@@ -1712,7 +1750,7 @@ class _RightInfoCard extends StatelessWidget {
           SizedBox(height: fieldGap),
           buildFieldPair(
             _LabeledField(
-              label: 'Escola Atual',
+              label: 'Escola Atual / Clínica',
               controller: currentSchoolController,
               isMobile: isMobile,
             ),
@@ -1733,12 +1771,13 @@ class _RightInfoCard extends StatelessWidget {
           ),
           SizedBox(height: fieldGap),
           buildSectionHeader(
-            'Disciplinas Lecionadas',
+            config.perfil.subjectsSectionTitle, 
             _AddDisciplinaMenuButton(
               enabled: available.isNotEmpty,
               items: available,
               onSelected: onAddDisciplina,
               isMobile: isMobile,
+              config: config, 
             ),
           ),
           const SizedBox(height: 12),
@@ -1751,6 +1790,7 @@ class _RightInfoCard extends StatelessWidget {
                   label: d.nome,
                   onRemove: () => onRemoveDisciplina(d.idDisciplina),
                   isMobile: isMobile,
+                  config: config,
                 ),
             ],
           ),
@@ -2043,6 +2083,7 @@ class _AddDisciplinaMenuButton extends StatelessWidget {
     required this.enabled,
     required this.items,
     required this.onSelected,
+    required this.config,
     this.isMobile = false,
   });
 
@@ -2050,6 +2091,7 @@ class _AddDisciplinaMenuButton extends StatelessWidget {
   final List<DisciplinaDto> items;
   final ValueChanged<String> onSelected;
   final bool isMobile;
+  final TeachingRoleConfig config;
 
   @override
   Widget build(BuildContext context) {
@@ -2076,7 +2118,7 @@ class _AddDisciplinaMenuButton extends StatelessWidget {
             ),
             const SizedBox(width: 6),
             Text(
-              'Adicionar Disciplina',
+              config.perfil.addSubjectButtonLabel,
               style: TextStyle(
                 color: enabled
                     ? PerfilProfessorColors.title
@@ -2094,7 +2136,7 @@ class _AddDisciplinaMenuButton extends StatelessWidget {
 
     return PopupMenuButton<String>(
       enabled: enabled,
-      tooltip: 'Adicionar disciplina',
+      tooltip: config.perfil.addSubjectButtonLabel,
       onSelected: onSelected,
       itemBuilder: (context) {
         return items
@@ -2115,18 +2157,20 @@ class _DisciplinaChip extends StatelessWidget {
   const _DisciplinaChip({
     required this.label,
     required this.onRemove,
+    required this.config,
     this.isMobile = false,
   });
 
   final String label;
   final VoidCallback onRemove;
+  final TeachingRoleConfig config;
   final bool isMobile;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: PerfilProfessorColors.badgeBlue,
+        color: config.primaryColor,
         borderRadius: BorderRadius.circular(PerfilProfessorLayout.badgeRadius),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -2344,7 +2388,7 @@ class _LabeledField extends StatelessWidget {
         Text(
           label,
           style: TextStyle(
-            color: Color(0xFF0A0A0A),
+            color: const Color(0xFF0A0A0A),
             fontSize: isMobile
                 ? PerfilProfessorLayout.mobileLabelFontSize
                 : PerfilProfessorLayout.labelFontSize,

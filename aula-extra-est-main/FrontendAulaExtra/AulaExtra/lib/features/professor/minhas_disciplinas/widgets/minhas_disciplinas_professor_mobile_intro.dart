@@ -8,11 +8,13 @@ class MinhasDisciplinasProfessorMobileIntro extends StatelessWidget {
     required this.title,
     required this.subtitle,
     required this.onCreate,
+    required this.activeColor,
   });
 
   final String title;
   final String subtitle;
   final VoidCallback onCreate;
+  final Color activeColor;
 
   @override
   Widget build(BuildContext context) {
@@ -42,9 +44,10 @@ class MinhasDisciplinasProfessorMobileIntro extends StatelessWidget {
         SizedBox(
           width: double.infinity,
           child: MinhasDisciplinasPrimaryActionButton(
-            label: 'Nova Disciplina',
+            label: 'Adicionar nova', 
             icon: Icons.add_rounded,
             onTap: onCreate,
+            activeColor: activeColor, 
           ),
         ),
       ],

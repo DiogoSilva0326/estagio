@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../../../design/widgets/backoffice_scaffold.dart';
 import '../../../routes/app_routes.dart';
-import '../constants/planos_precos_mock_data.dart';
 import '../models/plano_item.dart';
 import '../sections/planos_precos_overview_section.dart';
+import '../services/backoffice_planos_precos_service.dart';
 import '../widgets/novo_plano_dialog.dart';
 
 class PlanosPrecosPage extends StatefulWidget {
@@ -18,40 +18,15 @@ class PlanosPrecosPage extends StatefulWidget {
 
 class _PlanosPrecosPageState extends State<PlanosPrecosPage> {
   late final TextEditingController _commissionController;
-  late final List<PlanoItem> _items;
-
-  static const List<_PlanVisualStyle> _styles = [
-    _PlanVisualStyle(
-      badgeLabel: 'ATIVO',
-      badgeBackgroundColor: Color(0xFFEAFBF3),
-      badgeTextColor: Color(0xFF027A48),
-      icon: Icons.school_outlined,
-      iconBackgroundColor: Color(0xFFEAF2FB),
-      iconColor: Color(0xFF41A7D7),
-    ),
-    _PlanVisualStyle(
-      badgeLabel: 'POPULAR',
-      badgeBackgroundColor: Color(0xFFFFF2E8),
-      badgeTextColor: Color(0xFFFB7B02),
-      icon: Icons.workspace_premium_outlined,
-      iconBackgroundColor: Color(0xFFFFF2E8),
-      iconColor: Color(0xFFFB7B02),
-    ),
-    _PlanVisualStyle(
-      badgeLabel: 'CUSTOM',
-      badgeBackgroundColor: Color(0xFFEEF2FF),
-      badgeTextColor: Color(0xFF4F46E5),
-      icon: Icons.tune_rounded,
-      iconBackgroundColor: Color(0xFFFCEFE4),
-      iconColor: Color(0xFFFC9039),
-    ),
-  ];
+  final BackofficePlanosPrecosService _service = BackofficePlanosPrecosService();
+  List<PlanoItem> _items = const [];
+  List<BackofficePlanCourseOption> _courses = const [];
 
   @override
   void initState() {
     super.initState();
-    _commissionController = TextEditingController(text: basePlatformCommission);
-    _items = List<PlanoItem>.from(planosPrecosMockData);
+    _commissionController = TextEditingController(text: '20');
+    _load();
   }
 
   @override
@@ -100,38 +75,31 @@ class _PlanosPrecosPageState extends State<PlanosPrecosPage> {
   }
 
   Future<void> _openCreatePlanDialog() async {
+    if (_courses.isEmpty) {
+      _showSnackBar('Não existem cursos disponíveis para associar a um plano.');
+      return;
+    }
+
     final result = await showDialog<NovoPlanoDialogResult>(
       context: context,
       barrierColor: const Color(0x73000000),
-      builder: (_) => const NovoPlanoDialog(),
+      builder: (_) => NovoPlanoDialog(
+        courses: _dialogCourses,
+        subtitle: 'Crie um novo plano com nome, descrição e preço.',
+      ),
     );
 
     if (result == null) {
       return;
     }
 
-    final style = _styles[_items.length % _styles.length];
-    final normalizedPrice = result.price.contains('€')
-        ? result.price
-        : '${result.price}€';
-
-    setState(() {
-      _items.add(
-        PlanoItem(
-          name: result.name,
-          subtitle: 'Plano criado manualmente para novos cenários.',
-          description:
-              'Plano configurável para diferentes necessidades, com preço personalizado e edição futura disponível.',
-          priceLabel: normalizedPrice,
-          badgeLabel: style.badgeLabel,
-          badgeBackgroundColor: style.badgeBackgroundColor,
-          badgeTextColor: style.badgeTextColor,
-          icon: style.icon,
-          iconBackgroundColor: style.iconBackgroundColor,
-          iconColor: style.iconColor,
-        ),
-      );
-    });
+    try {
+      await _service.createPlan(_draftFromDialog(result));
+      await _load();
+      _showSnackBar('Plano criado com sucesso.');
+    } catch (_) {
+      _showSnackBar('Não foi possível criar o plano.');
+    }
   }
 
   Future<void> _openEditPlanDialog(int index) async {
@@ -140,11 +108,16 @@ class _PlanosPrecosPageState extends State<PlanosPrecosPage> {
       context: context,
       barrierColor: const Color(0x73000000),
       builder: (_) => NovoPlanoDialog(
+        courses: _dialogCourses,
         title: 'Editar Plano',
-        subtitle: 'Atualize o nome e o preço do plano selecionado.',
+        subtitle: 'Atualize o nome, descrição e preço do plano selecionado.',
         submitLabel: 'Guardar alterações',
+        initialCourseId: item.courseId,
         initialName: item.name,
+        initialDescription: item.description.replaceAll('\n', ' '),
         initialPrice: item.priceLabel.replaceAll('€', ''),
+        initialNumberOfLessons: item.numberOfLessons,
+        initialIsActive: item.isActive,
       ),
     );
 
@@ -152,43 +125,73 @@ class _PlanosPrecosPageState extends State<PlanosPrecosPage> {
       return;
     }
 
-    setState(() {
-      _items[index] = item.copyWith(
-        name: result.name,
-        priceLabel: result.price.contains('€')
-            ? result.price
-            : '${result.price}€',
-      );
-    });
+    try {
+      await _service.updatePlan(item.id, _draftFromDialog(result));
+      await _load();
+      _showSnackBar('Plano atualizado com sucesso.');
+    } catch (_) {
+      _showSnackBar('Não foi possível atualizar o plano.');
+    }
   }
 
-  void _saveCommission() {
+  Future<void> _saveCommission() async {
+    final normalized = _commissionController.text.trim().replaceAll(',', '.');
+    if (normalized.isEmpty) {
+      _showSnackBar('Indique uma comissão válida.');
+      return;
+    }
+
+    try {
+      await _service.saveBaseCommission(normalized);
+      _showSnackBar('Comissão base atualizada para $normalized%.');
+    } catch (_) {
+      _showSnackBar('Não foi possível guardar a comissão base.');
+    }
+  }
+
+  Future<void> _load() async {
+    try {
+      final data = await _service.fetchData();
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _items = data.items;
+        _courses = data.courses;
+        _commissionController.text = data.baseCommission;
+      });
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _items = const [];
+        _courses = const [];
+      });
+    }
+  }
+
+  List<NovoPlanoDialogCourseOption> get _dialogCourses => _courses
+      .map((course) => NovoPlanoDialogCourseOption(id: course.id, name: course.name))
+      .toList(growable: false);
+
+  BackofficePlanDraft _draftFromDialog(NovoPlanoDialogResult result) {
+    final normalized = result.price.replaceAll('€', '').replaceAll(',', '.').trim();
+    return BackofficePlanDraft(
+      courseId: result.courseId,
+      name: result.name,
+      description: result.description,
+      price: double.tryParse(normalized) ?? 0,
+      numberOfLessons: result.numberOfLessons,
+      isActive: result.isActive,
+    );
+  }
+
+  void _showSnackBar(String message) {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(
-            'Comissão base atualizada para ${_commissionController.text.trim()}%.',
-          ),
-        ),
-      );
+      ..showSnackBar(SnackBar(content: Text(message)));
   }
-}
-
-class _PlanVisualStyle {
-  const _PlanVisualStyle({
-    required this.badgeLabel,
-    required this.badgeBackgroundColor,
-    required this.badgeTextColor,
-    required this.icon,
-    required this.iconBackgroundColor,
-    required this.iconColor,
-  });
-
-  final String badgeLabel;
-  final Color badgeBackgroundColor;
-  final Color badgeTextColor;
-  final IconData icon;
-  final Color iconBackgroundColor;
-  final Color iconColor;
 }

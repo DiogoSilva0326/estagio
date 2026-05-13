@@ -251,7 +251,7 @@ namespace ConfidantPostgreSQL.Modules.Reservations.Controllers
         }
 
         [HttpGet("professor/week")]
-        public async Task<IActionResult> GetProfessorWeek([FromQuery] DateTime? weekStart)
+        public async Task<IActionResult> GetProfessorWeek([FromQuery] DateTime? weekStart, [FromQuery(Name = "target_role")] string? targetRole = null)
         {
             RequestContext.ApplyCultureFromHeader(Request);
             if (!TryGetCurrentUserId(out var userId)) return Unauthorized(new { error = "token_invalid" });
@@ -268,12 +268,12 @@ namespace ConfidantPostgreSQL.Modules.Reservations.Controllers
             var computedWeekStart = referenceDate.AddDays(-diff);
             var computedWeekEnd = computedWeekStart.AddDays(7);
 
-            var items = await _service.GetProfessorWeekAsync(professor.IdProfessor, computedWeekStart, computedWeekEnd);
+            var items = await _service.GetProfessorWeekAsync(professor.IdProfessor, computedWeekStart, computedWeekEnd, targetRole);
             return Ok(items);
         }
 
         [HttpGet("professor/upcoming")]
-        public async Task<IActionResult> GetProfessorUpcoming([FromQuery] int limit = 4)
+        public async Task<IActionResult> GetProfessorUpcoming([FromQuery] int limit = 4, [FromQuery(Name = "target_role")] string? targetRole = null)
         {
             RequestContext.ApplyCultureFromHeader(Request);
             if (!TryGetCurrentUserId(out var userId)) return Unauthorized(new { error = "token_invalid" });
@@ -287,7 +287,7 @@ namespace ConfidantPostgreSQL.Modules.Reservations.Controllers
             var nowUtc = DateTime.UtcNow;
             var from = new DateTime(nowUtc.Year, nowUtc.Month, nowUtc.Day, nowUtc.Hour, nowUtc.Minute, nowUtc.Second);
 
-            var items = await _service.GetProfessorUpcomingAsync(professor.IdProfessor, from, limit);
+            var items = await _service.GetProfessorUpcomingAsync(professor.IdProfessor, from, limit, targetRole);
             return Ok(items);
         }
 

@@ -4,7 +4,14 @@ import '../../../design/theme/app_colors.dart';
 import '../widgets/avaliacoes_search_field.dart';
 
 class AvaliacoesHeaderSection extends StatelessWidget {
-  const AvaliacoesHeaderSection({super.key});
+  const AvaliacoesHeaderSection({
+    super.key,
+    this.searchController,
+    this.onSearchChanged,
+  });
+
+  final TextEditingController? searchController;
+  final ValueChanged<String>? onSearchChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -13,22 +20,28 @@ class AvaliacoesHeaderSection extends StatelessWidget {
         final stacked = constraints.maxWidth < 920;
 
         if (stacked) {
-          return const Column(
+          return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _HeaderText(),
-              SizedBox(height: 24),
-              AvaliacoesSearchField(),
+              const _HeaderText(),
+              const SizedBox(height: 24),
+              AvaliacoesSearchField(
+                controller: searchController,
+                onChanged: onSearchChanged,
+              ),
             ],
           );
         }
 
-        return const Row(
+        return Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Expanded(child: _HeaderText()),
-            SizedBox(width: 24),
-            AvaliacoesSearchField(),
+            const Expanded(child: _HeaderText()),
+            const SizedBox(width: 24),
+            AvaliacoesSearchField(
+              controller: searchController,
+              onChanged: onSearchChanged,
+            ),
           ],
         );
       },
@@ -56,7 +69,7 @@ class _HeaderText extends StatelessWidget {
         ),
         SizedBox(height: 4.659),
         Text(
-          'Moderação de avaliações dos alunos aos explicadores.',
+          'Moderacao de avaliacoes submetidas as aulas e aos professores.',
           style: TextStyle(
             color: AppColors.textSecondary,
             fontSize: 16.307,

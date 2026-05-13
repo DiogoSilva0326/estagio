@@ -3,6 +3,7 @@ import 'package:aula_extra/core/data/payments/payment_status.dart';
 import 'package:aula_extra/features/professor/pagamentos/constants/pagamentos_professor_colors.dart';
 import 'package:aula_extra/features/professor/pagamentos/constants/pagamentos_professor_layout.dart';
 import 'package:aula_extra/features/professor/pagamentos/widgets/pagamentos_professor_formatters.dart';
+import 'package:aula_extra/core/config/teaching_roles_config.dart'; 
 import 'package:flutter/material.dart';
 
 class PagamentosTableCard extends StatelessWidget {
@@ -10,10 +11,12 @@ class PagamentosTableCard extends StatelessWidget {
     super.key,
     required this.rows,
     required this.onDetailsTap,
+    required this.config, 
   });
 
   final List<ProfessorPaymentHistoryItemDto> rows;
   final Future<void> Function(ProfessorPaymentHistoryItemDto row) onDetailsTap;
+  final TeachingRoleConfig config;
 
   @override
   Widget build(BuildContext context) {
@@ -50,7 +53,7 @@ class PagamentosTableCard extends StatelessWidget {
         ),
         child: Column(
           children: [
-            const _TableHeader(),
+            _TableHeader(config: config), 
             Expanded(
               child: rows.isEmpty
                   ? const Center(
@@ -87,7 +90,9 @@ class PagamentosTableCard extends StatelessWidget {
 }
 
 class _TableHeader extends StatelessWidget {
-  const _TableHeader();
+  const _TableHeader({required this.config});
+
+  final TeachingRoleConfig config;
 
   @override
   Widget build(BuildContext context) {
@@ -95,8 +100,7 @@ class _TableHeader extends StatelessWidget {
       color: PagamentosProfessorColors.text,
       fontSize: PagamentosProfessorLayout.tableTextFontSize,
       fontWeight: FontWeight.w500,
-      height:
-          PagamentosProfessorLayout.tableTextLineHeight /
+      height: PagamentosProfessorLayout.tableTextLineHeight /
           PagamentosProfessorLayout.tableTextFontSize,
     );
 
@@ -111,18 +115,18 @@ class _TableHeader extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 9.59),
         child: Row(
-          children: const [
+          children: [
             SizedBox(
               width: 235.379 - 9.59,
-              child: Text('Aluno', style: headerStyle),
+              child: Text(config.pagamentos.userHeader, style: headerStyle),
             ),
             SizedBox(
               width: 208.251,
-              child: Text('Data da Aula', style: headerStyle),
+              child: Text(config.pagamentos.dateHeader, style: headerStyle),
             ),
-            SizedBox(width: 106.929, child: Text('Valor', style: headerStyle)),
-            SizedBox(width: 180.889, child: Text('Status', style: headerStyle)),
-            Expanded(
+            const SizedBox(width: 106.929, child: Text('Valor', style: headerStyle)),
+            const SizedBox(width: 180.889, child: Text('Status', style: headerStyle)),
+            const Expanded(
               child: Align(
                 alignment: Alignment.centerRight,
                 child: Text(
@@ -151,8 +155,7 @@ class _TableRow extends StatelessWidget {
       color: PagamentosProfessorColors.valueGreenText,
       fontSize: PagamentosProfessorLayout.tableTextFontSize,
       fontWeight: FontWeight.w500,
-      height:
-          PagamentosProfessorLayout.tableTextLineHeight /
+      height: PagamentosProfessorLayout.tableTextLineHeight /
           PagamentosProfessorLayout.tableTextFontSize,
     );
 
@@ -160,8 +163,7 @@ class _TableRow extends StatelessWidget {
       color: PagamentosProfessorColors.text,
       fontSize: PagamentosProfessorLayout.tableTextFontSize,
       fontWeight: FontWeight.w400,
-      height:
-          PagamentosProfessorLayout.tableTextLineHeight /
+      height: PagamentosProfessorLayout.tableTextLineHeight /
           PagamentosProfessorLayout.tableTextFontSize,
     );
 
@@ -247,8 +249,7 @@ class _StatusBadge extends StatelessWidget {
               color: textColor,
               fontSize: PagamentosProfessorLayout.badgeFontSize,
               fontWeight: FontWeight.w500,
-              height:
-                  PagamentosProfessorLayout.badgeLineHeight /
+              height: PagamentosProfessorLayout.badgeLineHeight /
                   PagamentosProfessorLayout.badgeFontSize,
             ),
           ),
@@ -281,8 +282,7 @@ class _DetailsButton extends StatelessWidget {
                 color: PagamentosProfessorColors.text,
                 fontSize: PagamentosProfessorLayout.tableTextFontSize,
                 fontWeight: FontWeight.w500,
-                height:
-                    PagamentosProfessorLayout.tableTextLineHeight /
+                height: PagamentosProfessorLayout.tableTextLineHeight /
                     PagamentosProfessorLayout.tableTextFontSize,
               ),
             ),

@@ -4,6 +4,7 @@ import 'package:aula_extra/core/components/header/app_header.dart';
 import 'package:aula_extra/features/aluno/areas_aluno/constants/areas_aluno_constants.dart';
 import 'package:aula_extra/features/aluno/areas_aluno/models/area_category_option.dart';
 import 'package:aula_extra/features/aluno/areas_aluno/widgets/dialogs/area_discipline_selection_dialog.dart';
+import 'package:aula_extra/features/aluno/areas_aluno/widgets/areas_filter_chip.dart';
 import 'package:flutter/material.dart';
 
 Future<void> showAddAreaDialog(
@@ -12,22 +13,19 @@ Future<void> showAddAreaDialog(
   required Set<String> selectedAreaIds,
   required Set<String> selectedDisciplinaIds,
   required Map<String, List<String>> selectedDisciplinaNamesByAreaId,
-  required Future<List<DisciplinaDto>> Function(String idArea)
-  loadDisciplinasByAreaId,
+  required Future<List<DisciplinaDto>> Function(String idArea) loadDisciplinasByAreaId,
   required Future<void> Function(
     String idArea,
     List<String> allDisciplinaIdsInArea,
     List<String> selectedIdsInArea,
-  )
-  onAreaSelectionConfirmed,
+  ) onAreaSelectionConfirmed,
 }) {
-  final isMobile =
-      MediaQuery.sizeOf(context).width <= AppHeader.mobileBreakpoint;
+  final isMobile = MediaQuery.sizeOf(context).width <= AppHeader.mobileBreakpoint;
   if (isMobile) {
     return showGeneralDialog<void>(
       context: context,
       barrierDismissible: true,
-      barrierLabel: 'Escolha uma Área',
+      barrierLabel: 'Escolha um Apoio',
       barrierColor: Colors.black54,
       transitionDuration: const Duration(milliseconds: 220),
       pageBuilder: (dialogContext, _, _) => _AddAreaMobileDialog(
@@ -73,7 +71,27 @@ Future<void> showAddAreaDialog(
   );
 }
 
-class AddAreaDialog extends StatelessWidget {
+String _categoryForAreaName(String name) {
+  final n = name.trim().toLowerCase();
+  if (n.contains('psicolog') || n.contains('terapia') || n.contains('ansiedade') || n.contains('orientação')) return 'Psicologia & Bem-estar';
+  if (n.contains('inglês') || n.contains('espanhol') || n.contains('francês') || n.contains('alemão') || n.contains('idioma') || n.contains('língua')) return 'Idiomas';
+  if (n.contains('música') || n.contains('piano') || n.contains('guitarra') || n.contains('arte') || n.contains('desenho')) return 'Artes & Música';
+  if (n.contains('programação') || n.contains('informática') || n.contains('computador') || n.contains('software')) return 'Tecnologia';
+  if (n.contains('universidade') || n.contains('superior') || n.contains('tese') || n.contains('dissertação')) return 'Ensino Superior';
+  return 'Disciplinas Escolares'; 
+}
+
+const _filterOptions = [
+  'Todas', 
+  'Disciplinas Escolares', 
+  'Idiomas', 
+  'Psicologia & Bem-estar', 
+  'Ensino Superior',
+  'Tecnologia', 
+  'Artes & Música'
+];
+
+class AddAreaDialog extends StatefulWidget {
   const AddAreaDialog({
     super.key,
     required this.parentContext,
@@ -90,19 +108,28 @@ class AddAreaDialog extends StatelessWidget {
   final Set<String> selectedAreaIds;
   final Set<String> selectedDisciplinaIds;
   final Map<String, List<String>> selectedDisciplinaNamesByAreaId;
-  final Future<List<DisciplinaDto>> Function(String idArea)
-  loadDisciplinasByAreaId;
+  final Future<List<DisciplinaDto>> Function(String idArea) loadDisciplinasByAreaId;
   final Future<void> Function(
     String idArea,
     List<String> allDisciplinaIdsInArea,
     List<String> selectedIdsInArea,
-  )
-  onAreaSelectionConfirmed;
+  ) onAreaSelectionConfirmed;
 
+  @override
+  State<AddAreaDialog> createState() => _AddAreaDialogState();
+}
+
+class _AddAreaDialogState extends State<AddAreaDialog> {
   static const _dialogRadius = 24.0;
+  String _selectedCategory = 'Todas';
 
   @override
   Widget build(BuildContext context) {
+    final filteredAreas = widget.areas.where((area) {
+      if (_selectedCategory == 'Todas') return true;
+      return _categoryForAreaName(area.nome) == _selectedCategory;
+    }).toList();
+
     return Dialog(
       backgroundColor: Colors.white,
       insetPadding: const EdgeInsets.all(24),
@@ -114,118 +141,125 @@ class AddAreaDialog extends StatelessWidget {
         constraints: const BoxConstraints(maxWidth: 1024),
         child: Column(
           mainAxisSize: MainAxisSize.max,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _Header(onClose: () => Navigator.of(context).pop()),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(24, 24, 39, 0),
-                child: GridView.builder(
-                  padding: EdgeInsets.zero,
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    crossAxisSpacing: 16,
-                    mainAxisSpacing: 16,
-                    mainAxisExtent: 255,
-                  ),
-                  itemCount: areas.length,
-                  itemBuilder: (context, index) {
-                    final area = areas[index];
-                    final visual = _visualForAreaName(area.nome);
-
-                    final selectedNames =
-                        selectedDisciplinaNamesByAreaId[area.idArea] ??
-                        const <String>[];
-                    final isSelected =
-                        selectedNames.isNotEmpty ||
-                        selectedAreaIds.contains(area.idArea);
-
-                    return _AreaOptionCard(
-                      option: visual,
-                      selected: isSelected,
-                      selectedDisciplinaNames: selectedNames,
-                      onTap: () async {
-                        final navigator = Navigator.of(parentContext);
-                        Navigator.of(context).pop();
-                        WidgetsBinding.instance.addPostFrameCallback((_) async {
-                          showDialog<void>(
-                            context: navigator.context,
-                            barrierDismissible: false,
-                            builder: (_) => const Center(
-                              child: CircularProgressIndicator(),
-                            ),
-                          );
-
-                          List<DisciplinaDto> disciplinas;
-                          try {
-                            disciplinas = await loadDisciplinasByAreaId(
-                              area.idArea,
-                            );
-                          } catch (e) {
-                            if (!navigator.mounted) return;
-                            if (navigator.canPop()) navigator.pop();
-                            ScaffoldMessenger.of(
-                              navigator.context,
-                            ).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  'Erro ao carregar disciplinas: $e',
-                                ),
-                              ),
-                            );
-                            return;
-                          }
-
-                          if (!navigator.mounted) return;
-                          if (navigator.canPop()) navigator.pop();
-
-                          final selectedIds =
-                              await showAreaDisciplineSelectionDialog(
-                                navigator.context,
-                                areaName: area.nome,
-                                imageAsset: visual.imageAsset,
-                                gradientStart: visual.gradientStart,
-                                gradientEnd: visual.gradientEnd,
-                                disciplinas: disciplinas,
-                                initialSelectedIds: disciplinas
-                                    .map((d) => d.idDisciplina.trim())
-                                    .where(
-                                      (id) =>
-                                          id.isNotEmpty &&
-                                          selectedDisciplinaIds.contains(id),
-                                    )
-                                    .toList(growable: false),
-                              );
-
-                          if (!navigator.mounted) return;
-                          if (selectedIds == null) return;
-
-                          final allIdsInArea = disciplinas
-                              .map((d) => d.idDisciplina.trim())
-                              .where((id) => id.isNotEmpty)
-                              .toList(growable: false);
-
-                          await onAreaSelectionConfirmed(
-                            area.idArea,
-                            allIdsInArea,
-                            selectedIds,
-                          );
-                        });
-                      },
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: _filterOptions.map((filter) {
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 8.0),
+                      child: AreasFilterChip(
+                        label: filter,
+                        selected: _selectedCategory == filter,
+                        onTap: () {
+                          setState(() {
+                            _selectedCategory = filter;
+                          });
+                        },
+                      ),
                     );
-                  },
+                  }).toList(),
                 ),
               ),
             ),
+            Expanded(
+              child: filteredAreas.isEmpty 
+                ? const Center(child: Text('Nenhuma área encontrada nesta categoria.', style: TextStyle(color: Colors.grey)))
+                : Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 20, 39, 0),
+                  child: GridView.builder(
+                    padding: EdgeInsets.zero,
+                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2,
+                      crossAxisSpacing: 16,
+                      mainAxisSpacing: 16,
+                      mainAxisExtent: 255,
+                    ),
+                    itemCount: filteredAreas.length,
+                    itemBuilder: (context, index) {
+                      final area = filteredAreas[index];
+                      final visual = _visualForAreaName(area.nome);
+
+                      final selectedNames = widget.selectedDisciplinaNamesByAreaId[area.idArea] ?? const <String>[];
+                      final isSelected = selectedNames.isNotEmpty || widget.selectedAreaIds.contains(area.idArea);
+
+                      return _AreaOptionCard(
+                        option: visual,
+                        selected: isSelected,
+                        selectedDisciplinaNames: selectedNames,
+                        onTap: () async {
+                          final navigator = Navigator.of(widget.parentContext);
+                          Navigator.of(context).pop();
+                          WidgetsBinding.instance.addPostFrameCallback((_) async {
+                            showDialog<void>(
+                              context: navigator.context,
+                              barrierDismissible: false,
+                              builder: (_) => const Center(
+                                child: CircularProgressIndicator(),
+                              ),
+                            );
+
+                            List<DisciplinaDto> disciplinas;
+                            try {
+                              disciplinas = await widget.loadDisciplinasByAreaId(area.idArea);
+                            } catch (e) {
+                              if (!navigator.mounted) return;
+                              if (navigator.canPop()) navigator.pop();
+                              ScaffoldMessenger.of(navigator.context).showSnackBar(
+                                SnackBar(content: Text('Erro ao carregar opções: $e')),
+                              );
+                              return;
+                            }
+
+                            if (!navigator.mounted) return;
+                            if (navigator.canPop()) navigator.pop();
+
+                            final selectedIds = await showAreaDisciplineSelectionDialog(
+                              navigator.context,
+                              areaName: area.nome,
+                              imageAsset: visual.imageAsset,
+                              gradientStart: visual.gradientStart,
+                              gradientEnd: visual.gradientEnd,
+                              disciplinas: disciplinas,
+                              initialSelectedIds: disciplinas
+                                  .map((d) => d.idDisciplina.trim())
+                                  .where((id) => id.isNotEmpty && widget.selectedDisciplinaIds.contains(id))
+                                  .toList(growable: false),
+                            );
+
+                            if (!navigator.mounted) return;
+                            if (selectedIds == null) return;
+
+                            final allIdsInArea = disciplinas
+                                .map((d) => d.idDisciplina.trim())
+                                .where((id) => id.isNotEmpty)
+                                .toList(growable: false);
+
+                            await widget.onAreaSelectionConfirmed(
+                              area.idArea,
+                              allIdsInArea,
+                              selectedIds,
+                            );
+                          });
+                        },
+                      );
+                    },
+                  ),
+                ),
+            ),
             Container(
-              height: 80,
+              width: double.infinity,
               decoration: const BoxDecoration(
                 color: Color(0xFFF9FAFB),
                 border: Border(top: BorderSide(color: Color(0xFFE5E7EB))),
               ),
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              alignment: Alignment.center,
+              padding: const EdgeInsets.fromLTRB(20, 14, 20, 20),
               child: const Text(
-                'Após escolher a área, você poderá gerenciar as disciplinas específicas',
+                'Após escolher a área, você poderá gerir os serviços e apoios específicos.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 14,
@@ -242,7 +276,7 @@ class AddAreaDialog extends StatelessWidget {
   }
 }
 
-class _AddAreaMobileDialog extends StatelessWidget {
+class _AddAreaMobileDialog extends StatefulWidget {
   const _AddAreaMobileDialog({
     required this.parentContext,
     required this.areas,
@@ -258,18 +292,23 @@ class _AddAreaMobileDialog extends StatelessWidget {
   final Set<String> selectedAreaIds;
   final Set<String> selectedDisciplinaIds;
   final Map<String, List<String>> selectedDisciplinaNamesByAreaId;
-  final Future<List<DisciplinaDto>> Function(String idArea)
-  loadDisciplinasByAreaId;
+  final Future<List<DisciplinaDto>> Function(String idArea) loadDisciplinasByAreaId;
   final Future<void> Function(
     String idArea,
     List<String> allDisciplinaIdsInArea,
     List<String> selectedIdsInArea,
-  )
-  onAreaSelectionConfirmed;
+  ) onAreaSelectionConfirmed;
+
+  @override
+  State<_AddAreaMobileDialog> createState() => _AddAreaMobileDialogState();
+}
+
+class _AddAreaMobileDialogState extends State<_AddAreaMobileDialog> {
+  String _selectedCategory = 'Todas';
 
   Future<void> _handleTap(BuildContext context, AreaDto area) async {
     final visual = _visualForAreaName(area.nome);
-    final navigator = Navigator.of(parentContext);
+    final navigator = Navigator.of(widget.parentContext);
     Navigator.of(context).pop();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       showDialog<void>(
@@ -280,12 +319,12 @@ class _AddAreaMobileDialog extends StatelessWidget {
 
       List<DisciplinaDto> disciplinas;
       try {
-        disciplinas = await loadDisciplinasByAreaId(area.idArea);
+        disciplinas = await widget.loadDisciplinasByAreaId(area.idArea);
       } catch (e) {
         if (!navigator.mounted) return;
         if (navigator.canPop()) navigator.pop();
         ScaffoldMessenger.of(navigator.context).showSnackBar(
-          SnackBar(content: Text('Erro ao carregar disciplinas: $e')),
+          SnackBar(content: Text('Erro ao carregar serviços: $e')),
         );
         return;
       }
@@ -302,7 +341,7 @@ class _AddAreaMobileDialog extends StatelessWidget {
         disciplinas: disciplinas,
         initialSelectedIds: disciplinas
             .map((d) => d.idDisciplina.trim())
-            .where((id) => id.isNotEmpty && selectedDisciplinaIds.contains(id))
+            .where((id) => id.isNotEmpty && widget.selectedDisciplinaIds.contains(id))
             .toList(growable: false),
       );
 
@@ -313,27 +352,33 @@ class _AddAreaMobileDialog extends StatelessWidget {
           .where((id) => id.isNotEmpty)
           .toList(growable: false);
 
-      await onAreaSelectionConfirmed(area.idArea, allIdsInArea, selectedIds);
+      await widget.onAreaSelectionConfirmed(area.idArea, allIdsInArea, selectedIds);
     });
   }
 
   @override
   Widget build(BuildContext context) {
+    final filteredAreas = widget.areas.where((area) {
+      if (_selectedCategory == 'Todas') return true;
+      return _categoryForAreaName(area.nome) == _selectedCategory;
+    }).toList();
+
     return Material(
       color: Colors.white,
       child: SafeArea(
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 18, 16, 12),
               child: Row(
                 children: [
-                  Expanded(
+                  const Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
-                      children: const [
+                      children: [
                         Text(
-                          'Escolha uma Área',
+                          'Adicionar Apoio',
                           style: TextStyle(
                             fontSize: 28,
                             fontWeight: FontWeight.w700,
@@ -363,197 +408,52 @@ class _AddAreaMobileDialog extends StatelessWidget {
               ),
             ),
             const Divider(height: 1, color: Color(0xFFE5E7EB)),
-            Expanded(
-              child: ListView.separated(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-                itemCount: areas.length,
-                separatorBuilder: (_, _) => const SizedBox(height: 12),
-                itemBuilder: (context, index) {
-                  final area = areas[index];
-                  final visual = _visualForAreaName(area.nome);
-                  final selectedNames =
-                      selectedDisciplinaNamesByAreaId[area.idArea] ??
-                      const <String>[];
-                  final isSelected =
-                      selectedNames.isNotEmpty ||
-                      selectedAreaIds.contains(area.idArea);
-
-                  return _MobileAreaOptionCard(
-                    option: visual,
-                    selected: isSelected,
-                    selectedDisciplinaNames: selectedNames,
-                    onTap: () => _handleTap(context, area),
-                  );
-                },
-              ),
-            ),
-            Container(
-              width: double.infinity,
-              decoration: const BoxDecoration(
-                color: Color(0xFFF9FAFB),
-                border: Border(top: BorderSide(color: Color(0xFFE5E7EB))),
-              ),
-              padding: const EdgeInsets.fromLTRB(20, 14, 20, 20),
-              child: const Text(
-                'Após escolher a área, você poderá selecionar as disciplinas específicas.',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w400,
-                  color: Color(0xFF4A5565),
-                  height: 1.45,
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                physics: const BouncingScrollPhysics(),
+                child: Row(
+                  children: _filterOptions.map((filter) {
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 8.0),
+                      child: AreasFilterChip(
+                        label: filter,
+                        selected: _selectedCategory == filter,
+                        onTap: () {
+                          setState(() {
+                            _selectedCategory = filter;
+                          });
+                        },
+                      ),
+                    );
+                  }).toList(),
                 ),
               ),
+            ),
+            Expanded(
+              child: filteredAreas.isEmpty 
+                ? const Center(child: Text('Nenhuma área encontrada.', style: TextStyle(color: Colors.grey)))
+                : ListView.separated(
+                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+                  itemCount: filteredAreas.length,
+                  separatorBuilder: (_, _) => const SizedBox(height: 12),
+                  itemBuilder: (context, index) {
+                    final area = filteredAreas[index];
+                    final visual = _visualForAreaName(area.nome);
+                    final selectedNames = widget.selectedDisciplinaNamesByAreaId[area.idArea] ?? const <String>[];
+                    final isSelected = selectedNames.isNotEmpty || widget.selectedAreaIds.contains(area.idArea);
+
+                    return _MobileAreaOptionCard(
+                      option: visual,
+                      selected: isSelected,
+                      selectedDisciplinaNames: selectedNames,
+                      onTap: () => _handleTap(context, area),
+                    );
+                  },
+                ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-class _MobileAreaOptionCard extends StatelessWidget {
-  const _MobileAreaOptionCard({
-    required this.option,
-    required this.selected,
-    required this.selectedDisciplinaNames,
-    required this.onTap,
-  });
-
-  final AreaCategoryOption option;
-  final bool selected;
-  final List<String> selectedDisciplinaNames;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(20),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(20),
-        child: Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: selected
-                  ? AreasAlunoConstants.orangeStart
-                  : const Color(0xFFE5E7EB),
-              width: selected ? 2 : 1.5,
-            ),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    width: 64,
-                    height: 64,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(16),
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [option.gradientStart, option.gradientEnd],
-                      ),
-                    ),
-                    child: Center(
-                      child: Image.asset(
-                        option.imageAsset,
-                        width: 54,
-                        height: 54,
-                        fit: BoxFit.contain,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          option.name,
-                          style: const TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w700,
-                            color: Color(0xFF101828),
-                            height: 1.2,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          option.subtitle,
-                          style: const TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w500,
-                            color: Color(0xFF4A5565),
-                            height: 1.4,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const Icon(
-                    Icons.chevron_right_rounded,
-                    color: Color(0xFF4A5565),
-                  ),
-                ],
-              ),
-              if (selectedDisciplinaNames.isNotEmpty) ...[
-                const SizedBox(height: 14),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    for (final disciplina in selectedDisciplinaNames.take(4))
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AreasAlunoConstants.orangeStart.withValues(
-                            alpha: 0.12,
-                          ),
-                          borderRadius: BorderRadius.circular(999),
-                        ),
-                        child: Text(
-                          disciplina,
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: Color(0xFF364153),
-                          ),
-                        ),
-                      ),
-                    if (selectedDisciplinaNames.length > 4)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF3F4F6),
-                          borderRadius: BorderRadius.circular(999),
-                        ),
-                        child: Text(
-                          '+${selectedDisciplinaNames.length - 4}',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: Color(0xFF364153),
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-              ],
-            ],
-          ),
         ),
       ),
     );
@@ -581,17 +481,17 @@ class _Header extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Escolha uma Área',
+                'Adicionar Área de Apoio',
                 style: TextStyle(
                   fontSize: 30,
-                  fontWeight: FontWeight.w500,
+                  fontWeight: FontWeight.w600,
                   color: Color(0xFF101828),
                   height: 36 / 30,
                 ),
               ),
               SizedBox(height: 4),
               Text(
-                'Selecione a área geral que deseja adicionar',
+                'Selecione a área geral de estudo, tutoria ou psicologia.',
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w400,
@@ -818,7 +718,7 @@ class _AreaOptionCardPagedState extends State<_AreaOptionCardPaged> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   const Text(
-                    'Disciplinas incluídas:',
+                    'Opções incluídas:',
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w500,
@@ -852,9 +752,7 @@ class _AreaOptionCardPagedState extends State<_AreaOptionCardPaged> {
                       chipVPadding: widget.chipVPadding,
                       baseTextStyle: widget.chipTextStyle,
                       chipBg: widget.chipBg,
-                      selectedBg: AreasAlunoConstants.orangeStart.withValues(
-                        alpha: 0.12,
-                      ),
+                      selectedBg: AreasAlunoConstants.orangeStart.withValues(alpha: 0.12),
                       forceEllipsis: hasMore,
                     ),
                     if (hasMore)
@@ -865,8 +763,7 @@ class _AreaOptionCardPagedState extends State<_AreaOptionCardPaged> {
                           style: OutlinedButton.styleFrom(
                             side: const BorderSide(
                               color: AreasAlunoConstants.orangeStart,
-                              width:
-                                  AreasAlunoConstants.addAreaButtonBorderWidth,
+                              width: AreasAlunoConstants.addAreaButtonBorderWidth,
                             ),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(
@@ -878,12 +775,11 @@ class _AreaOptionCardPagedState extends State<_AreaOptionCardPaged> {
                               vertical: 12,
                             ),
                             foregroundColor: AreasAlunoConstants.orangeStart,
-                            textStyle: AreasAlunoConstants.addAreaTextStyle
-                                .copyWith(
-                                  color: AreasAlunoConstants.orangeStart,
-                                  fontSize: 18,
-                                  height: 24 / 18,
-                                ),
+                            textStyle: AreasAlunoConstants.addAreaTextStyle.copyWith(
+                              color: AreasAlunoConstants.orangeStart,
+                              fontSize: 18,
+                              height: 24 / 18,
+                            ),
                           ),
                           child: const Text('Ver mais'),
                         ),
@@ -984,9 +880,7 @@ class _LimitedChipWrap extends StatelessWidget {
         }
 
         if (overflowed || forceEllipsis) {
-          // Ensure the ellipsis chip fits at end of last line.
           while (shown.isNotEmpty) {
-            // Recompute layout for shown + ellipsis.
             var l = 1;
             var cx = 0.0;
             var fits = true;
@@ -1088,6 +982,154 @@ class _Chip extends StatelessWidget {
         style: selected
             ? baseTextStyle.copyWith(fontWeight: FontWeight.w500)
             : baseTextStyle,
+      ),
+    );
+  }
+}
+
+class _MobileAreaOptionCard extends StatelessWidget {
+  const _MobileAreaOptionCard({
+    required this.option,
+    required this.selected,
+    required this.selectedDisciplinaNames,
+    required this.onTap,
+  });
+
+  final AreaCategoryOption option;
+  final bool selected;
+  final List<String> selectedDisciplinaNames;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(20),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: selected
+                  ? AreasAlunoConstants.orangeStart
+                  : const Color(0xFFE5E7EB),
+              width: selected ? 2 : 1.5,
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 64,
+                    height: 64,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(16),
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [option.gradientStart, option.gradientEnd],
+                      ),
+                    ),
+                    child: Center(
+                      child: Image.asset(
+                        option.imageAsset,
+                        width: 54,
+                        height: 54,
+                        fit: BoxFit.contain,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          option.name,
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF101828),
+                            height: 1.2,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          option.subtitle,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                            color: Color(0xFF4A5565),
+                            height: 1.4,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Icon(
+                    Icons.chevron_right_rounded,
+                    color: Color(0xFF4A5565),
+                  ),
+                ],
+              ),
+              if (selectedDisciplinaNames.isNotEmpty) ...[
+                const SizedBox(height: 14),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    for (final disciplina in selectedDisciplinaNames.take(4))
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AreasAlunoConstants.orangeStart.withValues(
+                            alpha: 0.12,
+                          ),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Text(
+                          disciplina,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF364153),
+                          ),
+                        ),
+                      ),
+                    if (selectedDisciplinaNames.length > 4)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF3F4F6),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Text(
+                          '+${selectedDisciplinaNames.length - 4}',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF364153),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ],
+            ],
+          ),
+        ),
       ),
     );
   }

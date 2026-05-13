@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
 
 class ExplicadoresAddButton extends StatelessWidget {
-  const ExplicadoresAddButton({super.key, this.onPressed});
+  const ExplicadoresAddButton({
+    super.key,
+    this.onPressed,
+    this.label = 'Adicionar Explicador',
+  });
 
   final VoidCallback? onPressed;
+  final String label;
 
   @override
   Widget build(BuildContext context) {
@@ -26,13 +31,13 @@ class ExplicadoresAddButton extends StatelessWidget {
               ),
             ],
           ),
-          child: const Row(
+          child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.add_rounded, size: 18.637, color: Colors.white),
-              SizedBox(width: 13.98),
+              const Icon(Icons.add_rounded, size: 18.637, color: Colors.white),
+              const SizedBox(width: 13.98),
               Text(
-                'Adicionar Explicador',
+                label,
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 16.307,

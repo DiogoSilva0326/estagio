@@ -2,6 +2,7 @@ CREATE TABLE IF NOT EXISTS public.areas (
   id_area UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   nome VARCHAR(150) NOT NULL,
   descricao TEXT,
+  target_role VARCHAR(50) DEFAULT 'ensino', 
   created_at TIMESTAMP DEFAULT now(),
   updated_at TIMESTAMP DEFAULT now(),
   UNIQUE (nome)
@@ -19,6 +20,9 @@ CREATE TABLE IF NOT EXISTS public.disciplinas (
 -- Backwards-compatible upgrade: older databases may have `disciplinas` without `id_area`.
 ALTER TABLE public.disciplinas
   ADD COLUMN IF NOT EXISTS id_area UUID;
+  
+ALTER TABLE public.areas
+  ADD COLUMN IF NOT EXISTS target_role VARCHAR(50) DEFAULT 'ensino';
 
 ALTER TABLE public.disciplinas
   DROP CONSTRAINT IF EXISTS fk_disciplinas_area;

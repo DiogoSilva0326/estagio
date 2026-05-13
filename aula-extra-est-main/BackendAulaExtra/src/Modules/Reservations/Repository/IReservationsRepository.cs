@@ -18,8 +18,8 @@ namespace ConfidantPostgreSQL.Modules.Reservations.Repository
         Task<IEnumerable<StudentCalendarItem>> GetStudentCalendarAsync(Guid studentUserId, DateTime start, DateTime end);
         Task<IEnumerable<StudentCalendarItem>> GetStudentUpcomingCalendarAsync(Guid studentUserId, DateTime from, int limit);
         Task<AreaLessonSummary> GetStudentAreaLessonSummaryAsync(Guid studentUserId, Guid areaId, DateTime from);
-        Task<IEnumerable<ProfessorCalendarItem>> GetProfessorCalendarAsync(Guid professorId, DateTime start, DateTime end);
-        Task<IEnumerable<ProfessorCalendarItem>> GetProfessorUpcomingCalendarAsync(Guid professorId, DateTime from, int limit);
+        Task<IEnumerable<ProfessorCalendarItem>> GetProfessorCalendarAsync(Guid professorId, DateTime start, DateTime end, string? targetRole = null);
+        Task<IEnumerable<ProfessorCalendarItem>> GetProfessorUpcomingCalendarAsync(Guid professorId, DateTime from, int limit, string? targetRole = null);
 
         Task<IEnumerable<ExceptionRule>> GetExceptionRulesAllAsync();
         Task<ExceptionRule?> GetExceptionRuleByIdAsync(Guid idExceptionRule);

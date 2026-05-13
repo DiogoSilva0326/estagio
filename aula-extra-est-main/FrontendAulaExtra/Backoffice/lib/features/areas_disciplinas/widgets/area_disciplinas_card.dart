@@ -128,7 +128,7 @@ class AreaDisciplinasCard extends StatelessWidget {
   List<Widget> _buildDisciplinaWidgets() {
     return [
       for (var index = 0; index < item.disciplinas.length; index++) ...[
-        DisciplinaChipTile(label: item.disciplinas[index]),
+        DisciplinaChipTile(label: item.disciplinas[index].nome),
         if (index != item.disciplinas.length - 1) const SizedBox(height: 9.318),
       ],
     ];

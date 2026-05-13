@@ -450,7 +450,7 @@ class _PerfilContentSectionState extends State<PerfilContentSection> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const AlunoMenuNav(selectedIndex: 7),
+          const AlunoMenuNav(),
           const SizedBox(width: 40),
           Expanded(
             child: Column(

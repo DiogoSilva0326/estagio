@@ -20,15 +20,20 @@ class MenuProfessorStatRow extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 17.235,
-              height: 24.621 / 17.235,
-              fontWeight: FontWeight.w400,
-              color: MenuProfessorColors.textMuted,
+          Expanded(
+            child: Text(
+              label,
+              style: const TextStyle(
+                fontSize: 17.235,
+                height: 24.621 / 17.235,
+                fontWeight: FontWeight.w400,
+                color: MenuProfessorColors.textMuted,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis, 
             ),
           ),
+          const SizedBox(width: 8), 
           Text(
             value,
             style: TextStyle(
@@ -37,6 +42,7 @@ class MenuProfessorStatRow extends StatelessWidget {
               fontWeight: FontWeight.w600,
               color: valueColor,
             ),
+            maxLines: 1,
           ),
         ],
       ),

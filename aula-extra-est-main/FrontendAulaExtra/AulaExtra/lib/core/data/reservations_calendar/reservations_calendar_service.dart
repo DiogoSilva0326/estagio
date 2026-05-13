@@ -5,6 +5,7 @@ import 'package:aula_extra/core/data/reservations_calendar/dtos/reservation_paym
 import 'package:aula_extra/core/data/reservations_calendar/dtos/student_calendar_item_dto.dart';
 import 'package:aula_extra/core/data/reservations_calendar/reservations_calendar_api.dart';
 import 'package:aula_extra/core/data/session/token_storage.dart';
+import 'package:aula_extra/core/providers/user_provider.dart' show Role;
 
 class ReservationsCalendarService {
   ReservationsCalendarService({
@@ -46,6 +47,7 @@ class ReservationsCalendarService {
   }
 
   Future<List<ProfessorCalendarItemDto>> getProfessorWeek({
+    required Role role,
     String? weekStart,
   }) async {
     final token = await _tokenStorage.loadToken();
@@ -53,10 +55,11 @@ class ReservationsCalendarService {
       throw const ProfessorCalendarException('Sessão expirada');
     }
 
-    return _api.getProfessorWeek(token: token, weekStart: weekStart);
+    return _api.getProfessorWeek(token: token, role: role, weekStart: weekStart);
   }
 
   Future<List<ProfessorCalendarItemDto>> getProfessorUpcoming({
+    required Role role,
     int limit = 4,
   }) async {
     final token = await _tokenStorage.loadToken();
@@ -64,7 +67,7 @@ class ReservationsCalendarService {
       throw const ProfessorCalendarException('Sessão expirada');
     }
 
-    return _api.getProfessorUpcoming(token: token, limit: limit);
+    return _api.getProfessorUpcoming(token: token, role: role, limit: limit);
   }
 
   Future<void> acceptReservation({required String reservationId}) async {

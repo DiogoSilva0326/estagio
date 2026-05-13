@@ -9,6 +9,7 @@ namespace ConfidantPostgreSQL.Modules.Professors.Service
     public interface IProfessorsService
     {
         Task<IEnumerable<Professor>> GetProfessorsAllAsync();
+        Task<IEnumerable<AdminProfessionalDirectoryItem>> GetAdminProfessionalDirectoryAsync(string? category);
         Task<TutorBrowseResponse> BrowseTutorsAsync(TutorBrowseQuery query);
         Task<Professor?> GetProfessorByIdAsync(Guid idProfessor);
         Task<Professor?> GetProfessorByUserIdAsync(Guid idUser);
@@ -37,7 +38,7 @@ namespace ConfidantPostgreSQL.Modules.Professors.Service
         Task<int> UpdateProfessorRoomAsync(ProfessorRoom room);
         Task<int> DeleteProfessorRoomAsync(Guid id);
 
-        Task<IEnumerable<ProfessorStudentDto>> GetAlunosByProfessorIdAsync(Guid professorUserId);
+        Task<IEnumerable<ProfessorStudentDto>> GetAlunosByProfessorIdAsync(Guid professorUserId, string? role = null);
 
         Task<IEnumerable<Disciplina>> GetDisciplinasByProfessorIdAsync(Guid idProfessor);
         Task<int> UpsertDisciplinaForProfessorAsync(Guid idProfessor, ProfessorDisciplinaUpsert input, Guid? currentIdDisciplina = null);

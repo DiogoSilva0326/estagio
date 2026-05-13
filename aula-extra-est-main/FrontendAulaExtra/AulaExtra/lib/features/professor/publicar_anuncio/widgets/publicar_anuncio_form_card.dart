@@ -3,8 +3,11 @@ import 'package:aula_extra/core/data/professor_ads/dtos/tutoring_type_option_dto
 import 'package:aula_extra/features/professor/publicar_anuncio/constants/publicar_anuncio_professor_constants.dart';
 import 'package:aula_extra/features/professor/publicar_anuncio/widgets/publicar_anuncio_shared_widgets.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart'; 
+import 'package:aula_extra/core/providers/user_provider.dart'; 
+import 'package:aula_extra/core/config/teaching_roles_config.dart'; 
 
-class PublicarAnuncioFormCard extends StatelessWidget {
+class PublicarAnuncioFormCard extends StatefulWidget {
   const PublicarAnuncioFormCard({
     required this.formKey,
     required this.disciplinas,
@@ -49,32 +52,79 @@ class PublicarAnuncioFormCard extends StatelessWidget {
   final VoidCallback onSave;
 
   @override
+  State<PublicarAnuncioFormCard> createState() =>
+      _PublicarAnuncioFormCardState();
+}
+
+class _PublicarAnuncioFormCardState extends State<PublicarAnuncioFormCard> {
+  bool _crianca = false;
+  bool _adolescente = false;
+  bool _adulto = false;
+  bool _senior = false;
+  bool _todos = false;
+
+  Widget _buildCheckbox(String label, bool value, ValueChanged<bool?> onChanged, Color primaryColor) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SizedBox(
+          width: 20,
+          height: 20,
+          child: Checkbox(
+            value: value,
+            onChanged: onChanged,
+            activeColor: primaryColor,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+            side: const BorderSide(color: Color(0xFFE2E8F0), width: 1.5),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+            color: Color(0xFF1D2838),
+          ),
+        ),
+      ],
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final userProvider = Provider.of<UserProvider>(context);
+    final config = TeachingRoleConfig.fromRole(userProvider.role);
+    
+    final isExplicador = config.roleName == 'Explicador';
+    final subjectLabel = isExplicador ? 'Disciplina' : 'Especialidade';
+
     return PublicarAnuncioSurfaceCard(
       padding: EdgeInsets.all(
-        isMobile ? PublicarAnuncioProfessorLayout.mobileCardPadding : 28,
+        widget.isMobile ? PublicarAnuncioProfessorLayout.mobileCardPadding : 28,
       ),
-      radius: isMobile ? PublicarAnuncioProfessorLayout.mobileCardRadius : 28,
+      radius: widget.isMobile ? PublicarAnuncioProfessorLayout.mobileCardRadius : 28,
       child: Form(
-        key: formKey,
+        key: widget.formKey,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               'Informações do Anúncio',
               style: TextStyle(
-                fontSize: isMobile ? 22 : 26,
+                fontSize: widget.isMobile ? 22 : 26,
                 fontWeight: FontWeight.w700,
                 color: PublicarAnuncioProfessorColors.title,
               ),
             ),
-            SizedBox(height: isMobile ? 18 : 22),
-            const PublicarAnuncioFieldLabel('Disciplina'),
+            SizedBox(height: widget.isMobile ? 18 : 22),
+
+            PublicarAnuncioFieldLabel(subjectLabel),
             const SizedBox(height: 8),
             DropdownButtonFormField<String>(
-              initialValue: selectedDisciplinaId,
-              decoration: inputDecoration('Selecione a disciplina'),
-              items: disciplinas
+              initialValue: widget.selectedDisciplinaId,
+              decoration: widget.inputDecoration('Selecione a $subjectLabel'),
+              items: widget.disciplinas
                   .map(
                     (disciplina) => DropdownMenuItem<String>(
                       value: disciplina.idDisciplina,
@@ -83,17 +133,18 @@ class PublicarAnuncioFormCard extends StatelessWidget {
                   )
                   .toList(growable: false),
               validator: (value) => value == null || value.trim().isEmpty
-                  ? 'Selecione a disciplina.'
+                  ? 'Selecione a $subjectLabel.'
                   : null,
-              onChanged: onDisciplinaChanged,
+              onChanged: widget.onDisciplinaChanged,
             ),
             const SizedBox(height: 18),
-            const PublicarAnuncioFieldLabel('Tipo de aula'),
+
+            PublicarAnuncioFieldLabel(isExplicador ? 'Tipo de aula' : 'Formato da sessão'),
             const SizedBox(height: 8),
             DropdownButtonFormField<String>(
-              initialValue: selectedTutoringTypeId,
-              decoration: inputDecoration('Selecione o tipo de aula'),
-              items: tutoringTypes
+              initialValue: widget.selectedTutoringTypeId,
+              decoration: widget.inputDecoration('Selecione o formato'),
+              items: widget.tutoringTypes
                   .map(
                     (item) => DropdownMenuItem<String>(
                       value: item.idTutoringType,
@@ -102,41 +153,59 @@ class PublicarAnuncioFormCard extends StatelessWidget {
                   )
                   .toList(growable: false),
               validator: (value) => value == null || value.trim().isEmpty
-                  ? 'Selecione o tipo de aula.'
+                  ? 'Selecione o formato.'
                   : null,
-              onChanged: onTutoringTypeChanged,
+              onChanged: widget.onTutoringTypeChanged,
             ),
             const SizedBox(height: 18),
-            const PublicarAnuncioFieldLabel('Nível de Ensino'),
-            const SizedBox(height: 8),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF9FAFB),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: PublicarAnuncioProfessorColors.surfaceBorder,
+
+            if (isExplicador) ...[
+              const PublicarAnuncioFieldLabel('Nível de Ensino'),
+              const SizedBox(height: 8),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF9FAFB),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: PublicarAnuncioProfessorColors.surfaceBorder,
+                  ),
+                ),
+                child: Text(
+                  widget.selectedDisciplina?.cicloEstudosLabel ?? 'Sem nível de ensino',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: PublicarAnuncioProfessorColors.title,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               ),
-              child: Text(
-                selectedDisciplina?.cicloEstudosLabel ?? 'Sem nível de ensino',
-                style: const TextStyle(
-                  fontSize: 14,
-                  color: PublicarAnuncioProfessorColors.title,
-                  fontWeight: FontWeight.w500,
-                ),
+            ] else ...[
+              const PublicarAnuncioFieldLabel('Faixa etária'),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 24, 
+                runSpacing: 16, 
+                children: [
+                  _buildCheckbox('Criança', _crianca, (v) => setState(() => _crianca = v ?? false), config.primaryColor),
+                  _buildCheckbox('Adolescente', _adolescente, (v) => setState(() => _adolescente = v ?? false), config.primaryColor),
+                  _buildCheckbox('Adulto', _adulto, (v) => setState(() => _adulto = v ?? false), config.primaryColor),
+                  _buildCheckbox('Sénior', _senior, (v) => setState(() => _senior = v ?? false), config.primaryColor),
+                  _buildCheckbox('Todos', _todos, (v) => setState(() => _todos = v ?? false), config.primaryColor),
+                ],
               ),
-            ),
+            ],
+
             const SizedBox(height: 18),
             const PublicarAnuncioFieldLabel('Descrição'),
             const SizedBox(height: 8),
             TextFormField(
-              controller: descriptionController,
+              controller: widget.descriptionController,
               minLines: 4,
               maxLines: 5,
-              decoration: inputDecoration(
-                'Descreva a sua experiência e metodologia de ensino...',
+              decoration: widget.inputDecoration(
+                'Descreva a sua experiência e metodologia...',
               ),
               validator: (value) {
                 if (value == null || value.trim().isEmpty) {
@@ -152,13 +221,13 @@ class PublicarAnuncioFormCard extends StatelessWidget {
             const PublicarAnuncioFieldLabel('Preço por total (€)'),
             const SizedBox(height: 8),
             TextFormField(
-              controller: priceController,
+              controller: widget.priceController,
               keyboardType: const TextInputType.numberWithOptions(
                 decimal: true,
               ),
-              decoration: inputDecoration('Ex: 25'),
+              decoration: widget.inputDecoration('Ex: 25'),
               validator: (value) {
-                final price = parsePrice(value ?? '');
+                final price = widget.parsePrice(value ?? '');
                 if (price == null || price <= 0) {
                   return 'Introduza um preço válido.';
                 }
@@ -166,10 +235,11 @@ class PublicarAnuncioFormCard extends StatelessWidget {
               },
             ),
             const SizedBox(height: 18),
+
             const PublicarAnuncioFieldLabel('Foto de Perfil'),
             const SizedBox(height: 8),
             InkWell(
-              onTap: uploadingPhoto ? null : onPickPhoto,
+              onTap: widget.uploadingPhoto ? null : widget.onPickPhoto,
               borderRadius: BorderRadius.circular(18),
               child: Container(
                 width: double.infinity,
@@ -183,10 +253,10 @@ class PublicarAnuncioFormCard extends StatelessWidget {
                 ),
                 child: Column(
                   children: [
-                    PublicarAnuncioProfileAvatar(photoUrl: photoUrl, size: 88),
+                    PublicarAnuncioProfileAvatar(photoUrl: widget.photoUrl, size: 88),
                     const SizedBox(height: 14),
                     Text(
-                      uploadingPhoto
+                      widget.uploadingPhoto
                           ? 'A carregar foto...'
                           : 'Clique para atualizar a foto',
                       style: const TextStyle(
@@ -211,21 +281,24 @@ class PublicarAnuncioFormCard extends StatelessWidget {
             const SizedBox(height: 24),
             SizedBox(
               width: double.infinity,
-              height: isMobile ? 48 : 54,
+              height: widget.isMobile ? 48 : 54,
               child: DecoratedBox(
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(14),
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFFF59E0B), Color(0xFFFB923C)],
-                  ),
+                  color: isExplicador ? null : config.primaryColor,
+                  gradient: isExplicador
+                      ? const LinearGradient(
+                          colors: [Color(0xFFF59E0B), Color(0xFFFB923C)],
+                        )
+                      : null,
                 ),
                 child: Material(
                   color: Colors.transparent,
                   child: InkWell(
-                    onTap: saving ? null : onSave,
+                    onTap: widget.saving ? null : widget.onSave,
                     borderRadius: BorderRadius.circular(14),
                     child: Center(
-                      child: saving
+                      child: widget.saving
                           ? const SizedBox(
                               width: 22,
                               height: 22,
@@ -237,12 +310,12 @@ class PublicarAnuncioFormCard extends StatelessWidget {
                               ),
                             )
                           : Text(
-                              isEditing
+                              widget.isEditing
                                   ? 'Guardar Alterações'
                                   : 'Publicar Anúncio',
                               style: TextStyle(
                                 color: Colors.white,
-                                fontSize: isMobile ? 15 : 16,
+                                fontSize: widget.isMobile ? 15 : 16,
                                 fontWeight: FontWeight.w700,
                               ),
                             ),

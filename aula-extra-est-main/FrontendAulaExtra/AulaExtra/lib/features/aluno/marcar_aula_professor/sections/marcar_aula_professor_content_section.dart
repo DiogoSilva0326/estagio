@@ -1,11 +1,17 @@
 import 'package:aula_extra/core/components/header/app_header.dart';
+import 'package:aula_extra/core/data/education/dtos/area_dto.dart';
+import 'package:aula_extra/core/data/education/dtos/disciplina_dto.dart';
+import 'package:aula_extra/core/data/education/education_service.dart';
 import 'package:aula_extra/core/data/professor_ads/dtos/professor_ad_dto.dart';
 import 'package:aula_extra/core/data/professor_ads/professor_ads_service.dart';
+import 'package:aula_extra/core/providers/user_provider.dart';
+import 'package:aula_extra/core/config/teaching_roles_config.dart';
 import 'package:aula_extra/features/aluno/marcar_aula_professor/constants/marcar_aula_professor_constants.dart';
 import 'package:aula_extra/features/aluno/marcar_aula_professor/models/marcar_aula_professor_args.dart';
 import 'package:aula_extra/features/tutor_profile_view/models/tutor_profile_args.dart';
 import 'package:aula_extra/routes/routes.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 const List<String> _dayLabels = [
   'Seg',
@@ -145,6 +151,7 @@ class _MarcarAulaProfessorContentSectionState
   ];
 
   final ProfessorAdsService _adsService = ProfessorAdsService();
+  final EducationService _educationService = EducationService(); 
 
   List<ProfessorAdDto> _ads = const <ProfessorAdDto>[];
   String? _selectedOptionId;
@@ -171,17 +178,37 @@ class _MarcarAulaProfessorContentSectionState
     });
 
     try {
-      final ads = await _adsService.getProfessorAdsForProfessor(
-        professorId: professorId,
-      );
+      final userProvider = Provider.of<UserProvider>(context, listen: false);
+      final currentTargetRole = userProvider.role == Role.psychologist ? 'psicologia' 
+                              : userProvider.role == Role.tutor ? 'tutoria' 
+                              : 'ensino';
+
+      final results = await Future.wait([
+        _adsService.getProfessorAdsForProfessor(professorId: professorId),
+        _educationService.getAreas(targetRole: currentTargetRole),
+        _educationService.getCatalog(), 
+      ]);
+
       if (!mounted) return;
 
-      final visibleAds = ads
-          .where((item) {
-            final status = item.status.trim().toLowerCase();
-            return status.isEmpty || status == 'published' || status == 'active';
-          })
-          .toList(growable: false);
+      final ads = results[0] as List<ProfessorAdDto>;
+      final allowedAreas = results[1] as List<AreaDto>;
+      final catalog = results[2] as List<DisciplinaDto>;
+      
+      final allowedAreaIds = allowedAreas.map((a) => a.idArea).toSet();
+
+      final visibleAds = ads.where((item) {
+        final status = item.status.trim().toLowerCase();
+        if (!(status.isEmpty || status == 'published' || status == 'active')) return false;
+
+        final disciplina = catalog.firstWhere(
+          (d) => d.idDisciplina == item.idDisciplina,
+          orElse: () => DisciplinaDto(idDisciplina: '', nome: ''), 
+        );
+        
+        return disciplina.idArea != null && allowedAreaIds.contains(disciplina.idArea);
+      }).toList(growable: false);
+
       final options = _mapAdsToOptions(visibleAds);
 
       setState(() {

@@ -12,5 +12,6 @@ namespace ConfidantPostgreSQL.Modules.Reservations.Models
         public string? LessonTitle { get; set; }
         public string? StudentName { get; set; }
         public string? DisciplinaName { get; set; }
+        public string? TargetRole { get; set; } 
     }
 }

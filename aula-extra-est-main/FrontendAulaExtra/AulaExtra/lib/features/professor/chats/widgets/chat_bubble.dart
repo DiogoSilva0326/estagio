@@ -1,7 +1,10 @@
 import 'package:aula_extra/features/professor/chats/constants/chats_professor_colors.dart';
 import 'package:aula_extra/features/professor/chats/constants/chats_professor_font_sizes.dart';
 import 'package:aula_extra/core/data/communication/realtime_chat_service.dart';
+import 'package:aula_extra/core/providers/user_provider.dart'; // IMPORTADO
+import 'package:aula_extra/core/config/teaching_roles_config.dart'; // IMPORTADO
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart'; // IMPORTADO
 
 class ChatBubble extends StatelessWidget {
   const ChatBubble({
@@ -23,6 +26,11 @@ class ChatBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final userProvider = Provider.of<UserProvider>(context);
+    final config = TeachingRoleConfig.fromRole(userProvider.role);
+    
+    final isOrange = config.roleName == 'Explicador';
+
     final hasVisibleText =
         text.trim().isNotEmpty &&
         (attachment == null ||
@@ -34,8 +42,10 @@ class ChatBubble extends StatelessWidget {
       ),
       padding: const EdgeInsets.only(left: 14.432, right: 14.432, top: 14.432),
       decoration: BoxDecoration(
-        color: isMine ? null : ChatsProfessorColors.leftBubbleBackground,
-        gradient: isMine
+        color: isMine 
+            ? (isOrange ? null : config.primaryColor) 
+            : ChatsProfessorColors.leftBubbleBackground,
+        gradient: isMine && isOrange
             ? const LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
@@ -74,7 +84,7 @@ class ChatBubble extends StatelessWidget {
             timeLabel,
             style: TextStyle(
               color: isMine
-                  ? Colors.white.withValues(alpha: 0.8)
+                  ? Colors.white.withOpacity(0.8)
                   : ChatsProfessorColors.mutedText,
               fontSize: ChatsProfessorFontSizes.messageTime,
               fontWeight: FontWeight.w400,
@@ -110,7 +120,7 @@ class _AttachmentCard extends StatelessWidget {
         ? Colors.white
         : ChatsProfessorColors.leftBubbleText;
     final secondary = isMine
-        ? Colors.white.withValues(alpha: 0.8)
+        ? Colors.white.withOpacity(0.8)
         : ChatsProfessorColors.mutedText;
 
     return InkWell(
@@ -120,11 +130,11 @@ class _AttachmentCard extends StatelessWidget {
         width: double.infinity,
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: isMine ? Colors.white.withValues(alpha: 0.12) : Colors.white,
+          color: isMine ? Colors.white.withOpacity(0.12) : Colors.white,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: isMine
-                ? Colors.white.withValues(alpha: 0.2)
+                ? Colors.white.withOpacity(0.2)
                 : const Color(0xFFE5E7EB),
           ),
         ),

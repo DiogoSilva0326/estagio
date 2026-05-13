@@ -1,6 +1,6 @@
 {
-    "name": "aula_extra",
-    "short_name": "aula_extra",
+    "name": "apoio_extra",
+    "short_name": "apoio_extra",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

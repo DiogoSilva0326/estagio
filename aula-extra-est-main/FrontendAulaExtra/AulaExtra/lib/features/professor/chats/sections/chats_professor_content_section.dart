@@ -24,6 +24,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:aula_extra/core/config/teaching_roles_config.dart';
 
 class ChatsProfessorContentSection extends StatefulWidget {
   const ChatsProfessorContentSection({
@@ -154,7 +155,11 @@ class _ChatsProfessorContentSectionState
     });
 
     try {
-      final students = await _professorsService.fetchMeusAlunos();
+      final userProvider = Provider.of<UserProvider>(context, listen: false);
+      final config = TeachingRoleConfig.fromRole(userProvider.role);
+      
+      final students = await _professorsService.fetchMeusAlunos(role: config.roleName);
+      
       final conversations = <_ConversationData>[];
 
       for (var index = 0; index < students.length; index++) {
@@ -1446,6 +1451,11 @@ class _ConversationCard extends StatelessWidget {
   final VoidCallback onPickFile;
   final ValueChanged<String> onOpenAttachment;
 
+  static const _months = [
+    'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+    'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+  ];
+
   String _formatTime(DateTime timestamp) {
     final local = timestamp.toLocal();
     final hours = local.hour.toString().padLeft(2, '0');
@@ -1453,9 +1463,33 @@ class _ConversationCard extends StatelessWidget {
     return '$hours:$minutes';
   }
 
+  bool _isSameDay(DateTime a, DateTime b) {
+    final localA = a.toLocal();
+    final localB = b.toLocal();
+    return localA.year == localB.year &&
+        localA.month == localB.month &&
+        localA.day == localB.day;
+  }
+
+  String _formatDateSeparator(DateTime date) {
+    final local = date.toLocal();
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final yesterday = today.subtract(const Duration(days: 1));
+    final msgDate = DateTime(local.year, local.month, local.day);
+
+    if (msgDate == today) return 'Hoje';
+    if (msgDate == yesterday) return 'Ontem';
+
+    return '${local.day} de ${_months[local.month - 1]}';
+  }
+
   @override
   Widget build(BuildContext context) {
     final c = conversation;
+    
+    final userProvider = Provider.of<UserProvider>(context);
+    final config = TeachingRoleConfig.fromRole(userProvider.role);
 
     return _CardShell(
       padding: const EdgeInsets.all(1.203),
@@ -1528,12 +1562,20 @@ class _ConversationCard extends StatelessWidget {
                   }
 
                   final offset = isLoadingMore ? 1 : 0;
-                  final m = c!.messages[index - offset];
-                  return Padding(
+                  final msgIndex = index - offset;
+                  final m = c!.messages[msgIndex];
+
+                  bool showDateSeparator = false;
+                  if (msgIndex == 0) {
+                    showDateSeparator = true;
+                  } else {
+                    final prevMsg = c.messages[msgIndex - 1];
+                    showDateSeparator = !_isSameDay(m.timestamp, prevMsg.timestamp);
+                  }
+
+                  final bubble = Padding(
                     padding: EdgeInsets.only(
-                      bottom: index == (c.messages.length + offset - 1)
-                          ? 0
-                          : 19.243,
+                      bottom: msgIndex == (c.messages.length - 1) ? 0 : 19.243,
                     ),
                     child: ChatBubble(
                       isMine: m.isOutgoing,
@@ -1546,6 +1588,27 @@ class _ConversationCard extends StatelessWidget {
                           : () => onOpenAttachment(m.attachment!.downloadUrl),
                     ),
                   );
+
+                  if (showDateSeparator) {
+                    return Column(
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8, bottom: 24),
+                          child: Text(
+                            _formatDateSeparator(m.timestamp),
+                            style: const TextStyle(
+                              color: ChatsProfessorColors.mutedText,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        bubble,
+                      ],
+                    );
+                  }
+
+                  return bubble;
                 },
               ),
             ),
@@ -1612,7 +1675,7 @@ class _ConversationCard extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 9.621),
-                    _ProfessorSendSquareButton(onTap: onSend),
+                    _ProfessorSendSquareButton(onTap: onSend, config: config), 
                   ],
                 ),
               ),
@@ -1655,12 +1718,15 @@ class _IconButton extends StatelessWidget {
 }
 
 class _ProfessorSendSquareButton extends StatelessWidget {
-  const _ProfessorSendSquareButton({required this.onTap});
+  const _ProfessorSendSquareButton({required this.onTap, required this.config});
 
   final VoidCallback? onTap;
+  final TeachingRoleConfig config;
 
   @override
   Widget build(BuildContext context) {
+    final isOrange = config.roleName == 'Explicador';
+
     return SizedBox(
       width: 50.194,
       height: 50.194,
@@ -1673,7 +1739,8 @@ class _ProfessorSendSquareButton extends StatelessWidget {
           child: Ink(
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(13.943),
-              gradient: ChatsConstants.orangeGradient,
+              color: isOrange ? null : config.primaryColor,
+              gradient: isOrange ? ChatsConstants.orangeGradient : null,
             ),
             child: const Center(
               child: Icon(

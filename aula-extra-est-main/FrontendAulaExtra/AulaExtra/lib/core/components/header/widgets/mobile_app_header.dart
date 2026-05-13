@@ -7,6 +7,7 @@ import 'package:aula_extra/core/providers/user_provider.dart';
 import 'package:aula_extra/routes/routes.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 class MobileAppHeader extends StatelessWidget {
   const MobileAppHeader({
@@ -43,10 +44,10 @@ class MobileAppHeader extends StatelessWidget {
               InkWell(
                 onTap: onLogoTap ?? () => _handleLogoTap(context),
                 borderRadius: BorderRadius.circular(12),
-                child: Image.asset(
+                child: SvgPicture.asset(
                   HeaderAssets.logo,
-                  width: 64,
-                  height: 46,
+                  width: 96, 
+                  height: 69,
                   fit: BoxFit.contain,
                 ),
               ),
@@ -152,6 +153,8 @@ class MobileAppHeader extends StatelessWidget {
   }
 
   void _showTeacherMenu(BuildContext context) {
+    final currentRoute = ModalRoute.of(context)?.settings.name;
+
     showGeneralDialog(
       context: context,
       barrierDismissible: true,
@@ -178,6 +181,7 @@ class MobileAppHeader extends StatelessWidget {
                     child: TeacherMobileMenuDrawer(
                       onClose: () => Navigator.of(context).pop(),
                       onLogoutTap: () => _handleLogoutTap(context),
+                      currentRouteName: currentRoute, 
                     ),
                   ),
                 ),

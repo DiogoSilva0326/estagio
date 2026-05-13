@@ -8,14 +8,18 @@ class MinhasDisciplinasPrimaryActionButton extends StatelessWidget {
     required this.label,
     required this.icon,
     required this.onTap,
+    this.activeColor, 
   });
 
   final String label;
   final IconData icon;
   final VoidCallback onTap;
+  final Color? activeColor;
 
   @override
   Widget build(BuildContext context) {
+    final isOrange = activeColor == null || activeColor == const Color(0xFFFC9039);
+
     return SizedBox(
       width: MinhasDisciplinasProfessorLayout.primaryButtonWidth,
       height: MinhasDisciplinasProfessorLayout.primaryButtonHeight,
@@ -24,12 +28,13 @@ class MinhasDisciplinasPrimaryActionButton extends StatelessWidget {
           borderRadius: BorderRadius.circular(
             MinhasDisciplinasProfessorLayout.primaryButtonRadius,
           ),
-          gradient: const LinearGradient(
+          color: isOrange ? null : activeColor,
+          gradient: isOrange ? const LinearGradient(
             colors: [
               MinhasDisciplinasProfessorColors.buttonGradientTop,
               MinhasDisciplinasProfessorColors.buttonGradientBottom,
             ],
-          ),
+          ) : null,
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.1),

@@ -1,23 +1,22 @@
 import 'package:flutter/material.dart';
 
-import 'export_report_dialog.dart';
-
 class ExportReportButton extends StatelessWidget {
-  const ExportReportButton({super.key});
+  const ExportReportButton({
+    super.key,
+    this.onPressed,
+    this.enabled = true,
+  });
+
+  final VoidCallback? onPressed;
+  final bool enabled;
 
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: const Color(0xFFFC9039),
+      color: enabled ? const Color(0xFFFC9039) : const Color(0xFFF5B37F),
       borderRadius: BorderRadius.circular(16.307),
       child: InkWell(
-        onTap: () {
-          showDialog<void>(
-            context: context,
-            barrierColor: const Color(0x73000000),
-            builder: (_) => const ExportReportDialog(),
-          );
-        },
+        onTap: enabled ? onPressed : null,
         borderRadius: BorderRadius.circular(16.307),
         child: Container(
           height: 46.592,

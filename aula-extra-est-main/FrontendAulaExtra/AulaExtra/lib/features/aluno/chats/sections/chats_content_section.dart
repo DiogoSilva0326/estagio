@@ -33,7 +33,7 @@ class ChatsContentSection extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const AlunoMenuNav(selectedIndex: 4),
+          const AlunoMenuNav(),
           const SizedBox(width: 40),
           Expanded(
             child: Column(
@@ -43,7 +43,7 @@ class ChatsContentSection extends StatelessWidget {
                 const Text('Chats', style: ChatsConstants.titleStyle),
                 const SizedBox(height: 11.154),
                 const Text(
-                  'Converse com seus explicadores',
+                  'Converse com seus apoios',
                   style: ChatsConstants.subtitleStyle,
                 ),
                 const SizedBox(height: 44.617),
@@ -219,7 +219,7 @@ class _MobileChatsListSectionState extends State<_MobileChatsListSection> {
         children: [
           const ChatsMobileIntro(
             title: 'Chats',
-            subtitle: 'Converse com os seus explicadores',
+            subtitle: 'Converse com os seus apoios',
           ),
           const SizedBox(height: ChatsConstants.mobileSectionSpacing),
           ChatsMobileSearchBar(

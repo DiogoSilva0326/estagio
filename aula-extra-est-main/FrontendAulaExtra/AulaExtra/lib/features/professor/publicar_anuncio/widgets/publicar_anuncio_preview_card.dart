@@ -3,7 +3,10 @@ import 'package:aula_extra/core/data/professor_ads/dtos/professor_ad_dto.dart';
 import 'package:aula_extra/core/data/professor_ads/dtos/tutoring_type_option_dto.dart';
 import 'package:aula_extra/features/professor/publicar_anuncio/constants/publicar_anuncio_professor_constants.dart';
 import 'package:aula_extra/features/professor/publicar_anuncio/widgets/publicar_anuncio_shared_widgets.dart';
+import 'package:aula_extra/core/providers/user_provider.dart';
+import 'package:aula_extra/core/config/teaching_roles_config.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 class PublicarAnuncioPreviewCard extends StatelessWidget {
   const PublicarAnuncioPreviewCard({
@@ -31,6 +34,17 @@ class PublicarAnuncioPreviewCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final userProvider = Provider.of<UserProvider>(context);
+    final config = TeachingRoleConfig.fromRole(userProvider.role);
+    final isExplicador = config.roleName == 'Explicador';
+    
+    // Rótulo Dinâmico para a Área principal
+    final defaultSubjectLabel = isExplicador ? 'Disciplina' : 'Especialidade';
+
+    // Determinar se tem Ciclo de Estudos válido para ser mostrado
+    final cicloLabel = selectedDisciplina?.cicloEstudosLabel ?? selectedAd?.cicloEstudos ?? '';
+    final hasCiclo = isExplicador && cicloLabel.trim().isNotEmpty && !cicloLabel.toLowerCase().contains('não definido');
+
     return PublicarAnuncioSurfaceCard(
       padding: EdgeInsets.all(
         isMobile ? PublicarAnuncioProfessorLayout.mobileCardPadding : 28,
@@ -96,15 +110,15 @@ class PublicarAnuncioPreviewCard extends StatelessWidget {
                               vertical: 7,
                             ),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFFFF7ED),
+                              color: config.primaryColor.withOpacity(0.12),
                               borderRadius: BorderRadius.circular(999),
                             ),
                             child: Text(
                               selectedType?.name ??
                                   selectedAd?.tutoringTypeName ??
                                   'Aula particular',
-                              style: const TextStyle(
-                                color: PublicarAnuncioProfessorColors.accent,
+                              style: TextStyle(
+                                color: config.primaryColor,
                                 fontSize: 12,
                                 fontWeight: FontWeight.w700,
                               ),
@@ -130,17 +144,14 @@ class PublicarAnuncioPreviewCard extends StatelessWidget {
                   runSpacing: 10,
                   children: [
                     PublicarAnuncioPreviewChip(
-                      label:
-                          selectedDisciplina?.nome ??
-                          selectedAd?.disciplinaNome ??
-                          'Disciplina',
+                      label: selectedDisciplina?.nome ??
+                             selectedAd?.disciplinaNome ??
+                             defaultSubjectLabel,
                     ),
-                    PublicarAnuncioPreviewChip(
-                      label:
-                          selectedDisciplina?.cicloEstudosLabel ??
-                          selectedAd?.cicloEstudos ??
-                          'Nível de ensino',
-                    ),
+                    if (hasCiclo)
+                      PublicarAnuncioPreviewChip(
+                        label: cicloLabel,
+                      ),
                     PublicarAnuncioPreviewChip(
                       label: selectedAd?.status == 'published'
                           ? 'Publicado'
@@ -203,10 +214,8 @@ class PublicarAnuncioPreviewCard extends StatelessWidget {
                         onPressed: null,
                         style: FilledButton.styleFrom(
                           minimumSize: Size.fromHeight(isMobile ? 46 : 48),
-                          backgroundColor:
-                              PublicarAnuncioProfessorColors.accent,
-                          disabledBackgroundColor:
-                              PublicarAnuncioProfessorColors.accent,
+                          backgroundColor: config.primaryColor,
+                          disabledBackgroundColor: config.primaryColor,
                         ),
                         child: const Text('Marcar Aula'),
                       ),

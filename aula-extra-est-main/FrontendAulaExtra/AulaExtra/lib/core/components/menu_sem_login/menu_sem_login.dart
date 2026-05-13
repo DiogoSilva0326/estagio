@@ -1,6 +1,7 @@
 import 'package:aula_extra/core/components/header/assets/header_assets.dart';
 import 'package:aula_extra/routes/routes.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 /// Menu lateral (drawer) exibido para utilizadores não autenticados.
 /// Design baseado no Figma: node 4112:38485
@@ -143,10 +144,10 @@ class MenuSemLogin extends StatelessWidget {
         // Botão de fechar (X)
         _CloseButton(onTap: onClose ?? () => Navigator.of(context).pop()),
         // Logo Aula Extra
-        Image.asset(
+        SvgPicture.asset(
           HeaderAssets.logo,
-          width: 80,
-          height: 58,
+          width: 96, 
+          height: 69,
           fit: BoxFit.contain,
         ),
       ],

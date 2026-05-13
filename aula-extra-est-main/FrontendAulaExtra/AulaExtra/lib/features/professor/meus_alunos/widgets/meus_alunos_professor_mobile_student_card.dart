@@ -2,7 +2,10 @@ import 'package:aula_extra/core/data/professors/dtos/professor_aluno_dto.dart';
 import 'package:aula_extra/features/professor/meus_alunos/constants/meus_alunos_professor_colors.dart';
 import 'package:aula_extra/features/professor/meus_alunos/constants/meus_alunos_professor_layout.dart';
 import 'package:aula_extra/features/professor/meus_alunos/widgets/progresso_bar.dart';
+import 'package:aula_extra/core/providers/user_provider.dart';
+import 'package:aula_extra/core/config/teaching_roles_config.dart'; 
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 class MeusAlunosProfessorMobileStudentCard extends StatelessWidget {
   const MeusAlunosProfessorMobileStudentCard({
@@ -18,22 +21,12 @@ class MeusAlunosProfessorMobileStudentCard extends StatelessWidget {
   final VoidCallback onFilesTap;
   final VoidCallback? onComplaintTap;
 
-  Color _subjectColor(String subject) {
-    final lower = subject.toLowerCase();
-    if (lower.contains('mat') || lower.contains('fís')) {
-      return MeusAlunosProfessorColors.blue;
-    }
-    if (lower.contains('ing') || lower.contains('port')) {
-      return MeusAlunosProfessorColors.orangeBadge;
-    }
-    if (lower.contains('quim')) {
-      return MeusAlunosProfessorColors.purple;
-    }
-    return MeusAlunosProfessorColors.green;
-  }
-
   @override
   Widget build(BuildContext context) {
+    final userProvider = Provider.of<UserProvider>(context);
+    final config = TeachingRoleConfig.fromRole(userProvider.role);
+    final primaryColor = config.primaryColor;
+
     final progressPercent = (aluno.progress * 100).round().clamp(0, 100);
     final uniqueSubjects = aluno.subjects
         .map((subject) => subject.trim())
@@ -91,6 +84,24 @@ class MeusAlunosProfessorMobileStudentCard extends StatelessWidget {
                   ],
                 ),
               ),
+              if (onComplaintTap != null)
+                PopupMenuButton<String>(
+                  icon: const Icon(Icons.more_vert_rounded, color: Color(0xFF9CA3AF)),
+                  onSelected: (value) {
+                    if (value == 'report') {
+                      onComplaintTap!();
+                    }
+                  },
+                  itemBuilder: (context) => [
+                    const PopupMenuItem(
+                      value: 'report',
+                      child: Text(
+                        'Submeter reclamação',
+                        style: TextStyle(color: MeusAlunosProfessorColors.danger),
+                      ),
+                    ),
+                  ],
+                ),
             ],
           ),
           const SizedBox(height: 16),
@@ -100,11 +111,13 @@ class MeusAlunosProfessorMobileStudentCard extends StatelessWidget {
               runSpacing: 8,
               children: [
                 for (final subject in uniqueSubjects)
-                  _SubjectChip(label: subject, color: _subjectColor(subject)),
+                  _SubjectChip(label: subject, color: primaryColor), 
               ],
             ),
           if (uniqueSubjects.isNotEmpty) const SizedBox(height: 16),
-          _MetaRow(label: 'Última aula', value: aluno.lastLessonDate),
+          
+          _MetaRow(label: config.alunoCard.lastSessionLabel, value: aluno.lastLessonDate),
+          
           const SizedBox(height: 12),
           Row(
             children: [
@@ -132,7 +145,7 @@ class MeusAlunosProfessorMobileStudentCard extends StatelessWidget {
           const SizedBox(height: 10),
           ProgressoBar(
             value: aluno.progress,
-            color: MeusAlunosProfessorColors.orange,
+            color: primaryColor, 
           ),
           const SizedBox(height: 16),
           Row(
@@ -141,23 +154,16 @@ class MeusAlunosProfessorMobileStudentCard extends StatelessWidget {
                 child: _PrimaryActionButton(
                   label: 'Chat',
                   icon: Icons.chat_bubble_outline_rounded,
+                  color: primaryColor, 
                   onTap: onChatTap,
                 ),
               ),
               const SizedBox(width: 10),
               _IconActionButton(
                 icon: Icons.description_outlined,
-                color: MeusAlunosProfessorColors.green,
+                color: primaryColor, 
                 onTap: onFilesTap,
               ),
-              if (onComplaintTap != null) ...[
-                const SizedBox(width: 10),
-                _IconActionButton(
-                  icon: Icons.report_gmailerrorred_rounded,
-                  color: MeusAlunosProfessorColors.danger,
-                  onTap: onComplaintTap!,
-                ),
-              ],
             ],
           ),
         ],
@@ -209,7 +215,7 @@ class _SubjectChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
+        color: color.withOpacity(0.12),
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
@@ -236,7 +242,7 @@ class _MetaRow extends StatelessWidget {
     return Row(
       children: [
         Text(
-          '$label:',
+          '$label:', 
           style: const TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w500,
@@ -267,11 +273,13 @@ class _PrimaryActionButton extends StatelessWidget {
   const _PrimaryActionButton({
     required this.label,
     required this.icon,
+    required this.color,
     required this.onTap,
   });
 
   final String label;
   final IconData icon;
+  final Color color;
   final VoidCallback onTap;
 
   @override
@@ -280,7 +288,7 @@ class _PrimaryActionButton extends StatelessWidget {
       height: MeusAlunosProfessorLayout.mobileActionButtonHeight,
       child: DecoratedBox(
         decoration: BoxDecoration(
-          color: MeusAlunosProfessorColors.orange,
+          color: color, 
           borderRadius: BorderRadius.circular(14),
         ),
         child: Material(

@@ -14,7 +14,7 @@ namespace ConfidantPostgreSQL.Modules.Education.Repository
         Task<int> UpdateDisciplinaAsync(Disciplina disciplina);
         Task<int> DeleteDisciplinaAsync(Guid idDisciplina);
 
-        Task<IEnumerable<Area>> GetAreasAllAsync();
+        Task<IEnumerable<Area>> GetAreasAllAsync(string? targetRole = null);
         Task<Area?> GetAreaByIdAsync(Guid idArea);
         Task<Guid> InsertAreaAsync(Area area);
         Task<int> UpdateAreaAsync(Area area);

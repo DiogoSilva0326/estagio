@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/config/api_config.dart';
 import '../../../design/theme/app_colors.dart';
 
 class ExplicadorProfileCell extends StatelessWidget {
@@ -7,39 +8,22 @@ class ExplicadorProfileCell extends StatelessWidget {
     required this.initials,
     required this.name,
     required this.email,
+    this.photoUrl,
     super.key,
   });
 
   final String initials;
   final String name;
   final String email;
+  final String? photoUrl;
 
   @override
   Widget build(BuildContext context) {
+    final resolvedPhotoUrl = ApiConfig.resolveUrl(photoUrl);
+
     return Row(
       children: [
-        Container(
-          width: 46.592,
-          height: 46.592,
-          alignment: Alignment.center,
-          decoration: const BoxDecoration(
-            shape: BoxShape.circle,
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Color(0xFFFC9039), Color(0xFFFFBDC0)],
-            ),
-          ),
-          child: Text(
-            initials,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 18.637,
-              fontWeight: FontWeight.w700,
-              letterSpacing: -0.36,
-            ),
-          ),
-        ),
+        _ProfileAvatar(initials: initials, photoUrl: resolvedPhotoUrl),
         const SizedBox(width: 13.978),
         Expanded(
           child: Column(
@@ -70,6 +54,53 @@ class ExplicadorProfileCell extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _ProfileAvatar extends StatelessWidget {
+  const _ProfileAvatar({required this.initials, required this.photoUrl});
+
+  final String initials;
+  final String? photoUrl;
+
+  @override
+  Widget build(BuildContext context) {
+    final fallback = Container(
+      width: 46.592,
+      height: 46.592,
+      alignment: Alignment.center,
+      decoration: const BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFFFC9039), Color(0xFFFFBDC0)],
+        ),
+      ),
+      child: Text(
+        initials,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 18.637,
+          fontWeight: FontWeight.w700,
+          letterSpacing: -0.36,
+        ),
+      ),
+    );
+
+    if (photoUrl == null) {
+      return fallback;
+    }
+
+    return ClipOval(
+      child: Image.network(
+        photoUrl!,
+        width: 46.592,
+        height: 46.592,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => fallback,
+      ),
     );
   }
 }

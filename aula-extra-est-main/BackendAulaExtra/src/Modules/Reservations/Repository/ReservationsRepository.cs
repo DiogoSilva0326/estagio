@@ -259,14 +259,14 @@ LIMIT @limit;";
                         return list;
                 }
 
-                    public async Task<IEnumerable<ProfessorCalendarItem>> GetProfessorCalendarAsync(Guid professorId, DateTime start, DateTime end)
+                    public async Task<IEnumerable<ProfessorCalendarItem>> GetProfessorCalendarAsync(Guid professorId, DateTime start, DateTime end, string? targetRole = null)
                     {
                         var list = new List<ProfessorCalendarItem>();
                         await using var conn = new NpgsqlConnection(_connectionString);
                         await conn.OpenAsync();
 
                         await using var cmd = conn.CreateCommand();
-                        cmd.CommandText = @"
+                        var sql = @"
             SELECT
                 r.id_reservation,
                 r.id_lesson,
@@ -275,21 +275,34 @@ LIMIT @limit;";
                 r.status,
                 l.title AS lesson_title,
                 CONCAT_WS(' ', su.first_name, su.last_name) AS student_name,
-                d.nome AS disciplina_name
+                d.nome AS disciplina_name,
+                a.target_role
             FROM reservations r
             JOIN lessons l ON l.id_lesson = r.id_lesson
             LEFT JOIN courses c ON c.id_course = l.id_course
             LEFT JOIN disciplinas d ON d.id_disciplina = c.id_disciplina
+            LEFT JOIN areas a ON a.id_area = d.id_area
             LEFT JOIN public.users su ON su.id_user = r.id_user
             WHERE l.id_professor = @id_professor
                 AND r.start_time >= @start_time
                 AND r.start_time < @end_time
-                AND LOWER(COALESCE(r.status, '')) NOT IN ('cancelled', 'canceled', 'cancelada', 'cancelado')
-            ORDER BY r.start_time ASC;";
+                AND LOWER(COALESCE(r.status, '')) NOT IN ('cancelled', 'canceled', 'cancelada', 'cancelado')";
+
+                        if (!string.IsNullOrWhiteSpace(targetRole))
+                        {
+                            sql += " AND LOWER(BTRIM(a.target_role)) = LOWER(BTRIM(@target_role)) ";
+                        }
+                        
+                        sql += " ORDER BY r.start_time ASC;";
+                        cmd.CommandText = sql;
 
                         cmd.Parameters.Add(new NpgsqlParameter("id_professor", NpgsqlDbType.Uuid) { Value = professorId });
                         cmd.Parameters.Add(new NpgsqlParameter("start_time", NpgsqlDbType.Timestamp) { Value = start });
                         cmd.Parameters.Add(new NpgsqlParameter("end_time", NpgsqlDbType.Timestamp) { Value = end });
+                        if (!string.IsNullOrWhiteSpace(targetRole))
+                        {
+                            cmd.Parameters.AddWithValue("target_role", targetRole.Trim());
+                        }
 
                         await using var reader = await cmd.ExecuteReaderAsync();
                         while (await reader.ReadAsync())
@@ -300,14 +313,14 @@ LIMIT @limit;";
                         return list;
                     }
 
-                    public async Task<IEnumerable<ProfessorCalendarItem>> GetProfessorUpcomingCalendarAsync(Guid professorId, DateTime from, int limit)
+                    public async Task<IEnumerable<ProfessorCalendarItem>> GetProfessorUpcomingCalendarAsync(Guid professorId, DateTime from, int limit, string? targetRole = null)
                     {
                         var list = new List<ProfessorCalendarItem>();
                         await using var conn = new NpgsqlConnection(_connectionString);
                         await conn.OpenAsync();
 
                         await using var cmd = conn.CreateCommand();
-                        cmd.CommandText = @"
+                        var sql = @"
             SELECT
                 r.id_reservation,
                 r.id_lesson,
@@ -316,21 +329,33 @@ LIMIT @limit;";
                 r.status,
                 l.title AS lesson_title,
                 CONCAT_WS(' ', su.first_name, su.last_name) AS student_name,
-                d.nome AS disciplina_name
+                d.nome AS disciplina_name,
+                a.target_role
             FROM reservations r
             JOIN lessons l ON l.id_lesson = r.id_lesson
             LEFT JOIN courses c ON c.id_course = l.id_course
             LEFT JOIN disciplinas d ON d.id_disciplina = c.id_disciplina
+            LEFT JOIN areas a ON a.id_area = d.id_area
             LEFT JOIN public.users su ON su.id_user = r.id_user
             WHERE l.id_professor = @id_professor
                 AND r.end_time >= (@from_time - INTERVAL '15 minutes')
-                AND LOWER(COALESCE(r.status, '')) NOT IN ('cancelled', 'canceled', 'cancelada', 'cancelado')
-            ORDER BY r.start_time ASC
-            LIMIT @limit;";
+                AND LOWER(COALESCE(r.status, '')) NOT IN ('cancelled', 'canceled', 'cancelada', 'cancelado')";
+
+                        if (!string.IsNullOrWhiteSpace(targetRole))
+                        {
+                            sql += " AND LOWER(BTRIM(a.target_role)) = LOWER(BTRIM(@target_role)) ";
+                        }
+                        
+                        sql += " ORDER BY r.start_time ASC LIMIT @limit;";
+                        cmd.CommandText = sql;
 
                         cmd.Parameters.Add(new NpgsqlParameter("id_professor", NpgsqlDbType.Uuid) { Value = professorId });
                         cmd.Parameters.Add(new NpgsqlParameter("from_time", NpgsqlDbType.Timestamp) { Value = from });
                         cmd.Parameters.Add(new NpgsqlParameter("limit", NpgsqlDbType.Integer) { Value = limit <= 0 ? 10 : limit });
+                        if (!string.IsNullOrWhiteSpace(targetRole))
+                        {
+                            cmd.Parameters.AddWithValue("target_role", targetRole.Trim());
+                        }
 
                         await using var reader = await cmd.ExecuteReaderAsync();
                         while (await reader.ReadAsync())
@@ -689,6 +714,7 @@ SELECT public.usp_exception_requests_update(
                 LessonTitle = GetNullableString(reader, "lesson_title"),
                 StudentName = GetNullableString(reader, "student_name"),
                 DisciplinaName = GetNullableString(reader, "disciplina_name"),
+                TargetRole = GetNullableString(reader, "target_role"), 
             };
         }
 

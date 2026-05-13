@@ -1,18 +1,25 @@
 import 'package:flutter/material.dart';
 
-import '../core/constants/app_dimensions.dart';
-import '../design/widgets/backoffice_scaffold.dart';
+import '../core/auth/backoffice_session_controller.dart';
+import '../features/auth/pages/login_page.dart';
 import '../features/avaliacoes/pages/avaliacoes_page.dart';
 import '../features/areas_disciplinas/pages/areas_disciplinas_page.dart';
 import '../features/alunos/pages/alunos_page.dart';
 import '../features/dashboard/pages/dashboard_page.dart';
+import '../features/configuracoes/pages/configuracoes_page.dart';
 import '../features/explicadores/pages/explicadores_page.dart';
+import '../features/faqs/pages/faqs_page.dart';
 import '../features/formularios/pages/formularios_page.dart';
+import '../features/mensagens/pages/mensagens_page.dart';
 import '../features/newsletter/pages/newsletter_page.dart';
 import '../features/pagamentos/pages/pagamentos_page.dart';
+import '../features/paginas_institucionais/pages/paginas_institucionais_page.dart';
 import '../features/planos_precos/pages/planos_precos_page.dart';
+import '../features/psicologos/pages/psicologos_page.dart';
+import '../features/reclamacoes/pages/reclamacoes_page.dart';
 import '../features/sessoes_aulas/pages/sessoes_aulas_page.dart';
 import '../features/sessions/pages/sessions_page.dart';
+import '../features/tutores/pages/tutores_page.dart';
 import 'app_routes.dart';
 
 class AppRouter {
@@ -20,12 +27,37 @@ class AppRouter {
 
   static const String initialRoute = AppRoutes.dashboard;
 
+  static Widget homeForState(BackofficeSessionController session) {
+    if (session.isAuthenticated) {
+      return const DashboardPage();
+    }
+
+    return const LoginPage();
+  }
+
   static Route<dynamic> onGenerateRoute(RouteSettings settings) {
+    final session = BackofficeSessionController.instance;
+    final routeName = settings.name ?? AppRoutes.dashboard;
+
+    if (!session.isAuthenticated && routeName != AppRoutes.login) {
+      return _page(const LoginPage(), settings);
+    }
+
+    if (session.isAuthenticated && routeName == AppRoutes.login) {
+      return _page(const DashboardPage(), settings);
+    }
+
     switch (settings.name) {
+      case AppRoutes.login:
+        return _page(const LoginPage(), settings);
       case AppRoutes.dashboard:
         return _page(const DashboardPage(), settings);
       case AppRoutes.explicadores:
         return _page(const ExplicadoresPage(), settings);
+      case AppRoutes.tutores:
+        return _page(const TutoresPage(), settings);
+      case AppRoutes.psicologos:
+        return _page(const PsicologosPage(), settings);
       case AppRoutes.alunos:
         return _page(const AlunosPage(), settings);
       case AppRoutes.areasDisciplinas:
@@ -43,100 +75,34 @@ class AppRouter {
       case AppRoutes.formularios:
         return _page(const FormulariosPage(), settings);
       case AppRoutes.reclamacoes:
-        return _page(
-          const _PlaceholderPage(
-            route: AppRoutes.reclamacoes,
-            title: 'Reclamações',
-          ),
-          settings,
-        );
+        return _page(const ReclamacoesPage(), settings);
       case AppRoutes.mensagens:
-        return _page(
-          const _PlaceholderPage(
-            route: AppRoutes.mensagens,
-            title: 'Mensagens',
-          ),
-          settings,
-        );
+        return _page(const MensagensPage(), settings);
       case AppRoutes.newsletter:
         return _page(const NewsletterPage(), settings);
       case AppRoutes.faqs:
-        return _page(
-          const _PlaceholderPage(route: AppRoutes.faqs, title: 'FAQs'),
-          settings,
-        );
+        return _page(const FaqsPage(), settings);
       case AppRoutes.paginasInstitucionais:
-        return _page(
-          const _PlaceholderPage(
-            route: AppRoutes.paginasInstitucionais,
-            title: 'Páginas Institucionais',
-          ),
-          settings,
-        );
+        return _page(const PaginasInstitucionaisPage(), settings);
       case AppRoutes.configuracoes:
+        return _page(const ConfiguracoesPage(), settings);
+      default:
         return _page(
-          const _PlaceholderPage(
-            route: AppRoutes.configuracoes,
-            title: 'Configurações',
-          ),
+          session.isAuthenticated ? const DashboardPage() : const LoginPage(),
           settings,
         );
-      default:
-        return _page(const DashboardPage(), settings);
     }
   }
 
-  static MaterialPageRoute<dynamic> _page(
+  static PageRouteBuilder<dynamic> _page(
     Widget child,
     RouteSettings settings,
   ) {
-    return MaterialPageRoute<dynamic>(
-      builder: (_) => child,
+    return PageRouteBuilder<dynamic>(
       settings: settings,
-    );
-  }
-}
-
-class _PlaceholderPage extends StatelessWidget {
-  const _PlaceholderPage({required this.route, required this.title});
-
-  final String route;
-  final String title;
-
-  @override
-  Widget build(BuildContext context) {
-    return BackofficeScaffold(
-      currentRoute: route,
-      title: title,
-      body: Align(
-        alignment: Alignment.topCenter,
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(
-            AppDimensions.pageHorizontalPadding,
-            AppDimensions.pageVerticalPadding,
-            AppDimensions.pageHorizontalPadding,
-            AppDimensions.pageVerticalPadding,
-          ),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(
-              maxWidth: AppDimensions.contentMaxWidth,
-            ),
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(32),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(28),
-                border: Border.all(color: const Color(0xFFF3F4F6)),
-              ),
-              child: Text(
-                'A página `$title` já está ligada ao menu lateral e pronta para receber `pages`, `sections`, `widgets`, `constants` e `models` próprios.',
-                style: Theme.of(context).textTheme.bodyLarge,
-              ),
-            ),
-          ),
-        ),
-      ),
+      pageBuilder: (context, animation, secondaryAnimation) => child,
+      transitionDuration: Duration.zero,
+      reverseTransitionDuration: Duration.zero,
     );
   }
 }

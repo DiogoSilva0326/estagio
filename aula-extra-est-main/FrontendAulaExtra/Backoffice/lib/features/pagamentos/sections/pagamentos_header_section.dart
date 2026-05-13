@@ -4,7 +4,14 @@ import '../../../design/theme/app_colors.dart';
 import '../widgets/export_report_button.dart';
 
 class PagamentosHeaderSection extends StatelessWidget {
-  const PagamentosHeaderSection({super.key});
+  const PagamentosHeaderSection({
+    super.key,
+    this.onExportPressed,
+    this.exportEnabled = false,
+  });
+
+  final VoidCallback? onExportPressed;
+  final bool exportEnabled;
 
   @override
   Widget build(BuildContext context) {
@@ -13,25 +20,31 @@ class PagamentosHeaderSection extends StatelessWidget {
         final stacked = constraints.maxWidth < 900;
 
         if (stacked) {
-          return const Column(
+          return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _HeaderText(),
-              SizedBox(height: 24),
+              const _HeaderText(),
+              const SizedBox(height: 24),
               Align(
                 alignment: Alignment.centerLeft,
-                child: ExportReportButton(),
+                child: ExportReportButton(
+                  onPressed: onExportPressed,
+                  enabled: exportEnabled,
+                ),
               ),
             ],
           );
         }
 
-        return const Row(
+        return Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Expanded(child: _HeaderText()),
-            SizedBox(width: 24),
-            ExportReportButton(),
+            const Expanded(child: _HeaderText()),
+            const SizedBox(width: 24),
+            ExportReportButton(
+              onPressed: onExportPressed,
+              enabled: exportEnabled,
+            ),
           ],
         );
       },

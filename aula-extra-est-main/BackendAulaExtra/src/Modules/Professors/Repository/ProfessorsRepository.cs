@@ -33,6 +33,205 @@ namespace ConfidantPostgreSQL.Modules.Professors.Repository
             return list;
         }
 
+        public async Task<IEnumerable<AdminProfessionalDirectoryItem>> GetAdminProfessionalDirectoryAsync(string? category)
+        {
+            var list = new List<AdminProfessionalDirectoryItem>();
+            await using var conn = new NpgsqlConnection(_connectionString);
+            await conn.OpenAsync();
+            await using var cmd = conn.CreateCommand();
+
+            cmd.CommandText = @"
+SELECT
+    p.id_professor,
+    CASE
+        WHEN COALESCE(roles_map.is_psychologist, FALSE) THEN 'psicologos'
+        WHEN COALESCE(roles_map.is_tutor, FALSE) THEN 'tutores'
+        ELSE 'explicadores'
+    END AS category,
+    COALESCE(
+        NULLIF(TRIM(u.display_name), ''),
+        NULLIF(TRIM(CONCAT_WS(' ', NULLIF(u.first_name, ''), NULLIF(u.last_name, ''))), ''),
+        NULLIF(TRIM(u.username), ''),
+        'Profissional'
+    ) AS name,
+    COALESCE(NULLIF(TRIM(u.email), ''), '-') AS email,
+    NULLIF(TRIM(u.mobile_number), '') AS phone,
+    COALESCE(NULLIF(TRIM(p.photo), ''), NULLIF(TRIM(up.profile_image_url), '')) AS photo_url,
+    COALESCE(NULLIF(TRIM(area_info.area_name), ''), 'Sem área') AS area_name,
+    COALESCE(NULLIF(TRIM(cat.primary_subject), ''), 'Sem especialidade') AS primary_subject,
+    price.min_price AS price_per_hour,
+    COALESCE(rating.avg_rating, 0) AS average_rating,
+    COALESCE(rating.review_count, 0) AS review_count,
+    CASE
+        WHEN COALESCE(p.is_rejected, FALSE) = TRUE THEN 'INATIVO'
+        WHEN COALESCE(p.is_active, TRUE) = TRUE THEN 'ATIVO'
+        ELSE 'INATIVO'
+    END AS status_label,
+    COALESCE(p.is_active, TRUE) AS is_active,
+    CASE
+        WHEN COALESCE(p.is_verified, FALSE) = TRUE
+         AND COALESCE(p.is_verified_iban, FALSE) = TRUE
+            THEN TRUE
+        ELSE FALSE
+    END AS is_verified,
+    COALESCE(p.is_rejected, FALSE) AS is_rejected,
+    COALESCE(NULLIF(TRIM(p.current_school), ''), 'Online') AS current_school,
+    NULLIF(TRIM(p.biography), '') AS biography,
+    COALESCE(p.years_experience, 0) AS years_experience
+FROM public.professors p
+JOIN public.users u ON u.id_user = p.id_user
+LEFT JOIN public.userprofiles up ON up.user_id = u.id_user
+LEFT JOIN LATERAL (
+    SELECT
+        BOOL_OR(LOWER(TRIM(r.description)) = 'professor') AS is_professor,
+        BOOL_OR(LOWER(TRIM(r.description)) = 'tutor') AS is_tutor,
+        BOOL_OR(LOWER(TRIM(r.description)) = 'psicologo') AS is_psychologist
+    FROM public.user_role ur
+    JOIN public.role r ON r.id = ur.role_id
+    WHERE ur.user_id = u.id_user
+) roles_map ON TRUE
+LEFT JOIN LATERAL (
+    SELECT
+        COALESCE(
+                        MIN(src.primary_label) FILTER (
+                                WHERE src.primary_label IS NOT NULL
+                                    AND TRIM(src.primary_label) <> ''
+                                    AND (
+                                        src.search_text LIKE '%psicolog%'
+                                        OR src.search_text LIKE '%orientacao vocacional%'
+                                        OR src.search_text LIKE '%ansiedade escolar%'
+                                        OR src.search_text LIKE '%apoio emocional%'
+                                        OR src.search_text LIKE '%gestao emocional%'
+                                        OR src.search_text LIKE '%metodos de estudo%'
+                                        OR src.search_text LIKE '%apoio ao estudo%'
+                                        OR src.search_text LIKE '%tecnicas de concentracao%'
+                                        OR src.search_text LIKE '%organizacao do estudo%'
+                                        OR src.search_text LIKE '%autonomia escolar%'
+                                    )
+                        ),
+                        MIN(src.fallback_label) FILTER (WHERE src.fallback_label IS NOT NULL AND TRIM(src.fallback_label) <> ''),
+            'Sem especialidade'
+        ) AS primary_subject,
+        BOOL_OR(
+            src.search_text LIKE '%psicolog%'
+            OR src.search_text LIKE '%orientacao vocacional%'
+            OR src.search_text LIKE '%ansiedade escolar%'
+            OR src.search_text LIKE '%apoio emocional%'
+            OR src.search_text LIKE '%gestao emocional%'
+        ) AS is_psychologist,
+        BOOL_OR(
+            src.search_text LIKE '%metodos de estudo%'
+            OR src.search_text LIKE '%apoio ao estudo%'
+            OR src.search_text LIKE '%tecnicas de concentracao%'
+            OR src.search_text LIKE '%organizacao do estudo%'
+            OR src.search_text LIKE '%autonomia escolar%'
+        ) AS is_tutor
+    FROM (
+        SELECT
+            COALESCE(NULLIF(TRIM(c.name), ''), NULLIF(TRIM(d.nome), '')) AS primary_label,
+            COALESCE(NULLIF(TRIM(d.nome), ''), NULLIF(TRIM(c.name), '')) AS fallback_label,
+            TRANSLATE(
+                LOWER(CONCAT_WS(' ', COALESCE(d.nome, ''), COALESCE(c.name, ''), COALESCE(c.description, ''))),
+                'áàâãäåéèêëíìîïóòôõöúùûüçñ',
+                'aaaaaaeeeeiiiiooooouuuucn'
+            ) AS search_text
+        FROM public.courses c
+        LEFT JOIN public.disciplinas d ON d.id_disciplina = c.id_disciplina
+        WHERE c.id_professor = p.id_professor
+
+        UNION ALL
+
+        SELECT
+            d.nome AS primary_label,
+            d.nome AS fallback_label,
+            TRANSLATE(
+                LOWER(COALESCE(d.nome, '')),
+                'áàâãäåéèêëíìîïóòôõöúùûüçñ',
+                'aaaaaaeeeeiiiiooooouuuucn'
+            ) AS search_text
+        FROM public.professor_disciplina pd
+        JOIN public.disciplinas d ON d.id_disciplina = pd.id_disciplina
+        WHERE pd.id_professor = p.id_professor
+          AND COALESCE(pd.is_active, TRUE) = TRUE
+    ) src
+) cat ON TRUE
+LEFT JOIN LATERAL (
+    SELECT COALESCE(
+        MIN(NULLIF(TRIM(a.nome), '')) FILTER (WHERE NULLIF(TRIM(a.nome), '') IS NOT NULL),
+        'Sem área'
+    ) AS area_name
+    FROM (
+        SELECT COALESCE(pd.id_area, d.id_area) AS area_id
+        FROM public.professor_disciplina pd
+        LEFT JOIN public.disciplinas d ON d.id_disciplina = pd.id_disciplina
+        WHERE pd.id_professor = p.id_professor
+          AND COALESCE(pd.is_active, TRUE) = TRUE
+
+        UNION ALL
+
+        SELECT d.id_area AS area_id
+        FROM public.courses c
+        LEFT JOIN public.disciplinas d ON d.id_disciplina = c.id_disciplina
+        WHERE c.id_professor = p.id_professor
+    ) area_ids
+    LEFT JOIN public.areas a ON a.id_area = area_ids.area_id
+) area_info ON TRUE
+LEFT JOIN LATERAL (
+    SELECT MIN(cp.session_price) AS min_price
+    FROM public.courses c
+    JOIN public.course_prices cp ON cp.id_course = c.id_course
+    WHERE c.id_professor = p.id_professor
+      AND cp.active = TRUE
+      AND cp.session_price IS NOT NULL
+) price ON TRUE
+LEFT JOIN LATERAL (
+    SELECT
+        COALESCE(AVG(pf.rating::numeric), 0) AS avg_rating,
+        COUNT(*) AS review_count
+    FROM public.professor_feedback pf
+    WHERE pf.id_professor = p.id_professor
+      AND pf.is_valid = TRUE
+      AND pf.rating IS NOT NULL
+) rating ON TRUE
+WHERE (
+    @category IS NULL
+    OR @category = ''
+    OR (
+        @category = 'psicologos'
+        AND COALESCE(roles_map.is_psychologist, FALSE) = TRUE
+    )
+    OR (
+        @category = 'tutores'
+        AND COALESCE(roles_map.is_tutor, FALSE) = TRUE
+    )
+    OR (
+        @category = 'explicadores'
+        AND COALESCE(roles_map.is_professor, FALSE) = TRUE
+        AND COALESCE(roles_map.is_tutor, FALSE) = FALSE
+        AND COALESCE(roles_map.is_psychologist, FALSE) = FALSE
+    )
+)
+ORDER BY
+    CASE
+        WHEN COALESCE(p.is_active, TRUE) = TRUE
+         AND COALESCE(p.is_verified, FALSE) = TRUE
+         AND COALESCE(p.is_verified_iban, FALSE) = TRUE
+            THEN 0
+        ELSE 1
+    END,
+    name;";
+
+            cmd.Parameters.AddWithValue("category", (object?)category ?? DBNull.Value);
+
+            await using var reader = await cmd.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+            {
+                list.Add(MapAdminProfessionalDirectoryItem(reader));
+            }
+
+            return list;
+        }
+
         public async Task<ProfessorStats> GetProfessorStatsAsync(Guid idProfessor)
         {
             await using var conn = new NpgsqlConnection(_connectionString);
@@ -262,6 +461,54 @@ WITH base AS (
                 ))
             )
         )
+        AND (
+            @category IS NULL
+            OR @category = ''
+            OR (
+                @category = 'psicologos'
+                AND EXISTS (
+                    SELECT 1 FROM professor_disciplina pd_cat
+                    JOIN disciplinas d_cat ON d_cat.id_disciplina = pd_cat.id_disciplina
+                    WHERE pd_cat.id_professor = p.id_professor AND COALESCE(pd_cat.is_active, TRUE) = TRUE
+                    AND (
+                        TRANSLATE(LOWER(d_cat.nome), 'áàâãäåéèêëíìîïóòôõöúùûüçñ', 'aaaaaaeeeeiiiiooooouuuucn') LIKE '%psicolog%'
+                        OR TRANSLATE(LOWER(d_cat.nome), 'áàâãäåéèêëíìîïóòôõöúùûüçñ', 'aaaaaaeeeeiiiiooooouuuucn') LIKE '%orientacao vocacional%'
+                        OR TRANSLATE(LOWER(d_cat.nome), 'áàâãäåéèêëíìîïóòôõöúùûüçñ', 'aaaaaaeeeeiiiiooooouuuucn') LIKE '%ansiedade%'
+                        OR TRANSLATE(LOWER(d_cat.nome), 'áàâãäåéèêëíìîïóòôõöúùûüçñ', 'aaaaaaeeeeiiiiooooouuuucn') LIKE '%emocional%'
+                    )
+                )
+            )
+            OR (
+                @category = 'tutores'
+                AND EXISTS (
+                    SELECT 1 FROM professor_disciplina pd_cat
+                    JOIN disciplinas d_cat ON d_cat.id_disciplina = pd_cat.id_disciplina
+                    WHERE pd_cat.id_professor = p.id_professor AND COALESCE(pd_cat.is_active, TRUE) = TRUE
+                    AND (
+                        TRANSLATE(LOWER(d_cat.nome), 'áàâãäåéèêëíìîïóòôõöúùûüçñ', 'aaaaaaeeeeiiiiooooouuuucn') LIKE '%estudo%'
+                        OR TRANSLATE(LOWER(d_cat.nome), 'áàâãäåéèêëíìîïóòôõöúùûüçñ', 'aaaaaaeeeeiiiiooooouuuucn') LIKE '%concentracao%'
+                        OR TRANSLATE(LOWER(d_cat.nome), 'áàâãäåéèêëíìîïóòôõöúùûüçñ', 'aaaaaaeeeeiiiiooooouuuucn') LIKE '%autonomia%'
+                    )
+                )
+            )
+            OR (
+                @category = 'explicadores'
+                AND NOT EXISTS (
+                    SELECT 1 FROM professor_disciplina pd_cat
+                    JOIN disciplinas d_cat ON d_cat.id_disciplina = pd_cat.id_disciplina
+                    WHERE pd_cat.id_professor = p.id_professor AND COALESCE(pd_cat.is_active, TRUE) = TRUE
+                    AND (
+                        TRANSLATE(LOWER(d_cat.nome), 'áàâãäåéèêëíìîïóòôõöúùûüçñ', 'aaaaaaeeeeiiiiooooouuuucn') LIKE '%psicolog%'
+                        OR TRANSLATE(LOWER(d_cat.nome), 'áàâãäåéèêëíìîïóòôõöúùûüçñ', 'aaaaaaeeeeiiiiooooouuuucn') LIKE '%orientacao vocacional%'
+                        OR TRANSLATE(LOWER(d_cat.nome), 'áàâãäåéèêëíìîïóòôõöúùûüçñ', 'aaaaaaeeeeiiiiooooouuuucn') LIKE '%ansiedade%'
+                        OR TRANSLATE(LOWER(d_cat.nome), 'áàâãäåéèêëíìîïóòôõöúùûüçñ', 'aaaaaaeeeeiiiiooooouuuucn') LIKE '%emocional%'
+                        OR TRANSLATE(LOWER(d_cat.nome), 'áàâãäåéèêëíìîïóòôõöúùûüçñ', 'aaaaaaeeeeiiiiooooouuuucn') LIKE '%estudo%'
+                        OR TRANSLATE(LOWER(d_cat.nome), 'áàâãäåéèêëíìîïóòôõöúùûüçñ', 'aaaaaaeeeeiiiiooooouuuucn') LIKE '%concentracao%'
+                        OR TRANSLATE(LOWER(d_cat.nome), 'áàâãäåéèêëíìîïóòôõöúùûüçñ', 'aaaaaaeeeeiiiiooooouuuucn') LIKE '%autonomia%'
+                    )
+                )
+            )
+        )
 )
 SELECT
     b.id_professor,
@@ -345,6 +592,8 @@ LIMIT @limit;
                         cmd.Parameters.Add(new NpgsqlParameter("offset", NpgsqlDbType.Integer) { Value = offset });
                         cmd.Parameters.Add(new NpgsqlParameter("limit", NpgsqlDbType.Integer) { Value = pageSize });
 
+                        cmd.Parameters.Add(new NpgsqlParameter("category", NpgsqlDbType.Text) { Value = (object?)query.Category ?? DBNull.Value });
+
                         await using var reader = await cmd.ExecuteReaderAsync();
                         while (await reader.ReadAsync())
                         {
@@ -422,7 +671,7 @@ LIMIT @limit;
             await using var conn = new NpgsqlConnection(_connectionString);
             await conn.OpenAsync();
             await using var cmd = conn.CreateCommand();
-                        cmd.CommandText = "SELECT public.usp_professors_insert(@id_user, @current_school, @years_experience, @photo, @biography, @presentation_video_url, @vat, @iban, @iban_document_url, @is_verified_iban, @is_active, @is_verified, @created_at, @updated_at);";
+                        cmd.CommandText = "SELECT public.usp_professors_insert(@id_user, @current_school, @years_experience, @photo, @biography, @presentation_video_url, @vat, @iban, @iban_document_url, @is_verified_iban, @is_active, @is_verified, @is_rejected, @created_at, @updated_at);";
             cmd.Parameters.AddWithValue("id_user", professor.IdUser);
             cmd.Parameters.AddWithValue("current_school", (object?)professor.CurrentSchool ?? DBNull.Value);
             cmd.Parameters.AddWithValue("years_experience", (object?)professor.YearsExperience ?? DBNull.Value);
@@ -435,6 +684,7 @@ LIMIT @limit;
             cmd.Parameters.AddWithValue("is_verified_iban", (object?)professor.IsVerifiedIban ?? DBNull.Value);
             cmd.Parameters.AddWithValue("is_active", (object?)professor.IsActive ?? DBNull.Value);
             cmd.Parameters.AddWithValue("is_verified", (object?)professor.IsVerified ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("is_rejected", (object?)professor.IsRejected ?? DBNull.Value);
             cmd.Parameters.AddWithValue("created_at", (object?)professor.CreatedAt ?? DBNull.Value);
             cmd.Parameters.AddWithValue("updated_at", (object?)professor.UpdatedAt ?? DBNull.Value);
             var res = await cmd.ExecuteScalarAsync();
@@ -446,7 +696,7 @@ LIMIT @limit;
             await using var conn = new NpgsqlConnection(_connectionString);
             await conn.OpenAsync();
             await using var cmd = conn.CreateCommand();
-            cmd.CommandText = "SELECT public.usp_professors_update(@id_professor, @id_user, @current_school, @years_experience, @photo, @biography, @presentation_video_url, @vat, @iban, @iban_document_url, @is_verified_iban, @is_active, @is_verified);";
+            cmd.CommandText = "SELECT public.usp_professors_update(@id_professor, @id_user, @current_school, @years_experience, @photo, @biography, @presentation_video_url, @vat, @iban, @iban_document_url, @is_verified_iban, @is_active, @is_verified, @is_rejected);";
             cmd.Parameters.AddWithValue("id_professor", professor.IdProfessor);
             cmd.Parameters.AddWithValue("id_user", professor.IdUser);
             cmd.Parameters.AddWithValue("current_school", (object?)professor.CurrentSchool ?? DBNull.Value);
@@ -460,6 +710,7 @@ LIMIT @limit;
             cmd.Parameters.AddWithValue("is_verified_iban", (object?)professor.IsVerifiedIban ?? DBNull.Value);
             cmd.Parameters.AddWithValue("is_active", (object?)professor.IsActive ?? DBNull.Value);
             cmd.Parameters.AddWithValue("is_verified", (object?)professor.IsVerified ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("is_rejected", (object?)professor.IsRejected ?? DBNull.Value);
             var res = await cmd.ExecuteScalarAsync();
             return res == null || res == DBNull.Value ? 0 : Convert.ToInt32(res);
         }
@@ -606,6 +857,8 @@ SELECT public.usp_certificates_insert(
     @name::varchar,
     @description::text,
     @file_url::text,
+    @approved::boolean,
+    @approved_by_user_id::uuid,
     @verified::boolean,
     @verified_by_user_id::uuid,
     @created_at::timestamp,
@@ -615,6 +868,8 @@ SELECT public.usp_certificates_insert(
             cmd.Parameters.AddWithValue("name", (object?)cert.Name ?? DBNull.Value);
             cmd.Parameters.AddWithValue("description", (object?)cert.Description ?? DBNull.Value);
             cmd.Parameters.AddWithValue("file_url", (object?)cert.FileUrl ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("approved", (object?)cert.Approved ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("approved_by_user_id", (object?)cert.ApprovedByUserId ?? DBNull.Value);
             cmd.Parameters.AddWithValue("verified", (object?)cert.Verified ?? DBNull.Value);
             cmd.Parameters.AddWithValue("verified_by_user_id", (object?)cert.VerifiedByUserId ?? DBNull.Value);
             cmd.Parameters.AddWithValue("created_at", (object?)cert.CreatedAt ?? DBNull.Value);
@@ -635,6 +890,8 @@ SELECT public.usp_certificates_update(
     @name::varchar,
     @description::text,
     @file_url::text,
+    @approved::boolean,
+    @approved_by_user_id::uuid,
     @verified::boolean,
     @verified_by_user_id::uuid
 );";
@@ -643,6 +900,8 @@ SELECT public.usp_certificates_update(
             cmd.Parameters.AddWithValue("name", (object?)cert.Name ?? DBNull.Value);
             cmd.Parameters.AddWithValue("description", (object?)cert.Description ?? DBNull.Value);
             cmd.Parameters.AddWithValue("file_url", (object?)cert.FileUrl ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("approved", (object?)cert.Approved ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("approved_by_user_id", (object?)cert.ApprovedByUserId ?? DBNull.Value);
             cmd.Parameters.AddWithValue("verified", (object?)cert.Verified ?? DBNull.Value);
             cmd.Parameters.AddWithValue("verified_by_user_id", (object?)cert.VerifiedByUserId ?? DBNull.Value);
             var res = await cmd.ExecuteScalarAsync();
@@ -757,7 +1016,7 @@ LIMIT 1;";
             return res == null || res == DBNull.Value ? 0 : Convert.ToInt32(res);
         }
 
-        public async Task<IEnumerable<ProfessorStudentDto>> GetAlunosByProfessorIdAsync(Guid professorUserId)
+        public async Task<IEnumerable<ProfessorStudentDto>> GetAlunosByProfessorIdAsync(Guid professorUserId, string? role = null)
         {
             var list = new List<ProfessorStudentDto>();
             await using var conn = new NpgsqlConnection(_connectionString);
@@ -765,6 +1024,34 @@ LIMIT 1;";
             await using var cmd = conn.CreateCommand();
 
             cmd.CommandText = @"
+                WITH FilteredLessons AS (
+                    SELECT l.id_lesson, l.id_professor, c.id_course, d.nome AS disciplina_nome, l.scheduled_start
+                    FROM public.lessons l
+                    INNER JOIN public.courses c ON l.id_course = c.id_course
+                    INNER JOIN public.disciplinas d ON c.id_disciplina = d.id_disciplina
+                    WHERE (@Role::text IS NULL
+                    OR (@Role::text = 'psicólogo' AND (
+                            TRANSLATE(LOWER(d.nome), 'áàâãäåéèêëíìîïóòôõöúùûüçñ', 'aaaaaaeeeeiiiiooooouuuucn') LIKE '%psicolog%' OR
+                            TRANSLATE(LOWER(d.nome), 'áàâãäåéèêëíìîïóòôõöúùûüçñ', 'aaaaaaeeeeiiiiooooouuuucn') LIKE '%orientacao vocacional%' OR
+                            TRANSLATE(LOWER(d.nome), 'áàâãäåéèêëíìîïóòôõöúùûüçñ', 'aaaaaaeeeeiiiiooooouuuucn') LIKE '%ansiedade%' OR
+                            TRANSLATE(LOWER(d.nome), 'áàâãäåéèêëíìîïóòôõöúùûüçñ', 'aaaaaaeeeeiiiiooooouuuucn') LIKE '%emocional%'
+                        ))
+                        OR (@Role = 'tutor' AND (
+                            TRANSLATE(LOWER(d.nome), 'áàâãäåéèêëíìîïóòôõöúùûüçñ', 'aaaaaaeeeeiiiiooooouuuucn') LIKE '%estudo%' OR
+                            TRANSLATE(LOWER(d.nome), 'áàâãäåéèêëíìîïóòôõöúùûüçñ', 'aaaaaaeeeeiiiiooooouuuucn') LIKE '%concentracao%' OR
+                            TRANSLATE(LOWER(d.nome), 'áàâãäåéèêëíìîïóòôõöúùûüçñ', 'aaaaaaeeeeiiiiooooouuuucn') LIKE '%autonomia%'
+                        ))
+                        OR (@Role = 'explicador' AND NOT (
+                            TRANSLATE(LOWER(d.nome), 'áàâãäåéèêëíìîïóòôõöúùûüçñ', 'aaaaaaeeeeiiiiooooouuuucn') LIKE '%psicolog%' OR
+                            TRANSLATE(LOWER(d.nome), 'áàâãäåéèêëíìîïóòôõöúùûüçñ', 'aaaaaaeeeeiiiiooooouuuucn') LIKE '%orientacao vocacional%' OR
+                            TRANSLATE(LOWER(d.nome), 'áàâãäåéèêëíìîïóòôõöúùûüçñ', 'aaaaaaeeeeiiiiooooouuuucn') LIKE '%ansiedade%' OR
+                            TRANSLATE(LOWER(d.nome), 'áàâãäåéèêëíìîïóòôõöúùûüçñ', 'aaaaaaeeeeiiiiooooouuuucn') LIKE '%emocional%' OR
+                            TRANSLATE(LOWER(d.nome), 'áàâãäåéèêëíìîïóòôõöúùûüçñ', 'aaaaaaeeeeiiiiooooouuuucn') LIKE '%estudo%' OR
+                            TRANSLATE(LOWER(d.nome), 'áàâãäåéèêëíìîïóòôõöúùûüçñ', 'aaaaaaeeeeiiiiooooouuuucn') LIKE '%concentracao%' OR
+                            TRANSLATE(LOWER(d.nome), 'áàâãäåéèêëíìîïóòôõöúùûüçñ', 'aaaaaaeeeeiiiiooooouuuucn') LIKE '%autonomia%'
+                        ))
+                    )
+                )
                 SELECT
                     u.id_user AS Id,
                     u.username AS Username,
@@ -773,31 +1060,30 @@ LIMIT 1;";
                     u.last_name AS LastName,
                     '' AS AvatarUrl,
                     (
-                        SELECT STRING_AGG(subject.nome, ',' ORDER BY subject.nome)
-                        FROM (
-                            SELECT DISTINCT d.nome
-                            FROM public.enrollments e2
-                            INNER JOIN public.lessons l2 ON e2.id_lesson = l2.id_lesson
-                            INNER JOIN public.courses c ON l2.id_course = c.id_course
-                            INNER JOIN public.disciplinas d ON c.id_disciplina = d.id_disciplina
-                            WHERE e2.id_user = u.id_user AND l2.id_professor = p.id_professor
-                        ) AS subject
+                        SELECT STRING_AGG(DISTINCT fl.disciplina_nome, ',' ORDER BY fl.disciplina_nome)
+                        FROM public.enrollments e2
+                        INNER JOIN FilteredLessons fl ON e2.id_lesson = fl.id_lesson
+                        WHERE e2.id_user = u.id_user AND fl.id_professor = p.id_professor
                     ) AS SubjectsJoined,
                     (
-                        SELECT MAX(l3.scheduled_start)
-                        FROM public.lessons l3
-                        INNER JOIN public.enrollments e3 ON l3.id_lesson = e3.id_lesson
-                        WHERE e3.id_user = u.id_user AND l3.id_professor = p.id_professor
+                        SELECT MAX(fl.scheduled_start)
+                        FROM public.enrollments e3
+                        INNER JOIN FilteredLessons fl ON e3.id_lesson = fl.id_lesson
+                        WHERE e3.id_user = u.id_user AND fl.id_professor = p.id_professor
                     ) AS LastLessonDate,
                     0.5 AS Progress
                 FROM public.users u
                 INNER JOIN public.enrollments e ON u.id_user = e.id_user
-                INNER JOIN public.lessons l ON e.id_lesson = l.id_lesson
-                INNER JOIN public.professors p ON l.id_professor = p.id_professor
+                INNER JOIN FilteredLessons fl_main ON e.id_lesson = fl_main.id_lesson
+                INNER JOIN public.professors p ON fl_main.id_professor = p.id_professor
                 WHERE p.id_user = @ProfessorUserId
-                GROUP BY u.id_user, u.username, u.first_name, u.last_name, p.id_professor";
+                GROUP BY u.id_user, u.username, u.first_name, u.last_name, p.id_professor;";
 
             cmd.Parameters.AddWithValue("ProfessorUserId", professorUserId);
+            cmd.Parameters.Add(new NpgsqlParameter("Role", NpgsqlDbType.Text) 
+            { 
+                Value = string.IsNullOrWhiteSpace(role) ? DBNull.Value : role.Trim().ToLowerInvariant() 
+            });
 
             await using var reader = await cmd.ExecuteReaderAsync();
             while (await reader.ReadAsync())
@@ -969,7 +1255,7 @@ SET id_area = EXCLUDED.id_area,
                 upsertCmd.Parameters.AddWithValue("id_professor", idProfessor);
                 upsertCmd.Parameters.AddWithValue("id_disciplina", resolvedDisciplinaId);
                 upsertCmd.Parameters.AddWithValue("id_area", input.IdArea);
-                upsertCmd.Parameters.AddWithValue("id_ciclo_estudo", input.IdCicloEstudo);
+                upsertCmd.Parameters.AddWithValue("id_ciclo_estudo", (object?)input.IdCicloEstudo ?? DBNull.Value);
                 upsertCmd.Parameters.AddWithValue("is_active", input.IsActive);
                 await upsertCmd.ExecuteNonQueryAsync();
             }
@@ -1139,8 +1425,34 @@ WHERE id_professor = @id_professor
                 IsVerifiedIban = GetNullableBool(reader, "is_verified_iban"),
                 IsActive = GetNullableBool(reader, "is_active"),
                 IsVerified = GetNullableBool(reader, "is_verified"),
+                IsRejected = GetNullableBool(reader, "is_rejected"),
                 CreatedAt = GetNullableDateTime(reader, "created_at"),
                 UpdatedAt = GetNullableDateTime(reader, "updated_at")
+            };
+        }
+
+        private static AdminProfessionalDirectoryItem MapAdminProfessionalDirectoryItem(NpgsqlDataReader reader)
+        {
+            return new AdminProfessionalDirectoryItem
+            {
+                IdProfessor = reader.GetGuid(reader.GetOrdinal("id_professor")),
+                Category = GetNullableString(reader, "category") ?? "explicadores",
+                Name = GetNullableString(reader, "name") ?? string.Empty,
+                Email = GetNullableString(reader, "email") ?? string.Empty,
+                Phone = GetNullableString(reader, "phone"),
+                PhotoUrl = GetNullableString(reader, "photo_url"),
+                AreaName = GetNullableString(reader, "area_name") ?? "Sem área",
+                PrimarySubject = GetNullableString(reader, "primary_subject") ?? "Sem especialidade",
+                PricePerHour = GetNullableDecimal(reader, "price_per_hour"),
+                AverageRating = GetNullableDecimal(reader, "average_rating") ?? 0,
+                ReviewCount = GetNullableInt(reader, "review_count") ?? 0,
+                StatusLabel = GetNullableString(reader, "status_label") ?? "INATIVO",
+                IsActive = GetNullableBool(reader, "is_active") ?? false,
+                IsVerified = GetNullableBool(reader, "is_verified") ?? false,
+                IsRejected = GetNullableBool(reader, "is_rejected") ?? false,
+                CurrentSchool = GetNullableString(reader, "current_school"),
+                Biography = GetNullableString(reader, "biography"),
+                YearsExperience = GetNullableInt(reader, "years_experience") ?? 0,
             };
         }
 
@@ -1197,6 +1509,8 @@ WHERE id_professor = @id_professor
                 Name = GetNullableString(reader, "name"),
                 Description = GetNullableString(reader, "description"),
                 FileUrl = GetNullableString(reader, "file_url"),
+                Approved = GetNullableBool(reader, "approved"),
+                ApprovedByUserId = GetNullableGuid(reader, "approved_by_user_id"),
                 Verified = GetNullableBool(reader, "verified"),
                 VerifiedByUserId = GetNullableGuid(reader, "verified_by_user_id"),
                 CreatedAt = GetNullableDateTime(reader, "created_at"),
@@ -1235,6 +1549,12 @@ WHERE id_professor = @id_professor
         {
             var idx = reader.GetOrdinal(column);
             return reader.IsDBNull(idx) ? null : reader.GetInt32(idx);
+        }
+
+        private static decimal? GetNullableDecimal(NpgsqlDataReader reader, string column)
+        {
+            var idx = reader.GetOrdinal(column);
+            return reader.IsDBNull(idx) ? null : reader.GetDecimal(idx);
         }
 
         private static bool? GetNullableBool(NpgsqlDataReader reader, string column)

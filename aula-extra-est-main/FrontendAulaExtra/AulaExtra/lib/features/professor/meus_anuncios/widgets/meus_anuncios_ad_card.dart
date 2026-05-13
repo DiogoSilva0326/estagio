@@ -1,7 +1,10 @@
 import 'package:aula_extra/core/data/professor_ads/dtos/professor_ad_dto.dart';
 import 'package:aula_extra/features/professor/meus_anuncios/constants/meus_anuncios_professor_constants.dart';
 import 'package:aula_extra/features/professor/meus_anuncios/widgets/meus_anuncios_shared_widgets.dart';
+import 'package:aula_extra/core/providers/user_provider.dart';
+import 'package:aula_extra/core/config/teaching_roles_config.dart'; 
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 class MeusAnunciosAdCard extends StatelessWidget {
   const MeusAnunciosAdCard({
@@ -29,17 +32,22 @@ class MeusAnunciosAdCard extends StatelessWidget {
     return value.toStringAsFixed(2).replaceAll('.', ',');
   }
 
-  String _modeLabel() {
+  String _modeLabel(String sessionLabel) {
     final normalized = (ad.tutoringTypeName ?? '').trim().toLowerCase();
+    
+    final labelCapitalized = sessionLabel.isNotEmpty 
+        ? '${sessionLabel[0].toUpperCase()}${sessionLabel.substring(1)}'
+        : 'Sessão';
+
     if (normalized.contains('grupo') || normalized.contains('group')) {
-      return 'Aula em Grupo';
+      return '$labelCapitalized em Grupo';
     }
     if (normalized.contains('individual') || normalized.contains('1:1')) {
-      return 'Aula Individual';
+      return '$labelCapitalized Individual';
     }
     return ad.tutoringTypeName?.trim().isNotEmpty == true
         ? ad.tutoringTypeName!.trim()
-        : 'Aula';
+        : labelCapitalized;
   }
 
   String _firstNameLine() {
@@ -55,12 +63,20 @@ class MeusAnunciosAdCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final userProvider = Provider.of<UserProvider>(context);
+    final config = TeachingRoleConfig.fromRole(userProvider.role);
+    final isSpecialized = config.roleName == 'Psicólogo' || config.roleName == 'Tutor';
+
     if (isMobile) {
-      return _buildMobileCard();
+      return _buildMobileCard(config, isSpecialized);
     }
 
     final isInactive = ad.status.trim().toLowerCase() == 'inactive';
-    final modeLabel = _modeLabel();
+    final modeLabel = _modeLabel(config.sessionsLabel); 
+
+    // Lógica para esconder Nível de Ensino quando não é explicador ou é inválido
+    final cicloLabel = ad.cicloEstudos?.trim() ?? '';
+    final hasCiclo = !isSpecialized && cicloLabel.isNotEmpty && !cicloLabel.toLowerCase().contains('não definido');
 
     return SizedBox(
       width: 471.46,
@@ -125,8 +141,8 @@ class MeusAnunciosAdCard extends StatelessWidget {
                 children: [
                   if ((ad.disciplinaNome ?? '').trim().isNotEmpty)
                     MeusAnunciosInfoPill(label: ad.disciplinaNome!.trim()),
-                  if ((ad.cicloEstudos ?? '').trim().isNotEmpty)
-                    MeusAnunciosInfoPill(label: ad.cicloEstudos!.trim()),
+                  if (hasCiclo)
+                    MeusAnunciosInfoPill(label: cicloLabel),
                 ],
               ),
               const SizedBox(height: 18),
@@ -174,10 +190,10 @@ class MeusAnunciosAdCard extends StatelessWidget {
                       onPressed: onViewProfile,
                       style: OutlinedButton.styleFrom(
                         minimumSize: const Size.fromHeight(48),
-                        side: const BorderSide(
-                          color: MeusAnunciosProfessorColors.accent,
+                        side: BorderSide(
+                          color: config.primaryColor, 
                         ),
-                        foregroundColor: MeusAnunciosProfessorColors.accent,
+                        foregroundColor: config.primaryColor,
                       ),
                       child: const Text('Ver Perfil'),
                     ),
@@ -207,8 +223,7 @@ class MeusAnunciosAdCard extends StatelessWidget {
                             onPressed: onEdit,
                             style: FilledButton.styleFrom(
                               minimumSize: const Size.fromHeight(48),
-                              backgroundColor:
-                                  MeusAnunciosProfessorColors.accent,
+                              backgroundColor: config.primaryColor,
                             ),
                             child: const Text('Editar'),
                           ),
@@ -249,9 +264,13 @@ class MeusAnunciosAdCard extends StatelessWidget {
     );
   }
 
-  Widget _buildMobileCard() {
+  Widget _buildMobileCard(TeachingRoleConfig config, bool isSpecialized) {
     final isInactive = ad.status.trim().toLowerCase() == 'inactive';
-    final modeLabel = _modeLabel();
+    final modeLabel = _modeLabel(config.sessionsLabel);
+    
+    // Lógica Mobile
+    final cicloLabel = ad.cicloEstudos?.trim() ?? '';
+    final hasCiclo = !isSpecialized && cicloLabel.isNotEmpty && !cicloLabel.toLowerCase().contains('não definido');
 
     return SizedBox(
       width: double.infinity,
@@ -318,8 +337,8 @@ class MeusAnunciosAdCard extends StatelessWidget {
               children: [
                 if ((ad.disciplinaNome ?? '').trim().isNotEmpty)
                   MeusAnunciosInfoPill(label: ad.disciplinaNome!.trim()),
-                if ((ad.cicloEstudos ?? '').trim().isNotEmpty)
-                  MeusAnunciosInfoPill(label: ad.cicloEstudos!.trim()),
+                if (hasCiclo)
+                  MeusAnunciosInfoPill(label: cicloLabel),
               ],
             ),
             const SizedBox(height: 16),
@@ -368,10 +387,10 @@ class MeusAnunciosAdCard extends StatelessWidget {
                     onPressed: onViewProfile,
                     style: OutlinedButton.styleFrom(
                       minimumSize: const Size.fromHeight(46),
-                      side: const BorderSide(
-                        color: MeusAnunciosProfessorColors.accent,
+                      side: BorderSide(
+                        color: config.primaryColor,
                       ),
-                      foregroundColor: MeusAnunciosProfessorColors.accent,
+                      foregroundColor: config.primaryColor,
                     ),
                     child: const Text('Ver Perfil'),
                   ),
@@ -402,7 +421,7 @@ class MeusAnunciosAdCard extends StatelessWidget {
                           onPressed: onEdit,
                           style: FilledButton.styleFrom(
                             minimumSize: const Size.fromHeight(46),
-                            backgroundColor: MeusAnunciosProfessorColors.accent,
+                            backgroundColor: config.primaryColor,
                           ),
                           child: const Text('Editar'),
                         ),

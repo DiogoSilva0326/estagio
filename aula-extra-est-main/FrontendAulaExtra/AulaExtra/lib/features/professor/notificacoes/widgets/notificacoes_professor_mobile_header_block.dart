@@ -1,4 +1,5 @@
 import 'package:aula_extra/features/professor/notificacoes/widgets/notificacoes_professor_mark_all_button.dart';
+import 'package:aula_extra/core/config/teaching_roles_config.dart';
 import 'package:flutter/material.dart';
 
 class NotificacoesProfessorMobileHeaderBlock extends StatelessWidget {
@@ -7,11 +8,13 @@ class NotificacoesProfessorMobileHeaderBlock extends StatelessWidget {
     required this.unreadCount,
     required this.canMarkAll,
     required this.onMarkAllTap,
+    required this.config,
   });
 
   final int unreadCount;
   final bool canMarkAll;
   final VoidCallback onMarkAllTap;
+  final TeachingRoleConfig config;
 
   @override
   Widget build(BuildContext context) {
@@ -30,7 +33,7 @@ class NotificacoesProfessorMobileHeaderBlock extends StatelessWidget {
         const SizedBox(height: 10),
         Text(
           unreadCount > 0
-              ? 'Acompanha aulas, tarefas e mensagens pendentes.'
+              ? 'Acompanha ${config.sessionsLabel}, tarefas e mensagens pendentes.'
               : 'Todas as tuas notificações estão em dia.',
           style: const TextStyle(
             fontSize: 14,
@@ -46,6 +49,7 @@ class NotificacoesProfessorMobileHeaderBlock extends StatelessWidget {
             enabled: canMarkAll,
             onTap: onMarkAllTap,
             isMobile: true,
+            config: config,
           ),
         ),
       ],

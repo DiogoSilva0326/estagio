@@ -8,11 +8,13 @@ class MeusAlunosProfessorMobileStatCard extends StatelessWidget {
     required this.label,
     required this.value,
     required this.helper,
+    required this.activeColor,
   });
 
   final String label;
   final String value;
   final String helper;
+  final Color activeColor;
 
   @override
   Widget build(BuildContext context) {
@@ -21,11 +23,11 @@ class MeusAlunosProfessorMobileStatCard extends StatelessWidget {
         MeusAlunosProfessorLayout.mobileCardPadding,
       ),
       decoration: BoxDecoration(
-        color: MeusAlunosProfessorColors.mobileSoftSurface,
+        color: activeColor.withOpacity(0.05),
         borderRadius: BorderRadius.circular(
           MeusAlunosProfessorLayout.mobileCardRadius,
         ),
-        border: Border.all(color: const Color(0xFFFFD7BA)),
+        border: Border.all(color: activeColor.withOpacity(0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -42,10 +44,10 @@ class MeusAlunosProfessorMobileStatCard extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             value,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 22,
               fontWeight: FontWeight.w700,
-              color: MeusAlunosProfessorColors.orange,
+              color: activeColor, 
               height: 28 / 22,
             ),
           ),

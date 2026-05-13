@@ -22,7 +22,7 @@ namespace ConfidantPostgreSQL.Modules.Education.Service
         public Task<int> UpdateDisciplinaAsync(Disciplina disciplina) => _repo.UpdateDisciplinaAsync(disciplina);
         public Task<int> DeleteDisciplinaAsync(Guid idDisciplina) => _repo.DeleteDisciplinaAsync(idDisciplina);
 
-        public Task<IEnumerable<Area>> GetAreasAllAsync() => _repo.GetAreasAllAsync();
+        public Task<IEnumerable<Area>> GetAreasAllAsync(string? targetRole = null) => _repo.GetAreasAllAsync(targetRole);
         public Task<Area?> GetAreaByIdAsync(Guid idArea) => _repo.GetAreaByIdAsync(idArea);
         public Task<Guid> InsertAreaAsync(Area area) => _repo.InsertAreaAsync(area);
         public Task<int> UpdateAreaAsync(Area area) => _repo.UpdateAreaAsync(area);

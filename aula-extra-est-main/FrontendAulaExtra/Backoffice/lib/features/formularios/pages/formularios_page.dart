@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../../../design/widgets/backoffice_scaffold.dart';
 import '../../../routes/app_routes.dart';
-import '../constants/formularios_mock_data.dart';
 import '../models/formulario_item.dart';
 import '../sections/formularios_overview_section.dart';
+import '../services/backoffice_formularios_service.dart';
 
 class FormulariosPage extends StatefulWidget {
   const FormulariosPage({super.key});
@@ -17,15 +17,18 @@ class FormulariosPage extends StatefulWidget {
 
 class _FormulariosPageState extends State<FormulariosPage> {
   late final TextEditingController _searchController;
-  late final List<FormularioItem> _allItems;
+  final BackofficeFormulariosService _service = BackofficeFormulariosService();
+  List<FormularioItem> _allItems = const [];
   late List<FormularioItem> _visibleItems;
+  bool _loading = true;
+  String? _warningMessage;
 
   @override
   void initState() {
     super.initState();
     _searchController = TextEditingController();
-    _allItems = List<FormularioItem>.from(FormulariosMockData.items);
     _visibleItems = _allItems;
+    _load();
   }
 
   @override
@@ -62,6 +65,9 @@ class _FormulariosPageState extends State<FormulariosPage> {
                   items: _visibleItems,
                   searchController: _searchController,
                   onSearchChanged: _onSearchChanged,
+                  onDataChanged: _load,
+                  isLoading: _loading,
+                  warningMessage: _warningMessage,
                 ),
               ),
             ),
@@ -89,5 +95,35 @@ class _FormulariosPageState extends State<FormulariosPage> {
             item.statusLabel.toLowerCase().contains(query);
       }).toList();
     });
+  }
+
+  Future<void> _load() async {
+    try {
+      final items = await _service.fetchSubmissions();
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _allItems = items;
+        _loading = false;
+        _warningMessage = items.isEmpty
+            ? 'Ainda não existem submissões de formulários registadas.'
+            : null;
+      });
+      _onSearchChanged(_searchController.text);
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _allItems = const [];
+        _visibleItems = const [];
+        _loading = false;
+        _warningMessage =
+            'Não foi possível carregar os formulários neste momento.';
+      });
+    }
   }
 }

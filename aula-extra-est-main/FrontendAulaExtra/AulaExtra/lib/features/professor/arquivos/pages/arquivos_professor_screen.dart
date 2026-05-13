@@ -13,17 +13,6 @@ class ArquivosProfessorScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final role = context.watch<UserProvider>().role;
-    final isTeacher = role == Role.teacher;
-
-    if (!isTeacher) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!context.mounted) return;
-        Navigator.of(
-          context,
-        ).pushNamedAndRemoveUntil(Routes.home, (route) => false);
-      });
-    }
 
     final isMobile =
         MediaQuery.sizeOf(context).width <= AppHeader.mobileBreakpoint;

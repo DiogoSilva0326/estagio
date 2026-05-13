@@ -1,24 +1,31 @@
 import 'package:flutter/material.dart';
 
-import '../constants/pagamentos_mock_data.dart';
 import '../widgets/pagamento_metric_card.dart';
 import '../widgets/process_payouts_button.dart';
 
 class PagamentosMetricsSection extends StatelessWidget {
-  const PagamentosMetricsSection({super.key});
+  const PagamentosMetricsSection({
+    required this.volumeTotalMes,
+    required this.comissoesPlataforma,
+    required this.payoutsPendentes,
+    super.key,
+  });
 
   static const double _cardHeight = 193.36;
+  final String volumeTotalMes;
+  final String comissoesPlataforma;
+  final String payoutsPendentes;
 
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
         final isStacked = constraints.maxWidth < 900;
-        final cards = const [
+        final cards = [
           Expanded(
             child: PagamentoMetricCard(
               title: 'Volume Total (Mês)',
-              value: PagamentosMockData.volumeTotalMes,
+              value: volumeTotalMes,
               caption: 'Total transacionado na plataforma',
               icon: Icons.payments_outlined,
               iconBackgroundColor: Color(0x1A41A7D7),
@@ -30,7 +37,7 @@ class PagamentosMetricsSection extends StatelessWidget {
           Expanded(
             child: PagamentoMetricCard(
               title: 'Comissões Plataforma',
-              value: PagamentosMockData.comissoesPlataforma,
+              value: comissoesPlataforma,
               caption: 'Receita líquida retida',
               icon: Icons.account_balance_wallet_outlined,
               iconBackgroundColor: Color(0x1A12B76A),
@@ -42,7 +49,7 @@ class PagamentosMetricsSection extends StatelessWidget {
           Expanded(
             child: PagamentoMetricCard(
               title: 'Payouts Pendentes',
-              value: PagamentosMockData.payoutsPendentes,
+              value: payoutsPendentes,
               caption: '',
               icon: Icons.pending_actions_outlined,
               iconBackgroundColor: Color(0x1AFC9039),
@@ -54,11 +61,11 @@ class PagamentosMetricsSection extends StatelessWidget {
         ];
 
         if (isStacked) {
-          return const Column(
+          return Column(
             children: [
               PagamentoMetricCard(
                 title: 'Volume Total (Mês)',
-                value: PagamentosMockData.volumeTotalMes,
+                value: volumeTotalMes,
                 caption: 'Total transacionado na plataforma',
                 icon: Icons.payments_outlined,
                 iconBackgroundColor: Color(0x1A41A7D7),
@@ -68,7 +75,7 @@ class PagamentosMetricsSection extends StatelessWidget {
               SizedBox(height: 18.637),
               PagamentoMetricCard(
                 title: 'Comissões Plataforma',
-                value: PagamentosMockData.comissoesPlataforma,
+                value: comissoesPlataforma,
                 caption: 'Receita líquida retida',
                 icon: Icons.account_balance_wallet_outlined,
                 iconBackgroundColor: Color(0x1A12B76A),
@@ -78,7 +85,7 @@ class PagamentosMetricsSection extends StatelessWidget {
               SizedBox(height: 18.637),
               PagamentoMetricCard(
                 title: 'Payouts Pendentes',
-                value: PagamentosMockData.payoutsPendentes,
+                value: payoutsPendentes,
                 caption: '',
                 icon: Icons.pending_actions_outlined,
                 iconBackgroundColor: Color(0x1AFC9039),

@@ -78,7 +78,7 @@ class AreasAlunoMobileRatingCard extends StatelessWidget {
           Opacity(
             opacity: 0.9,
             child: Text(
-              'A qualidade dos nossos explicadores reflete-se nas avaliações: uma média de 4,7 estrelas atribuídas por quem aprende connosco.',
+              'A qualidade dos nossos profissionais reflete-se nas avaliações: uma média de 4,7 estrelas atribuídas por quem confia em nós.',
               style: TextStyle(
                 fontSize: 12,
                 fontFamily: 'Helvetica Neue',

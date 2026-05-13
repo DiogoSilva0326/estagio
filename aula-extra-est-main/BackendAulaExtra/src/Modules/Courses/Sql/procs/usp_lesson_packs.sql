@@ -2,7 +2,9 @@ DROP FUNCTION IF EXISTS public.usp_lesson_packs_select_all01();
 DROP FUNCTION IF EXISTS public.usp_lesson_packs_select_details01(uuid);
 DROP FUNCTION IF EXISTS public.usp_lesson_packs_select_by_course01(uuid);
 DROP FUNCTION IF EXISTS public.usp_lesson_packs_insert(uuid, character varying, integer, integer, numeric, boolean, timestamp);
+DROP FUNCTION IF EXISTS public.usp_lesson_packs_insert(uuid, character varying, text, integer, integer, numeric, boolean, timestamp);
 DROP FUNCTION IF EXISTS public.usp_lesson_packs_update(uuid, uuid, character varying, integer, integer, numeric, boolean);
+DROP FUNCTION IF EXISTS public.usp_lesson_packs_update(uuid, uuid, character varying, text, integer, integer, numeric, boolean);
 DROP FUNCTION IF EXISTS public.usp_lesson_packs_delete(uuid);
 
 CREATE OR REPLACE FUNCTION public.usp_lesson_packs_select_all01()
@@ -49,6 +51,7 @@ $$;
 CREATE OR REPLACE FUNCTION public.usp_lesson_packs_insert(
   p_id_course uuid,
   p_name varchar(200),
+  p_description text,
   p_number_of_lessons integer,
   p_session_duration_minutes integer,
   p_total_price numeric,
@@ -64,6 +67,7 @@ BEGIN
   INSERT INTO public.lesson_packs (
     id_course,
     name,
+    description,
     number_of_lessons,
     session_duration_minutes,
     total_price,
@@ -73,6 +77,7 @@ BEGIN
   VALUES (
     p_id_course,
     p_name,
+    p_description,
     p_number_of_lessons,
     p_session_duration_minutes,
     p_total_price,
@@ -89,6 +94,7 @@ CREATE OR REPLACE FUNCTION public.usp_lesson_packs_update(
   p_id_lesson_pack uuid,
   p_id_course uuid,
   p_name varchar(200),
+  p_description text,
   p_number_of_lessons integer,
   p_session_duration_minutes integer,
   p_total_price numeric,
@@ -103,6 +109,7 @@ BEGIN
   UPDATE public.lesson_packs
   SET id_course = p_id_course,
       name = p_name,
+      description = p_description,
       number_of_lessons = p_number_of_lessons,
       session_duration_minutes = p_session_duration_minutes,
       total_price = p_total_price,

@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 class NewsletterCreateButton extends StatelessWidget {
   const NewsletterCreateButton({required this.onPressed, super.key});
 
-  final VoidCallback onPressed;
+  final VoidCallback? onPressed;
 
   @override
   Widget build(BuildContext context) {

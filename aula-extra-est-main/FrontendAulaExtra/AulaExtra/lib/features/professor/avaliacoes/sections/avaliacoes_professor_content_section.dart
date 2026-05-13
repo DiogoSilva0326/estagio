@@ -1,5 +1,7 @@
 import 'package:aula_extra/core/data/professors/dtos/professor_evaluations_overview_dto.dart';
 import 'package:aula_extra/core/data/professors/professors_service.dart';
+import 'package:aula_extra/core/providers/user_provider.dart'; 
+import 'package:aula_extra/core/config/teaching_roles_config.dart'; 
 import 'package:aula_extra/features/professor/avaliacoes/constants/avaliacoes_professor_colors.dart';
 import 'package:aula_extra/features/professor/avaliacoes/constants/avaliacoes_professor_layout.dart';
 import 'package:aula_extra/features/professor/avaliacoes/constants/avaliacoes_professor_tabs.dart';
@@ -10,6 +12,7 @@ import 'package:aula_extra/features/professor/avaliacoes/widgets/avaliacoes_prof
 import 'package:aula_extra/features/professor/avaliacoes/widgets/full_bleed_scaled_section.dart';
 import 'package:aula_extra/features/professor/core/widgets/professor_menu_nav.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart'; 
 
 class AvaliacoesProfessorContentSection extends StatefulWidget {
   const AvaliacoesProfessorContentSection({super.key, this.isMobile = false});
@@ -64,23 +67,24 @@ class _AvaliacoesProfessorContentSectionState
     }
   }
 
-  String _emptyMessageForTab() {
+  String _emptyMessageForTab(TeachingRoleConfig config) {
     switch (_selectedTab) {
       case AvaliacoesProfessorTab.professor:
         return 'Ainda não existem avaliações submetidas diretamente ao seu perfil.';
       case AvaliacoesProfessorTab.aulas:
-        return 'Ainda não existem avaliações submetidas às suas aulas.';
+        return config.avaliacoes.sessionEmptyLabel;
     }
   }
 
   List<Widget> _reviewCards(
     ProfessorEvaluationsOverviewDto data, {
     required bool isMobile,
+    required TeachingRoleConfig config,
   }) {
     if (_selectedTab == AvaliacoesProfessorTab.professor) {
       return data.professorReviews
           .map((review) {
-            final normalizedName = _normalizeName(review.studentName);
+            final normalizedName = _normalizeName(review.studentName, config);
             if (isMobile) {
               return AvaliacoesProfessorMobileReviewCard(
                 review: AvaliacoesProfessorMobileReviewCardData(
@@ -89,7 +93,7 @@ class _AvaliacoesProfessorContentSectionState
                   rating: review.rating,
                   dateLabel: _formatDate(review.createdAt),
                   comment: review.comment ?? 'Sem comentário adicional.',
-                  subtitle: 'Avaliação ao professor',
+                  subtitle: 'Avaliação ao ${config.roleName.toLowerCase()}',
                 ),
               );
             }
@@ -109,7 +113,7 @@ class _AvaliacoesProfessorContentSectionState
 
     return data.lessonReviews
         .map((review) {
-          final normalizedName = _normalizeName(review.studentName);
+          final normalizedName = _normalizeName(review.studentName, config);
           final lessonWindow = _formatLessonWindow(
             review.scheduledStart,
             review.scheduledEnd,
@@ -126,7 +130,7 @@ class _AvaliacoesProfessorContentSectionState
                 comment: review.comment ?? 'Sem comentário adicional.',
                 subtitle: lessonTitle.isNotEmpty
                     ? lessonTitle
-                    : (lessonWindow ?? 'Avaliação da aula'),
+                    : (lessonWindow ?? 'Avaliação da ${config.sessionsLabel}'),
               ),
             );
           }
@@ -149,11 +153,17 @@ class _AvaliacoesProfessorContentSectionState
   Widget _buildDesktopContent(
     ProfessorEvaluationsOverviewDto data,
     TextStyle titleStyle,
+    TeachingRoleConfig config,
   ) {
+
+    final sectionTitle = _selectedTab == AvaliacoesProfessorTab.professor 
+      ? 'Perfil do ${config.roleName}' 
+      : config.avaliacoes.sessionTabLabel;
+
     final activeSection = _SectionBlock(
-      title: _selectedTab.sectionTitle,
-      emptyMessage: _emptyMessageForTab(),
-      children: _reviewCards(data, isMobile: false),
+      title: sectionTitle,
+      emptyMessage: _emptyMessageForTab(config),
+      children: _reviewCards(data, isMobile: false, config: config),
     );
 
     return Column(
@@ -164,9 +174,9 @@ class _AvaliacoesProfessorContentSectionState
           child: Text('Avaliações', style: titleStyle),
         ),
         const SizedBox(height: 12),
-        const Text(
-          'Consulte as avaliações recebidas no seu perfil e nas aulas dadas.',
-          style: TextStyle(
+        Text(
+          'Consulte as avaliações recebidas no seu perfil e nas ${config.sessionsLabel} dadas.',
+          style: const TextStyle(
             color: AvaliacoesProfessorColors.text,
             fontSize: 16,
             fontWeight: FontWeight.w400,
@@ -183,13 +193,17 @@ class _AvaliacoesProfessorContentSectionState
                     average: data.professorSummary.averageRating,
                     totalLabel:
                         '${data.professorSummary.totalReviews} avaliações',
-                    label: 'Avaliações feitas ao professor',
+                    label: 'Avaliações feitas ao ${config.roleName.toLowerCase()}',
+                    primaryColor: config.primaryColor, 
+                    isOrange: config.roleName == 'Explicador',
                   ),
                   const SizedBox(height: 16),
                   _SummaryCard(
                     average: data.lessonSummary.averageRating,
                     totalLabel: '${data.lessonSummary.totalReviews} avaliações',
-                    label: 'Avaliações submetidas às aulas',
+                    label: config.avaliacoes.sessionStatsLabel,
+                    primaryColor: config.primaryColor,
+                    isOrange: config.roleName == 'Explicador',
                   ),
                 ],
               );
@@ -202,7 +216,9 @@ class _AvaliacoesProfessorContentSectionState
                     average: data.professorSummary.averageRating,
                     totalLabel:
                         '${data.professorSummary.totalReviews} avaliações',
-                    label: 'Avaliações feitas ao professor',
+                    label: 'Avaliações feitas ao ${config.roleName.toLowerCase()}',
+                    primaryColor: config.primaryColor,
+                    isOrange: config.roleName == 'Explicador',
                   ),
                 ),
                 const SizedBox(width: 16),
@@ -210,7 +226,9 @@ class _AvaliacoesProfessorContentSectionState
                   child: _SummaryCard(
                     average: data.lessonSummary.averageRating,
                     totalLabel: '${data.lessonSummary.totalReviews} avaliações',
-                    label: 'Avaliações submetidas às aulas',
+                    label: config.avaliacoes.sessionStatsLabel,
+                    primaryColor: config.primaryColor,
+                    isOrange: config.roleName == 'Explicador',
                   ),
                 ),
               ],
@@ -220,6 +238,7 @@ class _AvaliacoesProfessorContentSectionState
         const SizedBox(height: 28.868),
         _ProfessorTabs(
           selectedTab: _selectedTab,
+          config: config, 
           onChanged: (tab) {
             setState(() {
               _selectedTab = tab;
@@ -232,9 +251,13 @@ class _AvaliacoesProfessorContentSectionState
     );
   }
 
-  Widget _buildMobileContent(ProfessorEvaluationsOverviewDto data) {
+  Widget _buildMobileContent(ProfessorEvaluationsOverviewDto data, TeachingRoleConfig config) {
     final summary = _summaryForTab(data);
-    final cards = _reviewCards(data, isMobile: true);
+    final cards = _reviewCards(data, isMobile: true, config: config);
+    
+    final countLabel = _selectedTab == AvaliacoesProfessorTab.professor 
+      ? 'ao perfil' 
+      : 'às ${config.sessionsLabel}';
 
     return Container(
       width: double.infinity,
@@ -248,10 +271,10 @@ class _AvaliacoesProfessorContentSectionState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const AvaliacoesProfessorMobileIntro(
+          AvaliacoesProfessorMobileIntro(
             title: 'Avaliações',
             subtitle:
-                'Consulte as avaliações recebidas no seu perfil e nas aulas dadas.',
+                'Consulte as avaliações recebidas no seu perfil e nas ${config.sessionsLabel} dadas.',
           ),
           const SizedBox(height: AvaliacoesProfessorLayout.mobileSectionGap),
           AvaliacoesProfessorMobileModeTabs(
@@ -265,11 +288,11 @@ class _AvaliacoesProfessorContentSectionState
           const SizedBox(height: AvaliacoesProfessorLayout.mobileSectionGap),
           AvaliacoesProfessorMobileStatCard(
             value: summary.averageRating.toStringAsFixed(1),
-            label: _selectedTab.mobileSummaryLabel,
+            label: 'Média de avaliações', 
           ),
           const SizedBox(height: 12),
           Text(
-            '${summary.totalReviews} ${_selectedTab.mobileCountLabel}',
+            '${summary.totalReviews} avaliações $countLabel',
             style: const TextStyle(
               color: AvaliacoesProfessorColors.title,
               fontSize: 14,
@@ -290,7 +313,7 @@ class _AvaliacoesProfessorContentSectionState
                 border: Border.all(color: AvaliacoesProfessorColors.cardBorder),
               ),
               child: Text(
-                _emptyMessageForTab(),
+                _emptyMessageForTab(config),
                 style: const TextStyle(
                   color: AvaliacoesProfessorColors.muted,
                   fontSize: 14,
@@ -316,6 +339,9 @@ class _AvaliacoesProfessorContentSectionState
 
   @override
   Widget build(BuildContext context) {
+    final userProvider = Provider.of<UserProvider>(context);
+    final config = TeachingRoleConfig.fromRole(userProvider.role);
+
     final titleStyle = TextStyle(
       color: AvaliacoesProfessorColors.title,
       fontSize: AvaliacoesProfessorLayout.titleFontSize,
@@ -349,14 +375,14 @@ class _AvaliacoesProfessorContentSectionState
                 ),
                 message:
                     snapshot.error?.toString() ??
-                    'Erro ao carregar avaliações do professor',
+                    'Erro ao carregar avaliações',
                 onRetry: _refresh,
                 isMobile: true,
               ),
             );
           }
 
-          return _buildMobileContent(snapshot.data ?? _emptyData);
+          return _buildMobileContent(snapshot.data ?? _emptyData, config);
         },
       );
     }
@@ -374,7 +400,7 @@ class _AvaliacoesProfessorContentSectionState
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const ProfessorMenuNav(),
+              const ProfessorMenuNav(selectedIndex: 9),
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(
@@ -398,14 +424,14 @@ class _AvaliacoesProfessorContentSectionState
                           titleStyle: titleStyle,
                           message:
                               snapshot.error?.toString() ??
-                              'Erro ao carregar avaliações do professor',
+                              'Erro ao carregar avaliações',
                           onRetry: _refresh,
                         );
                       }
 
                       final data = snapshot.data ?? _emptyData;
 
-                      return _buildDesktopContent(data, titleStyle);
+                      return _buildDesktopContent(data, titleStyle, config);
                     },
                   ),
                 ),
@@ -419,10 +445,11 @@ class _AvaliacoesProfessorContentSectionState
 }
 
 class _ProfessorTabs extends StatelessWidget {
-  const _ProfessorTabs({required this.selectedTab, required this.onChanged});
+  const _ProfessorTabs({required this.selectedTab, required this.onChanged, required this.config});
 
   final AvaliacoesProfessorTab selectedTab;
   final ValueChanged<AvaliacoesProfessorTab> onChanged;
+  final TeachingRoleConfig config;
 
   @override
   Widget build(BuildContext context) {
@@ -433,14 +460,18 @@ class _ProfessorTabs extends StatelessWidget {
       child: Row(
         children: [
           _ProfessorTabButton(
-            label: 'Professor',
+            label: config.roleName,
             selected: selectedTab == AvaliacoesProfessorTab.professor,
+            primaryColor: config.primaryColor,
+            isOrange: config.roleName == 'Explicador',
             onTap: () => onChanged(AvaliacoesProfessorTab.professor),
           ),
           const SizedBox(width: 28),
           _ProfessorTabButton(
-            label: 'Aulas',
+            label: config.avaliacoes.sessionTabLabel,
             selected: selectedTab == AvaliacoesProfessorTab.aulas,
+            primaryColor: config.primaryColor,
+            isOrange: config.roleName == 'Explicador',
             onTap: () => onChanged(AvaliacoesProfessorTab.aulas),
           ),
         ],
@@ -454,11 +485,15 @@ class _ProfessorTabButton extends StatelessWidget {
     required this.label,
     required this.selected,
     required this.onTap,
+    required this.primaryColor,
+    required this.isOrange,
   });
 
   final String label;
   final bool selected;
   final VoidCallback onTap;
+  final Color primaryColor; 
+  final bool isOrange;
 
   @override
   Widget build(BuildContext context) {
@@ -473,7 +508,7 @@ class _ProfessorTabButton extends StatelessWidget {
               label,
               style: TextStyle(
                 color: selected
-                    ? AvaliacoesProfessorColors.summaryGradientTop
+                    ? (isOrange ? AvaliacoesProfessorColors.summaryGradientTop : primaryColor)
                     : AvaliacoesProfessorColors.muted,
                 fontSize: 18,
                 fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
@@ -485,9 +520,10 @@ class _ProfessorTabButton extends StatelessWidget {
               height: 3,
               width: 120,
               decoration: BoxDecoration(
-                color: selected
-                    ? AvaliacoesProfessorColors.summaryGradientTop
-                    : Colors.transparent,
+                color: selected && !isOrange ? primaryColor : null,
+                gradient: selected && isOrange 
+                   ? const LinearGradient(colors: [AvaliacoesProfessorColors.summaryGradientTop, AvaliacoesProfessorColors.summaryGradientBottom]) 
+                   : null,
                 borderRadius: BorderRadius.circular(999),
               ),
             ),
@@ -537,11 +573,15 @@ class _SummaryCard extends StatelessWidget {
     required this.average,
     required this.totalLabel,
     required this.label,
+    required this.primaryColor,
+    required this.isOrange,
   });
 
   final double average;
   final String totalLabel;
   final String label;
+  final Color primaryColor;
+  final bool isOrange;
 
   @override
   Widget build(BuildContext context) {
@@ -553,24 +593,22 @@ class _SummaryCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(
             AvaliacoesProfessorLayout.summaryCardRadius,
           ),
-          gradient: const LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              AvaliacoesProfessorColors.summaryGradientTop,
-              AvaliacoesProfessorColors.summaryGradientBottom,
-            ],
-          ),
+          color: isOrange ? null : primaryColor, 
+          gradient: isOrange
+            ? const LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  AvaliacoesProfessorColors.summaryGradientTop,
+                  AvaliacoesProfessorColors.summaryGradientBottom,
+                ],
+              )
+            : null,
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.1),
               blurRadius: 18.042,
               offset: const Offset(0, 12.028),
-            ),
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.1),
-              blurRadius: 7.217,
-              offset: const Offset(0, 4.811),
             ),
           ],
         ),
@@ -598,9 +636,6 @@ class _SummaryCard extends StatelessWidget {
                       color: Colors.white,
                       fontSize: AvaliacoesProfessorLayout.summaryValueFontSize,
                       fontWeight: FontWeight.w700,
-                      height:
-                          AvaliacoesProfessorLayout.summaryValueLineHeight /
-                          AvaliacoesProfessorLayout.summaryValueFontSize,
                     ),
                   ),
                 ],
@@ -615,9 +650,6 @@ class _SummaryCard extends StatelessWidget {
                     color: Colors.white,
                     fontSize: AvaliacoesProfessorLayout.summaryLabelFontSize,
                     fontWeight: FontWeight.w400,
-                    height:
-                        AvaliacoesProfessorLayout.summaryLabelLineHeight /
-                        AvaliacoesProfessorLayout.summaryLabelFontSize,
                   ),
                 ),
               ),
@@ -630,9 +662,6 @@ class _SummaryCard extends StatelessWidget {
                     color: Colors.white,
                     fontSize: AvaliacoesProfessorLayout.summarySubLabelFontSize,
                     fontWeight: FontWeight.w400,
-                    height:
-                        AvaliacoesProfessorLayout.summarySubLabelLineHeight /
-                        AvaliacoesProfessorLayout.summarySubLabelFontSize,
                   ),
                 ),
               ),
@@ -718,19 +747,11 @@ class _ReviewCard extends StatelessWidget {
             blurRadius: 7.217,
             offset: const Offset(0, 4.811),
           ),
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
-            blurRadius: 4.811,
-            offset: const Offset(0, 2.406),
-          ),
         ],
       ),
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(
+        padding: const EdgeInsets.all(
           AvaliacoesProfessorLayout.reviewCardPadding,
-          AvaliacoesProfessorLayout.reviewCardPadding,
-          AvaliacoesProfessorLayout.reviewCardPadding,
-          1.203,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -759,11 +780,6 @@ class _ReviewCard extends StatelessWidget {
                                 fontSize: AvaliacoesProfessorLayout
                                     .reviewerNameFontSize,
                                 fontWeight: FontWeight.w500,
-                                height:
-                                    AvaliacoesProfessorLayout
-                                        .reviewerNameLineHeight /
-                                    AvaliacoesProfessorLayout
-                                        .reviewerNameFontSize,
                               ),
                             ),
                             const SizedBox(height: 4.811),
@@ -781,9 +797,6 @@ class _ReviewCard extends StatelessWidget {
                     color: AvaliacoesProfessorColors.muted,
                     fontSize: AvaliacoesProfessorLayout.dateFontSize,
                     fontWeight: FontWeight.w400,
-                    height:
-                        AvaliacoesProfessorLayout.dateLineHeight /
-                        AvaliacoesProfessorLayout.dateFontSize,
                   ),
                 ),
               ],
@@ -795,9 +808,6 @@ class _ReviewCard extends StatelessWidget {
                 color: AvaliacoesProfessorColors.text,
                 fontSize: AvaliacoesProfessorLayout.commentFontSize,
                 fontWeight: FontWeight.w400,
-                height:
-                    AvaliacoesProfessorLayout.commentLineHeight /
-                    AvaliacoesProfessorLayout.commentFontSize,
               ),
             ),
             if (review.contextTitle != null) ...[
@@ -884,9 +894,6 @@ class _AvatarInitials extends StatelessWidget {
           color: Colors.white,
           fontSize: AvaliacoesProfessorLayout.avatarTextFontSize,
           fontWeight: FontWeight.w500,
-          height:
-              AvaliacoesProfessorLayout.avatarTextLineHeight /
-              AvaliacoesProfessorLayout.avatarTextFontSize,
         ),
       ),
     );
@@ -939,9 +946,9 @@ class _ReviewCardData {
   final String? contextSubtitle;
 }
 
-String _normalizeName(String value) {
+String _normalizeName(String value, TeachingRoleConfig config) {
   final trimmed = value.trim();
-  return trimmed.isEmpty ? 'Aluno' : trimmed;
+  return trimmed.isEmpty ? config.avaliacoes.reviewerDefaultName : trimmed;
 }
 
 String _buildInitials(String name) {

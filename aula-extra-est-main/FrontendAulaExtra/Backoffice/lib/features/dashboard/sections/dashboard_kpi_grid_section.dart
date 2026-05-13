@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 
-import '../constants/dashboard_mock_data.dart';
+import '../models/dashboard_kpi_item.dart';
 import '../widgets/dashboard_metric_item.dart';
 
 class DashboardKpiGridSection extends StatelessWidget {
-  const DashboardKpiGridSection({super.key});
+  const DashboardKpiGridSection({required this.items, super.key});
+
+  final List<DashboardKpiItem> items;
 
   @override
   Widget build(BuildContext context) {
@@ -24,7 +26,7 @@ class DashboardKpiGridSection extends StatelessWidget {
           spacing: spacing,
           runSpacing: spacing,
           children: [
-            for (final item in DashboardMockData.kpis)
+            for (final item in items)
               SizedBox(
                 width: itemWidth,
                 child: DashboardMetricItem(item: item),

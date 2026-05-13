@@ -3,9 +3,16 @@ import 'package:aula_extra/features/professor/minhas_disciplinas/widgets/minhas_
 import 'package:flutter/material.dart';
 
 class MinhasDisciplinasSectionHeader extends StatelessWidget {
-  const MinhasDisciplinasSectionHeader({super.key, required this.onCreate});
+  const MinhasDisciplinasSectionHeader({
+    super.key,
+    required this.onCreate,
+    required this.title, 
+    required this.activeColor, 
+  });
 
   final VoidCallback onCreate;
+  final String title;
+  final Color activeColor;
 
   static const TextStyle _titleStyle = TextStyle(
     color: MinhasDisciplinasProfessorColors.title,
@@ -23,6 +30,8 @@ class MinhasDisciplinasSectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final lowerTitle = title.toLowerCase();
+
     return LayoutBuilder(
       builder: (context, constraints) {
         final stackButton = constraints.maxWidth < 760;
@@ -31,17 +40,18 @@ class MinhasDisciplinasSectionHeader extends StatelessWidget {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Minhas Disciplinas', style: _titleStyle),
+              Text(title, style: _titleStyle),
               const SizedBox(height: 9.131),
-              const Text(
-                'Crie, edite e organize as disciplinas que leciona.',
+              Text(
+                'Crie, edite e organize as $lowerTitle que leciona.', 
                 style: _subtitleStyle,
               ),
               const SizedBox(height: 18),
               MinhasDisciplinasPrimaryActionButton(
-                label: 'Nova Disciplina',
+                label: 'Adicionar nova', 
                 icon: Icons.add_rounded,
                 onTap: onCreate,
+                activeColor: activeColor, 
               ),
             ],
           );
@@ -50,15 +60,15 @@ class MinhasDisciplinasSectionHeader extends StatelessWidget {
         return Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Expanded(
+            Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text('Minhas Disciplinas', style: _titleStyle),
-                  SizedBox(height: 9.131),
+                  Text(title, style: _titleStyle), 
+                  const SizedBox(height: 9.131),
                   Text(
-                    'Crie, edite e organize as disciplinas que leciona.',
+                    'Crie, edite e organize as $lowerTitle que leciona.',
                     style: _subtitleStyle,
                   ),
                 ],
@@ -66,9 +76,10 @@ class MinhasDisciplinasSectionHeader extends StatelessWidget {
             ),
             const SizedBox(width: 16),
             MinhasDisciplinasPrimaryActionButton(
-              label: 'Nova Disciplina',
+              label: 'Adicionar nova',
               icon: Icons.add_rounded,
               onTap: onCreate,
+              activeColor: activeColor, 
             ),
           ],
         );

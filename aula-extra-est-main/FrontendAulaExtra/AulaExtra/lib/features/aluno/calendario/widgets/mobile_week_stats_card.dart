@@ -1,5 +1,8 @@
 import 'package:aula_extra/features/aluno/calendario/constants/calendario_constants.dart';
+import 'package:aula_extra/core/providers/user_provider.dart'; 
+import 'package:aula_extra/core/config/teaching_roles_config.dart'; 
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart'; 
 
 class MobileWeekStatsCard extends StatelessWidget {
   const MobileWeekStatsCard({
@@ -15,8 +18,18 @@ class MobileWeekStatsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final userProvider = Provider.of<UserProvider>(context);
+    final config = TeachingRoleConfig.fromRole(userProvider.role);
+    
+    final weekLabel = userProvider.role == Role.student 
+        ? 'Aulas esta semana' 
+        : config.menu.statsSessionsLabel;
+        
+    final nextItemLabel = config.sessionsLabel == 'aulas' ? 'aula' : 'sessão';
+
     return Container(
-      padding: const EdgeInsets.all(16),
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: CalendarioConstants.mobileSurfaceColor,
         borderRadius: BorderRadius.circular(
@@ -30,14 +43,30 @@ class MobileWeekStatsCard extends StatelessWidget {
         children: [
           const Text(
             'Estatísticas',
-            style: CalendarioConstants.mobileSectionTitleStyle,
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
+              color: CalendarioConstants.mobileTextColor,
+            ),
           ),
-          const SizedBox(height: 14),
-          _StatRow(label: 'Aulas esta semana', value: '$weekLessons'),
-          const SizedBox(height: 10),
-          _StatRow(label: 'Tarefas pendentes', value: '$pendingTasks'),
-          const SizedBox(height: 10),
-          _StatRow(label: 'Próxima aula em', value: nextLessonLabel),
+          const SizedBox(height: 16),
+          _StatRow(
+            label: weekLabel, 
+            value: weekLessons.toString(),
+            valueColor: CalendarioConstants.mobileTextColor,
+          ),
+          const SizedBox(height: 12),
+          _StatRow(
+            label: 'Tarefas pendentes',
+            value: pendingTasks.toString(),
+            valueColor: CalendarioConstants.mobileTextColor,
+          ),
+          const SizedBox(height: 12),
+          _StatRow(
+            label: 'Próxima $nextItemLabel em', 
+            value: nextLessonLabel,
+            valueColor: CalendarioConstants.mobileTextColor,
+          ),
         ],
       ),
     );
@@ -45,20 +74,33 @@ class MobileWeekStatsCard extends StatelessWidget {
 }
 
 class _StatRow extends StatelessWidget {
-  const _StatRow({required this.label, required this.value});
+  const _StatRow({
+    required this.label,
+    required this.value,
+    required this.valueColor,
+  });
 
   final String label;
   final String value;
+  final Color valueColor;
 
   @override
   Widget build(BuildContext context) {
     return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Expanded(
-          child: Text(label, style: CalendarioConstants.mobileStatLabelStyle),
+        Text(
+          label,
+          style: CalendarioConstants.mobileStatLabelStyle,
         ),
-        const SizedBox(width: 12),
-        Text(value, style: CalendarioConstants.mobileStatValueStyle),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: valueColor,
+          ),
+        ),
       ],
     );
   }

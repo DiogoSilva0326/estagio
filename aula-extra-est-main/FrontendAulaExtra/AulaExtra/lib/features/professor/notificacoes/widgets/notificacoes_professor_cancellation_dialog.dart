@@ -1,19 +1,25 @@
 import 'package:aula_extra/core/data/notifications/dtos/user_notification_dto.dart';
+import 'package:aula_extra/core/config/teaching_roles_config.dart';
 import 'package:flutter/material.dart';
 
 class NotificacoesProfessorCancellationDialog extends StatelessWidget {
   const NotificacoesProfessorCancellationDialog({
     super.key,
     required this.item,
+    required this.config,
   });
 
   final UserNotificationDto item;
+  final TeachingRoleConfig config;
 
   @override
   Widget build(BuildContext context) {
+    final studentLabel = config.studentsLabel.replaceAll('Meus ', '').replaceAll('s', '');
+    final sessionLabel = config.sessionsLabel.toLowerCase();
+
     final student = item.studentName?.trim().isNotEmpty == true
         ? item.studentName!.trim()
-        : 'Aluno';
+        : studentLabel;
     final justification = item.justification?.trim().isNotEmpty == true
         ? item.justification!.trim()
         : 'Sem justificação fornecida.';
@@ -21,7 +27,7 @@ class NotificacoesProfessorCancellationDialog extends StatelessWidget {
     return AlertDialog(
       title: Row(
         children: [
-          const Icon(Icons.feedback_outlined, color: Color(0xFFFF6B00)),
+          Icon(Icons.feedback_outlined, color: config.primaryColor),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
@@ -35,9 +41,9 @@ class NotificacoesProfessorCancellationDialog extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'O aluno cancelou a aula a menos de 24h e deixou o seguinte motivo:',
-            style: TextStyle(color: Colors.grey),
+          Text(
+            'O $studentLabel cancelou a $sessionLabel a menos de 24h e deixou o seguinte motivo:',
+            style: const TextStyle(color: Colors.grey),
           ),
           const SizedBox(height: 16),
           Container(
@@ -97,7 +103,7 @@ class NotificacoesProfessorCancellationDialog extends StatelessWidget {
           ] else ...[
             const SizedBox(height: 16),
             const Text(
-              'O que pretendes fazer em relação à penalidade?',
+              'O que pretende fazer em relação à penalidade?',
               style: TextStyle(fontWeight: FontWeight.w500),
             ),
           ],

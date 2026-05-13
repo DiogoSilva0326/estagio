@@ -141,6 +141,13 @@ namespace ConfidantPostgreSQL.Modules.Payments.Controllers
             return Ok(await _service.GetInvoicesByUserIdAsync(idUser));
         }
 
+        [HttpGet("admin/overview")]
+        public async Task<IActionResult> GetAdminOverview()
+        {
+            RequestContext.ApplyCultureFromHeader(Request);
+            return Ok(await _service.GetAdminPaymentOverviewAsync());
+        }
+
         [HttpGet("me/summary")]
         public async Task<IActionResult> GetMySummary()
         {
@@ -499,6 +506,34 @@ namespace ConfidantPostgreSQL.Modules.Payments.Controllers
             if (idDispute != dispute.IdDispute) return BadRequest();
             var rows = await _service.UpdateDisputeAsync(dispute);
             return rows == 0 ? NotFound() : NoContent();
+        }
+
+        [HttpPost("disputes/{idDispute:guid}/reply")]
+        public async Task<IActionResult> ReplyToDispute(Guid idDispute, [FromBody] ReplyToPaymentDisputeRequest request)
+        {
+            RequestContext.ApplyCultureFromHeader(Request);
+
+            if (request == null)
+            {
+                return BadRequest(new { message = "Pedido inválido." });
+            }
+
+            try
+            {
+                var updated = await _service.ReplyToDisputeAsync(
+                    idDispute,
+                    request.ResponseMessage,
+                    request.Status);
+                return updated ? NoContent() : NotFound();
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
 
         [HttpDelete("disputes/{idDispute:guid}")]

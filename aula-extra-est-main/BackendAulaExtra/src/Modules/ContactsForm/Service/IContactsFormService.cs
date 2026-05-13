@@ -17,6 +17,7 @@ namespace ConfidantPostgreSQL.Modules.ContactsForm.Service
         Task<ContactFormSubmission?> GetContactFormSubmissionByIdAsync(Guid idContactFormSubmission);
         Task<Guid> InsertContactFormSubmissionAsync(ContactFormSubmission submission);
         Task<int> UpdateContactFormSubmissionAsync(ContactFormSubmission submission);
+        Task<bool> ReplyToContactFormSubmissionAsync(Guid idContactFormSubmission, Guid? responderUserId, string? responseMessage, string? status);
         Task<int> DeleteContactFormSubmissionAsync(Guid idContactFormSubmission);
     }
 }

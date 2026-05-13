@@ -2,14 +2,21 @@ import 'dart:convert';
 
 import 'package:aula_extra/core/data/communication/contacts_service.dart';
 import 'package:aula_extra/core/data/communication/dtos/contact_user_summary_dto.dart';
+import 'package:aula_extra/core/data/education/dtos/area_dto.dart';
+import 'package:aula_extra/core/data/education/dtos/disciplina_dto.dart';
+import 'package:aula_extra/core/data/education/education_service.dart';
 import 'package:aula_extra/core/data/http/api_config.dart';
 import 'package:aula_extra/core/data/professor_ads/dtos/professor_ad_dto.dart';
+import 'package:aula_extra/core/data/professor_ads/dtos/professor_ads_form_data_dto.dart';
 import 'package:aula_extra/core/data/professor_ads/professor_ads_service.dart';
 import 'package:aula_extra/core/data/professors/dtos/professor_aluno_dto.dart';
 import 'package:aula_extra/core/data/professors/professors_service.dart';
 import 'package:aula_extra/core/data/session/token_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:aula_extra/core/config/teaching_roles_config.dart';
+import 'package:provider/provider.dart';
+import 'package:aula_extra/core/providers/user_provider.dart';
 
 class MarcarAulaDialog extends StatefulWidget {
   const MarcarAulaDialog({super.key, this.initialDate, this.initialTime});
@@ -65,6 +72,7 @@ class _MarcarAulaDialogState extends State<MarcarAulaDialog> {
   final ContactsService _contactsService = ContactsService();
   final ProfessorsService _professorsService = ProfessorsService();
   final ProfessorAdsService _professorAdsService = ProfessorAdsService();
+  final EducationService _educationService = EducationService();
 
   static const _weekdays = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
   static const _months = [
@@ -82,7 +90,6 @@ class _MarcarAulaDialogState extends State<MarcarAulaDialog> {
     'Dez',
   ];
 
-  final Color _primaryColor = const Color(0xFFFF6B00);
   final Color _successColor = const Color(0xFF12B76A);
   final Color _surfaceColor = const Color(0xFFF8FAFC);
   final Color _borderColor = const Color(0xFFE2E8F0);
@@ -104,6 +111,9 @@ class _MarcarAulaDialogState extends State<MarcarAulaDialog> {
   bool _isSubmitting = false;
   String? _loadingError;
   String? _myProfessorId;
+
+  TeachingRoleConfig get _config =>
+      TeachingRoleConfig.fromRole(context.read<UserProvider>().role);
 
   @override
   void initState() {
@@ -131,7 +141,31 @@ class _MarcarAulaDialogState extends State<MarcarAulaDialog> {
       final professor = await _professorsService.getMyProfessor();
       final contacts = await _contactsService.getMyContacts();
       final meusAlunos = await _professorsService.fetchMeusAlunos();
-      final adsData = await _professorAdsService.getMyData();
+      
+      final userProvider = Provider.of<UserProvider>(context, listen: false);
+      final currentTargetRole = userProvider.role == Role.psychologist ? 'psicologia' 
+                              : userProvider.role == Role.tutor ? 'tutoria' 
+                              : 'ensino';
+
+      final adsResults = await Future.wait([
+        _professorAdsService.getMyData(),
+        _educationService.getAreas(targetRole: currentTargetRole),
+        _educationService.getCatalog(),
+      ]);
+
+      final adsData = adsResults[0] as ProfessorAdsFormDataDto;
+      final allowedAreas = adsResults[1] as List<AreaDto>;
+      final catalog = adsResults[2] as List<DisciplinaDto>;
+
+      final allowedAreaIds = allowedAreas.map((a) => a.idArea).toSet();
+
+      final roleFilteredAds = adsData.ads.where((ad) {
+        final disciplina = catalog.firstWhere(
+          (d) => d.idDisciplina == ad.idDisciplina,
+          orElse: () => DisciplinaDto(idDisciplina: '', nome: ''),
+        );
+        return disciplina.idArea != null && allowedAreaIds.contains(disciplina.idArea);
+      }).toList(growable: false);
 
       final myProfessorId = professor?.idProfessor?.trim();
 
@@ -142,7 +176,7 @@ class _MarcarAulaDialogState extends State<MarcarAulaDialog> {
           contacts: contacts,
           meusAlunos: meusAlunos,
         );
-        _subjects = _buildSubjectOptions(ads: adsData.ads);
+        _subjects = _buildSubjectOptions(ads: roleFilteredAds);
         _isLoading = false;
       });
     } catch (error) {
@@ -232,7 +266,7 @@ class _MarcarAulaDialogState extends State<MarcarAulaDialog> {
               : ad.tutoringTypeName!.trim();
           final subtitleParts = <String>[
             tutoringTypeName,
-            if ((ad.levelOfEducation ?? '').trim().isNotEmpty)
+            if ((ad.levelOfEducation ?? '').trim().isNotEmpty && _config.roleName == 'Explicador')
               ad.levelOfEducation!.trim(),
           ];
           final price = ad.sessionPrice ?? 0;
@@ -322,6 +356,16 @@ class _MarcarAulaDialogState extends State<MarcarAulaDialog> {
       initialDate: _selectedDate ?? now,
       firstDate: DateTime(now.year, now.month, now.day),
       lastDate: now.add(const Duration(days: 365)),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: ColorScheme.light(
+              primary: _config.primaryColor,
+            ),
+          ),
+          child: child!,
+        );
+      },
     );
 
     if (picked == null) return;
@@ -332,13 +376,23 @@ class _MarcarAulaDialogState extends State<MarcarAulaDialog> {
     final initialValue = isStart
         ? (_startTime ?? const TimeOfDay(hour: 10, minute: 0))
         : (_endTime ??
-              (_startTime != null
-                  ? _addMinutes(_startTime!, 60)
-                  : const TimeOfDay(hour: 11, minute: 0)));
+            (_startTime != null
+                ? _addMinutes(_startTime!, 60)
+                : const TimeOfDay(hour: 11, minute: 0)));
 
     final picked = await showTimePicker(
       context: context,
       initialTime: initialValue,
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: ColorScheme.light(
+              primary: _config.primaryColor,
+            ),
+          ),
+          child: child!,
+        );
+      },
     );
 
     if (picked == null) return;
@@ -392,14 +446,14 @@ class _MarcarAulaDialogState extends State<MarcarAulaDialog> {
   Future<void> _saveLesson() async {
     if (_isSubmitting) return;
     if (_myProfessorId == null || _myProfessorId!.isEmpty) {
-      _showError('Não foi possível identificar o professor.');
+      _showError('Não foi possível identificar o utilizador.');
       return;
     }
     if (_selectedStudent == null ||
         _selectedSubject == null ||
         _startDateTime == null ||
         _endDateTime == null) {
-      _showError('Faltam dados para criar a aula.');
+      _showError('Faltam dados para criar a sessão.');
       return;
     }
 
@@ -412,7 +466,7 @@ class _MarcarAulaDialogState extends State<MarcarAulaDialog> {
       }
 
       final lessonTitle =
-          'Explicação de ${_selectedSubject!.title} (${_selectedSubject!.tutoringTypeName})';
+          'Sessão de ${_selectedSubject!.title} (${_selectedSubject!.tutoringTypeName})';
       final startStr = _startDateTime!.toIso8601String();
       final endStr = _endDateTime!.toIso8601String();
 
@@ -438,7 +492,7 @@ class _MarcarAulaDialogState extends State<MarcarAulaDialog> {
 
       if (lessonResponse.statusCode < 200 || lessonResponse.statusCode >= 300) {
         throw Exception(
-          'Não foi possível criar a aula (${lessonResponse.statusCode}).',
+          'Não foi possível criar a sessão (${lessonResponse.statusCode}).',
         );
       }
 
@@ -447,7 +501,7 @@ class _MarcarAulaDialogState extends State<MarcarAulaDialog> {
       final lessonId = (lessonData['idLesson'] ?? lessonData['IdLesson'])
           ?.toString();
       if (lessonId == null || lessonId.isEmpty) {
-        throw Exception('A resposta da criação da aula é inválida.');
+        throw Exception('A resposta da criação da sessão é inválida.');
       }
 
       final enrollmentResponse = await http.post(
@@ -475,7 +529,7 @@ class _MarcarAulaDialogState extends State<MarcarAulaDialog> {
           },
         );
         throw Exception(
-          'A aula foi criada, mas não foi possível associar o aluno.',
+          'A sessão foi criada, mas não foi possível associar o utilizador.',
         );
       }
 
@@ -483,9 +537,9 @@ class _MarcarAulaDialogState extends State<MarcarAulaDialog> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'Pedido enviado com ${_formatCurrency(_selectedSubject!.sessionPrice)}. Fica pendente até o aluno pagar e confirmar.',
+            'Pedido enviado com ${_formatCurrency(_selectedSubject!.sessionPrice)}. Fica pendente até o utilizador pagar e confirmar.',
           ),
-          backgroundColor: const Color(0xFFF59E0B),
+          backgroundColor: _config.primaryColor,
         ),
       );
       Navigator.of(context).pop(true);
@@ -524,10 +578,10 @@ class _MarcarAulaDialogState extends State<MarcarAulaDialog> {
               children: [
                 Text(
                   switch (_step) {
-                    _MarcarAulaStep.schedule => 'Criar Aula',
-                    _MarcarAulaStep.student => 'Selecionar Aluno',
+                    _MarcarAulaStep.schedule => _config.marcarAula.createSessionTitle,
+                    _MarcarAulaStep.student => _config.marcarAula.selectUserTitle,
                     _MarcarAulaStep.subject => 'Selecionar Modalidade',
-                    _MarcarAulaStep.summary => 'Resumo da Explicação',
+                    _MarcarAulaStep.summary => 'Resumo da Marcação',
                   },
                   style: const TextStyle(
                     fontSize: 24,
@@ -537,13 +591,13 @@ class _MarcarAulaDialogState extends State<MarcarAulaDialog> {
                 const SizedBox(height: 6),
                 Text(switch (_step) {
                   _MarcarAulaStep.schedule =>
-                    'Escolhe o dia e a hora da explicação.',
+                    _config.marcarAula.chooseDateSubtitle,
                   _MarcarAulaStep.student =>
-                    'Seleciona o aluno que vai receber a aula.',
+                    _config.marcarAula.selectUserSubtitle,
                   _MarcarAulaStep.subject =>
                     'Escolhe o anúncio com modalidade e preço.',
                   _MarcarAulaStep.summary =>
-                    'Confirma o resumo e o valor antes de enviar ao aluno.',
+                    'Confirma o resumo e o valor antes de enviar ao utilizador.',
                 }, style: TextStyle(color: _textMutedColor, fontSize: 14)),
               ],
             ),
@@ -587,7 +641,7 @@ class _MarcarAulaDialogState extends State<MarcarAulaDialog> {
                 ElevatedButton(
                   onPressed: _canGoNext ? _goNext : null,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: _primaryColor,
+                    backgroundColor: _config.primaryColor,
                   ),
                   child: const Text(
                     'Continuar',
@@ -610,7 +664,7 @@ class _MarcarAulaDialogState extends State<MarcarAulaDialog> {
                           ),
                         )
                       : const Text(
-                          'Enviar ao Aluno',
+                          'Enviar Pedido',
                           style: TextStyle(color: Colors.white),
                         ),
                 ),
@@ -680,7 +734,7 @@ class _MarcarAulaDialogState extends State<MarcarAulaDialog> {
               child: Text(
                 _startTime != null && _endTime != null && !_isScheduleValid
                     ? 'A hora de fim tem de ser depois da hora de início.'
-                    : 'A aula vai ser criada como pendente até o aluno pagar e confirmar.',
+                    : _config.marcarAula.creationNote,
                 style: TextStyle(
                   color:
                       _startTime != null &&
@@ -731,6 +785,7 @@ class _MarcarAulaDialogState extends State<MarcarAulaDialog> {
                     badge: student.status,
                     initials: _initials(student.displayName),
                     selected: isSelected,
+                    primaryColor: _config.primaryColor,
                     onTap: () => setState(() => _selectedStudent = student),
                   );
                 },
@@ -753,7 +808,7 @@ class _MarcarAulaDialogState extends State<MarcarAulaDialog> {
         child: _subjects.isEmpty
             ? Center(
                 child: Text(
-                  'Não foram encontrados anúncios publicados para marcar aulas.',
+                  'Não foram encontrados anúncios publicados para marcar sessões.',
                   textAlign: TextAlign.center,
                   style: TextStyle(color: _textMutedColor),
                 ),
@@ -775,6 +830,7 @@ class _MarcarAulaDialogState extends State<MarcarAulaDialog> {
                     initials: 'D',
                     selected: isSelected,
                     enabled: subject.isAvailable,
+                    primaryColor: _config.primaryColor,
                     onTap: () => setState(() => _selectedSubject = subject),
                   );
                 },
@@ -815,13 +871,13 @@ class _MarcarAulaDialogState extends State<MarcarAulaDialog> {
             const SizedBox(height: 14),
             _SummaryRow(
               icon: Icons.person_outline_rounded,
-              label: 'Aluno',
+              label: 'Participante',
               value: _selectedStudent?.displayName ?? '-',
             ),
             const SizedBox(height: 14),
             _SummaryRow(
               icon: Icons.menu_book_rounded,
-              label: 'Disciplina',
+              label: _config.roleName == 'Explicador' ? 'Disciplina' : 'Especialidade',
               value: _selectedSubject?.title ?? '-',
             ),
             const SizedBox(height: 14),
@@ -843,14 +899,14 @@ class _MarcarAulaDialogState extends State<MarcarAulaDialog> {
               width: double.infinity,
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: const Color(0xFFFFF7E8),
+                color: _config.primaryColor.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: const Color(0xFFF59E0B)),
+                border: Border.all(color: _config.primaryColor.withOpacity(0.5)),
               ),
-              child: const Text(
-                'Depois de enviares, o aluno recebe o resumo com o preço. A aula só fica confirmada nos calendários quando o aluno pagar e confirmar.',
+              child: Text(
+                'Depois de enviares, o utilizador recebe o resumo com o preço. A aula só fica confirmada nos calendários após o pagamento e confirmação.',
                 style: TextStyle(
-                  color: Color(0xFFB45309),
+                  color: _config.primaryColor,
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
                 ),
@@ -923,6 +979,7 @@ class _SelectableTile extends StatelessWidget {
     required this.badge,
     required this.initials,
     required this.selected,
+    required this.primaryColor,
     required this.onTap,
     this.enabled = true,
   });
@@ -933,12 +990,13 @@ class _SelectableTile extends StatelessWidget {
   final String initials;
   final bool selected;
   final bool enabled;
+  final Color primaryColor;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final borderColor = selected
-        ? const Color(0xFFFF6B00)
+        ? primaryColor
         : enabled
         ? const Color(0xFFE2E8F0)
         : const Color(0xFFE5E7EB);
@@ -951,7 +1009,7 @@ class _SelectableTile extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: selected
-              ? const Color(0xFFFFF1E8)
+              ? primaryColor.withOpacity(0.08)
               : enabled
               ? Colors.white
               : const Color(0xFFF8FAFC),
@@ -963,7 +1021,7 @@ class _SelectableTile extends StatelessWidget {
             CircleAvatar(
               radius: 22,
               backgroundColor: selected
-                  ? const Color(0xFFFF6B00)
+                  ? primaryColor
                   : const Color(0xFFE2E8F0),
               child: Text(
                 initials,
@@ -1040,7 +1098,7 @@ class _SummaryRow extends StatelessWidget {
         Icon(icon, color: const Color(0xFF64748B), size: 18),
         const SizedBox(width: 10),
         SizedBox(
-          width: 90,
+          width: 100,
           child: Text(
             label,
             style: const TextStyle(

@@ -7,6 +7,8 @@
 
 
 -- 3) Tabelas auxiliares usadas por módulos (public.*)
+
+\ir '../src/Modules/SystemSettings/Sql/ddl/create_systemsettings.sql'
 \ir '../src/Modules/Users/Sql/ddl/create_users_table.sql'
 \ir '../src/Modules/Users/Sql/ddl/create_role.sql'
 \ir '../src/Modules/Users/Sql/ddl/create_userole.sql'
@@ -39,6 +41,7 @@
 \ir '../src/Modules/Reservations/Sql/ddl/reservation.sql'
 \ir '../src/Modules/Courses/Sql/ddl/lesson_packs.sql'
 \ir '../src/Modules/Schedule/Sql/ddl/schedule.sql'
+\ir '../src/Modules/Newsletter/Sql/ddl/create_newsletter_tables.sql'
 
 -- 4) Procedures / Functions (usp_*)
 -- Users
@@ -175,5 +178,6 @@
 \ir '../src/Modules/Payments/Sql/procs/usp_withdrawal_policies.sql'
 \ir '../src/Modules/Payments/Sql/procs/usp_withdrawal_requests.sql'
 \ir '../src/Modules/Payments/Sql/procs/usp_reservation_payments.sql'
+\ir '../src/Modules/AdminDashboard/Sql/procs/usp_admin_dashboard_overview.sql'
 \ir '../src/Modules/ContactsForm/Sql/procs/usp_contact_form_categories.sql'
 \ir '../src/Modules/ContactsForm/Sql/procs/usp_contact_form_submissions.sql'

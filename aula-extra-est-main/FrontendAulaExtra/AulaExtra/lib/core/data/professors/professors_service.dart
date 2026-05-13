@@ -70,13 +70,11 @@ class ProfessorsService {
     );
   }
 
-  Future<List<ProfessorAlunoDto>> fetchMeusAlunos() async {
-    final existingToken = await _tokenStorage.loadToken();
-    if (existingToken == null || existingToken.trim().isEmpty) {
-      throw const ProfessorsException('Sessão expirada');
-    }
+  Future<List<ProfessorAlunoDto>> fetchMeusAlunos({String? role}) async {
+    final token = await _tokenStorage.loadToken(); 
+    if (token == null) throw Exception('No token');
 
-    return _api.getMeusAlunos(token: existingToken);
+    return _api.getMeusAlunos(token: token, role: role); 
   }
 
   Future<ProfessorProfileDto?> getMyProfessor() async {
@@ -117,7 +115,7 @@ class ProfessorsService {
   Future<List<DisciplinaDto>> createMyDisciplina({
     String? idDisciplina,
     required String idArea,
-    required String idCicloEstudo,
+    String? idCicloEstudo,
     required String nome,
     String? descricao,
   }) async {
@@ -140,7 +138,7 @@ class ProfessorsService {
     required String currentIdDisciplina,
     String? idDisciplina,
     required String idArea,
-    required String idCicloEstudo,
+    String? idCicloEstudo,
     required String nome,
     String? descricao,
   }) async {

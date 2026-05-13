@@ -27,4 +27,10 @@ namespace ConfidantPostgreSQL.Modules.ContactsForm.DTOs
         public string Name { get; set; } = string.Empty;
         public string? Description { get; set; }
     }
+
+    public class ReplyToContactFormSubmissionRequest
+    {
+        public string? ResponseMessage { get; set; }
+        public string? Status { get; set; }
+    }
 }

@@ -92,52 +92,17 @@ class MeusAnunciosInfoPill extends StatelessWidget {
   }
 }
 
-// class MeusAnunciosStatusPill extends StatelessWidget {
-//   const MeusAnunciosStatusPill({required this.status, super.key});
-
-//   final String status;
-
-//   @override
-//   Widget build(BuildContext context) {
-//     final normalized = status.trim().toLowerCase();
-//     final isPublished = normalized == 'published';
-
-//     return Container(
-//       width: 137.87,
-//       height: 52.34,
-//       decoration: BoxDecoration(
-//         color: isPublished
-//             ? const Color(0xFFECFDF3)
-//             : MeusAnunciosProfessorColors.warningBackground,
-//         borderRadius: BorderRadius.circular(999),
-//       ),
-//       // child: Center(
-//       //   child: Text(
-//       //     isPublished ? 'Ativo' : 'Inativo',
-//       //     textAlign: TextAlign.center,
-//       //     style: TextStyle(
-//       //       fontSize: 15.7,
-//       //       height: 1.33,
-//       //       fontWeight: FontWeight.w500,
-//       //       color: isPublished
-//       //           ? MeusAnunciosProfessorColors.success
-//       //           : MeusAnunciosProfessorColors.warningText,
-//       //     ),
-//       //   ),
-//       ),
-//     );
-//   }
-// }
-
 class MeusAnunciosModePill extends StatelessWidget {
   const MeusAnunciosModePill({
     required this.label,
     this.compact = false,
+    this.color, // <-- PROPRIEDADE NOVA ADICIONADA AQUI
     super.key,
   });
 
   final String label;
   final bool compact;
+  final Color? color; // <-- VARIÁVEL NOVA AQUI
 
   @override
   Widget build(BuildContext context) {
@@ -151,11 +116,14 @@ class MeusAnunciosModePill extends StatelessWidget {
           ? const EdgeInsets.symmetric(horizontal: 14, vertical: 10)
           : null,
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment(0.5, 0.0),
-          end: Alignment(0.5, 1.0),
-          colors: [Color(0xFFFFB36B), Color(0xFFFB6D63)],
-        ),
+        color: color, // Aplica cor sólida se existir (Psicólogo/Tutor)
+        gradient: color == null // Se não existir cor, aplica o degradé Laranja (Explicador)
+            ? const LinearGradient(
+                begin: Alignment(0.5, 0.0),
+                end: Alignment(0.5, 1.0),
+                colors: [Color(0xFFFFB36B), Color(0xFFFB6D63)],
+              )
+            : null,
         borderRadius: BorderRadius.circular(999),
       ),
       child: Center(

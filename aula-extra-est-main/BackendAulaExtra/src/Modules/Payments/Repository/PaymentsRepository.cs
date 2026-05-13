@@ -318,6 +318,99 @@ namespace ConfidantPostgreSQL.Modules.Payments.Repository
             return list;
         }
 
+        public async Task<IEnumerable<AdminPaymentOverviewItemDto>> GetAdminPaymentOverviewAsync()
+        {
+            var list = new List<AdminPaymentOverviewItemDto>();
+            await using var conn = new NpgsqlConnection(_connectionString);
+            await conn.OpenAsync();
+            await using var cmd = conn.CreateCommand();
+            cmd.CommandText = @"
+                SELECT
+                    rp.id_reservation_payment AS id,
+                    COALESCE(
+                        NULLIF(su.display_name, ''),
+                        NULLIF(TRIM(COALESCE(su.first_name, '') || ' ' || COALESCE(su.last_name, '')), ''),
+                        NULLIF(su.username, ''),
+                        'Aluno'
+                    ) AS student_name,
+                    COALESCE(
+                        NULLIF(tu.display_name, ''),
+                        NULLIF(TRIM(COALESCE(tu.first_name, '') || ' ' || COALESCE(tu.last_name, '')), ''),
+                        NULLIF(tu.username, ''),
+                        'Professor'
+                    ) AS tutor_name,
+                    COALESCE(NULLIF(d.nome, ''), NULLIF(c.name, ''), NULLIF(l.title, ''), 'Aula') AS subject,
+                    COALESCE(inv.issued_at, tx.created_at, rp.created_at, r.created_at, l.scheduled_start) AS payment_date,
+                    COALESCE(rp.gross_amount, rp.amount, inv.total_amount, 0) AS gross_amount,
+                    COALESCE(
+                        rp.platform_fee_amount,
+                        ROUND((COALESCE(rp.gross_amount, rp.amount, inv.total_amount, 0) * COALESCE(cr.percent, 0) / 100.0) + COALESCE(cr.fixed_fee, 0), 2)
+                    ) AS platform_fee_amount,
+                    COALESCE(
+                        rp.teacher_net_amount,
+                        COALESCE(rp.gross_amount, rp.amount, inv.total_amount, 0) - COALESCE(
+                            rp.platform_fee_amount,
+                            ROUND((COALESCE(rp.gross_amount, rp.amount, inv.total_amount, 0) * COALESCE(cr.percent, 0) / 100.0) + COALESCE(cr.fixed_fee, 0), 2)
+                        )
+                    ) AS net_amount,
+                    COALESCE(NULLIF(inv.at_status, ''), NULLIF(rp.status, ''), NULLIF(tx.status, ''), NULLIF(r.status, ''), 'pendente') AS status,
+                    COALESCE(NULLIF(inv.document_reference, ''), rp.id_reservation_payment::text) AS reference,
+                    COALESCE(NULLIF(sw.currency, ''), NULLIF(tw.currency, ''), 'EUR') AS currency
+                FROM public.reservation_payments rp
+                INNER JOIN public.reservations r ON r.id_reservation = rp.reservation_id
+                INNER JOIN public.lessons l ON l.id_lesson = r.id_lesson
+                LEFT JOIN public.courses c ON c.id_course = l.id_course
+                LEFT JOIN public.disciplinas d ON d.id_disciplina = c.id_disciplina
+                INNER JOIN public.users su ON su.id_user = r.id_user
+                LEFT JOIN public.professors p ON p.id_professor = COALESCE(l.id_professor, c.id_professor)
+                LEFT JOIN public.users tu ON tu.id_user = p.id_user
+                LEFT JOIN public.transactions tx ON tx.id_transaction = rp.transaction_id
+                LEFT JOIN public.commission_rules cr ON cr.id_commission_rule = rp.commission_rule_id
+                LEFT JOIN LATERAL (
+                    SELECT i.document_reference, i.total_amount, i.issued_at, i.at_status
+                    FROM public.invoices i
+                    WHERE i.id_transaction = rp.transaction_id
+                    ORDER BY i.issued_at DESC NULLS LAST
+                    LIMIT 1
+                ) inv ON TRUE
+                LEFT JOIN LATERAL (
+                    SELECT wallet.currency
+                    FROM public.wallets wallet
+                    WHERE wallet.owner_user_id = r.id_user
+                    ORDER BY wallet.updated_at DESC NULLS LAST, wallet.created_at DESC NULLS LAST
+                    LIMIT 1
+                ) sw ON TRUE
+                LEFT JOIN LATERAL (
+                    SELECT wallet.currency
+                    FROM public.wallets wallet
+                    WHERE wallet.owner_user_id = p.id_user
+                    ORDER BY wallet.updated_at DESC NULLS LAST, wallet.created_at DESC NULLS LAST
+                    LIMIT 1
+                ) tw ON TRUE
+                ORDER BY COALESCE(inv.issued_at, tx.created_at, rp.created_at, r.created_at, l.scheduled_start) DESC NULLS LAST,
+                         rp.id_reservation_payment DESC;";
+            await using var reader = await cmd.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+            {
+                list.Add(new AdminPaymentOverviewItemDto
+                {
+                    Id = reader.GetGuid(reader.GetOrdinal("id")),
+                    StudentName = GetNullableString(reader, "student_name") ?? string.Empty,
+                    TutorName = GetNullableString(reader, "tutor_name") ?? string.Empty,
+                    Subject = GetNullableString(reader, "subject") ?? string.Empty,
+                    PaymentDate = GetNullableDateTime(reader, "payment_date"),
+                    GrossAmount = GetNullableDecimal(reader, "gross_amount") ?? 0m,
+                    PlatformFeeAmount = GetNullableDecimal(reader, "platform_fee_amount") ?? 0m,
+                    NetAmount = GetNullableDecimal(reader, "net_amount") ?? 0m,
+                    Status = GetNullableString(reader, "status") ?? string.Empty,
+                    Reference = GetNullableString(reader, "reference"),
+                    Currency = GetNullableString(reader, "currency") ?? "EUR"
+                });
+            }
+
+            return list;
+        }
+
         public async Task<IEnumerable<ProfessorPaymentHistoryItemDto>> GetProfessorPaymentHistoryAsync(Guid idUser)
         {
             var list = new List<ProfessorPaymentHistoryItemDto>();

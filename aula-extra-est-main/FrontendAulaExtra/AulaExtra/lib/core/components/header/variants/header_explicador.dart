@@ -1,13 +1,14 @@
 import 'package:aula_extra/core/components/header/assets/header_assets.dart';
 import 'package:aula_extra/core/components/header/widgets/header_link.dart';
 import 'package:aula_extra/core/components/header/widgets/header_profile_button.dart';
-import 'package:aula_extra/core/components/header/widgets/role_switcher_button.dart';
 import 'package:aula_extra/core/components/header/widgets/scaled_header_container.dart';
 import 'package:aula_extra/core/data/auth_service.dart';
 import 'package:aula_extra/core/providers/user_provider.dart';
 import 'package:aula_extra/routes/routes.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:aula_extra/core/config/teaching_roles_config.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 enum HeaderExplicadorItem {
   inicio,
@@ -49,7 +50,6 @@ class HeaderExplicador extends StatelessWidget {
   static const double _height = 90;
 
   static const _shadowColor = Color.fromRGBO(250, 189, 45, 0.18);
-  static const Color _activeColor = Color(0xFFFC9039);
 
   void _handleLogoTap(BuildContext context) {
     if (onLogoTap != null) {
@@ -101,13 +101,14 @@ class HeaderExplicador extends StatelessWidget {
     Navigator.of(context).pushNamedAndRemoveUntil(Routes.home, (route) => false);
   }
 
-  Color? _itemColor(HeaderExplicadorItem item) {
-    if (activeItem == null) return null;
-    return activeItem == item ? _activeColor : Colors.black;
-  }
-
   @override
   Widget build(BuildContext context) {
+    final userRole = context.watch<UserProvider>().role;
+    final config = TeachingRoleConfig.fromRole(userRole);
+
+    final displayName = this.displayName;
+    final profileImageUrl = this.profileImageUrl;
+
     return ScaledHeaderContainer(
       height: _height,
       designWidth: _designWidth,
@@ -126,11 +127,11 @@ class HeaderExplicador extends StatelessWidget {
             top: 10,
             child: InkWell(
               onTap: () => _handleLogoTap(context),
-              child: Image.asset(
+              child: SvgPicture.asset(
                 HeaderAssets.logo,
-                width: 96,
+                width: 96, 
                 height: 69,
-                fit: BoxFit.cover,
+                fit: BoxFit.contain,
               ),
             ),
           ),
@@ -141,25 +142,25 @@ class HeaderExplicador extends StatelessWidget {
               children: [
                 HeaderLink(
                   text: 'Início',
-                  color: _itemColor(HeaderExplicadorItem.inicio),
+                  color: activeItem == HeaderExplicadorItem.inicio ? config.primaryColor : Colors.black,
                   onTap: () => _handleInicioTap(context),
                 ),
                 const SizedBox(width: 40),
                 HeaderLink(
-                  text: 'Minhas Aulas',
-                  color: _itemColor(HeaderExplicadorItem.minhasAulas),
+                  text: config.calendarLabel, 
+                  color: activeItem == HeaderExplicadorItem.minhasAulas ? config.primaryColor : Colors.black,
                   onTap: () => _handleMinhasAulasTap(context),
                 ),
                 const SizedBox(width: 40),
                 HeaderLink(
-                  text: 'Meus alunos',
-                  color: _itemColor(HeaderExplicadorItem.meusAlunos),
+                  text: config.studentsLabel, 
+                  color: activeItem == HeaderExplicadorItem.meusAlunos ? config.primaryColor : Colors.black,
                   onTap: onMeusAlunosTap,
                 ),
                 const SizedBox(width: 40),
                 HeaderLink(
                   text: 'Recursos',
-                  color: _itemColor(HeaderExplicadorItem.recursos),
+                  color: activeItem == HeaderExplicadorItem.recursos ? config.primaryColor : Colors.black,
                   onTap: onRecursosTap,
                 ),
               ],
@@ -177,7 +178,7 @@ class HeaderExplicador extends StatelessWidget {
                   child: Builder(
                     builder: (_) {
                       final name = (displayName ?? '').trim();
-                      final fallback = 'Explicador';
+                      final fallback = config.roleName; 
                       final effective = name.isNotEmpty ? name : fallback;
 
                       final parts = effective.split(RegExp(r'\s+')).where((p) => p.isNotEmpty).toList();
@@ -227,11 +228,6 @@ class HeaderExplicador extends StatelessWidget {
               onTap: onProfileTap,
               onLogoutTap: () => _handleLogoutTap(context),
             ),
-          ),
-          const Positioned(
-            left: 1208,
-            top: 28,
-            child: RoleSwitcherButton(size: 32),
           ),
         ],
       ),

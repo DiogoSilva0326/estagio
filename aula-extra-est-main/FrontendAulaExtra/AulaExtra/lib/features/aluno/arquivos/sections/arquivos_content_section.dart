@@ -487,7 +487,7 @@ class _ArquivosContentSectionState extends State<ArquivosContentSection> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const AlunoMenuNav(selectedIndex: 3),
+          const AlunoMenuNav(),
           const SizedBox(width: 40),
           Expanded(
             child: Column(

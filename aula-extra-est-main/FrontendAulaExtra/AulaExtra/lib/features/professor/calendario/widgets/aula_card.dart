@@ -2,6 +2,9 @@ import 'package:aula_extra/features/professor/calendario/constants/calendario_pr
 import 'package:aula_extra/features/professor/calendario/constants/calendario_professor_layout.dart';
 import 'package:aula_extra/features/professor/calendario/constants/calendario_professor_mock_data.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:aula_extra/core/providers/user_provider.dart';
+import 'package:aula_extra/core/config/teaching_roles_config.dart';
 
 class AulaCard extends StatelessWidget {
   const AulaCard({
@@ -17,12 +20,14 @@ class AulaCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final userProvider = Provider.of<UserProvider>(context);
+    final config = TeachingRoleConfig.fromRole(userProvider.role);
+
     final titleStyle = TextStyle(
       color: CalendarioProfessorColors.title,
       fontSize: CalendarioProfessorLayout.nameFontSize,
       fontWeight: FontWeight.w500,
-      height:
-          CalendarioProfessorLayout.nameLineHeightPx /
+      height: CalendarioProfessorLayout.nameLineHeightPx /
           CalendarioProfessorLayout.nameFontSize,
     );
 
@@ -30,8 +35,7 @@ class AulaCard extends StatelessWidget {
       color: CalendarioProfessorColors.muted,
       fontSize: CalendarioProfessorLayout.metaFontSize,
       fontWeight: FontWeight.w400,
-      height:
-          CalendarioProfessorLayout.metaLineHeight /
+      height: CalendarioProfessorLayout.metaLineHeight /
           CalendarioProfessorLayout.metaFontSize,
     );
 
@@ -39,8 +43,7 @@ class AulaCard extends StatelessWidget {
       color: CalendarioProfessorColors.text,
       fontSize: CalendarioProfessorLayout.metaFontSize,
       fontWeight: FontWeight.w500,
-      height:
-          CalendarioProfessorLayout.metaLineHeight /
+      height: CalendarioProfessorLayout.metaLineHeight /
           CalendarioProfessorLayout.metaFontSize,
     );
 
@@ -48,8 +51,7 @@ class AulaCard extends StatelessWidget {
       color: Colors.white,
       fontSize: CalendarioProfessorLayout.badgeFontSize,
       fontWeight: FontWeight.w500,
-      height:
-          CalendarioProfessorLayout.badgeLineHeightPx /
+      height: CalendarioProfessorLayout.badgeLineHeightPx /
           CalendarioProfessorLayout.badgeFontSize,
     );
 
@@ -154,7 +156,7 @@ class AulaCard extends StatelessWidget {
                               : null,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: data.primaryActionEnabled
-                                ? CalendarioProfessorColors.enterButton
+                                ? config.primaryColor 
                                 : const Color(0xFFF1F5F9),
                             foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(
@@ -168,8 +170,7 @@ class AulaCard extends StatelessWidget {
                             textStyle: TextStyle(
                               fontSize: CalendarioProfessorLayout.tabFontSize,
                               fontWeight: FontWeight.w500,
-                              height:
-                                  CalendarioProfessorLayout.tabLineHeight /
+                              height: CalendarioProfessorLayout.tabLineHeight /
                                   CalendarioProfessorLayout.tabFontSize,
                             ),
                           ),
@@ -206,8 +207,7 @@ class AulaCard extends StatelessWidget {
                           textStyle: TextStyle(
                             fontSize: CalendarioProfessorLayout.tabFontSize,
                             fontWeight: FontWeight.w500,
-                            height:
-                                CalendarioProfessorLayout.tabLineHeight /
+                            height: CalendarioProfessorLayout.tabLineHeight /
                                 CalendarioProfessorLayout.tabFontSize,
                           ),
                         ),
@@ -248,8 +248,7 @@ class _InitialsAvatar extends StatelessWidget {
           color: Colors.white,
           fontSize: CalendarioProfessorLayout.avatarFontSize,
           fontWeight: FontWeight.w500,
-          height:
-              CalendarioProfessorLayout.avatarLineHeight /
+          height: CalendarioProfessorLayout.avatarLineHeight /
               CalendarioProfessorLayout.avatarFontSize,
         ),
       ),

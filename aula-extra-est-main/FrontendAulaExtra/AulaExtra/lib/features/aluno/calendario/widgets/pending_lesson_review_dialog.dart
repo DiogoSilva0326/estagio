@@ -132,7 +132,7 @@ class _PendingLessonReviewDialogState
     try {
       final review = _paymentReview;
       if (review == null) {
-        throw Exception('Não foi possível validar o pagamento desta aula.');
+        throw Exception('Não foi possível validar o pagamento desta sessão.');
       }
 
       if (review.amount > 0) {
@@ -160,10 +160,10 @@ class _PendingLessonReviewDialogState
         SnackBar(
           content: Text(
             review.amount > 0
-                ? 'Pagamento confirmado e explicação aceite com sucesso.'
-                : 'Explicação aceite com sucesso.',
+                ? 'Pagamento confirmado e sessão aceite com sucesso.'
+                : 'Sessão aceite com sucesso.',
           ),
-          backgroundColor: Color(0xFF12B76A),
+          backgroundColor: const Color(0xFF12B76A),
         ),
       );
       Navigator.of(context).pop(true);
@@ -189,7 +189,7 @@ class _PendingLessonReviewDialogState
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Explicação recusada com sucesso.'),
+          content: Text('Sessão recusada com sucesso.'),
           backgroundColor: Color(0xFFF59E0B),
         ),
       );
@@ -391,7 +391,7 @@ class _PendingLessonReviewDialogState
                                   : Column(
                                       children: [
                                         _PaymentRow(
-                                          label: 'Preço da aula',
+                                          label: 'Preço da sessão',
                                           value: _formatMoney(amount, currency),
                                           highlight: true,
                                         ),
@@ -433,8 +433,8 @@ class _PendingLessonReviewDialogState
                                                 ? 'O pagamento já foi registado. Só falta confirmar a marcação.'
                                                 : isPaymentRequired
                                                 ? canAfford
-                                                    ? 'Ao confirmares, os créditos saem da tua carteira e a aula fica agendada.'
-                                                    : 'Não tens créditos suficientes para pagar esta aula.'
+                                                    ? 'Ao confirmares, os créditos saem da tua carteira e a sessão fica agendada.'
+                                                    : 'Não tens créditos suficientes para pagar esta sessão.'
                                                 : 'Esta marcação não exige pagamento prévio.',
                                             style: TextStyle(
                                               color: canAfford
@@ -510,9 +510,9 @@ class _PendingLessonReviewDialogState
                                     color: Colors.white,
                                   ),
                                 )
-                                : Text(
+                              : Text(
                                   actionLabel,
-                                  style: TextStyle(
+                                  style: const TextStyle(
                                     color: Colors.white,
                                     fontSize: 16,
                                     fontWeight: FontWeight.w700,

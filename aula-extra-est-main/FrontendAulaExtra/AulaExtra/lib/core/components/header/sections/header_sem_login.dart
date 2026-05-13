@@ -3,6 +3,7 @@ import 'package:aula_extra/core/components/header/widgets/header_link.dart';
 import 'package:aula_extra/core/components/header/widgets/role_switcher_button.dart';
 import 'package:aula_extra/routes/routes.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 class HeaderSemLogin extends StatelessWidget {
   const HeaderSemLogin({
@@ -75,9 +76,9 @@ class HeaderSemLogin extends StatelessWidget {
                             top: 10,
                             child: InkWell(
                               onTap: () => _handleLogoTap(context),
-                              child: Image.asset(
+                              child: SvgPicture.asset(
                                 HeaderAssets.logo,
-                                width: 96,
+                                width: 96, 
                                 height: 69,
                                 fit: BoxFit.contain,
                               ),
@@ -103,7 +104,7 @@ class HeaderSemLogin extends StatelessWidget {
                                 ),
                                 const SizedBox(width: 40),
                                 HeaderLink(
-                                  text: 'Explicadores',
+                                  text: 'Apoios',
                                   color: ModalRoute.of(context)?.settings.name == Routes.explicadores ? _activeColor : null,
                                   onTap: () => Navigator.of(context).pushNamed(Routes.explicadores),
                                 ),

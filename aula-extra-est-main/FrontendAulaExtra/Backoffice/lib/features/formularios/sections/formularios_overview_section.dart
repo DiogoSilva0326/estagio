@@ -9,12 +9,18 @@ class FormulariosOverviewSection extends StatelessWidget {
     required this.items,
     required this.searchController,
     required this.onSearchChanged,
+    required this.onDataChanged,
+    required this.isLoading,
+    required this.warningMessage,
     super.key,
   });
 
   final List<FormularioItem> items;
   final TextEditingController searchController;
   final ValueChanged<String> onSearchChanged;
+  final Future<void> Function() onDataChanged;
+  final bool isLoading;
+  final String? warningMessage;
 
   @override
   Widget build(BuildContext context) {
@@ -27,6 +33,9 @@ class FormulariosOverviewSection extends StatelessWidget {
           items: items,
           searchController: searchController,
           onSearchChanged: onSearchChanged,
+          onDataChanged: onDataChanged,
+          isLoading: isLoading,
+          warningMessage: warningMessage,
         ),
       ],
     );

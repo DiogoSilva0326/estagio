@@ -58,7 +58,7 @@ class _DisponibilidadeProfessorContentSectionState
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const ProfessorMenuNav(),
+              ProfessorMenuNav(selectedIndex: 7),
               const SizedBox(
                 width: DisponibilidadeProfessorLayout.sidebarContentGap,
               ),

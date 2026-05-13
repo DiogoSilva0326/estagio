@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import '../../../design/theme/app_colors.dart';
 
 class ExportCsvDialog extends StatelessWidget {
-  const ExportCsvDialog({super.key});
+  const ExportCsvDialog({super.key, this.onConfirm});
+
+  final Future<void> Function()? onConfirm;
 
   @override
   Widget build(BuildContext context) {
@@ -26,9 +28,12 @@ class ExportCsvDialog extends StatelessWidget {
                 ),
               ],
             ),
-            child: const Column(
+            child: Column(
               mainAxisSize: MainAxisSize.min,
-              children: [_ExportCsvHeader(), _ExportCsvFooter()],
+              children: [
+                const _ExportCsvHeader(),
+                _ExportCsvFooter(onConfirm: onConfirm),
+              ],
             ),
           ),
         ),
@@ -106,7 +111,9 @@ class _ExportCsvHeader extends StatelessWidget {
 }
 
 class _ExportCsvFooter extends StatelessWidget {
-  const _ExportCsvFooter();
+  const _ExportCsvFooter({this.onConfirm});
+
+  final Future<void> Function()? onConfirm;
 
   @override
   Widget build(BuildContext context) {
@@ -149,7 +156,12 @@ class _ExportCsvFooter extends StatelessWidget {
                 borderRadius: BorderRadius.circular(8),
               ),
               child: ElevatedButton(
-                onPressed: () => Navigator.of(context).pop(),
+                onPressed: () async {
+                  await onConfirm?.call();
+                  if (context.mounted) {
+                    Navigator.of(context).pop();
+                  }
+                },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.transparent,
                   shadowColor: Colors.transparent,

@@ -1,5 +1,4 @@
 import 'dart:convert';
-
 import 'package:aula_extra/core/data/http/api_config.dart';
 import 'package:aula_extra/core/data/tutors/dtos/tutor_browse_response_dto.dart';
 import 'package:http/http.dart' as http;
@@ -15,6 +14,7 @@ class TutorsBrowseApi {
     double? maxPrice,
     double? minRating,
     List<String>? availability,
+    String? roleCategory,
     int page = 1,
     int pageSize = 4,
   }) async {
@@ -31,6 +31,10 @@ class TutorsBrowseApi {
     if (anoId != null && anoId.trim().isNotEmpty) qp['anoId'] = anoId.trim();
     if (maxPrice != null && maxPrice > 0) qp['maxPrice'] = maxPrice.toStringAsFixed(2);
     if (minRating != null && minRating > 0) qp['minRating'] = minRating.toStringAsFixed(1);
+    
+    if (roleCategory != null && roleCategory.trim().isNotEmpty) {
+      qp['category'] = roleCategory.trim(); 
+    }
 
     if (availability != null && availability.isNotEmpty) {
       final normalized = availability
@@ -69,7 +73,6 @@ class TutorsBrowseApi {
 class TutorsBrowseException implements Exception {
   const TutorsBrowseException(this.message);
   final String message;
-
   @override
   String toString() => message;
 }

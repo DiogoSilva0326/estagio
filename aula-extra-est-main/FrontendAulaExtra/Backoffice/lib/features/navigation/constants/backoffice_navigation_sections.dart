@@ -3,16 +3,9 @@ import 'package:flutter/material.dart';
 import '../../../routes/app_routes.dart';
 import '../models/backoffice_nav_item.dart';
 import '../models/backoffice_nav_section.dart';
-import '../models/backoffice_user_profile.dart';
 
 class BackofficeNavigationSections {
   const BackofficeNavigationSections._();
-
-  static const BackofficeUserProfile currentUser = BackofficeUserProfile(
-    name: 'Admin AulaExtra',
-    email: 'admin@aulaextra.pt',
-    initials: 'AA',
-  );
 
   static const List<BackofficeNavSection> sections = [
     BackofficeNavSection(
@@ -32,6 +25,16 @@ class BackofficeNavigationSections {
           label: 'Explicadores',
           route: AppRoutes.explicadores,
           icon: Icons.groups_2_outlined,
+        ),
+        BackofficeNavItem(
+          label: 'Tutores',
+          route: AppRoutes.tutores,
+          icon: Icons.co_present_outlined,
+        ),
+        BackofficeNavItem(
+          label: 'Psicólogos',
+          route: AppRoutes.psicologos,
+          icon: Icons.psychology_outlined,
         ),
         BackofficeNavItem(
           label: 'Alunos',

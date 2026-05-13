@@ -6,15 +6,19 @@ class MeusAnunciosStatCard extends StatelessWidget {
     required this.label,
     required this.value,
     required this.icon,
+    this.color, // <-- Adicionada
     super.key,
   });
 
   final String label;
   final String value;
   final IconData icon;
+  final Color? color;
 
   @override
   Widget build(BuildContext context) {
+    final activeColor = color ?? MeusAnunciosProfessorColors.accent;
+    
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
@@ -29,10 +33,10 @@ class MeusAnunciosStatCard extends StatelessWidget {
             width: 46,
             height: 46,
             decoration: BoxDecoration(
-              color: const Color(0xFFFFF7ED),
+              color: activeColor.withOpacity(0.1), // Fundo suave com a cor ativa
               borderRadius: BorderRadius.circular(14),
             ),
-            child: Icon(icon, color: MeusAnunciosProfessorColors.accent),
+            child: Icon(icon, color: activeColor), // Ícone com a cor ativa
           ),
           const SizedBox(width: 14),
           Expanded(

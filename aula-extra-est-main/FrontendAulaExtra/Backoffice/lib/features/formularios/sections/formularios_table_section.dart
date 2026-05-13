@@ -12,12 +12,18 @@ class FormulariosTableSection extends StatelessWidget {
     required this.items,
     required this.searchController,
     required this.onSearchChanged,
+    required this.onDataChanged,
+    required this.isLoading,
+    required this.warningMessage,
     super.key,
   });
 
   final List<FormularioItem> items;
   final TextEditingController searchController;
   final ValueChanged<String> onSearchChanged;
+  final Future<void> Function() onDataChanged;
+  final bool isLoading;
+  final String? warningMessage;
 
   @override
   Widget build(BuildContext context) {
@@ -90,7 +96,33 @@ class FormulariosTableSection extends StatelessWidget {
                 child: Column(
                   children: [
                     const _FormulariosTableHeader(),
-                    if (items.isEmpty)
+                    if (warningMessage != null)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 18),
+                        child: Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFFF4E5),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: const Color(0xFFFFD39A)),
+                          ),
+                          child: Text(
+                            warningMessage!,
+                            style: const TextStyle(
+                              color: Color(0xFFB54708),
+                              fontSize: 14.5,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ),
+                    if (isLoading)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 36),
+                        child: Center(child: CircularProgressIndicator()),
+                      )
+                    else if (items.isEmpty)
                       const Padding(
                         padding: EdgeInsets.symmetric(vertical: 28),
                         child: Text(
@@ -106,6 +138,7 @@ class FormulariosTableSection extends StatelessWidget {
                       for (var index = 0; index < items.length; index++)
                         _FormulariosTableRow(
                           item: items[index],
+                          onDataChanged: onDataChanged,
                           showDivider: index != items.length - 1,
                         ),
                   ],
@@ -168,9 +201,14 @@ class _HeaderCell extends StatelessWidget {
 }
 
 class _FormulariosTableRow extends StatelessWidget {
-  const _FormulariosTableRow({required this.item, required this.showDivider});
+  const _FormulariosTableRow({
+    required this.item,
+    required this.onDataChanged,
+    required this.showDivider,
+  });
 
   final FormularioItem item;
+  final Future<void> Function() onDataChanged;
   final bool showDivider;
 
   @override
@@ -224,24 +262,31 @@ class _FormulariosTableRow extends StatelessWidget {
             child: Align(
               alignment: Alignment.centerLeft,
               child: TextButton(
-                onPressed: () => showDialog<void>(
-                  context: context,
-                  barrierColor: const Color(0x73000000),
-                  builder: (_) => FormularioDetailDialog(item: item),
-                ),
+                onPressed: () async {
+                  final changed = await showDialog<bool>(
+                    context: context,
+                    barrierColor: const Color(0x73000000),
+                    builder: (_) => FormularioDetailDialog(item: item),
+                  );
+                  if (changed == true) {
+                    await onDataChanged();
+                  }
+                },
                 style: TextButton.styleFrom(
-                  foregroundColor: const Color(0xFFFB7B02),
+                  foregroundColor: const Color(0xFFFC9039),
                   padding: EdgeInsets.zero,
                   minimumSize: const Size(0, 0),
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
                 child: const Text(
-                  'ver formulário',
+                  'VER FORMULÁRIO',
                   style: TextStyle(
-                    fontSize: 15.143,
+                    color: Color(0xFFFC9039),
+                    fontSize: 12.81,
+                    fontFamily: 'Helvetica Neue',
                     fontWeight: FontWeight.w700,
-                    decoration: TextDecoration.underline,
-                    decorationThickness: 1.3,
+                    height: 1.50,
+                    letterSpacing: 0.72,
                   ),
                 ),
               ),

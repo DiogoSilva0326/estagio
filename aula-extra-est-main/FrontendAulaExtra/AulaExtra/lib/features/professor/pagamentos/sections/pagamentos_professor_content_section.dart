@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:aula_extra/core/data/payments/dtos/professor_payment_dto.dart';
 import 'package:aula_extra/core/data/payments/payments_service.dart';
 import 'package:aula_extra/core/providers/user_provider.dart';
+import 'package:aula_extra/core/config/teaching_roles_config.dart'; 
 import 'package:aula_extra/features/professor/core/widgets/professor_menu_nav.dart';
 import 'package:aula_extra/features/professor/pagamentos/constants/pagamentos_professor_colors.dart';
 import 'package:aula_extra/features/professor/pagamentos/constants/pagamentos_professor_layout.dart';
@@ -80,7 +81,7 @@ class _PagamentosProfessorContentSectionState
     return history.sublist(start, end);
   }
 
-  Future<void> _showDetails(ProfessorPaymentHistoryItemDto payment) async {
+  Future<void> _showDetails(ProfessorPaymentHistoryItemDto payment, TeachingRoleConfig config) async {
     try {
       final details = await _paymentsService.fetchMyTeacherPaymentDetails(
         payment.id,
@@ -93,6 +94,7 @@ class _PagamentosProfessorContentSectionState
           details: details,
           onClose: () => Navigator.of(dialogContext).pop(),
           onPrintReceipt: () => _openTeacherReceipt(details),
+          config: config, 
         ),
       );
     } catch (error) {
@@ -243,7 +245,7 @@ class _PagamentosProfessorContentSectionState
     );
   }
 
-  Widget _buildMobileContent(ProfessorPaymentSummaryDto summary) {
+  Widget _buildMobileContent(ProfessorPaymentSummaryDto summary, TeachingRoleConfig config) {
     final currentItems = _currentPageItems(summary.history);
     final totalPages = _totalPages(summary.history);
 
@@ -259,10 +261,9 @@ class _PagamentosProfessorContentSectionState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const PagamentosProfessorMobileIntro(
+          PagamentosProfessorMobileIntro(
             title: 'Pagamentos',
-            subtitle:
-                'Acompanhe ganhos, pagamentos pendentes e o histórico das suas aulas.',
+            subtitle: config.pagamentos.historyIntro, 
           ),
           const SizedBox(height: PagamentosProfessorLayout.mobileSectionGap),
           Row(
@@ -400,7 +401,7 @@ class _PagamentosProfessorContentSectionState
                       payment.netAmount,
                       currency: payment.currency,
                     ),
-                    onDetailsTap: () => _showDetails(payment),
+                    onDetailsTap: () => _showDetails(payment, config), 
                   ),
                 );
               }),
@@ -422,6 +423,10 @@ class _PagamentosProfessorContentSectionState
 
   @override
   Widget build(BuildContext context) {
+    // A LER A CONFIGURAÇÃO PRINCIPAL
+    final userProvider = Provider.of<UserProvider>(context);
+    final config = TeachingRoleConfig.fromRole(userProvider.role);
+
     final titleStyle = TextStyle(
       color: PagamentosProfessorColors.title,
       fontSize: PagamentosProfessorLayout.titleFontSize,
@@ -481,7 +486,7 @@ class _PagamentosProfessorContentSectionState
             );
           }
 
-          return _buildMobileContent(snapshot.data!);
+          return _buildMobileContent(snapshot.data!, config); 
         },
       );
     }
@@ -657,7 +662,8 @@ class _PagamentosProfessorContentSectionState
                           const SizedBox(height: 19.171),
                           PagamentosTableCard(
                             rows: currentItems,
-                            onDetailsTap: _showDetails,
+                            onDetailsTap: (row) => _showDetails(row, config), 
+                            config: config,
                           ),
                           const SizedBox(height: 16),
                           PagamentosProfessorPagination(

@@ -62,12 +62,12 @@ namespace ConfidantPostgreSQL.Modules.Users.Controller
         // Returns the authenticated student's tutors with last lesson + optional rating.
         [AuthorizeJwt]
         [HttpGet("me/tutors")]
-        public async Task<IActionResult> GetMyTutors([FromQuery] Guid? areaId = null)
+        public async Task<IActionResult> GetMyTutors([FromQuery] Guid? areaId = null, [FromQuery] string? role = null)
         {
             if (!TryGetAuthenticatedUserId(out var userId))
                 return Unauthorized();
 
-            var items = await _myTutors.GetMyTutorsAsync(userId, areaId);
+            var items = await _myTutors.GetMyTutorsAsync(userId, areaId, role);
             return Ok(items);
         }
 
@@ -538,6 +538,20 @@ namespace ConfidantPostgreSQL.Modules.Users.Controller
                 .Take(pageSize);
 
             return Ok(page);
+        }
+
+        // GET /api/Users/admin-directory
+        [AuthorizeJwt]
+        [HttpGet("admin-directory")]
+        public async Task<IActionResult> GetAdminStudentDirectory()
+        {
+            if (!TryGetAuthenticatedUserId(out var actorUserId))
+                return Unauthorized();
+            if (!await CurrentUserIsAdminAsync(actorUserId))
+                return Forbid();
+
+            var items = await _service.GetAdminStudentDirectoryAsync();
+            return Ok(new { items });
         }
 
         [HttpGet("{id:guid}")]

@@ -6,9 +6,23 @@ import 'package:aula_extra/core/data/reservations_calendar/dtos/reservation_paym
 import 'package:aula_extra/core/data/reservations_calendar/dtos/reservation_payment_review_dto.dart';
 import 'package:aula_extra/core/data/reservations_calendar/dtos/student_area_summary_dto.dart';
 import 'package:aula_extra/core/data/reservations_calendar/dtos/student_calendar_item_dto.dart';
+import 'package:aula_extra/core/providers/user_provider.dart' show Role;
 import 'package:http/http.dart' as http;
 
 class ReservationsCalendarApi {
+  static String? _roleToTargetRole(Role role) {
+    switch (role) {
+      case Role.psychologist:
+        return 'psicologia';
+      case Role.tutor:
+        return 'tutoria';
+      case Role.teacher:
+        return 'ensino';
+      default:
+        return null;
+    }
+  }
+
   Future<List<StudentCalendarItemDto>> getMyWeek({
     required String token,
     String? weekStart,
@@ -108,14 +122,24 @@ class ReservationsCalendarApi {
 
   Future<List<ProfessorCalendarItemDto>> getProfessorWeek({
     required String token,
+    required Role role,
     String? weekStart,
   }) async {
+    final targetRole = _roleToTargetRole(role);
+    
+    final queryParams = <String>[];
+    if (weekStart != null && weekStart.trim().isNotEmpty) {
+      queryParams.add('weekStart=$weekStart');
+    }
+    if (targetRole != null) {
+      queryParams.add('target_role=$targetRole');
+    }
+
+    final queryString = queryParams.isNotEmpty ? '?${queryParams.join('&')}' : '';
+    final url = '/api/Reservations/professor/week$queryString';
+
     final res = await http.get(
-      ApiConfig.uri(
-        weekStart == null || weekStart.trim().isEmpty
-            ? '/api/Reservations/professor/week'
-            : '/api/Reservations/professor/week?weekStart=$weekStart',
-      ),
+      ApiConfig.uri(url),
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',
@@ -144,10 +168,21 @@ class ReservationsCalendarApi {
 
   Future<List<ProfessorCalendarItemDto>> getProfessorUpcoming({
     required String token,
+    required Role role,
     int limit = 4,
   }) async {
+    final targetRole = _roleToTargetRole(role);
+    
+    final queryParams = <String>['limit=$limit'];
+    if (targetRole != null) {
+      queryParams.add('target_role=$targetRole');
+    }
+
+    final queryString = queryParams.isNotEmpty ? '?${queryParams.join('&')}' : '';
+    final url = '/api/Reservations/professor/upcoming$queryString';
+
     final res = await http.get(
-      ApiConfig.uri('/api/Reservations/professor/upcoming?limit=$limit'),
+      ApiConfig.uri(url),
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',

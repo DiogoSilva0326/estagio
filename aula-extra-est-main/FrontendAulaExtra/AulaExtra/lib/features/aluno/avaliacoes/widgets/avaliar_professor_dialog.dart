@@ -66,7 +66,7 @@ class _AvaliarProfessorDialogState extends State<AvaliarProfessorDialog> {
   String _professorDropdownSubtitle(PendingProfessorEvaluationDto pending) {
     final end = _formatDate(pending.lastLessonEnd ?? pending.lastLessonStart);
     if (end.isNotEmpty) {
-      return 'Última aula: $end';
+      return 'Última sessão: $end';
     }
     return 'Sem data disponível';
   }
@@ -122,7 +122,7 @@ class _AvaliarProfessorDialogState extends State<AvaliarProfessorDialog> {
     if (selectedProfessorId == null || selectedProfessorId.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Nenhum professor pendente para avaliar.'),
+          content: Text('Nenhum profissional pendente para avaliar.'),
         ),
       );
       return;
@@ -197,7 +197,7 @@ class _AvaliarProfessorDialogState extends State<AvaliarProfessorDialog> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  'Avaliar Professor',
+                  'Avaliar Profissional',
                   style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.w600,
@@ -229,10 +229,10 @@ class _AvaliarProfessorDialogState extends State<AvaliarProfessorDialog> {
                     ],
                   )
                 else if (_pending.isEmpty)
-                  const Text('Não há professores pendentes para avaliar.')
+                  const Text('Não há profissionais pendentes para avaliar.')
                 else ...[
                   const Text(
-                    'Professor',
+                    'Profissional',
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w500,
@@ -296,7 +296,7 @@ class _AvaliarProfessorDialogState extends State<AvaliarProfessorDialog> {
                           : (end.isNotEmpty ? end : start);
                       if (date.isEmpty) return const SizedBox.shrink();
                       return Text(
-                        'Última aula: $date',
+                        'Última sessão: $date',
                         style: const TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w400,

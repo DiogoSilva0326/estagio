@@ -8,14 +8,19 @@ class MinhasDisciplinasProfessorMobileStatCard extends StatelessWidget {
     required this.label,
     required this.value,
     required this.helper,
+    required this.activeColor,
   });
 
   final String label;
   final String value;
   final String helper;
+  final Color activeColor;
 
   @override
   Widget build(BuildContext context) {
+    final isOrange = activeColor == const Color(0xFFFC9039);
+    final valueColor = isOrange ? MinhasDisciplinasProfessorColors.buttonGradientBottom : activeColor;
+
     return Container(
       padding: const EdgeInsets.all(
         MinhasDisciplinasProfessorLayout.mobileCardPadding,
@@ -34,6 +39,8 @@ class MinhasDisciplinasProfessorMobileStatCard extends StatelessWidget {
         children: [
           Text(
             label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: const TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w500,
@@ -44,16 +51,18 @@ class MinhasDisciplinasProfessorMobileStatCard extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             value,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 22,
               fontWeight: FontWeight.w700,
-              color: MinhasDisciplinasProfessorColors.buttonGradientBottom,
+              color: valueColor,
               height: 28 / 22,
             ),
           ),
           const SizedBox(height: 4),
           Text(
             helper,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: const TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w500,

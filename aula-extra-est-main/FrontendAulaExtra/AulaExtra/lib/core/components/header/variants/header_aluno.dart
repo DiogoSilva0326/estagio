@@ -8,11 +8,12 @@ import 'package:aula_extra/core/providers/user_provider.dart';
 import 'package:aula_extra/routes/routes.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 enum HeaderAlunoItem {
   inicio,
   minhasAulas,
-  maisExplicadores,
+  maisExplicadores, // Mantivemos o enum name para não quebrar referências, mas o texto é "Mais Profissionais"
   calendario,
   recursos,
 }
@@ -57,7 +58,6 @@ class HeaderAluno extends StatelessWidget {
       onMaisExplicadoresTap!();
       return;
     }
-
     Navigator.of(context).pushNamed(Routes.explicadores);
   }
 
@@ -146,11 +146,11 @@ class HeaderAluno extends StatelessWidget {
             top: 10,
             child: InkWell(
               onTap: () => _handleLogoTap(context),
-              child: Image.asset(
+              child: SvgPicture.asset(
                 HeaderAssets.logo,
-                width: 96,
+                width: 96, 
                 height: 69,
-                fit: BoxFit.cover,
+                fit: BoxFit.contain,
               ),
             ),
           ),
@@ -166,13 +166,13 @@ class HeaderAluno extends StatelessWidget {
                 ),
                 const SizedBox(width: 40),
                 HeaderLink(
-                  text: 'Minhas Aulas',
+                  text: 'Meus Apoios',
                   color: _itemColor(HeaderAlunoItem.minhasAulas),
                   onTap: () => _handleMinhasAulasTap(context),
                 ),
                 const SizedBox(width: 40),
                 HeaderLink(
-                  text: 'Mais Explicadores',
+                  text: 'Mais Apoios', 
                   color: _itemColor(HeaderAlunoItem.maisExplicadores),
                   onTap: () => _handleMaisExplicadoresTap(context),
                 ),

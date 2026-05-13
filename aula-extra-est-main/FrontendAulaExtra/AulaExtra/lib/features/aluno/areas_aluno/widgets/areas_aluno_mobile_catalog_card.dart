@@ -4,11 +4,13 @@ class AreasAlunoMobileCatalogCard extends StatelessWidget {
   const AreasAlunoMobileCatalogCard({
     super.key,
     required this.title,
+    required this.category, 
     required this.imageAsset,
     required this.onTap,
   });
 
   final String title;
+  final String category;
   final String imageAsset;
   final VoidCallback onTap;
 
@@ -47,18 +49,40 @@ class AreasAlunoMobileCatalogCard extends StatelessWidget {
             ),
             const SizedBox(width: 14),
             Expanded(
-              child: Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 18,
-                  height: 1.25,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF101828),
-                ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      height: 1.25,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF101828),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFF7ED),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      category,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFFEA580C),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
             const SizedBox(width: 8),
-            const Icon(Icons.chevron_right_rounded, color: Color(0xFF4A5565)),
+            const Icon(Icons.add_circle, color: Color(0xFFFC9039)),
           ],
         ),
       ),

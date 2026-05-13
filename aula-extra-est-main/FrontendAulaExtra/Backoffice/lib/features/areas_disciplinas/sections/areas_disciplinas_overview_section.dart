@@ -15,8 +15,8 @@ class AreasDisciplinasOverviewSection extends StatelessWidget {
 
   final List<AreaDisciplinasItem> items;
   final VoidCallback? onAddArea;
-  final ValueChanged<int>? onEditArea;
-  final ValueChanged<int>? onAddDisciplina;
+  final ValueChanged<AreaDisciplinasItem>? onEditArea;
+  final ValueChanged<AreaDisciplinasItem>? onAddDisciplina;
 
   @override
   Widget build(BuildContext context) {

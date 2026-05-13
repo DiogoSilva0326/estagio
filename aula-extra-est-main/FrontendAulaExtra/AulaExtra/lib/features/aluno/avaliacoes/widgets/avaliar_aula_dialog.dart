@@ -125,7 +125,7 @@ class _AvaliarAulaDialogState extends State<AvaliarAulaDialog> {
     final selectedLessonId = _selectedLessonId;
     if (selectedLessonId == null || selectedLessonId.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Nenhuma aula pendente para avaliar.')),
+        const SnackBar(content: Text('Nenhuma sessão pendente para avaliar.')),
       );
       return;
     }
@@ -199,7 +199,7 @@ class _AvaliarAulaDialogState extends State<AvaliarAulaDialog> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Avaliar Aula',
+                  'Avaliar Sessão',
                   style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.w600,
@@ -231,10 +231,10 @@ class _AvaliarAulaDialogState extends State<AvaliarAulaDialog> {
                     ],
                   )
                 else if (_pending.isEmpty)
-                  const Text('Não há aulas pendentes para avaliar.')
+                  const Text('Não há sessões pendentes para avaliar.')
                 else ...[
                   const Text(
-                    'Professor',
+                    'Profissional',
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w500,
@@ -374,7 +374,7 @@ class _AvaliarAulaDialogState extends State<AvaliarAulaDialog> {
                           isCollapsed: true,
                           border: InputBorder.none,
                           hintText:
-                              'Compartilhe sua experiência com este explicador...',
+                              'Compartilhe sua experiência com este profissional...',
                           hintStyle: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w400,

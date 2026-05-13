@@ -24,6 +24,9 @@ services:
       - DB_PASSWORD=${SQL_PASSWORD}
       - DB_NAME=${SQL_DB}
       - JWT_SECRET=${JWT_SECRET}
+      - POSTMARK_API_TOKEN=${POSTMARK_API_TOKEN}
+      - POSTMARK_FROM_EMAIL=${POSTMARK_FROM_EMAIL}
+      - POSTMARK_NEWSLETTER_FROM_EMAIL=${POSTMARK_NEWSLETTER_FROM_EMAIL:-${POSTMARK_FROM_EMAIL_NEWSLETTER:-${POSTMARK_FROM_EMAIL}}}
       - CLOUDFLARE_IMAGES_ACCOUNT_ID=${CLOUDFLARE_IMAGES_ACCOUNT_ID}
       - CLOUDFLARE_IMAGES_API_TOKEN=${CLOUDFLARE_IMAGES_API_TOKEN}
       - CLOUDFLARE_IMAGES_DELIVERY_BASE=${CLOUDFLARE_IMAGES_DELIVERY_BASE}
@@ -33,6 +36,39 @@ services:
       - WHITEBOARD_APP_IDENTIFIER=${WHITEBOARD_APP_IDENTIFIER:-}
       - WHITEBOARD_REGION=${WHITEBOARD_REGION:-us-sv}
       - DB_BOOTSTRAP=0
+    restart: unless-stopped
+
+  frontend:
+    platform: "linux/amd64"
+    build:
+      context: ..
+      dockerfile: AulaExtraDeployServer/Dockerfile.frontend
+      args:
+        API_BASE_URL: http://localhost:9080
+        CHAT_HUB_BASE_URL: http://localhost:5050
+        APP_BASE_HREF: /
+    image: aulaextra-frontend:local
+    depends_on:
+      - confidant
+    networks: [confidant]
+    ports:
+      - "3000:80"
+    restart: unless-stopped
+
+  backoffice:
+    platform: "linux/amd64"
+    build:
+      context: ..
+      dockerfile: AulaExtraDeployServer/Dockerfile.backoffice
+      args:
+        API_BASE_URL: http://localhost:9080
+        APP_BASE_HREF: /
+    image: aulaextra-backoffice:local
+    depends_on:
+      - confidant
+    networks: [confidant]
+    ports:
+      - "3001:80"
     restart: unless-stopped
 
   db:

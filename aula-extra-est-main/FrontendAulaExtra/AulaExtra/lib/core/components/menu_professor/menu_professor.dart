@@ -1,8 +1,9 @@
 import 'package:aula_extra/core/components/menu_professor/sections/menu_professor_section.dart';
 import 'package:flutter/material.dart';
+import 'package:aula_extra/core/config/teaching_roles_config.dart';
 
 class MenuProfessor extends StatelessWidget {
-  const MenuProfessor({
+  const MenuProfessor ({
     super.key,
     this.selectedIndex,
     this.notificationCount = 0,
@@ -10,8 +11,10 @@ class MenuProfessor extends StatelessWidget {
     this.ganhosPendentes = '150€',
     this.alunosAtivos = 12,
     this.onItemTap,
+    this.config,
   });
 
+  final TeachingRoleConfig? config;
   final int? selectedIndex;
   final int notificationCount;
 
@@ -30,6 +33,7 @@ class MenuProfessor extends StatelessWidget {
       ganhosPendentes: ganhosPendentes,
       alunosAtivos: alunosAtivos,
       onItemTap: onItemTap,
+      config: config, 
     );
   }
 }

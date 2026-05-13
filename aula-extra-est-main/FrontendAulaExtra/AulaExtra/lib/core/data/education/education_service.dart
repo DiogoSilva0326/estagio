@@ -32,12 +32,12 @@ class EducationService {
     return _api.getCiclosEstudo(token: token);
   }
 
-  Future<List<AreaDto>> getAreas() async {
+  Future<List<AreaDto>> getAreas({String? targetRole}) async {
     final token = await _tokenStorage.loadToken();
     if (token == null || token.trim().isEmpty) {
       throw const EducationException('Sessão expirada');
     }
-    return _api.getAreas(token: token);
+    return _api.getAreas(token: token, targetRole: targetRole);
   }
 
   Future<List<DisciplinaDto>> getDisciplinasByArea({

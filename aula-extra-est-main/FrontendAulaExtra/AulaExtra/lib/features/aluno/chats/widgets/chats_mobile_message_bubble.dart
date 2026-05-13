@@ -1,6 +1,9 @@
 import 'package:aula_extra/core/data/communication/realtime_chat_service.dart';
 import 'package:aula_extra/features/aluno/chats/constants/chats_constants.dart';
+import 'package:aula_extra/core/providers/user_provider.dart'; 
+import 'package:aula_extra/core/config/teaching_roles_config.dart'; 
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart'; 
 
 class ChatsMobileMessageBubble extends StatelessWidget {
   const ChatsMobileMessageBubble({
@@ -22,14 +25,22 @@ class ChatsMobileMessageBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final userProvider = Provider.of<UserProvider>(context);
+    final config = TeachingRoleConfig.fromRole(userProvider.role);
+    final isStudent = userProvider.role == Role.student;
+    
+    final isOrange = isStudent || config.roleName == 'Explicador';
+
     final backgroundColor = isOutgoing
-        ? ChatsConstants.mobileBubbleOutgoingColor
+        ? (isOrange ? ChatsConstants.mobileBubbleOutgoingColor : config.primaryColor) 
         : ChatsConstants.mobileBubbleIncomingColor;
+        
     final textColor = isOutgoing
         ? Colors.white
         : ChatsConstants.mobileTextColor;
+        
     final secondaryColor = isOutgoing
-        ? Colors.white.withValues(alpha: 0.85)
+        ? Colors.white.withOpacity(0.85)
         : ChatsConstants.mobileMutedColor;
 
     return Align(
@@ -115,7 +126,7 @@ class _AttachmentCard extends StatelessWidget {
         ? Colors.white
         : ChatsConstants.mobileTextColor;
     final secondary = isOutgoing
-        ? Colors.white.withValues(alpha: 0.8)
+        ? Colors.white.withOpacity(0.8)
         : ChatsConstants.mobileMutedColor;
 
     return InkWell(
@@ -126,12 +137,12 @@ class _AttachmentCard extends StatelessWidget {
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: isOutgoing
-              ? Colors.white.withValues(alpha: 0.12)
+              ? Colors.white.withOpacity(0.12)
               : Colors.white,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
             color: isOutgoing
-                ? Colors.white.withValues(alpha: 0.22)
+                ? Colors.white.withOpacity(0.22)
                 : ChatsConstants.mobileBorderColor,
           ),
         ),

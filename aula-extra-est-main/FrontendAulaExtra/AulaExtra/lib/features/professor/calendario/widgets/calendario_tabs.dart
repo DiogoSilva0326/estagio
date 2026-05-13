@@ -1,6 +1,9 @@
 import 'package:aula_extra/features/professor/calendario/constants/calendario_professor_colors.dart';
 import 'package:aula_extra/features/professor/calendario/constants/calendario_professor_layout.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:aula_extra/core/providers/user_provider.dart';
+import 'package:aula_extra/core/config/teaching_roles_config.dart';
 
 class CalendarioTabs extends StatelessWidget {
   const CalendarioTabs({
@@ -14,11 +17,14 @@ class CalendarioTabs extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final userProvider = Provider.of<UserProvider>(context);
+    final config = TeachingRoleConfig.fromRole(userProvider.role);
+    
     TextStyle tabTextStyle(bool selected) {
       return TextStyle(
         color: selected
-            ? CalendarioProfessorColors.tabSelectedText
-            : CalendarioProfessorColors.tabSelectedText,
+            ? (config.roleName == 'Explicador' ? CalendarioProfessorColors.tabSelectedText : config.primaryColor)
+            : CalendarioProfessorColors.tabSelectedText, 
         fontSize: CalendarioProfessorLayout.tabFontSize,
         fontWeight: FontWeight.w500,
         height:
@@ -89,7 +95,7 @@ class CalendarioTabs extends StatelessWidget {
           padding: const EdgeInsets.all(5.0),
           child: Row(
             children: [
-              tab(index: 0, label: 'Próximas Aulas'),
+              tab(index: 0, label: config.calendario.nextSessionLabel),
               tab(index: 1, label: 'Calendário Semanal'),
             ],
           ),

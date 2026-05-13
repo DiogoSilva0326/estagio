@@ -15,7 +15,7 @@ namespace ConfidantPostgreSQL.Modules.Student.Repository
             _connectionString = connectionString;
         }
 
-        public async Task<IReadOnlyList<MyTutorDto>> GetMyTutorsAsync(Guid studentUserId, Guid? areaId = null)
+        public async Task<IReadOnlyList<MyTutorDto>> GetMyTutorsAsync(Guid studentUserId, Guid? areaId = null, string? role = null)
         {
             var list = new List<MyTutorDto>();
 
@@ -23,12 +23,51 @@ namespace ConfidantPostgreSQL.Modules.Student.Repository
             await conn.OpenAsync();
 
             await using var cmd = conn.CreateCommand();
-            cmd.CommandText = @"SELECT * FROM public.usp_student_my_tutors_select01(@p_student_user_id, @p_area_id);";
+
+            cmd.CommandText = @"
+                SELECT t.* FROM public.usp_student_my_tutors_select01(@p_student_user_id, @p_area_id) t
+                WHERE @p_role::text IS NULL
+                OR EXISTS (
+                    SELECT 1
+                    FROM public.enrollments e
+                    JOIN public.lessons l ON l.id_lesson = e.id_lesson
+                    JOIN public.courses c ON c.id_course = l.id_course
+                    JOIN public.disciplinas d ON d.id_disciplina = c.id_disciplina
+                    WHERE e.id_user = @p_student_user_id
+                      AND l.id_professor = t.id_professor
+                      AND (
+                          (@p_role::text = 'psicólogo' AND (
+                              TRANSLATE(LOWER(d.nome), 'áàâãäåéèêëíìîïóòôõöúùûüçñ', 'aaaaaaeeeeiiiiooooouuuucn') LIKE '%psicolog%' OR
+                              TRANSLATE(LOWER(d.nome), 'áàâãäåéèêëíìîïóòôõöúùûüçñ', 'aaaaaaeeeeiiiiooooouuuucn') LIKE '%orientacao vocacional%' OR
+                              TRANSLATE(LOWER(d.nome), 'áàâãäåéèêëíìîïóòôõöúùûüçñ', 'aaaaaaeeeeiiiiooooouuuucn') LIKE '%ansiedade%' OR
+                              TRANSLATE(LOWER(d.nome), 'áàâãäåéèêëíìîïóòôõöúùûüçñ', 'aaaaaaeeeeiiiiooooouuuucn') LIKE '%emocional%'
+                          ))
+                          OR (@p_role::text = 'tutor' AND (
+                              TRANSLATE(LOWER(d.nome), 'áàâãäåéèêëíìîïóòôõöúùûüçñ', 'aaaaaaeeeeiiiiooooouuuucn') LIKE '%estudo%' OR
+                              TRANSLATE(LOWER(d.nome), 'áàâãäåéèêëíìîïóòôõöúùûüçñ', 'aaaaaaeeeeiiiiooooouuuucn') LIKE '%concentracao%' OR
+                              TRANSLATE(LOWER(d.nome), 'áàâãäåéèêëíìîïóòôõöúùûüçñ', 'aaaaaaeeeeiiiiooooouuuucn') LIKE '%autonomia%'
+                          ))
+                          OR (@p_role::text = 'explicador' AND NOT (
+                              TRANSLATE(LOWER(d.nome), 'áàâãäåéèêëíìîïóòôõöúùûüçñ', 'aaaaaaeeeeiiiiooooouuuucn') LIKE '%psicolog%' OR
+                              TRANSLATE(LOWER(d.nome), 'áàâãäåéèêëíìîïóòôõöúùûüçñ', 'aaaaaaeeeeiiiiooooouuuucn') LIKE '%orientacao vocacional%' OR
+                              TRANSLATE(LOWER(d.nome), 'áàâãäåéèêëíìîïóòôõöúùûüçñ', 'aaaaaaeeeeiiiiooooouuuucn') LIKE '%ansiedade%' OR
+                              TRANSLATE(LOWER(d.nome), 'áàâãäåéèêëíìîïóòôõöúùûüçñ', 'aaaaaaeeeeiiiiooooouuuucn') LIKE '%emocional%' OR
+                              TRANSLATE(LOWER(d.nome), 'áàâãäåéèêëíìîïóòôõöúùûüçñ', 'aaaaaaeeeeiiiiooooouuuucn') LIKE '%estudo%' OR
+                              TRANSLATE(LOWER(d.nome), 'áàâãäåéèêëíìîïóòôõöúùûüçñ', 'aaaaaaeeeeiiiiooooouuuucn') LIKE '%concentracao%' OR
+                              TRANSLATE(LOWER(d.nome), 'áàâãäåéèêëíìîïóòôõöúùûüçñ', 'aaaaaaeeeeiiiiooooouuuucn') LIKE '%autonomia%'
+                          ))
+                      )
+                );";
 
             cmd.Parameters.AddWithValue("p_student_user_id", studentUserId);
             cmd.Parameters.AddWithValue("p_area_id", (object?)areaId ?? DBNull.Value);
 
-            await using var reader = await cmd.ExecuteReaderAsync();
+            cmd.Parameters.Add(new NpgsqlParameter("p_role", NpgsqlTypes.NpgsqlDbType.Text) 
+            { 
+                Value = string.IsNullOrWhiteSpace(role) ? DBNull.Value : role.Trim().ToLowerInvariant() 
+            });
+
+    await using var reader = await cmd.ExecuteReaderAsync();
             while (await reader.ReadAsync())
             {
                 var reviewCount = reader.IsDBNull(reader.GetOrdinal("review_count"))

@@ -376,6 +376,39 @@ namespace ConfidantPostgreSQL.Modules.ContactsForm.Controllers
             return rows == 0 ? NotFound() : NoContent();
         }
 
+        [HttpPost("submissions/{idContactFormSubmission:guid}/reply")]
+        public async Task<IActionResult> ReplyToContactFormSubmission(
+            Guid idContactFormSubmission,
+            [FromBody] ReplyToContactFormSubmissionRequest request)
+        {
+            RequestContext.ApplyCultureFromHeader(Request);
+
+            if (request == null)
+            {
+                return BadRequest(new { message = "Pedido inválido." });
+            }
+
+            var currentUserId = TryGetCurrentUserId(out var actorUserId) ? actorUserId : (Guid?)null;
+
+            try
+            {
+                var updated = await _service.ReplyToContactFormSubmissionAsync(
+                    idContactFormSubmission,
+                    currentUserId,
+                    request.ResponseMessage,
+                    request.Status);
+                return updated ? NoContent() : NotFound();
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
         [HttpDelete("submissions/{idContactFormSubmission:guid}")]
         public async Task<IActionResult> DeleteContactFormSubmission(Guid idContactFormSubmission)
         {

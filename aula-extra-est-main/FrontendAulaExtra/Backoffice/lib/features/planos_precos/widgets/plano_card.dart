@@ -70,18 +70,20 @@ class PlanoCard extends StatelessWidget {
                                 letterSpacing: 0.26,
                               ),
                             ),
-                            const SizedBox(height: 2.72),
-                            Text(
-                              item.subtitle,
-                              style: const TextStyle(
-                                color: Color(0xFF354152),
-                                fontSize: 16.34,
-                                fontFamily: _fontFamily,
-                                fontWeight: FontWeight.w400,
-                                height: 1.43,
-                                letterSpacing: -0.18,
+                            if (item.subtitle.trim().isNotEmpty) ...[
+                              const SizedBox(height: 2.72),
+                              Text(
+                                item.subtitle,
+                                style: const TextStyle(
+                                  color: Color(0xFF354152),
+                                  fontSize: 16.34,
+                                  fontFamily: _fontFamily,
+                                  fontWeight: FontWeight.w400,
+                                  height: 1.43,
+                                  letterSpacing: -0.18,
+                                ),
                               ),
-                            ),
+                            ],
                           ],
                         ),
                       ),

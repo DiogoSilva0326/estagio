@@ -4,9 +4,14 @@ import '../../../design/theme/app_colors.dart';
 import '../widgets/newsletter_create_button.dart';
 
 class NewsletterHeaderSection extends StatelessWidget {
-  const NewsletterHeaderSection({required this.onCreate, super.key});
+  const NewsletterHeaderSection({
+    required this.onCreate,
+    this.creating = false,
+    super.key,
+  });
 
-  final VoidCallback onCreate;
+  final VoidCallback? onCreate;
+  final bool creating;
 
   @override
   Widget build(BuildContext context) {
@@ -28,6 +33,13 @@ class NewsletterHeaderSection extends StatelessWidget {
           children: [
             const Expanded(child: _HeaderText()),
             const SizedBox(width: 24),
+            if (creating)
+              const SizedBox(
+                width: 28,
+                height: 28,
+                child: CircularProgressIndicator(strokeWidth: 2.6),
+              ),
+            if (creating) const SizedBox(width: 18),
             NewsletterCreateButton(onPressed: onCreate),
           ],
         );

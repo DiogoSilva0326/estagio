@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/constants/app_dimensions.dart';
@@ -17,7 +18,7 @@ class BackofficeScaffold extends StatelessWidget {
   final Widget body;
   final bool showTopBar;
 
-  bool _useDrawer(double width) => width < 1100;
+  bool _useDrawer(double width) => !kIsWeb && width < 1100;
 
   @override
   Widget build(BuildContext context) {

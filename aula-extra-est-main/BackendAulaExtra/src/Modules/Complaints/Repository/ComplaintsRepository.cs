@@ -21,7 +21,13 @@ namespace ConfidantPostgreSQL.Modules.Complaints.Repository
             await using var conn = new NpgsqlConnection(_connectionString);
             await conn.OpenAsync();
             await using var cmd = conn.CreateCommand();
-            cmd.CommandText = "SELECT * FROM public.usp_complaints_select_all01();";
+            cmd.CommandText = @"
+                SELECT
+                    c.*,
+                    sender.email AS sender_email
+                FROM public.complaints c
+                LEFT JOIN public.users sender ON sender.id_user = c.sender_user_id
+                ORDER BY c.created_at DESC;";
 
             await using var reader = await cmd.ExecuteReaderAsync();
             while (await reader.ReadAsync())
@@ -37,6 +43,7 @@ namespace ConfidantPostgreSQL.Modules.Complaints.Repository
                     Status = GetNullableString(reader, "status"),
                     IsRead = GetBoolDefaultFalse(reader, "is_read"),
                     SenderDisplayName = GetNullableStringIfExists(reader, "sender_display_name"),
+                    SenderEmail = GetNullableStringIfExists(reader, "sender_email"),
                     ReceiverDisplayName = GetNullableStringIfExists(reader, "receiver_display_name"),
                     SenderRole = GetNullableStringIfExists(reader, "sender_role"),
                     ReceiverRole = GetNullableStringIfExists(reader, "receiver_role"),
@@ -54,7 +61,13 @@ namespace ConfidantPostgreSQL.Modules.Complaints.Repository
             await using var conn = new NpgsqlConnection(_connectionString);
             await conn.OpenAsync();
             await using var cmd = conn.CreateCommand();
-            cmd.CommandText = "SELECT * FROM public.usp_complaints_select_details01(@id_complaint);";
+            cmd.CommandText = @"
+                SELECT
+                    c.*,
+                    sender.email AS sender_email
+                FROM public.complaints c
+                LEFT JOIN public.users sender ON sender.id_user = c.sender_user_id
+                WHERE c.id_complaint = @id_complaint;";
             cmd.Parameters.AddWithValue("id_complaint", idComplaint);
 
             await using var reader = await cmd.ExecuteReaderAsync();
@@ -71,6 +84,7 @@ namespace ConfidantPostgreSQL.Modules.Complaints.Repository
                 Status = GetNullableString(reader, "status"),
                 IsRead = GetBoolDefaultFalse(reader, "is_read"),
                 SenderDisplayName = GetNullableStringIfExists(reader, "sender_display_name"),
+                SenderEmail = GetNullableStringIfExists(reader, "sender_email"),
                 ReceiverDisplayName = GetNullableStringIfExists(reader, "receiver_display_name"),
                 SenderRole = GetNullableStringIfExists(reader, "sender_role"),
                 ReceiverRole = GetNullableStringIfExists(reader, "receiver_role"),

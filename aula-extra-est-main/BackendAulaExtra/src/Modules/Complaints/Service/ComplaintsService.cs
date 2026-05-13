@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using ConfidantPostgreSQL.Integrations.Email;
 using ConfidantPostgreSQL.Modules.Complaints.Models;
 using ConfidantPostgreSQL.Modules.Complaints.Repository;
 using ConfidantPostgreSQL.Modules.Professors.Service;
@@ -17,17 +18,20 @@ namespace ConfidantPostgreSQL.Modules.Complaints.Service
         private readonly IMyTutorsService _myTutorsService;
         private readonly IProfessorsService _professorsService;
         private readonly IUserService _usersService;
+        private readonly IPostmarkService _postmarkService;
 
         public ComplaintsService(
             IComplaintsRepository repo,
             IMyTutorsService myTutorsService,
             IProfessorsService professorsService,
-            IUserService usersService)
+            IUserService usersService,
+            IPostmarkService postmarkService)
         {
             _repo = repo;
             _myTutorsService = myTutorsService;
             _professorsService = professorsService;
             _usersService = usersService;
+            _postmarkService = postmarkService;
         }
 
         public Task<IEnumerable<Complaint>> GetComplaintsAllAsync() => _repo.GetComplaintsAllAsync();
@@ -139,6 +143,60 @@ namespace ConfidantPostgreSQL.Modules.Complaints.Service
             return complaint;
         }
         public Task<int> UpdateComplaintAsync(Complaint complaint) => _repo.UpdateComplaintAsync(complaint);
+        public async Task<bool> ReplyToComplaintAsync(Guid idComplaint, Guid? responderUserId, string? responseMessage, string? status)
+        {
+            var complaint = await _repo.GetComplaintByIdAsync(idComplaint);
+            if (complaint == null)
+            {
+                return false;
+            }
+
+            var normalizedStatus = NormalizeReplyStatus(status, hasResponseMessage: !string.IsNullOrWhiteSpace(responseMessage));
+            var trimmedResponse = responseMessage?.Trim();
+
+            if (!string.IsNullOrWhiteSpace(trimmedResponse))
+            {
+                if (string.IsNullOrWhiteSpace(complaint.SenderEmail))
+                {
+                    throw new InvalidOperationException("A reclamação não tem email de remetente disponível.");
+                }
+
+                var subject = string.IsNullOrWhiteSpace(complaint.ComplaintSubject)
+                    ? "Resposta à sua reclamação"
+                    : $"Resposta à sua reclamação: {complaint.ComplaintSubject.Trim()}";
+                var originalMessage = string.IsNullOrWhiteSpace(complaint.ComplaintMessage)
+                    ? "Sem mensagem original disponível."
+                    : complaint.ComplaintMessage.Trim();
+                var plainBody =
+                    $"Recebemos a sua reclamação na Aula Extra.\n\n" +
+                    $"Assunto: {(complaint.ComplaintSubject?.Trim() ?? "Sem assunto")}\n\n" +
+                    $"Resposta da equipa:\n{trimmedResponse}\n\n" +
+                    $"Mensagem original:\n{originalMessage}";
+
+                var dto = new EmailSenderDto
+                {
+                    To = complaint.SenderEmail,
+                    Subject = subject,
+                    TextBody = plainBody,
+                    HtmlBody = EmailTemplates.Jacurvas(subject, plainBody),
+                    Tag = "complaint-reply",
+                    MessageStream = "outbound"
+                };
+
+                var sent = await _postmarkService.SendEmailAsync(dto);
+                if (!sent)
+                {
+                    throw new InvalidOperationException("Não foi possível enviar a resposta por email.");
+                }
+            }
+
+            complaint.Status = normalizedStatus;
+            complaint.IsRead = normalizedStatus is "lida" or "respondida" or "resolved";
+            complaint.UpdatedAt = DateTime.UtcNow;
+
+            var rows = await _repo.UpdateComplaintAsync(complaint);
+            return rows > 0;
+        }
         public Task<int> DeleteComplaintAsync(Guid idComplaint) => _repo.DeleteComplaintAsync(idComplaint);
 
         public Task<IEnumerable<ComplaintResolution>> GetComplaintResolutionsAllAsync() => _repo.GetComplaintResolutionsAllAsync();
@@ -184,6 +242,23 @@ namespace ConfidantPostgreSQL.Modules.Complaints.Service
             }
 
             return !string.IsNullOrWhiteSpace(username) ? username.Trim() : "Utilizador";
+        }
+
+        private static string NormalizeReplyStatus(string? status, bool hasResponseMessage)
+        {
+            var normalized = (status ?? string.Empty).Trim().ToLowerInvariant();
+            if (string.IsNullOrWhiteSpace(normalized))
+            {
+                return hasResponseMessage ? "respondida" : "lida";
+            }
+
+            return normalized switch
+            {
+                "lida" => "lida",
+                "respondida" => "respondida",
+                "resolved" => "resolved",
+                _ => throw new ArgumentException("O estado indicado é inválido.")
+            };
         }
     }
 }

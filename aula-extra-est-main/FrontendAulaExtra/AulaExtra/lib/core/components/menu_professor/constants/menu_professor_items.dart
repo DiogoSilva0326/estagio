@@ -21,27 +21,31 @@ class MenuProfessorItems {
   const MenuProfessorItems._();
 
   /// Lista canónica de itens do menu do professor.
-  ///
-  /// Onde é usado:
-  /// - No widget do menu para renderizar a navegação e associar rotas/ações.
+  /// 
+  /// IMPORTANTE: As labels aqui definidas são usadas como chaves para a 
+  /// tradução dinâmica baseada na Role (Explicador/Tutor/Psicólogo) 
+  /// definida no TeachingRoleConfig.
   static const List<MenuProfessorItemData> all = [
-    MenuProfessorItemData(label: 'Meus Alunos', icon: Icons.groups_rounded),
     MenuProfessorItemData(
-      label: 'Minhas Disciplinas',
+      label: 'Meus Alunos', // Substituído por "Meus Membros" se Psicólogo/Tutor
+      icon: Icons.groups_rounded,
+    ),
+    MenuProfessorItemData(
+      label: 'Minhas Disciplinas', // Substituído por "Especialidades" ou "Áreas"
       icon: Icons.menu_book_rounded,
     ),
     MenuProfessorItemData(
-      label: 'Calendário',
+      label: 'Calendário', // Substituído por "Agenda Clínica" se Psicólogo
       icon: Icons.calendar_month_rounded,
     ),
     MenuProfessorItemData(label: 'Arquivos', icon: Icons.folder_rounded),
     MenuProfessorItemData(label: 'Chats', icon: Icons.chat_bubble_rounded),
     MenuProfessorItemData(
-      label: 'Publicar Anúncio',
+      label: 'Publicar Anúncio', // Substituído por "Gerir Serviços" se Psicólogo
       icon: Icons.campaign_rounded,
     ),
     MenuProfessorItemData(
-      label: 'Os meus anúncios',
+      label: 'Os meus anúncios', // Substituído por "O Meu Perfil Clínico" se Psicólogo
       icon: Icons.view_agenda_rounded,
     ),
     MenuProfessorItemData(

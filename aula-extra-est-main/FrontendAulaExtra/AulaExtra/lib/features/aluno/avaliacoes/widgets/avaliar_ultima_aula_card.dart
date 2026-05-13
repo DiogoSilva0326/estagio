@@ -31,7 +31,7 @@ class AvaliarUltimaAulaCard extends StatelessWidget {
       child: Column(
         children: [
           const Text(
-            'Tem uma aula recente para avaliar?',
+            'Tem uma sessão recente para avaliar?',
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 27.481,
@@ -42,7 +42,7 @@ class AvaliarUltimaAulaCard extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           const Text(
-            'Ajude outros estudantes compartilhando sua experiência',
+            'Ajude outros membros compartilhando sua experiência',
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 21.985,
@@ -83,7 +83,7 @@ class AvaliarUltimaAulaCard extends StatelessWidget {
                   });
                 },
                 child: const Text(
-                  'Avaliar Última Aula',
+                  'Avaliar Última Sessão',
                   style: TextStyle(
                     fontSize: 21.985,
                     fontWeight: FontWeight.w400,

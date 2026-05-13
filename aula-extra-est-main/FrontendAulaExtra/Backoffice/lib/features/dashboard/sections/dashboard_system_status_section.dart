@@ -1,14 +1,22 @@
 import 'package:flutter/material.dart';
 
 import '../../../design/theme/app_colors.dart';
-import '../constants/dashboard_mock_data.dart';
+import '../models/dashboard_popular_subject_item.dart';
+import '../models/dashboard_service_status_item.dart';
 import '../widgets/dashboard_popular_subject_row.dart';
 import '../widgets/dashboard_section_header.dart';
 import '../widgets/dashboard_service_status_row.dart';
 import '../widgets/dashboard_surface_card.dart';
 
 class DashboardSystemStatusSection extends StatelessWidget {
-  const DashboardSystemStatusSection({super.key});
+  const DashboardSystemStatusSection({
+    required this.serviceStatuses,
+    required this.popularSubjects,
+    super.key,
+  });
+
+  final List<DashboardServiceStatusItem> serviceStatuses;
+  final List<DashboardPopularSubjectItem> popularSubjects;
 
   @override
   Widget build(BuildContext context) {
@@ -24,15 +32,9 @@ class DashboardSystemStatusSection extends StatelessWidget {
           const SizedBox(height: 37.273),
           const _SectionEyebrow(label: 'SERVIÇOS CORE'),
           const SizedBox(height: 23.296),
-          for (
-            var index = 0;
-            index < DashboardMockData.serviceStatuses.length;
-            index++
-          ) ...[
-            DashboardServiceStatusRow(
-              item: DashboardMockData.serviceStatuses[index],
-            ),
-            if (index != DashboardMockData.serviceStatuses.length - 1)
+          for (var index = 0; index < serviceStatuses.length; index++) ...[
+            DashboardServiceStatusRow(item: serviceStatuses[index]),
+            if (index != serviceStatuses.length - 1)
               const SizedBox(height: 18.637),
           ],
           const SizedBox(height: 37.273),
@@ -40,15 +42,9 @@ class DashboardSystemStatusSection extends StatelessWidget {
           const SizedBox(height: 37.273),
           const _SectionEyebrow(label: 'ÁREAS POPULARES'),
           const SizedBox(height: 23.296),
-          for (
-            var index = 0;
-            index < DashboardMockData.popularSubjects.length;
-            index++
-          ) ...[
-            DashboardPopularSubjectRow(
-              item: DashboardMockData.popularSubjects[index],
-            ),
-            if (index != DashboardMockData.popularSubjects.length - 1)
+          for (var index = 0; index < popularSubjects.length; index++) ...[
+            DashboardPopularSubjectRow(item: popularSubjects[index]),
+            if (index != popularSubjects.length - 1)
               const SizedBox(height: 13.978),
           ],
         ],

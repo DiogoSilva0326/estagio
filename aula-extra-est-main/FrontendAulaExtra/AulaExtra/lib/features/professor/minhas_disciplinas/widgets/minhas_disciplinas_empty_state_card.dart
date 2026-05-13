@@ -4,9 +4,14 @@ import 'package:aula_extra/features/professor/minhas_disciplinas/widgets/minhas_
 import 'package:flutter/material.dart';
 
 class MinhasDisciplinasEmptyStateCard extends StatelessWidget {
-  const MinhasDisciplinasEmptyStateCard({super.key, required this.onTap});
+  const MinhasDisciplinasEmptyStateCard({
+    super.key,
+    required this.onTap,
+    required this.message, 
+  });
 
   final VoidCallback onTap;
+  final String message;
 
   @override
   Widget build(BuildContext context) {
@@ -23,9 +28,9 @@ class MinhasDisciplinasEmptyStateCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Ainda não tem disciplinas configuradas.',
-            style: TextStyle(
+          Text(
+            message, 
+            style: const TextStyle(
               color: MinhasDisciplinasProfessorColors.title,
               fontSize: 22,
               fontWeight: FontWeight.w700,
@@ -33,7 +38,7 @@ class MinhasDisciplinasEmptyStateCard extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           const Text(
-            'Adicione disciplinas ao seu perfil com área e ciclo de estudos para geri-las aqui.',
+            'Adicione novas configurações ao seu perfil com área e ciclo de estudos para geri-las aqui.',
             style: TextStyle(
               color: MinhasDisciplinasProfessorColors.subtitle,
               fontSize: 16,
@@ -41,7 +46,7 @@ class MinhasDisciplinasEmptyStateCard extends StatelessWidget {
           ),
           const SizedBox(height: 20),
           MinhasDisciplinasPrimaryActionButton(
-            label: 'Adicionar disciplina',
+            label: 'Adicionar nova',
             icon: Icons.add_rounded,
             onTap: onTap,
           ),

@@ -1,47 +1,126 @@
 import 'package:flutter/material.dart';
 
 import '../../../design/theme/app_colors.dart';
+import '../../profissionais/services/backoffice_professional_review_service.dart';
 import '../models/explicador_item.dart';
 import 'review_candidatura_dialog.dart';
 
 enum _ExplicadorAction { review, ban }
 
 class ExplicadorActionsMenu extends StatelessWidget {
-  const ExplicadorActionsMenu({required this.item, super.key});
+  const ExplicadorActionsMenu({
+    required this.item,
+    super.key,
+    this.entityLabel = 'explicador',
+    this.reviewDialogEntityLabel = 'explicador',
+    this.entityTitle = 'Explicador',
+    this.onReviewUpdated,
+  });
 
   final ExplicadorItem item;
+  final String entityLabel;
+  final String reviewDialogEntityLabel;
+  final String entityTitle;
+  final VoidCallback? onReviewUpdated;
+
+  Future<bool> _confirmBan(BuildContext context) async {
+    final shouldBan = await showDialog<bool>(
+      context: context,
+      barrierColor: const Color(0x73000000),
+      builder: (dialogContext) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          title: Text('Banir $entityLabel'),
+          content: Text(
+            'Esta ação vai colocar ${item.name} como inativo e não verificado. Deseja continuar?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.danger,
+              ),
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: const Text('Banir'),
+            ),
+          ],
+        );
+      },
+    );
+
+    return shouldBan == true;
+  }
 
   @override
   Widget build(BuildContext context) {
     return PopupMenuButton<_ExplicadorAction>(
-      tooltip: 'Ações do explicador',
+      tooltip: 'Ações do $entityLabel',
       color: Colors.white,
       elevation: 10,
       position: PopupMenuPosition.under,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       padding: EdgeInsets.zero,
-      onSelected: (action) {
+      onSelected: (action) async {
         switch (action) {
           case _ExplicadorAction.review:
-            showDialog<void>(
+            final updated = await showDialog<bool>(
               context: context,
               barrierColor: const Color(0x73000000),
-              builder: (_) => ReviewCandidaturaDialog(item: item),
-            );
-          case _ExplicadorAction.ban:
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                  'A ação de banir `${item.name}` pode ser ligada a seguir.',
-                ),
+              builder: (_) => ReviewCandidaturaDialog(
+                item: item,
+                entityLabel: reviewDialogEntityLabel,
+                entityTitle: entityTitle,
               ),
             );
+            if (updated == true) {
+              onReviewUpdated?.call();
+            }
+          case _ExplicadorAction.ban:
+            final shouldBan = await _confirmBan(context);
+            if (!shouldBan) {
+              return;
+            }
+
+            try {
+              await BackofficeProfessionalReviewService().banProfessor(
+                item.idProfessor,
+              );
+              if (!context.mounted) {
+                return;
+              }
+
+              onReviewUpdated?.call();
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    '$entityTitle ${item.name} foi colocado como inativo e não verificado.',
+                  ),
+                ),
+              );
+            } catch (error) {
+              if (!context.mounted) {
+                return;
+              }
+
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    'Não foi possível banir $entityLabel ${item.name}: $error',
+                  ),
+                ),
+              );
+            }
         }
       },
-      itemBuilder: (context) => const [
+      itemBuilder: (context) => [
         PopupMenuItem<_ExplicadorAction>(
           value: _ExplicadorAction.review,
-          child: _MenuActionRow(
+          child: const _MenuActionRow(
             icon: Icons.visibility_outlined,
             label: 'Rever candidatura',
           ),
@@ -50,7 +129,7 @@ class ExplicadorActionsMenu extends StatelessWidget {
           value: _ExplicadorAction.ban,
           child: _MenuActionRow(
             icon: Icons.block_outlined,
-            label: 'Banir explicador',
+            label: 'Banir $entityLabel',
             destructive: true,
           ),
         ),

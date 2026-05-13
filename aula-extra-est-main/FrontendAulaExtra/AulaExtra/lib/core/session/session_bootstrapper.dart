@@ -33,9 +33,15 @@ class _SessionBootstrapperState extends State<SessionBootstrapper> {
         return;
       }
 
+      // O refresh() já foi corrigido para ler a preferência, 
+      // por isso aqui já deve vir a role correta (Tutor/Psicólogo).
       final session = await AuthService(tokenStorage: _tokenStorage).refresh();
+      
       if (!mounted) return;
+      
+      // Garante que aplicamos a role da sessão ao provider
       AuthService.applySessionToProvider(context.read<UserProvider>(), session);
+      
     } catch (_) {
       await SessionManager.instance.handleExpiredSession();
     } finally {

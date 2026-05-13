@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../../../design/widgets/backoffice_scaffold.dart';
 import '../../../routes/app_routes.dart';
-import '../constants/newsletter_mock_data.dart';
 import '../models/newsletter_campaign.dart';
 import '../sections/newsletter_overview_section.dart';
+import '../services/backoffice_newsletter_service.dart';
 import '../widgets/newsletter_campaign_dialog.dart';
 
 class NewsletterPage extends StatefulWidget {
@@ -17,12 +17,18 @@ class NewsletterPage extends StatefulWidget {
 }
 
 class _NewsletterPageState extends State<NewsletterPage> {
-  late final List<NewsletterCampaign> _items;
+  final BackofficeNewsletterService _service = BackofficeNewsletterService();
+
+  List<NewsletterCampaign> _items = const <NewsletterCampaign>[];
+  int _subscriberCount = 0;
+  String? _warningMessage;
+  bool _loading = true;
+  bool _submitting = false;
 
   @override
   void initState() {
     super.initState();
-    _items = List<NewsletterCampaign>.from(newsletterMockCampaigns);
+    _load();
   }
 
   @override
@@ -31,34 +37,58 @@ class _NewsletterPageState extends State<NewsletterPage> {
       currentRoute: AppRoutes.newsletter,
       title: 'Newsletter',
       showTopBar: false,
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          final horizontalPadding = constraints.maxWidth < 900 ? 24.0 : 55.91;
-          final verticalPadding = constraints.maxWidth < 900 ? 24.0 : 55.91;
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : LayoutBuilder(
+              builder: (context, constraints) {
+                final horizontalPadding = constraints.maxWidth < 900 ? 24.0 : 55.91;
+                final verticalPadding = constraints.maxWidth < 900 ? 24.0 : 55.91;
 
-          return Align(
-            alignment: Alignment.topCenter,
-            child: SingleChildScrollView(
-              padding: EdgeInsets.fromLTRB(
-                horizontalPadding,
-                verticalPadding,
-                horizontalPadding,
-                verticalPadding,
-              ),
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(
-                  maxWidth: NewsletterPage._contentMaxWidth,
-                ),
-                child: NewsletterOverviewSection(
-                  items: _items,
-                  onCreate: _openCreateDialog,
-                ),
-              ),
+                return Align(
+                  alignment: Alignment.topCenter,
+                  child: SingleChildScrollView(
+                    padding: EdgeInsets.fromLTRB(
+                      horizontalPadding,
+                      verticalPadding,
+                      horizontalPadding,
+                      verticalPadding,
+                    ),
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(
+                        maxWidth: NewsletterPage._contentMaxWidth,
+                      ),
+                      child: NewsletterOverviewSection(
+                        items: _items,
+                        subscriberCount: _subscriberCount,
+                        warningMessage: _warningMessage,
+                        creating: _submitting,
+                        onCreate: _submitting ? null : _openCreateDialog,
+                        onOpenCampaign: _openCampaignDetails,
+                      ),
+                    ),
+                  ),
+                );
+              },
             ),
-          );
-        },
-      ),
     );
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _loading = true;
+    });
+
+    final data = await _service.fetch();
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _items = data.items;
+      _subscriberCount = data.subscriberCount;
+      _warningMessage = data.warningMessage;
+      _loading = false;
+    });
   }
 
   Future<void> _openCreateDialog() async {
@@ -72,53 +102,136 @@ class _NewsletterPageState extends State<NewsletterPage> {
       return;
     }
 
-    final isDraft = result.action == NewsletterCampaignDialogAction.draft;
-    final newItem = NewsletterCampaign(
+    await _saveCampaignFromDialog(result);
+  }
+
+  Future<void> _openCampaignDetails(NewsletterCampaign item) async {
+    try {
+      final campaign = await _service.fetchCampaignById(item.id);
+      if (!mounted) {
+        return;
+      }
+
+      if (campaign.status == NewsletterCampaignStatus.draft) {
+        final result = await showDialog<NewsletterCampaignDialogResult>(
+          context: context,
+          barrierColor: const Color(0x73000000),
+          builder: (_) => NewsletterCampaignDialog(
+            initialInternalName: campaign.title,
+            initialEmailSubject: campaign.subject,
+            initialAudience: campaign.audience,
+            initialEmailBody: campaign.htmlBody ?? campaign.plainBody ?? '',
+            title: 'Editar Rascunho',
+            subtitle:
+                'Atualize o rascunho e, se quiser, envie-o diretamente daqui.',
+          ),
+        );
+
+        if (result == null) {
+          return;
+        }
+
+        await _saveCampaignFromDialog(result, campaignId: campaign.id);
+        return;
+      }
+
+      await showDialog<void>(
+        context: context,
+        barrierColor: const Color(0x73000000),
+        builder: (_) => NewsletterCampaignDialog(
+          initialInternalName: campaign.title,
+          initialEmailSubject: campaign.subject,
+          initialAudience: campaign.audience,
+          initialEmailBody: campaign.htmlBody ?? campaign.plainBody ?? '',
+          readOnly: true,
+          title: 'Visualizar Campanha',
+          subtitle:
+              'Campanha já enviada. Pode consultar o conteúdo e os detalhes do envio.',
+        ),
+      );
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(content: Text('Não foi possível abrir a campanha: $error')),
+        );
+    }
+  }
+
+  Future<void> _saveCampaignFromDialog(
+    NewsletterCampaignDialogResult result, {
+    String? campaignId,
+  }) async {
+    final draft = NewsletterCampaignDraft(
       title: result.internalName,
       subject: result.emailSubject,
-      audience: result.audience,
-      scheduledFor: isDraft ? 'Rascunho' : 'Hoje · agora',
-      status: isDraft
-          ? NewsletterCampaignStatus.draft
-          : NewsletterCampaignStatus.sent,
-      sentCount: _estimateSentCount(result.audience),
-      openRate: isDraft ? 0 : 0,
-      clickRate: isDraft ? 0 : 0,
+      segment: _segmentToApiValue(result.audience),
+      htmlBody: result.emailBody,
     );
 
     setState(() {
-      _items.insert(0, newItem);
+      _submitting = true;
     });
 
-    if (!mounted) {
-      return;
-    }
+    try {
+      final saved = campaignId == null
+          ? await _service.createCampaign(draft)
+          : await _service.updateCampaign(campaignId, draft);
 
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(
-            isDraft
-                ? 'Newsletter guardada em rascunho.'
-                : 'Campanha enviada e adicionada à lista.',
-          ),
-        ),
-      );
+      var successMessage = campaignId == null
+          ? 'Newsletter guardada em rascunho.'
+          : 'Rascunho atualizado com sucesso.';
+      if (result.action == NewsletterCampaignDialogAction.send) {
+        final sendResult = await _service.sendCampaign(saved.id);
+        successMessage =
+            'Campanha enviada: ${sendResult['sent'] ?? 0} enviados, ${sendResult['failed'] ?? 0} falhas.';
+      }
+
+      await _load();
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text(successMessage)));
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(content: Text('Não foi possível guardar a campanha: $error')),
+        );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _submitting = false;
+        });
+      }
+    }
   }
 
-  int _estimateSentCount(String audience) {
+  String _segmentToApiValue(String audience) {
     switch (audience) {
+      case 'Todos os subscritores':
+        return 'all_subscribed';
       case 'Novos registos':
-        return 1240;
+        return 'new_registrations';
       case 'Alunos inativos há 30 dias':
-        return 860;
+        return 'inactive_students_30d';
       case 'Explicadores ativos':
-        return 420;
+        return 'active_professors';
       case 'Leads do formulário principal':
-        return 310;
+        return 'main_form_leads';
       default:
-        return 0;
+        return 'all_subscribed';
     }
   }
 }

@@ -24,6 +24,7 @@ namespace ConfidantPostgreSQL.Modules.Payments.Repository
         Task<IEnumerable<Invoice>> GetInvoicesAllAsync();
         Task<Invoice?> GetInvoiceByIdAsync(Guid idInvoice);
         Task<IEnumerable<Invoice>> GetInvoicesByUserIdAsync(Guid idUser);
+        Task<IEnumerable<AdminPaymentOverviewItemDto>> GetAdminPaymentOverviewAsync();
         Task<IEnumerable<StudentPaymentHistoryItemDto>> GetStudentPaymentHistoryAsync(Guid idUser);
         Task<IEnumerable<ProfessorPaymentHistoryItemDto>> GetProfessorPaymentHistoryAsync(Guid idUser);
         Task<ProfessorPaymentDetailsDto?> GetProfessorPaymentDetailsAsync(Guid idUser, Guid idReservationPayment);

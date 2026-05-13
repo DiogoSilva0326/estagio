@@ -5,6 +5,9 @@ import 'package:aula_extra/features/professor/meus_alunos/widgets/disciplina_bad
 import 'package:aula_extra/features/professor/meus_alunos/widgets/progresso_bar.dart';
 import 'package:aula_extra/routes/routes.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:aula_extra/core/providers/user_provider.dart';
+import 'package:aula_extra/core/config/teaching_roles_config.dart';
 
 class AlunoCard extends StatefulWidget {
   const AlunoCard({super.key, required this.data, this.onComplaintTap});
@@ -19,20 +22,19 @@ class AlunoCard extends StatefulWidget {
 class _AlunoCardState extends State<AlunoCard> {
   bool _showAllSubjects = false;
 
-  Color subjectColor(String subject) {
-    final lower = subject.toLowerCase();
-    if (lower.contains('mat') || lower.contains('fís')) return Colors.blue;
-    if (lower.contains('ing') || lower.contains('port')) return Colors.red;
-    return Colors.orange;
-  }
-
   @override
   Widget build(BuildContext context) {
+    final userProvider = Provider.of<UserProvider>(context);
+    final config = TeachingRoleConfig.fromRole(userProvider.role);
+
     final headline = Theme.of(context).textTheme.titleMedium;
     final body = Theme.of(context).textTheme.bodySmall;
-    final orange = MeusAlunosProfessorColors.orange;
-    final blue = MeusAlunosProfessorColors.blue;
-    final green = MeusAlunosProfessorColors.green;
+
+    final primaryColor = config.primaryColor;
+    final primaryLight = config.primaryLight; 
+    final primaryDark = config.primaryDark;
+    final borderColor = config.borderColor;
+    
     final data = widget.data;
     final progressPercent = (data.progress * 100).round().clamp(0, 100);
     final studentDisplayName = data.fullName;
@@ -64,9 +66,9 @@ class _AlunoCardState extends State<AlunoCard> {
           decoration: ShapeDecoration(
             color: Colors.white,
             shape: RoundedRectangleBorder(
-              side: const BorderSide(
+              side: BorderSide(
                 width: MeusAlunosProfessorLayout.cardBorderWidth,
-                color: MeusAlunosProfessorColors.cardBorder,
+                color: borderColor, 
               ),
               borderRadius: BorderRadius.circular(
                 MeusAlunosProfessorLayout.cardRadius,
@@ -197,7 +199,9 @@ class _AlunoCardState extends State<AlunoCard> {
                                             in visibleRows[index])
                                           DisciplinaBadge(
                                             label: subject,
-                                            color: subjectColor(subject),
+                                            color: primaryColor, 
+                                            backgroundColor: primaryLight, 
+                                            textColor: primaryDark,        
                                           ),
                                       ],
                                     ),
@@ -223,15 +227,15 @@ class _AlunoCardState extends State<AlunoCard> {
                                           _showAllSubjects
                                               ? Icons.keyboard_arrow_up_rounded
                                               : Icons
-                                                    .keyboard_arrow_down_rounded,
-                                          color: orange,
+                                                  .keyboard_arrow_down_rounded,
+                                          color: primaryColor, 
                                           size: 18,
                                         ),
                                         const SizedBox(width: 4),
                                         Text(
                                           _showAllSubjects
                                               ? 'Mostrar menos'
-                                              : '+$hiddenCount disciplinas',
+                                              : '+$hiddenCount itens',
                                           style: const TextStyle(
                                             color: Color(0xFF667085),
                                             fontSize: 13,
@@ -247,6 +251,24 @@ class _AlunoCardState extends State<AlunoCard> {
                           ),
                         ),
                       ),
+                      if (widget.onComplaintTap != null)
+                        PopupMenuButton<String>(
+                          icon: const Icon(Icons.more_vert_rounded, color: Color(0xFF9CA3AF)),
+                          onSelected: (value) {
+                            if (value == 'report') {
+                              widget.onComplaintTap!();
+                            }
+                          },
+                          itemBuilder: (context) => [
+                            const PopupMenuItem(
+                              value: 'report',
+                              child: Text(
+                                'Submeter reclamação',
+                                style: TextStyle(color: MeusAlunosProfessorColors.danger),
+                              ),
+                            ),
+                          ],
+                        ),
                     ],
                   ),
                   const SizedBox(height: 19.70),
@@ -256,7 +278,7 @@ class _AlunoCardState extends State<AlunoCard> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Última aula:',
+                          config.alunoCard.lastSessionLabel,
                           strutStyle: const StrutStyle(
                             fontSize:
                                 MeusAlunosProfessorLayout.lastLessonFontSize,
@@ -331,7 +353,7 @@ class _AlunoCardState extends State<AlunoCard> {
                           ),
                         ),
                         const SizedBox(height: 9.85),
-                        ProgressoBar(value: data.progress, color: orange),
+                        ProgressoBar(value: data.progress, color: primaryColor), 
                       ],
                     ),
                   ),
@@ -346,33 +368,26 @@ class _AlunoCardState extends State<AlunoCard> {
                           Expanded(
                             child: SizedBox(
                               height: 39.39,
-                              child: OutlinedButton.icon(
+                              child: TextButton.icon(
                                 onPressed: () {},
-                                style: OutlinedButton.styleFrom(
+                                style: TextButton.styleFrom(
                                   padding: EdgeInsets.zero,
-                                  foregroundColor: orange,
-                                  side: const BorderSide(
-                                    width: MeusAlunosProfessorLayout
-                                        .actionBorderWidth,
-                                    color: MeusAlunosProfessorColors.orange,
-                                  ),
+                                  backgroundColor: primaryLight, 
+                                  foregroundColor: primaryDark, // Garante bom contraste no texto do botão
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(
-                                      MeusAlunosProfessorLayout
-                                          .actionButtonRadius,
+                                      MeusAlunosProfessorLayout.actionButtonRadius,
                                     ),
                                   ),
                                   textStyle: const TextStyle(
                                     fontSize: 17.23,
-                                    fontWeight: FontWeight.w500,
+                                    fontWeight: FontWeight.w600,
                                     height: 1.43,
                                   ),
                                 ),
                                 icon: Icon(
                                   Icons.person_outline,
-                                  size:
-                                      MeusAlunosProfessorLayout.actionIconSize,
-                                  color: orange,
+                                  size: MeusAlunosProfessorLayout.actionIconSize,
                                 ),
                                 label: const Text('Ver Perfil'),
                               ),
@@ -381,8 +396,8 @@ class _AlunoCardState extends State<AlunoCard> {
                           const SizedBox(width: 9.85),
                           _SquareActionButton(
                             icon: Icons.chat_bubble_outline,
-                            borderColor: blue,
-                            iconColor: blue,
+                            iconColor: primaryColor, // Ícones mantêm a cor vibrante
+                            backgroundColor: primaryLight,
                             onTap: () {
                               Navigator.pushNamed(
                                 context,
@@ -397,42 +412,14 @@ class _AlunoCardState extends State<AlunoCard> {
                           const SizedBox(width: 9.85),
                           _SquareActionButton(
                             icon: Icons.description_outlined,
-                            borderColor: green,
-                            iconColor: green,
+                            iconColor: primaryColor,
+                            backgroundColor: primaryLight,
                             onTap: () {},
                           ),
                         ],
                       ),
                     ),
                   ),
-                  if (widget.onComplaintTap != null) ...[
-                    const SizedBox(height: 10),
-                    SizedBox(
-                      width: double.infinity,
-                      height: 39.39,
-                      child: OutlinedButton.icon(
-                        onPressed: widget.onComplaintTap,
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: const Color(0xFFB42318),
-                          side: const BorderSide(
-                            color: Color(0xFFF15C64),
-                            width: MeusAlunosProfessorLayout.actionBorderWidth,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(
-                              MeusAlunosProfessorLayout.actionButtonRadius,
-                            ),
-                          ),
-                          textStyle: const TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        icon: const Icon(Icons.report_gmailerrorred_rounded),
-                        label: const Text('Submeter reclamação'),
-                      ),
-                    ),
-                  ],
                 ],
               );
             },
@@ -496,15 +483,15 @@ class _AlunoCardState extends State<AlunoCard> {
 class _SquareActionButton extends StatelessWidget {
   const _SquareActionButton({
     required this.icon,
-    required this.borderColor,
     required this.iconColor,
+    required this.backgroundColor,
     required this.onTap,
   });
 
   final IconData icon;
-  final Color borderColor;
   final Color iconColor;
   final VoidCallback onTap;
+  final Color backgroundColor;
 
   @override
   Widget build(BuildContext context) {
@@ -518,11 +505,7 @@ class _SquareActionButton extends StatelessWidget {
           borderRadius: BorderRadius.circular(
             MeusAlunosProfessorLayout.actionButtonRadius,
           ),
-          border: Border.all(
-            color: borderColor,
-            width: MeusAlunosProfessorLayout.actionBorderWidth,
-          ),
-          color: Colors.white,
+          color: backgroundColor, 
         ),
         alignment: Alignment.center,
         child: Icon(
