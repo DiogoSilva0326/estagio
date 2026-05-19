@@ -6,6 +6,10 @@ class ContactUserSummaryDto {
     this.username,
     this.displayName,
     this.profileImageUrl,
+    this.lastMessage,
+    this.lastMessageAt,
+    this.channelName,
+    this.conversationType,
   });
 
   final String contactId;
@@ -14,6 +18,10 @@ class ContactUserSummaryDto {
   final String? username;
   final String? displayName;
   final String? profileImageUrl;
+  final String? lastMessage;
+  final DateTime? lastMessageAt;
+  final String? channelName;
+  final String? conversationType;
 
   static String? _firstNonEmptyString(Iterable<dynamic> values) {
     for (final value in values) {
@@ -29,6 +37,35 @@ class ContactUserSummaryDto {
     return value?.toString() ?? '';
   }
 
+  static DateTime? _asDateTime(dynamic value) {
+    final raw = value?.toString().trim();
+    if (raw == null || raw.isEmpty) {
+      return null;
+    }
+
+    try {
+      final parsed = DateTime.parse(raw);
+      final hasExplicitOffset = raw.endsWith('Z') ||
+          RegExp(r'[+-]\d{2}:\d{2}$').hasMatch(raw);
+      if (hasExplicitOffset) {
+        return parsed;
+      }
+
+      return DateTime.utc(
+        parsed.year,
+        parsed.month,
+        parsed.day,
+        parsed.hour,
+        parsed.minute,
+        parsed.second,
+        parsed.millisecond,
+        parsed.microsecond,
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
   factory ContactUserSummaryDto.fromJson(Map<String, dynamic> json) {
     return ContactUserSummaryDto(
       contactId: _asString(json['contactId']),
@@ -42,6 +79,21 @@ class ContactUserSummaryDto {
         json['photo'],
         json['avatarUrl'],
         json['imageUrl'],
+      ]),
+      lastMessage: _firstNonEmptyString([
+        json['lastMessage'],
+        json['last_message'],
+      ]),
+      lastMessageAt: _asDateTime(
+        json['lastMessageAt'] ?? json['last_message_at'],
+      ),
+      channelName: _firstNonEmptyString([
+        json['channelName'],
+        json['channel_name'],
+      ]),
+      conversationType: _firstNonEmptyString([
+        json['conversationType'],
+        json['conversation_type'],
       ]),
     );
   }

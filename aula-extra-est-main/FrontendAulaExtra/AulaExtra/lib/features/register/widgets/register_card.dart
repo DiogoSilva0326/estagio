@@ -55,6 +55,21 @@ class _RegisterCardState extends State<RegisterCard> {
     return true;
   }
 
+  String _resolveTargetRoute(Role role) {
+    if (role == Role.student) return Routes.areasAluno;
+    if (role == Role.teacher || role == Role.tutor || role == Role.psychologist) {
+      return Routes.professorMeusAlunos;
+    }
+    return Routes.home;
+  }
+
+  void _showProviderNotAvailable(String provider) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Registo com $provider ainda não está disponível.')),
+    );
+  }
+
   Future<void> _handleRegister() async {
     if (!_canSubmit) return;
 
@@ -75,14 +90,33 @@ class _RegisterCardState extends State<RegisterCard> {
 
       AuthService.applySessionToProvider(user, session);
 
-      final targetRoute = session.appRole == Role.teacher
-          ? Routes.professorMeusAlunos
-          : session.appRole == Role.student
-          ? Routes.areasAluno
-          : Routes.home;
+        final targetRoute = _resolveTargetRoute(session.appRole);
 
       if (!mounted) return;
       navigator.pushNamedAndRemoveUntil(targetRoute, (r) => false);
+      widget.onSubmit?.call();
+    } catch (e) {
+      if (!mounted) return;
+      messenger.showSnackBar(SnackBar(content: Text(e.toString())));
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
+    }
+  }
+
+  Future<void> _handleGoogleRegister() async {
+    if (_isSubmitting) return;
+
+    final user = context.read<UserProvider>();
+    final navigator = Navigator.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+
+    setState(() => _isSubmitting = true);
+    try {
+      final session = await AuthService().loginWithGoogle();
+      AuthService.applySessionToProvider(user, session);
+
+      if (!mounted) return;
+      navigator.pushNamedAndRemoveUntil(_resolveTargetRoute(session.appRole), (r) => false);
       widget.onSubmit?.call();
     } catch (e) {
       if (!mounted) return;
@@ -213,28 +247,31 @@ class _RegisterCardState extends State<RegisterCard> {
                   ),
                 ),
                 const SizedBox(height: 20.063),
-                const SocialRegisterButton(
+                SocialRegisterButton(
                   text: 'Registar com Google',
                   iconAsset: RegisterAssets.google,
                   backgroundColor: Colors.white,
                   borderColor: RegisterColors.stroke,
                   textColor: Color(0xFF364153),
+                  onTap: _handleGoogleRegister,
                 ),
                 const SizedBox(height: 10.031),
-                const SocialRegisterButton(
+                SocialRegisterButton(
                   text: 'Registar com Facebook',
                   iconAsset: RegisterAssets.facebook,
                   backgroundColor: Color(0xFF1877F2),
                   borderColor: Colors.transparent,
                   textColor: Colors.white,
+                  onTap: () => _showProviderNotAvailable('Facebook'),
                 ),
                 const SizedBox(height: 10.031),
-                const SocialRegisterButton(
+                SocialRegisterButton(
                   text: 'Registar com Apple',
                   iconAsset: RegisterAssets.apple,
                   backgroundColor: Colors.black,
                   borderColor: Colors.transparent,
                   textColor: Colors.white,
+                  onTap: () => _showProviderNotAvailable('Apple'),
                 ),
                 const SizedBox(height: 20.063),
                 const RegisterDividerWithLabel(),

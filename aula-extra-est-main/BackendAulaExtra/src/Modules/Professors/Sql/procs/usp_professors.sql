@@ -51,7 +51,8 @@ LANGUAGE sql
 AS $$
     INSERT INTO public.professors (
         id_user, current_school, years_experience, photo, biography, presentation_video_url,
-        vat, iban, iban_document_url, is_verified_iban, is_active, is_verified, is_rejected, created_at, updated_at
+        vat, iban, iban_document_url,
+        is_verified_iban, is_active, is_verified, is_rejected, created_at, updated_at
     )
     VALUES (
         p_id_user, p_current_school, p_years_experience, p_photo, p_biography, p_presentation_video_url,

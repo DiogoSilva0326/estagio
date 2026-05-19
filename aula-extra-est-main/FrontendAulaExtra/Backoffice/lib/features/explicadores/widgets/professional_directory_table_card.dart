@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
 import '../../../design/theme/app_colors.dart';
@@ -63,9 +64,8 @@ class ProfessionalDirectoryTableCard extends StatelessWidget {
               horizontal: 37.273,
               vertical: 23.296,
             ),
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              physics: const BouncingScrollPhysics(),
+            child: _HorizontalScrollRegion(
+              physics: const ClampingScrollPhysics(),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -85,8 +85,8 @@ class ProfessionalDirectoryTableCard extends StatelessWidget {
             ),
           ),
           Container(height: 1.165, color: AppColors.borderSoft),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
+          _HorizontalScrollRegion(
+            physics: const ClampingScrollPhysics(),
             child: ConstrainedBox(
               constraints: BoxConstraints(
                 minWidth: showVerifiedColumn ? 1110 : 960,
@@ -145,6 +145,70 @@ class _DirectoryTableHeader extends StatelessWidget {
           if (showVerifiedColumn) const _HeaderCell('VERIFICADO', 150),
           const SizedBox(width: 44),
         ],
+      ),
+    );
+  }
+}
+
+class _HorizontalScrollRegion extends StatefulWidget {
+  const _HorizontalScrollRegion({
+    required this.child,
+    required this.physics,
+  });
+
+  final Widget child;
+  final ScrollPhysics physics;
+
+  @override
+  State<_HorizontalScrollRegion> createState() =>
+      _HorizontalScrollRegionState();
+}
+
+class _HorizontalScrollRegionState extends State<_HorizontalScrollRegion> {
+  late final ScrollController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = ScrollController();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _handlePointerSignal(PointerSignalEvent event) {
+    if (event is! PointerScrollEvent || !_controller.hasClients) {
+      return;
+    }
+
+    final delta = event.scrollDelta.dx != 0 ? event.scrollDelta.dx : event.scrollDelta.dy;
+    if (delta == 0) {
+      return;
+    }
+
+    final position = _controller.position;
+    final targetOffset = (position.pixels + delta).clamp(
+      position.minScrollExtent,
+      position.maxScrollExtent,
+    );
+
+    if (targetOffset != position.pixels) {
+      _controller.jumpTo(targetOffset);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Listener(
+      onPointerSignal: _handlePointerSignal,
+      child: SingleChildScrollView(
+        controller: _controller,
+        scrollDirection: Axis.horizontal,
+        physics: widget.physics,
+        child: widget.child,
       ),
     );
   }

@@ -14,6 +14,9 @@ class ExplicadoresMobileFiltersSheet extends StatefulWidget {
     required this.levelOptions,
     required this.disciplinaOptions,
     required this.onApply,
+    required this.showNivelEnsino,
+    required this.showDisciplina,
+    required this.disciplinaLabel,
   });
 
   final double? initialMaxPrice;
@@ -31,8 +34,10 @@ class ExplicadoresMobileFiltersSheet extends StatefulWidget {
     double? maxPrice,
     double? minRating,
     String? priceText,
-  })
-  onApply;
+  }) onApply;
+  final bool showNivelEnsino;
+  final bool showDisciplina;
+  final String disciplinaLabel;
 
   @override
   State<ExplicadoresMobileFiltersSheet> createState() =>
@@ -190,36 +195,38 @@ class _ExplicadoresMobileFiltersSheetState
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _MobileFilterSection(
-                      title: 'Disciplina',
-                      child: _ChoiceWrap(
-                        options: widget.disciplinaOptions,
-                        selectedId: _selectedDisciplinaId,
-                        onChanged: (id) {
-                          setState(() {
-                            _selectedDisciplinaId = _selectedDisciplinaId == id
-                                ? null
-                                : id;
-                          });
-                        },
+                    if (widget.showDisciplina) ...[
+                      _MobileFilterSection(
+                        title: widget.disciplinaLabel,
+                        child: _ChoiceWrap(
+                          options: widget.disciplinaOptions,
+                          selectedId: _selectedDisciplinaId,
+                          onChanged: (id) {
+                            setState(() {
+                              _selectedDisciplinaId =
+                                  _selectedDisciplinaId == id ? null : id;
+                            });
+                          },
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 20),
-                    _MobileFilterSection(
-                      title: 'Nível de Ensino',
-                      child: _ChoiceWrap(
-                        options: widget.levelOptions,
-                        selectedId: _selectedLevelId,
-                        onChanged: (id) {
-                          setState(() {
-                            _selectedLevelId = _selectedLevelId == id
-                                ? null
-                                : id;
-                          });
-                        },
+                      const SizedBox(height: 20),
+                    ],
+                    if (widget.showNivelEnsino) ...[
+                      _MobileFilterSection(
+                        title: 'Nível de Ensino',
+                        child: _ChoiceWrap(
+                          options: widget.levelOptions,
+                          selectedId: _selectedLevelId,
+                          onChanged: (id) {
+                            setState(() {
+                              _selectedLevelId =
+                                  _selectedLevelId == id ? null : id;
+                            });
+                          },
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 20),
+                      const SizedBox(height: 20),
+                    ],
                     _MobileFilterSection(
                       title: 'Disponibilidade',
                       child: Wrap(
@@ -309,8 +316,8 @@ class _ExplicadoresMobileFiltersSheetState
                                     controller: _priceController,
                                     keyboardType:
                                         const TextInputType.numberWithOptions(
-                                          decimal: true,
-                                        ),
+                                      decimal: true,
+                                    ),
                                     onChanged: _onPriceChanged,
                                     decoration: const InputDecoration(
                                       border: InputBorder.none,
@@ -349,9 +356,8 @@ class _ExplicadoresMobileFiltersSheetState
                               onChanged: (value) {
                                 setState(() {
                                   _maxPrice = value;
-                                  _priceController.text = value
-                                      .round()
-                                      .toString();
+                                  _priceController.text =
+                                      value.round().toString();
                                 });
                               },
                             ),

@@ -1,6 +1,9 @@
 import 'package:aula_extra/core/data/tutors/dtos/my_tutor_dto.dart';
+import 'package:aula_extra/core/config/teaching_roles_config.dart';
+import 'package:aula_extra/core/providers/user_provider.dart' show Role;
 import 'package:aula_extra/features/aluno/meus_profissionais/constants/meus_explicadores_mobile_layout.dart';
 import 'package:aula_extra/features/aluno/meus_profissionais/widgets/meus_explicadores_mobile_tutor_card.dart';
+import 'package:aula_extra/routes/routes.dart'; // <-- IMPORTANTE: Adicionado para aceder às rotas
 import 'package:flutter/material.dart';
 
 class MeusProfissionaisMobileContentSection extends StatelessWidget {
@@ -35,6 +38,17 @@ class MeusProfissionaisMobileContentSection extends StatelessWidget {
            n.contains('orientação') || n.contains('tutor') || n.contains('mentoria');
   }
 
+  TeachingRoleConfig _resolveRoleConfig() {
+    final normalizedTitle = title.trim().toLowerCase();
+    if (normalizedTitle.contains('psic')) {
+      return TeachingRoleConfig.fromRole(Role.psychologist);
+    }
+    if (normalizedTitle.contains('tutor')) {
+      return TeachingRoleConfig.fromRole(Role.tutor);
+    }
+    return TeachingRoleConfig.fromRole(Role.teacher);
+  }
+
   final bool loading;
   final String? error;
   final List<MyTutorDto> tutors;
@@ -46,8 +60,31 @@ class MeusProfissionaisMobileContentSection extends StatelessWidget {
   final void Function(MyTutorDto tutor) onScheduleTap;
   final VoidCallback onFindMoreTap;
 
+  // Cria as abas de navegação (Chips)
+  Widget _buildTab(BuildContext context, String label, String route, bool isSelected) {
+    return ChoiceChip(
+      label: Text(label),
+      selected: isSelected,
+      onSelected: (_) {
+        if (!isSelected) {
+          Navigator.of(context).pushReplacementNamed(route);
+        }
+      },
+      selectedColor: const Color(0xFFFFF7ED),
+      side: BorderSide(
+        color: isSelected ? const Color(0xFFFC9039) : const Color(0xFFD1D5DC),
+      ),
+      labelStyle: TextStyle(
+        color: isSelected ? const Color(0xFFFC9039) : const Color(0xFF6B7280),
+        fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final roleConfig = _resolveRoleConfig();
+
     return Container(
       color: MeusExplicadoresMobileLayout.pageBackground,
       padding: const EdgeInsets.fromLTRB(
@@ -78,7 +115,22 @@ class MeusProfissionaisMobileContentSection extends StatelessWidget {
               color: MeusExplicadoresMobileLayout.textSecondary,
             ),
           ),
+          const SizedBox(height: 24),
+          
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                _buildTab(context, 'Explicadores', Routes.meusExplicadores, title == 'Meus Apoios'),
+                const SizedBox(width: 8),
+                _buildTab(context, 'Tutores', Routes.meusTutores, title == 'Meus Tutores'),
+                const SizedBox(width: 8),
+                _buildTab(context, 'Psicólogos', Routes.meusPsicologos, title == 'Meus Psicólogos'),
+              ],
+            ),
+          ),
           const SizedBox(height: MeusExplicadoresMobileLayout.sectionSpacing),
+
           if (loading)
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 24),
@@ -140,12 +192,11 @@ class MeusProfissionaisMobileContentSection extends StatelessWidget {
 
                   return MeusExplicadoresMobileTutorCard(
                     tutor: tutor,
+                    roleConfig: roleConfig,
                     primarySubject: subject,
                     subjects: cardSubjects,
                     lastLessonDateText: formatDate(tutor.lastLessonStart),
-                    
                     singularTerm: _isSessao(title) ? 'Sessão' : 'Aula', 
-                    
                     onViewProfileTap: () => onViewProfileTap(tutor),
                     onChatTap: () => onChatTap(tutor),
                     onComplaintTap: () => onComplaintTap(tutor),
@@ -179,7 +230,7 @@ class MeusProfissionaisMobileContentSection extends StatelessWidget {
                     ),
                   ),
                   child: Text(
-                    findMoreLabel, // DINÂMICO
+                    findMoreLabel,
                     style: const TextStyle(
                       fontSize: 16,
                       height: 1.3,

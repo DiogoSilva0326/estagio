@@ -38,23 +38,27 @@ class RecentFilesTableCard extends StatelessWidget {
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(20.9),
-        child: SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: SizedBox(
-            width: 990.662,
-            child: Column(
-              children: [
-                const _TableHeaderRow(),
-                for (int i = 0; i < files.length; i++)
-                  _FileRow(
-                    data: files[i],
-                    hasBottomBorder: i != files.length - 1,
-                    onDownloadTap: () => onDownloadTap(files[i]),
-                    onDeleteTap: () => onDeleteTap(files[i]),
-                  ),
-              ],
-            ),
-          ),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minWidth: constraints.maxWidth),
+                child: Column(
+                  children: [
+                    const _TableHeaderRow(),
+                    for (int i = 0; i < files.length; i++)
+                      _FileRow(
+                        data: files[i],
+                        hasBottomBorder: i != files.length - 1,
+                        onDownloadTap: () => onDownloadTap(files[i]),
+                        onDeleteTap: () => onDeleteTap(files[i]),
+                      ),
+                  ],
+                ),
+              ),
+            );
+          },
         ),
       ),
     );
@@ -239,12 +243,8 @@ IconData _fileIconFor(String contentType) {
 
 String _fileTypeLabel(String contentType) {
   final normalized = contentType.toLowerCase();
-  if (normalized.contains('pdf')) {
-    return 'PDF';
-  }
-  if (normalized.contains('image')) {
-    return 'Imagem';
-  }
+  if (normalized.contains('pdf')) return 'PDF';
+  if (normalized.contains('image')) return 'Imagem';
   if (normalized.contains('presentation') ||
       normalized.contains('powerpoint')) {
     return 'Apresentação';
@@ -254,12 +254,8 @@ String _fileTypeLabel(String contentType) {
       normalized.contains('csv')) {
     return 'Folha de cálculo';
   }
-  if (normalized.contains('audio')) {
-    return 'Áudio';
-  }
-  if (normalized.contains('video')) {
-    return 'Vídeo';
-  }
+  if (normalized.contains('audio')) return 'Áudio';
+  if (normalized.contains('video')) return 'Vídeo';
   if (normalized.contains('word') ||
       normalized.contains('document') ||
       normalized.contains('text')) {

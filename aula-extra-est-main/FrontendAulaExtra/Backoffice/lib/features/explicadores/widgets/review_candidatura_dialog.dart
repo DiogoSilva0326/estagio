@@ -49,10 +49,22 @@ class _ReviewCandidaturaDialogState extends State<ReviewCandidaturaDialog> {
     });
 
     try {
+      final supportType = switch (widget.item.category) {
+        'tutores' => 'tutor',
+        'psicologos' => 'psicologo',
+        _ => 'professor',
+      };
+
       if (approve) {
-        await _service.approveProfessor(widget.item.idProfessor);
+        await _service.approveProfessor(
+          widget.item.idProfessor,
+          supportType: supportType,
+        );
       } else {
-        await _service.rejectProfessor(widget.item.idProfessor);
+        await _service.rejectProfessor(
+          widget.item.idProfessor,
+          supportType: supportType,
+        );
       }
 
       if (!mounted) {
@@ -228,6 +240,7 @@ class _ReviewCandidaturaDialogState extends State<ReviewCandidaturaDialog> {
                   children: [
                     _DialogHeader(
                       details: details,
+                      item: widget.item,
                       entityLabel: widget.entityLabel,
                       entityTitle: widget.entityTitle,
                     ),
@@ -240,12 +253,13 @@ class _ReviewCandidaturaDialogState extends State<ReviewCandidaturaDialog> {
                             children: [
                               _ProfileCard(details: details, item: widget.item),
                               const SizedBox(height: 24),
-                              _InfoGrid(details: details),
+                              _InfoGrid(details: details, item: widget.item),
                               const SizedBox(height: 24),
                               const _SectionLabel(title: 'DOCUMENTOS SUBMETIDOS'),
                               const SizedBox(height: 12),
                               _CertificatesSection(
                                 details: details,
+                                item: widget.item,
                                 reviewingCertificateId: _reviewingCertificateId,
                                 onPreviewDocument: _previewDocument,
                                 onDownloadDocument: _downloadDocument,
@@ -268,6 +282,7 @@ class _ReviewCandidaturaDialogState extends State<ReviewCandidaturaDialog> {
                     _DialogFooter(
                       entityTitle: widget.entityTitle,
                       details: details,
+                      item: widget.item,
                       submitting: _submitting,
                       onApprove: () => _submitAction(approve: true),
                       onReject: () => _submitAction(approve: false),
@@ -286,24 +301,26 @@ class _ReviewCandidaturaDialogState extends State<ReviewCandidaturaDialog> {
 class _DialogHeader extends StatelessWidget {
   const _DialogHeader({
     required this.details,
+    required this.item,
     required this.entityLabel,
     required this.entityTitle,
   });
 
   final BackofficeProfessionalReviewDetails details;
+  final ExplicadorItem item;
   final String entityLabel;
   final String entityTitle;
 
   @override
   Widget build(BuildContext context) {
-    final badgeColor = details.isRejected
+    final badgeColor = item.isRejected
         ? AppColors.danger
-        : details.isApproved
+        : item.isApproved
             ? const Color(0xFF4CAF50)
             : AppColors.warning;
-    final badgeBackground = details.isRejected
+    final badgeBackground = item.isRejected
         ? const Color(0x26F04438)
-        : details.isApproved
+        : item.isApproved
             ? const Color(0x264CAF50)
             : const Color(0x26FB7B02);
 
@@ -344,7 +361,7 @@ class _DialogHeader extends StatelessWidget {
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
-                        details.moderationLabel,
+                        item.moderationLabel,
                         style: TextStyle(
                           color: badgeColor,
                           fontSize: 10,
@@ -489,15 +506,16 @@ class _ProfileLine extends StatelessWidget {
 }
 
 class _InfoGrid extends StatelessWidget {
-  const _InfoGrid({required this.details});
+  const _InfoGrid({required this.details, required this.item});
 
   final BackofficeProfessionalReviewDetails details;
+  final ExplicadorItem item;
 
   @override
   Widget build(BuildContext context) {
     final items = <_InfoTileData>[
       _InfoTileData('Estado', details.statusLabel),
-      _InfoTileData('Validação', details.moderationLabel),
+      _InfoTileData('Validação', item.moderationLabel),
       _InfoTileData(
         'Experiência',
         details.yearsExperience > 0
@@ -622,6 +640,7 @@ class _SectionLabel extends StatelessWidget {
 class _CertificatesSection extends StatelessWidget {
   const _CertificatesSection({
     required this.details,
+    required this.item,
     required this.reviewingCertificateId,
     required this.onPreviewDocument,
     required this.onDownloadDocument,
@@ -629,6 +648,7 @@ class _CertificatesSection extends StatelessWidget {
   });
 
   final BackofficeProfessionalReviewDetails details;
+  final ExplicadorItem item;
   final String? reviewingCertificateId;
   final Future<void> Function(String title, String? fileUrl) onPreviewDocument;
   final Future<void> Function(String? fileUrl) onDownloadDocument;
@@ -637,7 +657,9 @@ class _CertificatesSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (details.certificates.isEmpty && details.ibanDocumentUrl == null) {
+    if (details.certificates.isEmpty &&
+        details.ibanDocumentUrl == null &&
+        details.psychologistProofDocumentUrl == null) {
       return const _EmptyBlock(message: 'Não existem documentos submetidos.');
     }
 
@@ -659,6 +681,22 @@ class _CertificatesSection extends StatelessWidget {
             fileUrl: details.ibanDocumentUrl,
             approved: details.isVerifiedIban,
             verified: details.isVerifiedIban,
+            canReview: false,
+          ),
+          isSubmitting: false,
+          onPreviewDocument: onPreviewDocument,
+          onDownloadDocument: onDownloadDocument,
+          onReviewCertificate: onReviewCertificate,
+        ),
+      if (details.psychologistProofDocumentUrl != null)
+        _CertificateTile(
+          certificate: BackofficeProfessionalCertificate(
+            idCertificate: 'psychologist-proof-document',
+            name: 'Comprovativo de Psicólogo',
+            description: 'Documento obrigatório para aprovação de psicólogo.',
+            fileUrl: details.psychologistProofDocumentUrl,
+            approved: item.isApproved,
+            verified: item.isApproved,
             canReview: false,
           ),
           isSubmitting: false,
@@ -1142,6 +1180,7 @@ class _DialogFooter extends StatelessWidget {
   const _DialogFooter({
     required this.entityTitle,
     required this.details,
+    required this.item,
     required this.submitting,
     required this.onApprove,
     required this.onReject,
@@ -1149,13 +1188,14 @@ class _DialogFooter extends StatelessWidget {
 
   final String entityTitle;
   final BackofficeProfessionalReviewDetails details;
+  final ExplicadorItem item;
   final bool submitting;
   final VoidCallback onApprove;
   final VoidCallback onReject;
 
   @override
   Widget build(BuildContext context) {
-    final canModerate = !details.isApproved;
+    final canModerate = !item.isApproved;
 
     return Container(
       height: 99,

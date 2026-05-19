@@ -102,6 +102,8 @@ class MobileAppHeader extends StatelessWidget {
   }
 
   void _showStudentMenu(BuildContext context) {
+    final currentRoute = ModalRoute.of(context)?.settings.name;
+
     showGeneralDialog(
       context: context,
       barrierDismissible: true,
@@ -128,6 +130,7 @@ class MobileAppHeader extends StatelessWidget {
                     child: StudentMobileMenuDrawer(
                       onClose: () => Navigator.of(context).pop(),
                       onLogoutTap: () => _handleLogoutTap(context),
+                      currentRoute: currentRoute ?? '', 
                     ),
                   ),
                 ),

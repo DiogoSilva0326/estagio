@@ -6,9 +6,14 @@ import 'package:aula_extra/routes/routes.dart';
 import 'package:flutter/material.dart';
 
 class ChatMobileConversationScreen extends StatelessWidget {
-  const ChatMobileConversationScreen({super.key, required this.contact});
+  const ChatMobileConversationScreen({
+    super.key,
+    required this.contact,
+    this.initialMessage,
+  });
 
   final ContactUserSummaryDto contact;
+  final String? initialMessage;
 
   @override
   Widget build(BuildContext context) {
@@ -25,7 +30,12 @@ class ChatMobileConversationScreen extends StatelessWidget {
               context,
             ).pushNamedAndRemoveUntil(Routes.home, (route) => false),
           ),
-          Expanded(child: ChatMobileConversationSection(contact: contact)),
+          Expanded(
+            child: ChatMobileConversationSection(
+              contact: contact,
+              initialMessage: initialMessage,
+            ),
+          ),
         ],
       ),
     );

@@ -20,6 +20,18 @@ public class NewsletterSubscriber
     public bool Inactive { get; set; }
 }
 
+public class NewsletterSubscriberSummary
+{
+    public Guid Id { get; set; }
+    public string Email { get; set; } = default!;
+    public string Status { get; set; } = default!;
+    public string Locale { get; set; } = default!;
+    public string? Source { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public DateTime? ConfirmedAt { get; set; }
+    public DateTime LastUpdate { get; set; }
+}
+
 public class NewsletterCampaign
 {
     public Guid Id { get; set; }
@@ -59,6 +71,11 @@ public class SubscribeRequest
     public string Email { get; set; } = default!;
     public string? Locale { get; set; }
     public string? Source { get; set; }
+}
+
+public class NewsletterEmailRequest
+{
+    public string Email { get; set; } = default!;
 }
 
 public class UnsubscribeRequest

@@ -4,10 +4,16 @@ import 'package:aula_extra/features/professor/meus_alunos/widgets/aluno_card.dar
 import 'package:flutter/material.dart';
 
 class AlunosGrid extends StatelessWidget {
-  const AlunosGrid({super.key, required this.alunos, this.onComplaintTap});
+  const AlunosGrid({
+    super.key,
+    required this.alunos,
+    this.onComplaintTap,
+    this.onViewProfileTap,
+  });
 
   final List<ProfessorAlunoDto> alunos;
   final ValueChanged<ProfessorAlunoDto>? onComplaintTap;
+  final ValueChanged<ProfessorAlunoDto>? onViewProfileTap;
 
   @override
   Widget build(BuildContext context) {
@@ -28,6 +34,9 @@ class AlunosGrid extends StatelessWidget {
                   onComplaintTap: onComplaintTap == null
                       ? null
                       : () => onComplaintTap!(aluno),
+                  onViewProfileTap: onViewProfileTap == null
+                      ? null
+                      : () => onViewProfileTap!(aluno),
                 ),
               ),
           ],

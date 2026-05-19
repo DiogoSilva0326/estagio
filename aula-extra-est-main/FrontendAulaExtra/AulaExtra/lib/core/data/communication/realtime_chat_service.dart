@@ -100,14 +100,37 @@ class RealtimeChatMessage {
       attachment == null &&
       content.startsWith('📎 Ficheiro enviado:');
 
-  factory RealtimeChatMessage.fromJson(Map<String, dynamic> json) {
-    final tsRaw = json['timestamp']?.toString();
-    DateTime ts;
-    try {
-      ts = tsRaw != null && tsRaw.isNotEmpty ? DateTime.parse(tsRaw) : DateTime.now();
-    } catch (_) {
-      ts = DateTime.now();
+  static DateTime _parseTimestamp(String? rawValue) {
+    final raw = rawValue?.trim();
+    if (raw == null || raw.isEmpty) {
+      return DateTime.now();
     }
+
+    try {
+      final parsed = DateTime.parse(raw);
+      final hasExplicitOffset = raw.endsWith('Z') ||
+          RegExp(r'[+-]\d{2}:\d{2}$').hasMatch(raw);
+      if (hasExplicitOffset) {
+        return parsed;
+      }
+
+      return DateTime.utc(
+        parsed.year,
+        parsed.month,
+        parsed.day,
+        parsed.hour,
+        parsed.minute,
+        parsed.second,
+        parsed.millisecond,
+        parsed.microsecond,
+      );
+    } catch (_) {
+      return DateTime.now();
+    }
+  }
+
+  factory RealtimeChatMessage.fromJson(Map<String, dynamic> json) {
+    final ts = _parseTimestamp(json['timestamp']?.toString());
 
     final isReadRaw = json['isRead'];
     final isRead = isReadRaw is bool ? isReadRaw : (isReadRaw?.toString().toLowerCase() == 'true');
@@ -116,7 +139,7 @@ class RealtimeChatMessage {
     DateTime? readAt;
     if (readAtRaw != null && readAtRaw.isNotEmpty) {
       try {
-        readAt = DateTime.parse(readAtRaw);
+        readAt = _parseTimestamp(readAtRaw);
       } catch (_) {
         readAt = null;
       }
@@ -193,11 +216,25 @@ class RealtimeChatRoomJoined extends RealtimeChatEvent {
     required this.channelName,
     required this.messages,
     required this.participants,
+    required this.hasMoreHistory,
   });
 
   final String channelName;
   final List<RealtimeChatMessage> messages;
   final List<RealtimeChatParticipant> participants;
+  final bool hasMoreHistory;
+}
+
+class RealtimeChatRoomHistoryLoaded extends RealtimeChatEvent {
+  const RealtimeChatRoomHistoryLoaded({
+    required this.channelName,
+    required this.messages,
+    required this.hasMoreHistory,
+  });
+
+  final String channelName;
+  final List<RealtimeChatMessage> messages;
+  final bool hasMoreHistory;
 }
 
 class RealtimeChatParticipant {
@@ -436,6 +473,7 @@ class RealtimeChatService {
 
   void _attachHubHandlers(HubConnection hub) {
     hub.on('RoomJoined', _onRoomJoined);
+    hub.on('RoomHistoryLoaded', _onRoomHistoryLoaded);
     hub.on('MessageReceived', _onMessageReceived);
     hub.on('DirectMessageReceived', _onDirectMessageReceived);
     hub.on('UserJoined', _onUserJoined);
@@ -525,6 +563,40 @@ class RealtimeChatService {
     return channelName;
   }
 
+  Future<String> joinChannel({required String channelName}) async {
+    final u = _username;
+    final dn = _displayName;
+
+    if (u == null || dn == null) {
+      throw StateError('Chat hub not connected');
+    }
+
+    if (!isConnected) {
+      await connect(username: u, displayName: dn);
+    }
+
+    final hub = _hub;
+    if (hub == null || !isConnected) {
+      throw StateError('Chat hub not connected');
+    }
+
+    final normalizedChannelName = channelName.trim();
+    if (normalizedChannelName.isEmpty) {
+      throw ArgumentError('Channel name cannot be empty', 'channelName');
+    }
+
+    if (_joinedChannel != null &&
+        _joinedChannel!.trim().toLowerCase() !=
+            normalizedChannelName.toLowerCase()) {
+      await _safeInvoke('LeaveRoom', args: <Object>[_joinedChannel!]);
+    }
+
+    _joinedChannel = normalizedChannelName;
+    await hub.invoke('JoinRoom', args: <Object>[normalizedChannelName, u, dn]);
+
+    return normalizedChannelName;
+  }
+
   Future<void> sendMessage({required String channelName, required String content}) async {
     final trimmed = content.trim();
     if (trimmed.isEmpty) return;
@@ -566,6 +638,20 @@ class RealtimeChatService {
   Future<void> markDirectMessagesRead({required String channelName}) async {
     if (channelName.trim().isEmpty) return;
     await _safeInvoke('MarkDirectMessagesRead', args: <Object>[channelName]);
+  }
+
+  Future<void> loadOlderMessages({
+    required String channelName,
+    required DateTime before,
+    int limit = 20,
+  }) async {
+    final normalizedLimit = limit.clamp(1, 100);
+    await _ensureConnectedToChannel(channelName);
+    await _hub!.invoke('LoadOlderMessages', args: <Object>[
+      channelName,
+      before.toUtc().toIso8601String(),
+      normalizedLimit,
+    ]);
   }
 
   Future<void> _ensureConnectedToChannel(String channelName, {bool forceReconnect = false}) async {
@@ -611,15 +697,7 @@ class RealtimeChatService {
 
     final channelName = map['channelName']?.toString() ?? _joinedChannel ?? '';
 
-    final rawMessages = map['messages'];
-    final list = rawMessages is List ? rawMessages : const [];
-
-    final messages = <RealtimeChatMessage>[];
-    for (final item in list) {
-      if (item is Map) {
-        messages.add(RealtimeChatMessage.fromJson(Map<String, dynamic>.from(item)));
-      }
-    }
+    final messages = _mapRealtimeMessages(map['messages']);
 
     final rawParticipants = map['participants'];
     final plist = rawParticipants is List ? rawParticipants : const [];
@@ -635,8 +713,40 @@ class RealtimeChatService {
         channelName: channelName,
         messages: messages,
         participants: participants,
+        hasMoreHistory: map['hasMoreHistory'] == true,
       ),
     );
+  }
+
+  void _onRoomHistoryLoaded(List<Object?>? args) {
+    if (args == null || args.isEmpty) return;
+
+    final data = args.first;
+    if (data is! Map) return;
+    final map = Map<String, dynamic>.from(data);
+
+    _eventsController.add(
+      RealtimeChatRoomHistoryLoaded(
+        channelName: map['channelName']?.toString() ?? _joinedChannel ?? '',
+        messages: _mapRealtimeMessages(map['messages']),
+        hasMoreHistory: map['hasMoreHistory'] == true,
+      ),
+    );
+  }
+
+  List<RealtimeChatMessage> _mapRealtimeMessages(dynamic rawMessages) {
+    final list = rawMessages is List ? rawMessages : const [];
+
+    final messages = <RealtimeChatMessage>[];
+    for (final item in list) {
+      if (item is Map) {
+        messages.add(
+          RealtimeChatMessage.fromJson(Map<String, dynamic>.from(item)),
+        );
+      }
+    }
+
+    return messages;
   }
 
   void _onUserJoined(List<Object?>? args) {

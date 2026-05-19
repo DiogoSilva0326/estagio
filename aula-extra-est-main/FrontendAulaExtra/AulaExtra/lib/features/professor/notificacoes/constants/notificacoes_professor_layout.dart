@@ -13,7 +13,7 @@ class NotificacoesProfessorLayout {
   static const double pageRightPadding = 23.148;
 
   /// Distância do topo até ao início do conteúdo.
-  static const double pageTopPadding = 90;
+  static const double pageTopPadding = 46;
 
   /// Padding inferior da página.
   static const double pageBottomPadding = 90;

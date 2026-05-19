@@ -83,6 +83,48 @@ class AuthApi {
     final obj = jsonDecode(res.body) as Map<String, dynamic>;
     return AuthResponseDto.fromJson(obj);
   }
+
+  Future<AuthResponseDto> googleLogin({
+    required String idToken,
+  }) async {
+    final res = await http.post(
+      ApiConfig.uri('/api/Authentication/GoogleLogin'),
+      headers: const {'Content-Type': 'application/json'},
+      body: jsonEncode({'idToken': idToken}),
+    );
+
+    if (res.statusCode == 401) {
+      throw const AuthException('Token Google inválido');
+    }
+    if (res.statusCode == 409) {
+      throw const AuthException('Esta conta Google já está associada a outro utilizador');
+    }
+    if (res.statusCode < 200 || res.statusCode >= 300) {
+      throw AuthException('Falha no login Google (${res.statusCode})');
+    }
+
+    final obj = jsonDecode(res.body) as Map<String, dynamic>;
+    return AuthResponseDto.fromJson(obj);
+  }
+
+  Future<String?> googleClientId() async {
+    final res = await http.get(
+      ApiConfig.uri('/api/Authentication/GoogleClientConfig'),
+      headers: const {'Content-Type': 'application/json'},
+    );
+
+    if (res.statusCode == 404) {
+      return null;
+    }
+    if (res.statusCode < 200 || res.statusCode >= 300) {
+      throw AuthException('Falha ao obter configuração Google (${res.statusCode})');
+    }
+
+    final obj = jsonDecode(res.body) as Map<String, dynamic>;
+    final clientId = (obj['clientId'] as String?)?.trim();
+    if (clientId == null || clientId.isEmpty) return null;
+    return clientId;
+  }
 }
 
 class AuthException implements Exception {

@@ -1,40 +1,40 @@
 import 'package:aula_extra/features/aluno/arquivos/widgets/folder_card.dart';
 import 'package:flutter/material.dart';
+import 'package:aula_extra/features/aluno/arquivos/sections/arquivos_content_section.dart';
 
 class FoldersRow extends StatelessWidget {
-  const FoldersRow({super.key});
+  const FoldersRow({
+    super.key,
+    required this.folders,
+  });
+
+  final List<MobileFolderDisplayData> folders;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: const [
-        Expanded(
-          child: FolderCard(
-            color: Color(0xFF2B7FFF),
-            icon: Icons.functions_rounded,
-            title: 'Matemática - João Silva',
-            subtitle: '12 arquivos',
-          ),
-        ),
-        SizedBox(width: 22.292),
-        Expanded(
-          child: FolderCard(
-            color: Color(0xFF00C950),
-            icon: Icons.science_rounded,
-            title: 'Física - Maria Santos',
-            subtitle: '8 arquivos',
-          ),
-        ),
-        SizedBox(width: 22.292),
-        Expanded(
-          child: FolderCard(
-            color: Color(0xFFFF6900),
-            icon: Icons.language_rounded,
-            title: 'Inglês - Pedro Costa',
-            subtitle: '15 arquivos',
-          ),
-        ),
-      ],
+    if (folders.isEmpty) return const SizedBox.shrink();
+
+    return SizedBox(
+      width: double.infinity,
+      child: Row(
+        children: List.generate(folders.length, (index) {
+          final folder = folders[index];
+          
+          return Expanded(
+            child: Padding(
+              padding: EdgeInsets.only(
+                right: index < folders.length - 1 ? 24.0 : 0, 
+              ),
+              child: FolderCard(
+                color: folder.color,
+                icon: folder.icon,
+                title: folder.title,
+                subtitle: folder.subtitle,
+              ),
+            ),
+          );
+        }),
+      ),
     );
   }
 }

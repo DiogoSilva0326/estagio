@@ -3,6 +3,8 @@ class LessonClassroomEntryDto {
     required this.reservationId,
     required this.lessonId,
     required this.channelName,
+    required this.chatChannelName,
+    required this.chatDisplayName,
     required this.lessonTitle,
     required this.professorUsername,
     required this.professorDisplayName,
@@ -21,6 +23,8 @@ class LessonClassroomEntryDto {
   final String reservationId;
   final String lessonId;
   final String channelName;
+  final String chatChannelName;
+  final String chatDisplayName;
   final String lessonTitle;
   final String professorUsername;
   final String professorDisplayName;
@@ -93,6 +97,10 @@ class LessonClassroomEntryDto {
       reservationId: _readString(json, 'ReservationId', 'reservationId'),
       lessonId: _readString(json, 'LessonId', 'lessonId'),
       channelName: _readString(json, 'ChannelName', 'channelName'),
+      chatChannelName: (json['ChatChannelName'] ?? json['chatChannelName'] ?? '')
+          .toString(),
+      chatDisplayName: (json['ChatDisplayName'] ?? json['chatDisplayName'] ?? '')
+          .toString(),
       lessonTitle: _readString(json, 'LessonTitle', 'lessonTitle'),
       professorUsername: _readString(
         json,

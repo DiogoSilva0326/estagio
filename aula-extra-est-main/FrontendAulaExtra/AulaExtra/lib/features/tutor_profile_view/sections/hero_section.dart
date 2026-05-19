@@ -510,14 +510,6 @@ class _MobileHeroSection extends StatelessWidget {
                                 )
                               : const SizedBox.shrink(),
                         ),
-                        if (previewUrl != null)
-                          IgnorePointer(
-                            child: NativeIframe(
-                              src: previewUrl!,
-                              fill: true,
-                              backgroundColor: Colors.black,
-                            ),
-                          ),
                         Container(
                           decoration: BoxDecoration(
                             gradient: LinearGradient(

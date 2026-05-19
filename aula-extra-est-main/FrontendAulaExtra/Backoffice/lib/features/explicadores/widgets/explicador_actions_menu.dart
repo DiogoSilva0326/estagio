@@ -23,6 +23,17 @@ class ExplicadorActionsMenu extends StatelessWidget {
   final String entityTitle;
   final VoidCallback? onReviewUpdated;
 
+  String get _supportType {
+    switch (item.category) {
+      case 'tutores':
+        return 'tutor';
+      case 'psicologos':
+        return 'psicologo';
+      default:
+        return 'professor';
+    }
+  }
+
   Future<bool> _confirmBan(BuildContext context) async {
     final shouldBan = await showDialog<bool>(
       context: context,
@@ -89,6 +100,7 @@ class ExplicadorActionsMenu extends StatelessWidget {
             try {
               await BackofficeProfessionalReviewService().banProfessor(
                 item.idProfessor,
+                supportType: _supportType,
               );
               if (!context.mounted) {
                 return;

@@ -15,6 +15,7 @@ public interface INewsletterRepository
     Task<bool> UpdateSubscriberAsync(NewsletterSubscriber subscriber, CancellationToken cancellationToken = default);
     Task<bool> MarkBouncedAsync(string email, CancellationToken cancellationToken = default);
     Task<List<NewsletterSubscriber>> GetActiveSubscribersAsync(string? segment = null, CancellationToken cancellationToken = default);
+    Task<List<NewsletterSubscriber>> GetSubscribersAsync(int pageNumber = 1, int pageSize = 100, bool activeOnly = true, CancellationToken cancellationToken = default);
     Task<int> GetActiveSubscriberCountAsync(CancellationToken cancellationToken = default);
     Task<Guid> InsertCampaignAsync(NewsletterCampaign campaign, CancellationToken cancellationToken = default);
     Task<NewsletterCampaign?> GetCampaignByIdAsync(Guid id, CancellationToken cancellationToken = default);

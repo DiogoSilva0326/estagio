@@ -15,10 +15,13 @@ namespace ConfidantPostgreSQL.Modules.Users.Repository
         Task<IEnumerable<User>> GetAllAsync();
         Task<IEnumerable<AdminStudentDirectoryItem>> GetAdminStudentDirectoryAsync();
         Task<User?> GetByEmailAsync(string email);
+        Task<User?> GetByGoogleSubjectAsync(string googleSubject);
         Task<User?> GetByUsernameAsync(string username);
+        Task<bool> SetGoogleSubjectAsync(Guid userId, string googleSubject);
         Task UpdateRolesAsync(Guid userId, IEnumerable<int> roleIds);
         Task<IReadOnlyList<string>> GetRoleDescriptionsAsync(Guid userId);
         Task<bool> EnsureRoleAsync(Guid userId, string roleDescription);
+        Task<bool> RemoveRoleAsync(Guid userId, string roleDescription);
         Task<IReadOnlyList<UserNotificationDto>> GetNotificationsByUserIdAsync(Guid userId);
         Task<bool> MarkNotificationAsReadAsync(Guid userId, Guid notificationId);
         Task<int> MarkAllNotificationsAsReadAsync(Guid userId);

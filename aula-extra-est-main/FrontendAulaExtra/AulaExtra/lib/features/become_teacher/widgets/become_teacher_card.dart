@@ -1,5 +1,8 @@
 import 'package:aula_extra/core/providers/user_provider.dart';
 import 'package:aula_extra/core/data/auth/auth_service.dart';
+import 'package:aula_extra/core/data/session/jwt_utils.dart';
+import 'package:aula_extra/core/data/session/token_storage.dart';
+import 'package:aula_extra/core/data/professors/dtos/professor_certificate_dto.dart';
 import 'package:aula_extra/core/data/professors/professors_api.dart';
 import 'package:aula_extra/core/data/professors/professors_service.dart';
 import 'package:aula_extra/core/data/users/dtos/user_profile_dto.dart';
@@ -7,6 +10,7 @@ import 'package:aula_extra/core/data/users/users_service.dart';
 import 'package:aula_extra/features/become_teacher/assets/become_teacher_assets.dart';
 import 'package:aula_extra/features/register/constants/register_colors.dart';
 import 'package:aula_extra/routes/routes.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -48,6 +52,7 @@ class _BecomeTeacherCardState extends State<BecomeTeacherCard> {
 
   final _usersService = UsersService();
   final _professorsService = ProfessorsService();
+  final _tokenStorage = TokenStorage();
   final _fullNameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -61,9 +66,17 @@ class _BecomeTeacherCardState extends State<BecomeTeacherCard> {
   final _vatController = TextEditingController();
   final _ibanController = TextEditingController();
   final _ibanDocumentUrlController = TextEditingController();
+  final _psychologistProofDocumentUrlController = TextEditingController();
   final _videoUrlController = TextEditingController();
-  final _bioImageUrlController = TextEditingController();
   final _presentationController = TextEditingController();
+
+  bool _supportProfessor = true;
+  bool _supportTutor = false;
+  bool _supportPsychologist = false;
+  Set<String> _lockedSupportTypes = <String>{};
+  PlatformFile? _profilePhotoFile;
+  PlatformFile? _ibanDocumentFile;
+  PlatformFile? _psychologistProofFile;
 
   final List<_CertificateControllers> _certificates = [
     _CertificateControllers(),
@@ -117,13 +130,19 @@ class _BecomeTeacherCardState extends State<BecomeTeacherCard> {
       _setIfEmpty(_usernameController, account.username);
       _setIfEmpty(_mobileController, account.mobileNumber);
       _setIfEmpty(_nifController, account.nif);
-      _setIfEmpty(_bioImageUrlController, account.profileImageUrl);
     }
 
     if (!user.isLoggedIn) {
       if (mounted) setState(() {});
       return;
     }
+
+    try {
+      final token = await _tokenStorage.loadToken();
+      if (token != null && token.trim().isNotEmpty) {
+        _applyLockedSupportTypes(JwtUtils.extractRoles(token));
+      }
+    } catch (_) {}
 
     try {
       final me = await _usersService.getMe();
@@ -135,7 +154,6 @@ class _BecomeTeacherCardState extends State<BecomeTeacherCard> {
       _setIfEmpty(_usernameController, me.username);
       _setIfEmpty(_mobileController, me.mobileNumber ?? me.phoneNumber);
       _setIfEmpty(_nifController, me.nif);
-      _setIfEmpty(_bioImageUrlController, me.profileImageUrl);
       _setIfEmpty(_presentationController, me.biography);
     } catch (_) {}
 
@@ -155,8 +173,8 @@ class _BecomeTeacherCardState extends State<BecomeTeacherCard> {
       _setIfEmpty(_ibanController, professor.iban);
       _setIfEmpty(_ibanDocumentUrlController, professor.ibanDocumentUrl);
       _setIfEmpty(_videoUrlController, professor.presentationVideoUrl);
-      _setIfEmpty(_bioImageUrlController, professor.photo);
       _setIfEmpty(_presentationController, professor.biography);
+      _applyLockedSupportTypes(professor.supportTypes);
     } catch (_) {}
 
     if (mounted) setState(() {});
@@ -176,8 +194,8 @@ class _BecomeTeacherCardState extends State<BecomeTeacherCard> {
     _vatController.dispose();
     _ibanController.dispose();
     _ibanDocumentUrlController.dispose();
+    _psychologistProofDocumentUrlController.dispose();
     _videoUrlController.dispose();
-    _bioImageUrlController.dispose();
     _presentationController.dispose();
     for (final c in _certificates) {
       c.dispose();
@@ -200,6 +218,42 @@ class _BecomeTeacherCardState extends State<BecomeTeacherCard> {
     return s.contains('.') && !s.contains(' ');
   }
 
+  String _normalizeSupportType(String value) => value.trim().toLowerCase();
+
+  bool _isSupportTypeLocked(String supportType) {
+    return _lockedSupportTypes.contains(_normalizeSupportType(supportType));
+  }
+
+  void _applyLockedSupportTypes(Iterable<String> supportTypes) {
+    _lockedSupportTypes = <String>{
+      ..._lockedSupportTypes,
+      ...supportTypes
+          .map(_normalizeSupportType)
+          .where((item) => item.isNotEmpty),
+    };
+
+    if (_isSupportTypeLocked('professor')) {
+      _supportProfessor = false;
+    }
+    if (_isSupportTypeLocked('tutor')) {
+      _supportTutor = false;
+    }
+    if (_isSupportTypeLocked('psicologo')) {
+      _supportPsychologist = false;
+    }
+  }
+
+  String get _lockedSupportTypesMessage {
+    final labels = <String>[
+      if (_isSupportTypeLocked('professor')) 'Professor',
+      if (_isSupportTypeLocked('tutor')) 'Tutor',
+      if (_isSupportTypeLocked('psicologo')) 'Psicólogo',
+    ];
+
+    if (labels.isEmpty) return '';
+    return 'Já tens ou já pediste: ${labels.join(', ')}. Só podes candidatar-te aos tipos de apoio restantes.';
+  }
+
   bool get _hasAtLeastOneCertificate {
     return _certificates.any(
       (c) => c.name.text.trim().isNotEmpty || c.url.text.trim().isNotEmpty,
@@ -214,14 +268,40 @@ class _BecomeTeacherCardState extends State<BecomeTeacherCard> {
     if (_mobileController.text.trim().isEmpty) return false;
     if (_nifController.text.trim().isEmpty) return false;
     if (_presentationController.text.trim().isEmpty) return false;
+    if (_profilePhotoFile?.bytes == null || _profilePhotoFile!.bytes!.isEmpty) {
+      return false;
+    }
+    if (!_supportProfessor && !_supportTutor && !_supportPsychologist) {
+      return false;
+    }
+    if ((_supportProfessor && _isSupportTypeLocked('professor')) ||
+        (_supportTutor && _isSupportTypeLocked('tutor')) ||
+        (_supportPsychologist && _isSupportTypeLocked('psicologo'))) {
+      return false;
+    }
+
+    final psychologistProofUrl =
+      _psychologistProofDocumentUrlController.text.trim();
+    final hasPsychologistProofFile = _psychologistProofFile?.bytes != null;
+    if (_supportPsychologist &&
+      psychologistProofUrl.isEmpty &&
+      !hasPsychologistProofFile) {
+      return false;
+    }
 
     final ye = _yearsExperienceController.text.trim();
     if (ye.isNotEmpty && int.tryParse(ye) == null) return false;
 
     // Optional URLs, but if provided should look like a URL.
     if (!_looksLikeUrl(_videoUrlController.text)) return false;
-    if (!_looksLikeUrl(_bioImageUrlController.text)) return false;
-    if (!_looksLikeUrl(_ibanDocumentUrlController.text)) return false;
+    if (_ibanDocumentUrlController.text.trim().isNotEmpty &&
+        !_looksLikeUrl(_ibanDocumentUrlController.text)) {
+      return false;
+    }
+    if (psychologistProofUrl.isNotEmpty &&
+        !_looksLikeUrl(_psychologistProofDocumentUrlController.text)) {
+      return false;
+    }
     for (final c in _certificates) {
       if ((c.url.text.trim().isNotEmpty) && !_looksLikeUrl(c.url.text)) {
         return false;
@@ -244,6 +324,36 @@ class _BecomeTeacherCardState extends State<BecomeTeacherCard> {
     return true;
   }
 
+  Future<void> _pickPsychologistProofFile() async {
+    final result = await FilePicker.platform.pickFiles(withData: true);
+    if (!mounted) return;
+
+    if (result == null || result.files.isEmpty) return;
+    setState(() {
+      _psychologistProofFile = result.files.single;
+    });
+  }
+
+  Future<void> _pickProfilePhotoFile() async {
+    final result = await FilePicker.platform.pickFiles(withData: true);
+    if (!mounted) return;
+
+    if (result == null || result.files.isEmpty) return;
+    setState(() {
+      _profilePhotoFile = result.files.single;
+    });
+  }
+
+  Future<void> _pickIbanDocumentFile() async {
+    final result = await FilePicker.platform.pickFiles(withData: true);
+    if (!mounted) return;
+
+    if (result == null || result.files.isEmpty) return;
+    setState(() {
+      _ibanDocumentFile = result.files.single;
+    });
+  }
+
   Future<void> _submit() async {
     if (!_canSubmit) return;
     if (_isSubmitting) return;
@@ -256,6 +366,10 @@ class _BecomeTeacherCardState extends State<BecomeTeacherCard> {
 
     setState(() => _isSubmitting = true);
     try {
+      if (_profilePhotoFile == null || _profilePhotoFile!.bytes == null) {
+        throw Exception('A foto de perfil deve ser submetida como ficheiro.');
+      }
+
       final yearsExperienceRaw = _yearsExperienceController.text.trim();
       final yearsExperience = yearsExperienceRaw.isEmpty
           ? null
@@ -271,21 +385,147 @@ class _BecomeTeacherCardState extends State<BecomeTeacherCard> {
         );
       }
 
+      final psychologistProofUrl = _psychologistProofDocumentUrlController.text
+          .trim();
+      final hasPsychologistProofFile = _psychologistProofFile?.bytes != null;
+
+      if (_supportPsychologist &&
+          psychologistProofUrl.isNotEmpty &&
+          !hasPsychologistProofFile) {
+        certificates.add(
+          UpsertProfessorCertificateInput(
+            name: 'Comprovativo Psicólogo',
+            description: 'Documento para candidatura a psicólogo.',
+            fileUrl: psychologistProofUrl,
+          ),
+        );
+      }
+
       final service = ProfessorsService();
+      final uploadedProfile = await _usersService.uploadMyProfileImage(
+        bytes: _profilePhotoFile!.bytes!,
+        fileName: _profilePhotoFile!.name,
+      );
+
+      var ibanDocumentUrlForUpsert = _ibanDocumentUrlController.text;
+      final supportTypes = <String>[
+        if (_supportProfessor) 'professor',
+        if (_supportTutor) 'tutor',
+        if (_supportPsychologist) 'psicologo',
+      ];
       final session = await service.upsertMyProfessor(
         username: _usernameController.text,
         mobileNumber: _mobileController.text,
         nif: _nifController.text,
+        supportTypes: supportTypes,
         currentSchool: _currentSchoolController.text,
         yearsExperience: yearsExperience,
         presentationVideoUrl: _videoUrlController.text,
-        photo: _bioImageUrlController.text,
+        photo: uploadedProfile.profileImageUrl,
         biography: _presentationController.text,
         vat: _vatController.text,
         iban: _ibanController.text,
-        ibanDocumentUrl: _ibanDocumentUrlController.text,
+        ibanDocumentUrl: ibanDocumentUrlForUpsert,
         certificates: certificates.isEmpty ? null : certificates,
       );
+
+      if (_ibanDocumentFile?.bytes != null && _ibanDocumentFile!.bytes!.isNotEmpty) {
+        final existingCertificates = await service.getMyCertificates();
+        ProfessorCertificateDto? existingIbanCertificate;
+        for (final item in existingCertificates) {
+          final name = (item.name ?? '').toLowerCase();
+          final description = (item.description ?? '').toLowerCase();
+          final isIbanDoc = name.contains('iban') ||
+              description.contains('iban') ||
+              description.contains('faturação');
+          if (isIbanDoc) {
+            existingIbanCertificate = item;
+            break;
+          }
+        }
+
+        ProfessorCertificateDto ibanCertificate;
+        if (existingIbanCertificate == null) {
+          ibanCertificate = await service.createMyCertificate(
+            name: 'Documento IBAN',
+            description: 'Comprovativo IBAN para pagamentos.',
+            bytes: _ibanDocumentFile!.bytes!,
+            fileName: _ibanDocumentFile!.name,
+          );
+        } else {
+          ibanCertificate = await service.updateMyCertificate(
+            idCertificate: existingIbanCertificate.idCertificate,
+            name: 'Documento IBAN',
+            description: 'Comprovativo IBAN para pagamentos.',
+            fileUrl: existingIbanCertificate.fileUrl,
+            bytes: _ibanDocumentFile!.bytes,
+            fileName: _ibanDocumentFile!.name,
+          );
+        }
+
+        if ((ibanCertificate.fileUrl ?? '').trim().isNotEmpty) {
+          ibanDocumentUrlForUpsert = ibanCertificate.fileUrl!.trim();
+          await service.upsertMyProfessor(
+            username: _usernameController.text,
+            mobileNumber: _mobileController.text,
+            nif: _nifController.text,
+            supportTypes: supportTypes,
+            currentSchool: _currentSchoolController.text,
+            yearsExperience: yearsExperience,
+            presentationVideoUrl: _videoUrlController.text,
+            photo: uploadedProfile.profileImageUrl,
+            biography: _presentationController.text,
+            vat: _vatController.text,
+            iban: _ibanController.text,
+            ibanDocumentUrl: ibanDocumentUrlForUpsert,
+            certificates: certificates.isEmpty ? null : certificates,
+          );
+        }
+      }
+
+      if (_supportPsychologist && hasPsychologistProofFile) {
+        final selectedFile = _psychologistProofFile!;
+        final bytes = selectedFile.bytes;
+        if (bytes == null || bytes.isEmpty) {
+          throw Exception(
+            'Não foi possível ler o ficheiro do comprovativo de psicólogo.',
+          );
+        }
+
+        final existingCertificates = await service.getMyCertificates();
+        ProfessorCertificateDto? existingPsychologistCertificate;
+        for (final item in existingCertificates) {
+          final name = (item.name ?? '').toLowerCase();
+          final description = (item.description ?? '').toLowerCase();
+          final isPsychologistProof = name.contains('psicolog') ||
+              name.contains('cedula') ||
+              description.contains('psicolog') ||
+              description.contains('ordem dos psicologos') ||
+              description.contains('ordem dos psicólogos');
+          if (isPsychologistProof) {
+            existingPsychologistCertificate = item;
+            break;
+          }
+        }
+
+        if (existingPsychologistCertificate == null) {
+          await service.createMyCertificate(
+            name: 'Comprovativo Psicólogo',
+            description: 'Documento para candidatura a psicólogo.',
+            bytes: bytes,
+            fileName: selectedFile.name,
+          );
+        } else {
+          await service.updateMyCertificate(
+            idCertificate: existingPsychologistCertificate.idCertificate,
+            name: 'Comprovativo Psicólogo',
+            description: 'Documento para candidatura a psicólogo.',
+            fileUrl: existingPsychologistCertificate.fileUrl,
+            bytes: bytes,
+            fileName: selectedFile.name,
+          );
+        }
+      }
 
       AuthService.applySessionToProvider(user, session);
 
@@ -296,8 +536,8 @@ class _BecomeTeacherCardState extends State<BecomeTeacherCard> {
         SnackBar(
           content: Text(
             isTeacher
-                ? 'Perfil de professor atualizado.'
-                : 'Candidatura submetida. Aguarda aprovação do administrador.',
+                ? 'Perfil de apoio atualizado.'
+                : 'Candidatura submetida. Aguarda validação no backoffice.',
           ),
         ),
       );
@@ -543,7 +783,7 @@ class _BecomeTeacherCardState extends State<BecomeTeacherCard> {
                       child: FittedBox(
                         fit: BoxFit.scaleDown,
                         child: Text(
-                          'Tornar-se Explicador',
+                          'Tornar-se Apoio',
                           style: TextStyle(
                             fontSize: tabFontSize,
                             fontWeight: FontWeight.w700,
@@ -566,7 +806,7 @@ class _BecomeTeacherCardState extends State<BecomeTeacherCard> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Text(
-                  'Candidata-te a explicador',
+                  'Candidata-te a apoio',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: titleFontSize,
@@ -674,6 +914,97 @@ class _BecomeTeacherCardState extends State<BecomeTeacherCard> {
 
                 _sectionTitle('Dados da candidatura'),
                 const SizedBox(height: BecomeTeacherLayout.fieldGap),
+                Text(
+                  'Tipo(s) de apoio pretendido(s)',
+                  style: const TextStyle(
+                    fontSize: BecomeTeacherLayout.fieldLabelFontSize,
+                    fontWeight: FontWeight.w700,
+                    color: BecomeTeacherColors.fieldLabel,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    FilterChip(
+                      label: const Text('Professor'),
+                      selected: _supportProfessor,
+                      onSelected: _isSupportTypeLocked('professor')
+                          ? null
+                          : (value) =>
+                                setState(() => _supportProfessor = value),
+                    ),
+                    FilterChip(
+                      label: const Text('Tutor'),
+                      selected: _supportTutor,
+                      onSelected: _isSupportTypeLocked('tutor')
+                          ? null
+                          : (value) =>
+                                setState(() => _supportTutor = value),
+                    ),
+                    FilterChip(
+                      label: const Text('Psicólogo'),
+                      selected: _supportPsychologist,
+                      onSelected: _isSupportTypeLocked('psicologo')
+                          ? null
+                          : (value) =>
+                                setState(() => _supportPsychologist = value),
+                    ),
+                  ],
+                ),
+                if (_lockedSupportTypes.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    _lockedSupportTypesMessage,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: RegisterColors.textSecondary,
+                    ),
+                  ),
+                ],
+                if (_supportPsychologist) ...[
+                  const SizedBox(height: BecomeTeacherLayout.fieldGap),
+                  _labeledField(
+                    label: 'Comprovativo de Psicologia por link (opcional)',
+                    hintText: 'https://…',
+                    controller: _psychologistProofDocumentUrlController,
+                    keyboardType: TextInputType.url,
+                    prefix: const Icon(
+                      Icons.verified_outlined,
+                      size: BecomeTeacherLayout.inputIconSize,
+                      color: BecomeTeacherColors.inputIconMuted,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  OutlinedButton.icon(
+                    onPressed: _pickPsychologistProofFile,
+                    icon: const Icon(Icons.attach_file),
+                    label: Text(
+                      _psychologistProofFile == null
+                          ? 'Anexar ficheiro comprovativo'
+                          : 'Ficheiro anexado: ${_psychologistProofFile!.name}',
+                    ),
+                  ),
+                  if (_psychologistProofFile != null)
+                    TextButton(
+                      onPressed: () {
+                        setState(() {
+                          _psychologistProofFile = null;
+                        });
+                      },
+                      child: const Text('Remover ficheiro anexado'),
+                    ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Submete pelo menos uma opção: link ou ficheiro anexado. A role de psicólogo só é atribuída após aprovação no backoffice.',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: RegisterColors.textSecondary,
+                    ),
+                  ),
+                ],
+                const SizedBox(height: BecomeTeacherLayout.fieldGap),
                 _labeledField(
                   label: 'Username',
                   hintText: 'O teu username',
@@ -766,6 +1097,25 @@ class _BecomeTeacherCardState extends State<BecomeTeacherCard> {
                     color: BecomeTeacherColors.inputIconMuted,
                   ),
                 ),
+                const SizedBox(height: 10),
+                OutlinedButton.icon(
+                  onPressed: _pickIbanDocumentFile,
+                  icon: const Icon(Icons.attach_file),
+                  label: Text(
+                    _ibanDocumentFile == null
+                        ? 'Anexar ficheiro IBAN (opcional)'
+                        : 'Ficheiro IBAN anexado: ${_ibanDocumentFile!.name}',
+                  ),
+                ),
+                if (_ibanDocumentFile != null)
+                  TextButton(
+                    onPressed: () {
+                      setState(() {
+                        _ibanDocumentFile = null;
+                      });
+                    },
+                    child: const Text('Remover ficheiro IBAN anexado'),
+                  ),
                 const SizedBox(height: BecomeTeacherLayout.fieldGap),
                 _labeledField(
                   label: 'Vídeo de apresentação (link)',
@@ -779,17 +1129,33 @@ class _BecomeTeacherCardState extends State<BecomeTeacherCard> {
                   ),
                 ),
                 const SizedBox(height: BecomeTeacherLayout.fieldGap),
-                _labeledField(
-                  label: 'Imagem de biografia (link)',
-                  hintText: 'https://…',
-                  controller: _bioImageUrlController,
-                  keyboardType: TextInputType.url,
-                  prefix: const Icon(
-                    Icons.image_outlined,
-                    size: BecomeTeacherLayout.inputIconSize,
-                    color: BecomeTeacherColors.inputIconMuted,
+                Text(
+                  'Foto de perfil (ficheiro obrigatório)',
+                  style: const TextStyle(
+                    fontSize: BecomeTeacherLayout.fieldLabelFontSize,
+                    fontWeight: FontWeight.w700,
+                    color: BecomeTeacherColors.fieldLabel,
                   ),
                 ),
+                const SizedBox(height: BecomeTeacherLayout.labelFieldGap),
+                OutlinedButton.icon(
+                  onPressed: _pickProfilePhotoFile,
+                  icon: const Icon(Icons.image_outlined),
+                  label: Text(
+                    _profilePhotoFile == null
+                        ? 'Selecionar foto de perfil'
+                        : 'Foto selecionada: ${_profilePhotoFile!.name}',
+                  ),
+                ),
+                if (_profilePhotoFile != null)
+                  TextButton(
+                    onPressed: () {
+                      setState(() {
+                        _profilePhotoFile = null;
+                      });
+                    },
+                    child: const Text('Remover foto selecionada'),
+                  ),
 
                 _sectionTitle('Certificados'),
                 const SizedBox(height: BecomeTeacherLayout.fieldGap),

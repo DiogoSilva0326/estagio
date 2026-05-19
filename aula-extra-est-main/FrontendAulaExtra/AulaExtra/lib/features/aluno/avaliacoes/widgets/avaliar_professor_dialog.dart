@@ -296,7 +296,7 @@ class _AvaliarProfessorDialogState extends State<AvaliarProfessorDialog> {
                           : (end.isNotEmpty ? end : start);
                       if (date.isEmpty) return const SizedBox.shrink();
                       return Text(
-                        'Última sessão: $date',
+                        'Última aula: $date',
                         style: const TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w400,

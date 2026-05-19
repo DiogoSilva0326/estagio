@@ -27,11 +27,15 @@ class PagamentosContentSection extends StatefulWidget {
       _PagamentosContentSectionState();
 }
 
+enum _StudentPaymentRoleFilter { todos, explicador, tutor, psicologo }
+
 class _PagamentosContentSectionState extends State<PagamentosContentSection> {
   final PaymentsService _paymentsService = PaymentsService();
   late Future<PaymentSummaryDto> _summaryFuture;
   static const int _mobileItemsPerPage = 3;
   int _mobileCurrentPage = 1;
+  _StudentPaymentRoleFilter _selectedRoleFilter =
+      _StudentPaymentRoleFilter.todos;
 
   @override
   void initState() {
@@ -228,7 +232,11 @@ class _PagamentosContentSectionState extends State<PagamentosContentSection> {
 
   String _paymentTypeLabel(PaymentHistoryItemDto item) {
     final source = item.paymentSource.trim().toLowerCase();
+    final subject = item.subject.trim().toLowerCase();
     if (source.contains('reservation')) {
+      if (subject.contains('tutoria') || subject.contains('psicologia')) {
+        return 'Sessão';
+      }
       return 'Aula';
     }
     if (source.contains('topup')) {
@@ -237,16 +245,28 @@ class _PagamentosContentSectionState extends State<PagamentosContentSection> {
     return 'Pagamento';
   }
 
+  String _getProfessionalLabel(PaymentHistoryItemDto item) {
+    final type = _roleTypeForItem(item);
+    if (type == 'psicologo') {
+      return 'Psicólogo:';
+    }
+    if (type == 'tutor') {
+      return 'Tutor:';
+    }
+    return 'Explicador:';
+  }
+
   Widget _buildMobileContent(PaymentSummaryDto summary) {
+    final filteredHistory = _filteredHistory(summary.history);
     final totalPages = math.max(
       1,
-      (summary.history.length / _mobileItemsPerPage).ceil(),
+      (filteredHistory.length / _mobileItemsPerPage).ceil(),
     );
     final currentPage = _mobileCurrentPage.clamp(1, totalPages);
     final start = (currentPage - 1) * _mobileItemsPerPage;
-    final end = math.min(start + _mobileItemsPerPage, summary.history.length);
+    final end = math.min(start + _mobileItemsPerPage, filteredHistory.length);
     final pageItems = start < end
-        ? summary.history.sublist(start, end)
+        ? filteredHistory.sublist(start, end)
         : const <PaymentHistoryItemDto>[];
 
     return Padding(
@@ -262,6 +282,8 @@ class _PagamentosContentSectionState extends State<PagamentosContentSection> {
             subtitle: 'Gerencie seus pagamentos e pacotes de apoios',
           ),
           const SizedBox(height: 18),
+          _buildRoleFilterCards(),
+          const SizedBox(height: 12),
           Row(
             children: [
               Expanded(
@@ -302,7 +324,7 @@ class _PagamentosContentSectionState extends State<PagamentosContentSection> {
               const SizedBox(width: 8),
               Expanded(
                 child: PagamentosMobileStatCard(
-                  value: summary.transactionsCount.toString(),
+                  value: filteredHistory.length.toString(),
                   label: 'Transações',
                   borderColor: const Color(0xFFB9F8CF),
                   valueColor: const Color(0xFF00A63E),
@@ -315,6 +337,23 @@ class _PagamentosContentSectionState extends State<PagamentosContentSection> {
                 ),
               ),
             ],
+          ),
+          const SizedBox(height: 18),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: () => _showDisputeDialog(summary),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFF15C64),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+              icon: const Icon(Icons.report_problem_rounded),
+              label: const Text('Submeter reclamação sobre pagamentos'),
+            ),
           ),
           const SizedBox(height: 18),
           const Text(
@@ -348,6 +387,7 @@ class _PagamentosContentSectionState extends State<PagamentosContentSection> {
                   item: item,
                   title: _paymentTitle(item),
                   typeLabel: _paymentTypeLabel(item),
+                  professionalLabel: _getProfessionalLabel(item),
                   formattedDate: _formatMobileDate(item.date),
                   formattedAmount: _formatAmount(
                     item.amount,
@@ -391,6 +431,116 @@ class _PagamentosContentSectionState extends State<PagamentosContentSection> {
       'Dez',
     ];
     return '${date.day.toString().padLeft(2, '0')} ${months[date.month - 1]} ${date.year}';
+  }
+
+  String _normalizeRoleType(String value) {
+    final normalized = value.trim().toLowerCase();
+    if (normalized.contains('psico') || normalized.contains('psycho')) {
+      return 'psicologo';
+    }
+    if (normalized.contains('tutor')) return 'tutor';
+    if (normalized.contains('explic') ||
+        normalized.contains('teacher') ||
+        normalized.contains('professor')) {
+      return 'explicador';
+    }
+    return normalized;
+  }
+
+  String _roleTypeForItem(PaymentHistoryItemDto item) {
+    final payloadRole = _normalizeRoleType(item.roleType);
+    if (payloadRole.isNotEmpty) return payloadRole;
+
+    final subject = item.subject.trim().toLowerCase();
+    final paymentSource = item.paymentSource.trim().toLowerCase();
+
+    if (subject.contains('psicolog') ||
+        subject.contains('terapia') ||
+        subject.contains('ansiedade') ||
+        subject.contains('depress') ||
+        subject.contains('orientação') ||
+        paymentSource.contains('psycholog') ||
+        paymentSource.contains('psicolog')) {
+      return 'psicologo';
+    }
+    if (subject.contains('tutor') ||
+        subject.contains('tutoria') ||
+        subject.contains('mentoria') ||
+        paymentSource.contains('tutor')) {
+      return 'tutor';
+    }
+    return 'explicador';
+  }
+
+  bool _matchesRoleFilter(PaymentHistoryItemDto item) {
+    final type = _roleTypeForItem(item);
+    return switch (_selectedRoleFilter) {
+      _StudentPaymentRoleFilter.todos => true,
+      _StudentPaymentRoleFilter.explicador => type == 'explicador',
+      _StudentPaymentRoleFilter.tutor => type == 'tutor',
+      _StudentPaymentRoleFilter.psicologo => type == 'psicologo',
+    };
+  }
+
+  List<PaymentHistoryItemDto> _filteredHistory(
+    List<PaymentHistoryItemDto> all,
+  ) {
+    return all.where(_matchesRoleFilter).toList(growable: false);
+  }
+
+  void _onRoleFilterSelected(_StudentPaymentRoleFilter filter) {
+    setState(() {
+      _selectedRoleFilter = filter;
+      _mobileCurrentPage = 1;
+    });
+  }
+
+  Widget _buildRoleFilterCards() {
+    final filters = <(_StudentPaymentRoleFilter, String)>[
+      (_StudentPaymentRoleFilter.todos, 'Todos os Pagamentos'),
+      (_StudentPaymentRoleFilter.explicador, 'Explicador'),
+      (_StudentPaymentRoleFilter.tutor, 'Tutor'),
+      (_StudentPaymentRoleFilter.psicologo, 'Psicólogo'),
+    ];
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isCompact = constraints.maxWidth < 900;
+
+        if (!isCompact) {
+          return Row(
+            children: [
+              for (int i = 0; i < filters.length; i++) ...[
+                if (i > 0) const SizedBox(width: 10),
+                Expanded(
+                  child: _StudentPaymentRoleFilterCard(
+                    label: filters[i].$2,
+                    selected: _selectedRoleFilter == filters[i].$1,
+                    onTap: () => _onRoleFilterSelected(filters[i].$1),
+                  ),
+                ),
+              ],
+            ],
+          );
+        }
+
+        return Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: [
+            for (final filter in filters)
+              SizedBox(
+                width: (constraints.maxWidth - 10) / 2,
+                child: _StudentPaymentRoleFilterCard(
+                  label: filter.$2,
+                  selected: _selectedRoleFilter == filter.$1,
+                  onTap: () => _onRoleFilterSelected(filter.$1),
+                ),
+              ),
+          ],
+        );
+      },
+    );
   }
 
   @override
@@ -451,6 +601,7 @@ class _PagamentosContentSectionState extends State<PagamentosContentSection> {
           }
 
           final summary = snapshot.data!;
+          final filteredHistory = _filteredHistory(summary.history);
 
           if (isMobile) {
             return _buildMobileContent(summary);
@@ -474,6 +625,8 @@ class _PagamentosContentSectionState extends State<PagamentosContentSection> {
                       'Gerencie seus pagamentos e pacotes de apoios',
                       style: PagamentosConstants.subtitleStyle,
                     ),
+                    const SizedBox(height: 20),
+                    _buildRoleFilterCards(),
                     const SizedBox(height: 24),
                     Align(
                       alignment: Alignment.centerRight,
@@ -555,7 +708,7 @@ class _PagamentosContentSectionState extends State<PagamentosContentSection> {
                         const SizedBox(width: 24),
                         Expanded(
                           child: PagamentosStatCard(
-                            value: summary.transactionsCount.toString(),
+                            value: filteredHistory.length.toString(),
                             label: 'Transações',
                             borderColor: const Color(0xFFB9F8CF),
                             valueColor: const Color(0xFF00A63E),
@@ -576,7 +729,7 @@ class _PagamentosContentSectionState extends State<PagamentosContentSection> {
                     ),
                     const SizedBox(height: 21.91),
                     PagamentosTableCard(
-                      rows: summary.history,
+                      rows: filteredHistory,
                       currency: summary.currency,
                       onReceiptTap: _openReceipt,
                     ),
@@ -586,6 +739,46 @@ class _PagamentosContentSectionState extends State<PagamentosContentSection> {
             ],
           );
         },
+      ),
+    );
+  }
+}
+
+class _StudentPaymentRoleFilterCard extends StatelessWidget {
+  const _StudentPaymentRoleFilterCard({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        height: 46,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: selected ? const Color(0xFFFFF1E8) : Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: selected ? const Color(0xFFFF6900) : const Color(0xFFE4E7EC),
+          ),
+        ),
+        child: Text(
+          label,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+            color: selected ? const Color(0xFFB93815) : const Color(0xFF344054),
+          ),
+        ),
       ),
     );
   }

@@ -35,6 +35,8 @@ class _ChatsCardState extends State<ChatsCard> {
   StreamSubscription<RealtimeChatEvent>? _chatSubscription;
 
   static const int _maxChatFileSizeBytes = 5 * 1024 * 1024;
+  static const int _initialVisibleMessages = 20;
+  static const int _historyPageSize = 20;
 
   String? _myUsername;
   String? _myDisplayName;
@@ -46,6 +48,7 @@ class _ChatsCardState extends State<ChatsCard> {
   final Map<int, List<_MessageData>> _fullMessagesByConversationId =
       <int, List<_MessageData>>{};
   final Map<int, int> _visibleMessageCountByConversationId = <int, int>{};
+  final Map<int, bool> _hasMoreHistoryByConversationId = <int, bool>{};
   bool _isLoadingMoreMessages = false;
 
   final Map<int, bool> _otherOnlineByConversationId = <int, bool>{};
@@ -74,7 +77,7 @@ class _ChatsCardState extends State<ChatsCard> {
     if (_isLoadingMoreMessages) return;
     if (!_messagesScrollController.hasClients) return;
 
-    // When user reaches the top, load more (simulated pagination).
+    // When user reaches the top, page in older messages.
     if (_messagesScrollController.position.pixels <=
         _messagesScrollController.position.minScrollExtent + 12) {
       _loadMoreMessages(selected.id);
@@ -85,33 +88,79 @@ class _ChatsCardState extends State<ChatsCard> {
     final full =
         _fullMessagesByConversationId[conversationId] ?? const <_MessageData>[];
     final currentVisible =
-        _visibleMessageCountByConversationId[conversationId] ?? 20;
-    if (full.length <= currentVisible) return;
+        _visibleMessageCountByConversationId[conversationId] ??
+        _initialVisibleMessages;
+
+    if (full.length > currentVisible) {
+      setState(() {
+        final next = currentVisible + _historyPageSize;
+        _visibleMessageCountByConversationId[conversationId] =
+            _safeVisibleCount(next, full.length);
+        _applyVisibleMessagesForConversation(conversationId);
+      });
+      return;
+    }
+
+    final selected = _selectedConversation;
+    final activeChannelName = _activeChannelName;
+    final oldestMessage = full.isNotEmpty ? full.first : null;
+    final hasMoreHistory = _hasMoreHistoryByConversationId[conversationId] ?? false;
+    if (!hasMoreHistory ||
+        selected == null ||
+        selected.id != conversationId ||
+        activeChannelName == null ||
+        activeChannelName.isEmpty ||
+        oldestMessage == null) {
+      return;
+    }
 
     setState(() {
       _isLoadingMoreMessages = true;
     });
 
-    // Small delay to simulate pagination loading.
-    await Future<void>.delayed(const Duration(milliseconds: 250));
-
-    if (!mounted) return;
-
-    setState(() {
-      final next = currentVisible + 20;
-      _visibleMessageCountByConversationId[conversationId] = _safeVisibleCount(
-        next,
-        full.length,
+    try {
+      await _realtimeChatService.loadOlderMessages(
+        channelName: activeChannelName,
+        before: oldestMessage.timestamp.subtract(
+          const Duration(milliseconds: 1),
+        ),
+        limit: _historyPageSize,
       );
-      _applyVisibleMessagesForConversation(conversationId);
-      _isLoadingMoreMessages = false;
-    });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isLoadingMoreMessages = false;
+        _contactsError = e.toString();
+      });
+    }
   }
 
   int _safeVisibleCount(int desired, int total) {
     if (total <= 0) return 0;
-    if (total < 20) return total;
-    return desired.clamp(20, total);
+    if (total < _initialVisibleMessages) return total;
+    return desired.clamp(_initialVisibleMessages, total);
+  }
+
+  String _contactPreview(ContactUserSummaryDto dto) {
+    final lastMessage = dto.lastMessage?.trim();
+    if (lastMessage != null && lastMessage.isNotEmpty) {
+      return lastMessage;
+    }
+
+    if (dto.status.trim().toLowerCase() == 'accepted') {
+      return 'Inicia a conversa...';
+    }
+
+    return 'Convite pendente';
+  }
+
+  String _contactTimeLabel(ContactUserSummaryDto dto) {
+    final when = dto.lastMessageAt?.toLocal();
+    if (when == null) {
+      return '';
+    }
+
+    return _formatTime(when);
   }
 
   void _scrollToBottom({bool animated = true}) {
@@ -249,19 +298,31 @@ class _ChatsCardState extends State<ChatsCard> {
     String? preferredContactUsername,
   }) {
     final conversations = <_ConversationData>[];
+    final normalizedPreferredContactUserId = preferredContactUserId
+        ?.trim()
+        .toLowerCase();
+    final preferredUsername = preferredContactUsername?.trim() ?? '';
     for (var i = 0; i < contacts.length; i++) {
       final dto = contacts[i];
       final name = _displayNameFor(dto);
+      final normalizedContactUserId = dto.contactUserId.trim().toLowerCase();
+      final username = (dto.username?.trim().isNotEmpty ?? false)
+          ? dto.username!.trim()
+          : (normalizedPreferredContactUserId != null &&
+                  normalizedPreferredContactUserId.isNotEmpty &&
+                  normalizedPreferredContactUserId == normalizedContactUserId)
+              ? preferredUsername
+              : '';
       conversations.add(
         _ConversationData(
           id: i + 1,
           contactUserId: dto.contactUserId,
-          contactUsername: dto.username?.trim() ?? '',
+          contactUsername: username,
           name: name,
           initials: _initialsFromName(name),
           status: dto.status,
-          timeLabel: '',
-          preview: '',
+          timeLabel: _contactTimeLabel(dto),
+          preview: _contactPreview(dto),
           messages: const [],
         ),
       );
@@ -269,9 +330,6 @@ class _ChatsCardState extends State<ChatsCard> {
 
     int selectedId = conversations.isNotEmpty ? conversations.first.id : 0;
 
-    final normalizedPreferredContactUserId = preferredContactUserId
-        ?.trim()
-        .toLowerCase();
     final normalizedPreferredContactUsername = preferredContactUsername
         ?.trim()
         .toLowerCase();
@@ -310,6 +368,7 @@ class _ChatsCardState extends State<ChatsCard> {
       _isLoadingContacts = false;
       _fullMessagesByConversationId.clear();
       _visibleMessageCountByConversationId.clear();
+      _hasMoreHistoryByConversationId.clear();
       _otherOnlineByConversationId.clear();
       _activeChannelName = null;
     });
@@ -356,6 +415,7 @@ class _ChatsCardState extends State<ChatsCard> {
       if (selected != null &&
           selected.status.trim().toLowerCase() == 'accepted') {
         await _joinConversation(selected);
+        await _sendBootstrapMessageIfNeeded(widget.initialChat?.initialMessage);
       }
 
       _hasAppliedInitialChat = true;
@@ -367,6 +427,18 @@ class _ChatsCardState extends State<ChatsCard> {
     } finally {
       _isBootstrappingInitialChat = false;
     }
+  }
+
+  Future<void> _sendBootstrapMessageIfNeeded(String? initialMessage) async {
+    final text = initialMessage?.trim();
+    final channelName = _activeChannelName;
+    if (text == null || text.isEmpty) return;
+    if (channelName == null || channelName.isEmpty) return;
+
+    await _realtimeChatService.sendMessage(
+      channelName: channelName,
+      content: text,
+    );
   }
 
   _ConversationData? _findConversationByContactUserId(String contactUserId) {
@@ -429,7 +501,8 @@ class _ChatsCardState extends State<ChatsCard> {
     }
 
     if (normalizedUsername != null && normalizedUsername.isNotEmpty) {
-      return _contactsService.addContactByUsername(normalizedUsername);
+      await _contactsService.addContactByUsername(normalizedUsername);
+      return _contactsService.acceptInviteByUsername(normalizedUsername);
     }
 
     throw Exception('Não foi possível criar o contacto.');
@@ -527,7 +600,18 @@ class _ChatsCardState extends State<ChatsCard> {
     final displayName = _myDisplayName;
     if (username == null || displayName == null) return;
 
-    final otherUsername = conversation.contactUsername.trim();
+    var otherUsername = conversation.contactUsername.trim();
+    if (otherUsername.isEmpty) {
+      final bootstrapArgs = widget.initialChat;
+      final matchesBootstrapContact = bootstrapArgs != null &&
+          bootstrapArgs.contactUserId.trim().isNotEmpty &&
+          bootstrapArgs.contactUserId.trim().toLowerCase() ==
+              conversation.contactUserId.trim().toLowerCase();
+      if (matchesBootstrapContact) {
+        otherUsername = bootstrapArgs.contactUsername?.trim() ?? '';
+      }
+    }
+
     if (otherUsername.isEmpty) {
       if (!mounted) return;
       setState(() {
@@ -815,9 +899,22 @@ class _ChatsCardState extends State<ChatsCard> {
     if (!mounted) return;
 
     if (event is RealtimeChatRoomJoined) {
-      _applyRoomHistory(event.channelName, event.messages);
+      _applyRoomHistory(
+        event.channelName,
+        event.messages,
+        hasMoreHistory: event.hasMoreHistory,
+      );
       _applyPresenceFromParticipants(event.channelName, event.participants);
       _markConversationRead(event.channelName);
+      return;
+    }
+
+    if (event is RealtimeChatRoomHistoryLoaded) {
+      _prependRoomHistory(
+        event.channelName,
+        event.messages,
+        hasMoreHistory: event.hasMoreHistory,
+      );
       return;
     }
 
@@ -991,6 +1088,7 @@ class _ChatsCardState extends State<ChatsCard> {
   void _applyRoomHistory(
     String channelName,
     List<RealtimeChatMessage> messages,
+    {required bool hasMoreHistory,}
   ) {
     final myUsername = _myUsername;
     if (myUsername == null) return;
@@ -1024,10 +1122,32 @@ class _ChatsCardState extends State<ChatsCard> {
       final idx = _conversations.indexWhere((c) => c.id == selected.id);
       if (idx == -1) return;
 
-      _fullMessagesByConversationId[selected.id] = mapped;
+      final existing = List<_MessageData>.from(
+        _fullMessagesByConversationId[selected.id] ?? const <_MessageData>[],
+      );
+      final mergedById = <String, _MessageData>{};
+      for (final item in existing) {
+        final key = item.id.trim();
+        if (key.isNotEmpty) {
+          mergedById[key] = item;
+        }
+      }
+      for (final item in mapped) {
+        final key = item.id.trim();
+        if (key.isNotEmpty) {
+          mergedById[key] = item;
+        }
+      }
+
+      final merged = mergedById.values.toList(growable: true)
+        ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
+
+      _fullMessagesByConversationId[selected.id] = merged;
+      _hasMoreHistoryByConversationId[selected.id] = hasMoreHistory;
       _visibleMessageCountByConversationId[selected.id] = _safeVisibleCount(
-        _visibleMessageCountByConversationId[selected.id] ?? 20,
-        mapped.length,
+        _visibleMessageCountByConversationId[selected.id] ??
+            _initialVisibleMessages,
+        merged.length,
       );
       _applyVisibleMessagesForConversation(selected.id);
 
@@ -1038,6 +1158,7 @@ class _ChatsCardState extends State<ChatsCard> {
         preview: last?.text ?? '',
         timeLabel: last != null ? _formatTime(last.timestamp) : '',
       );
+      _isLoadingMoreMessages = false;
     });
 
     WidgetsBinding.instance.addPostFrameCallback(
@@ -1052,7 +1173,8 @@ class _ChatsCardState extends State<ChatsCard> {
     final full =
         _fullMessagesByConversationId[conversationId] ?? const <_MessageData>[];
     final visibleCount = _safeVisibleCount(
-      _visibleMessageCountByConversationId[conversationId] ?? 20,
+      _visibleMessageCountByConversationId[conversationId] ??
+          _initialVisibleMessages,
       full.length,
     );
     final start = (full.length - visibleCount).clamp(0, full.length);
@@ -1061,6 +1183,75 @@ class _ChatsCardState extends State<ChatsCard> {
     final idx = _conversations.indexWhere((c) => c.id == conversationId);
     if (idx == -1) return;
     _conversations[idx] = _conversations[idx].copyWith(messages: visible);
+  }
+
+  void _prependRoomHistory(
+    String channelName,
+    List<RealtimeChatMessage> messages, {
+    required bool hasMoreHistory,
+  }) {
+    final myUsername = _myUsername;
+    if (myUsername == null) return;
+
+    final selected = _selectedConversation;
+    if (selected == null) return;
+
+    final expectedChannel = RealtimeChatConfig.dmChannelName(
+      myUsername,
+      selected.contactUsername,
+    );
+    if (expectedChannel != channelName) return;
+
+    final mapped = messages
+        .map(
+          (m) => _MessageData(
+            id: m.messageId,
+            senderId: m.senderId,
+            text: m.content,
+            timestamp: m.timestamp.toLocal(),
+            isOutgoing:
+                m.senderId.trim().toLowerCase() ==
+                myUsername.trim().toLowerCase(),
+            isRead: m.isRead,
+            attachment: m.attachment,
+          ),
+        )
+        .toList(growable: true)
+      ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
+
+    setState(() {
+      final currentFull = List<_MessageData>.from(
+        _fullMessagesByConversationId[selected.id] ?? const <_MessageData>[],
+      );
+      final mergedById = <String, _MessageData>{};
+      for (final item in mapped) {
+        final key = item.id.trim();
+        if (key.isNotEmpty) {
+          mergedById[key] = item;
+        }
+      }
+      for (final item in currentFull) {
+        final key = item.id.trim();
+        if (key.isNotEmpty) {
+          mergedById[key] = item;
+        }
+      }
+
+      final merged = mergedById.values.toList(growable: true)
+        ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
+
+      _fullMessagesByConversationId[selected.id] = merged;
+      _hasMoreHistoryByConversationId[selected.id] = hasMoreHistory;
+      final currentVisible =
+          _visibleMessageCountByConversationId[selected.id] ??
+          _initialVisibleMessages;
+      _visibleMessageCountByConversationId[selected.id] = _safeVisibleCount(
+        currentVisible + mapped.length,
+        merged.length,
+      );
+      _applyVisibleMessagesForConversation(selected.id);
+      _isLoadingMoreMessages = false;
+    });
   }
 
   void _appendMessageToActive(String channelName, RealtimeChatMessage message) {
@@ -1091,7 +1282,8 @@ class _ChatsCardState extends State<ChatsCard> {
       _fullMessagesByConversationId[selected.id] = full;
 
       final currentVisible = _safeVisibleCount(
-        _visibleMessageCountByConversationId[selected.id] ?? 20,
+        _visibleMessageCountByConversationId[selected.id] ??
+            _initialVisibleMessages,
         full.length,
       );
       _visibleMessageCountByConversationId[selected.id] = currentVisible;
@@ -1147,7 +1339,8 @@ class _ChatsCardState extends State<ChatsCard> {
         _fullMessagesByConversationId[_conversations[idx].id] = full;
 
         final currentVisible = _safeVisibleCount(
-          _visibleMessageCountByConversationId[_conversations[idx].id] ?? 20,
+          _visibleMessageCountByConversationId[_conversations[idx].id] ??
+              _initialVisibleMessages,
           full.length,
         );
         final visible = full.sublist(

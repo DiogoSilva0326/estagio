@@ -11,7 +11,6 @@ import 'package:aula_extra/core/data/reservations_calendar/dtos/student_calendar
 import 'package:aula_extra/core/data/reservations_calendar/reservations_calendar_service.dart';
 import 'package:aula_extra/core/data/users/users_service.dart';
 import 'package:aula_extra/features/aluno/calendario/state/student_calendar_refresh_bus.dart';
-import 'package:aula_extra/features/aluno/calendario/widgets/calendario_mobile_cta_button.dart';
 import 'package:aula_extra/features/aluno/calendario/widgets/calendario_mobile_intro.dart';
 import 'package:aula_extra/features/aluno/calendario/widgets/calendario_mode_tabs.dart';
 import 'package:aula_extra/features/aluno/calendario/widgets/mobile_upcoming_lesson_card.dart';
@@ -586,17 +585,7 @@ class _UpcomingLessonsListState extends State<_UpcomingLessonsList> {
             .toList(growable: false);
         if (items.isEmpty) {
           if (widget.isMobile) {
-            return Column(
-              children: [
-                const _MobileUpcomingLessonsEmptyState(),
-                const SizedBox(height: 16),
-                CalendarioMobileCtaButton(
-                  label: 'Marcar Nova Sessão',
-                  onTap: () =>
-                      Navigator.of(context).pushNamed(Routes.explicadores),
-                ),
-              ],
-            );
+            return const _MobileUpcomingLessonsEmptyState();
           }
 
           return const _UpcomingLessonsEmptyState();
@@ -745,14 +734,6 @@ class _UpcomingLessonsListState extends State<_UpcomingLessonsList> {
                   ),
                 ),
               ),
-            if (widget.isMobile) ...[
-              const SizedBox(height: 16),
-              CalendarioMobileCtaButton(
-                label: 'Marcar Nova Sessão',
-                onTap: () =>
-                    Navigator.of(context).pushNamed(Routes.explicadores),
-              ),
-            ],
           ],
         );
       },

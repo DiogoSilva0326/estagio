@@ -9,6 +9,7 @@ namespace ConfidantPostgreSQL.Modules.Newsletter.Service;
 public interface INewsletterService
 {
     Task<(bool ok, string message)> SubscribeAsync(SubscribeRequest request, CancellationToken cancellationToken = default);
+    Task<(bool ok, string message)> RequestUnsubscribeByEmailAsync(string email, CancellationToken cancellationToken = default);
     Task<(bool ok, string message)> ConfirmAsync(string token, CancellationToken cancellationToken = default);
     Task<(bool ok, string message)> UnsubscribeAsync(string token, CancellationToken cancellationToken = default);
     Task HandleBounceAsync(string email, CancellationToken cancellationToken = default);
@@ -18,5 +19,6 @@ public interface INewsletterService
     Task DeleteCampaignAsync(Guid id, CancellationToken cancellationToken = default);
     Task<(int sent, int failed)> SendCampaignAsync(Guid campaignId, CancellationToken cancellationToken = default);
     Task<List<NewsletterCampaign>> GetCampaignsAsync(int pageNumber = 1, int pageSize = 20, CancellationToken cancellationToken = default);
+    Task<List<NewsletterSubscriberSummary>> GetSubscribersAsync(int pageNumber = 1, int pageSize = 100, CancellationToken cancellationToken = default);
     Task<int> GetSubscriberCountAsync(CancellationToken cancellationToken = default);
 }

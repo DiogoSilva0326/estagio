@@ -21,7 +21,7 @@ class SidebarSection extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
-        border: Border(
+        border: const Border(
           right: BorderSide(color: Color(0xFFE5E7EB), width: 1.112),
         ),
       ),
@@ -76,21 +76,29 @@ class _GeneralAreasList extends StatelessWidget {
       required VoidCallback onTap,
     }) {
       final content = Row(
+        crossAxisAlignment: CrossAxisAlignment.center, // Centraliza ícone e texto
         children: [
           Container(
             width: 35.6,
             height: 35.6,
-            decoration: const BoxDecoration(color: _iconCircleGrey, shape: BoxShape.circle),
+            decoration: const BoxDecoration(
+              color: _iconCircleGrey, 
+              shape: BoxShape.circle
+            ),
             child: Icon(icon, size: 20, color: iconColor),
           ),
           const SizedBox(width: 13.35),
-          Text(
-            text,
-            style: TextStyle(
-              fontSize: 17.8,
-              height: 1.5,
-              fontWeight: FontWeight.w500,
-              color: active ? const Color(0xFF0A0A0A) : const Color(0xFF0A0A0A),
+          // O Expanded força o texto a ocupar o espaço restante e quebrar a linha
+          Expanded(
+            child: Text(
+              text,
+              softWrap: true,
+              style: TextStyle(
+                fontSize: 17.8,
+                height: 1.2, // Altura de linha levemente menor para textos multi-linha
+                fontWeight: FontWeight.w500,
+                color: const Color(0xFF0A0A0A),
+              ),
             ),
           ),
         ],
@@ -100,7 +108,8 @@ class _GeneralAreasList extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(11.125),
         child: Container(
-          height: 62.3,
+          // Usamos minHeight em vez de height fixo para o caso do texto quebrar
+          constraints: const BoxConstraints(minHeight: 62.3),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(11.125),
             gradient: active
@@ -131,7 +140,7 @@ class _GeneralAreasList extends StatelessWidget {
                 : null,
           ),
           child: Padding(
-            padding: const EdgeInsets.only(left: 13.35, right: 13.35),
+            padding: const EdgeInsets.symmetric(horizontal: 13.35, vertical: 8.0),
             child: Align(alignment: Alignment.centerLeft, child: content),
           ),
         ),

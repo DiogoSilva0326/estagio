@@ -118,7 +118,7 @@ class PagamentosMobileDetailsDialog extends StatelessWidget {
                     const SizedBox(height: 20),
                     _FieldBlock(label: 'Disciplina', value: subject),
                     const SizedBox(height: 16),
-                    _FieldBlock(label: 'Aula', value: lessonLabel),
+                    _FieldBlock(label: 'Tipo', value: lessonLabel),
                     const SizedBox(height: 20),
                     const Divider(height: 1),
                     const SizedBox(height: 20),

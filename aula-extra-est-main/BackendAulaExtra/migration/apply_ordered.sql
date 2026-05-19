@@ -10,6 +10,7 @@
 
 \ir '../src/Modules/SystemSettings/Sql/ddl/create_systemsettings.sql'
 \ir '../src/Modules/Users/Sql/ddl/create_users_table.sql'
+\ir '../src/Modules/Users/Sql/ddl/003_add_google_subject_to_users.sql'
 \ir '../src/Modules/Users/Sql/ddl/create_role.sql'
 \ir '../src/Modules/Users/Sql/ddl/create_userole.sql'
 \ir '../src/Modules/Users/Sql/ddl/create_userprofile.sql'

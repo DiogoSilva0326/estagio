@@ -16,6 +16,7 @@ namespace Synget.AgoraIntegrator.API.Hubs
     /// </summary>
     public class ChatHub : Hub
     {
+        private const int InitialHistoryBatchSize = 50;
         private readonly IChat _chat;
         private readonly ILogger<ChatHub> _logger;
         private readonly IServiceScopeFactory _scopeFactory;
@@ -99,26 +100,19 @@ namespace Synget.AgoraIntegrator.API.Hubs
             // Only load message history for persistent rooms (DM or group chats)
             // Video call channels should NOT load history from previous calls
             var historyMessages = new List<object>();
-            bool isPersistentRoom = channelName.StartsWith("dm_") || channelName.StartsWith("group_");
+            bool isPersistentRoom = IsPersistentRoom(channelName);
+            bool hasMoreHistory = false;
             
             if (isPersistentRoom)
             {
-                var dbMessages = await messageRepo.GetByRoomAsync(channelName, 50);
-                historyMessages = dbMessages.Select(m => new
+                var dbMessages = await messageRepo.GetByRoomAsync(channelName, InitialHistoryBatchSize + 1);
+                hasMoreHistory = dbMessages.Count > InitialHistoryBatchSize;
+                if (hasMoreHistory)
                 {
-                    messageId = m.Id.ToString("N"),
-                    senderId = m.SenderUser?.Username ?? "",
-                    senderName = m.SenderUser?.DisplayName ?? m.SenderUser?.Username ?? "Unknown",
-                    content = m.Content ?? "",
-                    timestamp = m.CreatedAt.ToString("o"),
-                    isRead = m.IsRead,
-                    readAt = m.ReadAt.HasValue ? m.ReadAt.Value.ToString("o") : null,
-                    type = m.Metadata?.Contains("\"type\":\"file\"") == true ? "file" : "text",
-                    metadata = m.Metadata,
-                    attachment = m.Metadata?.Contains("\"type\":\"file\"") == true 
-                        ? System.Text.Json.JsonSerializer.Deserialize<object>(m.Metadata) 
-                        : null
-                }).ToList<object>();
+                    dbMessages = dbMessages.Skip(dbMessages.Count - InitialHistoryBatchSize).ToList();
+                }
+
+                historyMessages = dbMessages.Select(MapHistoryMessage).ToList<object>();
             }
             else
             {
@@ -132,7 +126,8 @@ namespace Synget.AgoraIntegrator.API.Hubs
                 messages = historyMessages,
                 participants = result.Participants,
                 dbUserId = dbUser.Id,
-                isPersistentRoom = isPersistentRoom
+                isPersistentRoom = isPersistentRoom,
+                hasMoreHistory = hasMoreHistory
             });
 
             // Notify others that user joined
@@ -140,6 +135,50 @@ namespace Synget.AgoraIntegrator.API.Hubs
             {
                 await Clients.OthersInGroup(channelName).SendAsync("UserJoined", result.UserEvent);
             }
+        }
+
+        public async Task LoadOlderMessages(string channelName, string beforeIsoTimestamp, int limit = 20)
+        {
+            channelName = NormalizeChannelName(channelName);
+            if (!IsPersistentRoom(channelName))
+            {
+                await Clients.Caller.SendAsync("RoomHistoryLoaded", new
+                {
+                    channelName,
+                    messages = Array.Empty<object>(),
+                    hasMoreHistory = false
+                });
+                return;
+            }
+
+            if (!DateTime.TryParse(beforeIsoTimestamp, out var before))
+            {
+                await Clients.Caller.SendAsync("Error", "Data inválida para paginação do histórico.");
+                return;
+            }
+
+            var safeLimit = Math.Clamp(limit, 1, 100);
+
+            using var scope = _scopeFactory.CreateScope();
+            var messageRepo = scope.ServiceProvider.GetRequiredService<IMessageRepository>();
+
+            var dbMessages = await messageRepo.GetByRoomAsync(
+                channelName,
+                safeLimit + 1,
+                before.ToUniversalTime());
+
+            var hasMoreHistory = dbMessages.Count > safeLimit;
+            if (hasMoreHistory)
+            {
+                dbMessages = dbMessages.Skip(dbMessages.Count - safeLimit).ToList();
+            }
+
+            await Clients.Caller.SendAsync("RoomHistoryLoaded", new
+            {
+                channelName,
+                messages = dbMessages.Select(MapHistoryMessage).ToList(),
+                hasMoreHistory = hasMoreHistory
+            });
         }
 
         /// <summary>
@@ -255,6 +294,42 @@ namespace Synget.AgoraIntegrator.API.Hubs
                             content,
                             messageEntity.CreatedAt);
                         _logger.LogDebug("DM message persisted to DB with ID {MessageId}", messageEntity.Id);
+                    }
+                    else if (channelName.StartsWith("group_", StringComparison.OrdinalIgnoreCase))
+                    {
+                        var groupRoom = await ResolveGroupRoomAsync(dbContext, channelName, senderUser.Id);
+                        if (groupRoom == null)
+                        {
+                            throw new InvalidOperationException($"Group room '{channelName}' not found or sender is not an active member.");
+                        }
+
+                        Guid persistedId;
+                        if (result.Message?.MessageId is { Length: > 0 } rawId && Guid.TryParseExact(rawId, "N", out var parsed))
+                        {
+                            persistedId = parsed;
+                        }
+                        else
+                        {
+                            persistedId = Guid.NewGuid();
+                            if (result.Message != null)
+                            {
+                                result.Message.MessageId = persistedId.ToString("N");
+                            }
+                        }
+
+                        var messageEntity = new MessageEntity
+                        {
+                            Id = persistedId,
+                            SenderUserId = senderUser.Id,
+                            ReceiverUserId = senderUser.Id,
+                            GroupRoomId = groupRoom.Id,
+                            Content = content,
+                            CreatedAt = DateTime.UtcNow,
+                            IsRead = false
+                        };
+
+                        await messageRepo.CreateAsync(messageEntity);
+                        _logger.LogDebug("Group message persisted to DB with ID {MessageId} for room {GroupRoomId}", messageEntity.Id, groupRoom.Id);
                     }
                 }
                 catch (Exception ex)
@@ -671,6 +746,7 @@ namespace Synget.AgoraIntegrator.API.Hubs
             var fileStorage = scope.ServiceProvider.GetRequiredService<IChatFileStorage>();
             var userRepo = scope.ServiceProvider.GetRequiredService<IUserRepository>();
             var messageRepo = scope.ServiceProvider.GetRequiredService<IMessageRepository>();
+            var dbContext = scope.ServiceProvider.GetRequiredService<ChatDbContext>();
 
             var fileEntity = await fileRepo.GetByFileIdAsync(fileId);
             if (fileEntity == null)
@@ -695,9 +771,9 @@ namespace Synget.AgoraIntegrator.API.Hubs
             _logger.LogInformation("SendFileMessage: Sender is {UserId} ({DisplayName})", 
                 participant.UserId, participant.DisplayName);
 
-            // Only persist file messages for direct messages.
-            // Group/video-call chat persistence depends on DB tables that may not exist in this deployment.
-            bool isDmRoom = channelName.StartsWith("dm_");
+            bool isDmRoom = channelName.StartsWith("dm_", StringComparison.OrdinalIgnoreCase);
+            bool isGroupRoom = channelName.StartsWith("group_", StringComparison.OrdinalIgnoreCase);
+            bool isPersistentRoom = isDmRoom || isGroupRoom;
             Guid? messageId = null;
             var attachmentPayload = new
             {
@@ -714,7 +790,7 @@ namespace Synget.AgoraIntegrator.API.Hubs
             };
             var serializedAttachmentPayload = JsonSerializer.Serialize(attachmentPayload);
 
-            if (isDmRoom)
+            if (isPersistentRoom)
             {
                 var senderDbUser = await userRepo.GetByUsernameAsync(participant.UserId);
                 if (senderDbUser == null)
@@ -723,27 +799,47 @@ namespace Synget.AgoraIntegrator.API.Hubs
                     return;
                 }
 
-                if (!TryParseDmUsernames(channelName, out var dmUserA, out var dmUserB))
+                Guid receiverUserId = senderDbUser.Id;
+                Guid? groupRoomId = null;
+
+                if (isDmRoom)
                 {
-                    await Clients.Caller.SendAsync("Error", "Invalid DM channel name.");
-                    return;
+                    if (!TryParseDmUsernames(channelName, out var dmUserA, out var dmUserB))
+                    {
+                        await Clients.Caller.SendAsync("Error", "Invalid DM channel name.");
+                        return;
+                    }
+
+                    var otherUsername = string.Equals(senderDbUser.Username, dmUserA, StringComparison.OrdinalIgnoreCase)
+                        ? dmUserB
+                        : dmUserA;
+
+                    var receiverDbUser = await userRepo.GetByUsernameAsync(otherUsername);
+                    if (receiverDbUser == null)
+                    {
+                        await Clients.Caller.SendAsync("Error", "Receiver not found.");
+                        return;
+                    }
+
+                    receiverUserId = receiverDbUser.Id;
                 }
-
-                var otherUsername = string.Equals(senderDbUser.Username, dmUserA, StringComparison.OrdinalIgnoreCase)
-                    ? dmUserB
-                    : dmUserA;
-
-                var receiverDbUser = await userRepo.GetByUsernameAsync(otherUsername);
-                if (receiverDbUser == null)
+                else
                 {
-                    await Clients.Caller.SendAsync("Error", "Receiver not found.");
-                    return;
+                    var groupRoom = await ResolveGroupRoomAsync(dbContext, channelName, senderDbUser.Id);
+                    if (groupRoom == null)
+                    {
+                        await Clients.Caller.SendAsync("Error", "Group room not found.");
+                        return;
+                    }
+
+                    groupRoomId = groupRoom.Id;
                 }
 
                 var messageEntity = new MessageEntity
                 {
                     SenderUserId = senderDbUser.Id,
-                    ReceiverUserId = receiverDbUser.Id,
+                    ReceiverUserId = receiverUserId,
+                    GroupRoomId = groupRoomId,
                     Content = caption ?? $"[Ficheiro: {fileEntity.FileName}]",
                     Metadata = serializedAttachmentPayload,
                     CreatedAt = DateTime.UtcNow,
@@ -758,7 +854,7 @@ namespace Synget.AgoraIntegrator.API.Hubs
                 fileEntity.RoomId = channelName;
                 await fileRepo.UpdateAsync(fileEntity);
 
-                _logger.LogDebug("File message persisted in DM {Channel}: {FileId}", channelName, fileId);
+                _logger.LogDebug("File message persisted in room {Channel}: {FileId}", channelName, fileId);
             }
             else
             {
@@ -846,7 +942,7 @@ namespace Synget.AgoraIntegrator.API.Hubs
             }
 
             // For video call chats, send a general notification to all participants
-            if (!isDmRoom)
+            if (!isPersistentRoom)
             {
                 _logger.LogInformation("Video call file message broadcast to channel {Channel}", channelName);
             }
@@ -881,6 +977,36 @@ namespace Synget.AgoraIntegrator.API.Hubs
             userA = NormalizeUsername(parts[1]);
             userB = NormalizeUsername(parts[2]);
             return !(string.IsNullOrWhiteSpace(userA) || string.IsNullOrWhiteSpace(userB));
+        }
+
+        private static bool TryParseGroupRoomCode(string channelName, out string roomCode)
+        {
+            roomCode = string.Empty;
+
+            channelName = NormalizeChannelName(channelName);
+            if (!channelName.StartsWith("group_", StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            roomCode = channelName["group_".Length..].Trim();
+            return !string.IsNullOrWhiteSpace(roomCode);
+        }
+
+        private static async Task<GroupRoomEntity?> ResolveGroupRoomAsync(ChatDbContext dbContext, string channelName, Guid memberUserId)
+        {
+            if (!TryParseGroupRoomCode(channelName, out var roomCode))
+            {
+                return null;
+            }
+
+            return await dbContext.GroupRooms
+                .Where(room => room.RoomCode == roomCode && room.IsActive)
+                .Where(room => dbContext.GroupRoomMembers.Any(member =>
+                    member.RoomId == room.Id &&
+                    member.UserId == memberUserId &&
+                    member.Status == "active"))
+                .FirstOrDefaultAsync();
         }
 
         private static string NormalizeUsername(string value)
@@ -933,6 +1059,31 @@ namespace Synget.AgoraIntegrator.API.Hubs
             Array.Sort(normalizedUsers, StringComparer.Ordinal);
             normalizedChannelName = $"dm_{normalizedUsers[0]}_{normalizedUsers[1]}";
             return true;
+        }
+
+        private static bool IsPersistentRoom(string channelName)
+        {
+            return channelName.StartsWith("dm_") || channelName.StartsWith("group_");
+        }
+
+        private static object MapHistoryMessage(MessageEntity message)
+        {
+            var isFileMessage = message.Metadata?.Contains("\"type\":\"file\"") == true;
+            return new
+            {
+                messageId = message.Id.ToString("N"),
+                senderId = message.SenderUser?.Username ?? string.Empty,
+                senderName = message.SenderUser?.DisplayName ?? message.SenderUser?.Username ?? "Unknown",
+                content = message.Content ?? string.Empty,
+                timestamp = message.CreatedAt.ToString("o"),
+                isRead = message.IsRead,
+                readAt = message.ReadAt.HasValue ? message.ReadAt.Value.ToString("o") : null,
+                type = isFileMessage ? "file" : "text",
+                metadata = message.Metadata,
+                attachment = isFileMessage
+                    ? JsonSerializer.Deserialize<object>(message.Metadata!)
+                    : null
+            };
         }
 
         #region Professor Room Status

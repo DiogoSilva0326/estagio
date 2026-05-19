@@ -115,6 +115,9 @@ class ConfiguracoesOverviewSection extends StatelessWidget {
     required this.stripePublishableKeyController,
     required this.siteUrlController,
     required this.emailLinksBaseUrlController,
+    required this.newsletterEmailLinksMode,
+    required this.newsletterEmailLinksLocalController,
+    required this.newsletterEmailLinksTestController,
     required this.postmarkApiKeyController,
     required this.postmarkEmailFromController,
     required this.newsletterEmailFromController,
@@ -127,6 +130,7 @@ class ConfiguracoesOverviewSection extends StatelessWidget {
     required this.savingRemoteSettings,
     required this.selectedSection,
     required this.onSectionChanged,
+    required this.onNewsletterEmailLinksModeChanged,
     required this.onMaintenanceModeChanged,
     required this.onRegistrationsOpenChanged,
     required this.onRequire2faChanged,
@@ -149,6 +153,9 @@ class ConfiguracoesOverviewSection extends StatelessWidget {
   final TextEditingController stripePublishableKeyController;
   final TextEditingController siteUrlController;
   final TextEditingController emailLinksBaseUrlController;
+  final String newsletterEmailLinksMode;
+  final TextEditingController newsletterEmailLinksLocalController;
+  final TextEditingController newsletterEmailLinksTestController;
   final TextEditingController postmarkApiKeyController;
   final TextEditingController postmarkEmailFromController;
   final TextEditingController newsletterEmailFromController;
@@ -161,6 +168,7 @@ class ConfiguracoesOverviewSection extends StatelessWidget {
   final bool savingRemoteSettings;
   final ConfiguracoesSection selectedSection;
   final ValueChanged<ConfiguracoesSection> onSectionChanged;
+  final ValueChanged<String> onNewsletterEmailLinksModeChanged;
   final ValueChanged<bool> onMaintenanceModeChanged;
   final ValueChanged<bool> onRegistrationsOpenChanged;
   final ValueChanged<bool> onRequire2faChanged;
@@ -205,6 +213,11 @@ class ConfiguracoesOverviewSection extends StatelessWidget {
                       stripePublishableKeyController: stripePublishableKeyController,
                       siteUrlController: siteUrlController,
                       emailLinksBaseUrlController: emailLinksBaseUrlController,
+                        newsletterEmailLinksMode: newsletterEmailLinksMode,
+                        newsletterEmailLinksLocalController:
+                          newsletterEmailLinksLocalController,
+                        newsletterEmailLinksTestController:
+                          newsletterEmailLinksTestController,
                       postmarkApiKeyController: postmarkApiKeyController,
                       postmarkEmailFromController: postmarkEmailFromController,
                       newsletterEmailFromController: newsletterEmailFromController,
@@ -223,6 +236,8 @@ class ConfiguracoesOverviewSection extends StatelessWidget {
                       onSlackAlertsChanged: onSlackAlertsChanged,
                       onDailySummaryChanged: onDailySummaryChanged,
                       onWebsocketLogsChanged: onWebsocketLogsChanged,
+                      onNewsletterEmailLinksModeChanged:
+                          onNewsletterEmailLinksModeChanged,
                       onTestConnection: onTestConnection,
                     ),
                   ],
@@ -256,6 +271,11 @@ class ConfiguracoesOverviewSection extends StatelessWidget {
                         stripePublishableKeyController: stripePublishableKeyController,
                         siteUrlController: siteUrlController,
                         emailLinksBaseUrlController: emailLinksBaseUrlController,
+                        newsletterEmailLinksMode: newsletterEmailLinksMode,
+                        newsletterEmailLinksLocalController:
+                          newsletterEmailLinksLocalController,
+                        newsletterEmailLinksTestController:
+                          newsletterEmailLinksTestController,
                         postmarkApiKeyController: postmarkApiKeyController,
                         postmarkEmailFromController: postmarkEmailFromController,
                         newsletterEmailFromController: newsletterEmailFromController,
@@ -274,6 +294,8 @@ class ConfiguracoesOverviewSection extends StatelessWidget {
                         onSlackAlertsChanged: onSlackAlertsChanged,
                         onDailySummaryChanged: onDailySummaryChanged,
                         onWebsocketLogsChanged: onWebsocketLogsChanged,
+                        onNewsletterEmailLinksModeChanged:
+                            onNewsletterEmailLinksModeChanged,
                         onTestConnection: onTestConnection,
                       ),
                     ),
@@ -424,6 +446,9 @@ class _SettingsContent extends StatelessWidget {
     required this.stripePublishableKeyController,
     required this.siteUrlController,
     required this.emailLinksBaseUrlController,
+    required this.newsletterEmailLinksMode,
+    required this.newsletterEmailLinksLocalController,
+    required this.newsletterEmailLinksTestController,
     required this.postmarkApiKeyController,
     required this.postmarkEmailFromController,
     required this.newsletterEmailFromController,
@@ -442,6 +467,7 @@ class _SettingsContent extends StatelessWidget {
     required this.onSlackAlertsChanged,
     required this.onDailySummaryChanged,
     required this.onWebsocketLogsChanged,
+    required this.onNewsletterEmailLinksModeChanged,
     required this.onTestConnection,
   });
 
@@ -455,6 +481,9 @@ class _SettingsContent extends StatelessWidget {
   final TextEditingController stripePublishableKeyController;
   final TextEditingController siteUrlController;
   final TextEditingController emailLinksBaseUrlController;
+  final String newsletterEmailLinksMode;
+  final TextEditingController newsletterEmailLinksLocalController;
+  final TextEditingController newsletterEmailLinksTestController;
   final TextEditingController postmarkApiKeyController;
   final TextEditingController postmarkEmailFromController;
   final TextEditingController newsletterEmailFromController;
@@ -473,6 +502,7 @@ class _SettingsContent extends StatelessWidget {
   final ValueChanged<bool> onSlackAlertsChanged;
   final ValueChanged<bool> onDailySummaryChanged;
   final ValueChanged<bool> onWebsocketLogsChanged;
+  final ValueChanged<String> onNewsletterEmailLinksModeChanged;
   final VoidCallback onTestConnection;
 
   @override
@@ -758,8 +788,41 @@ class _SettingsContent extends StatelessWidget {
                 icon: Icons.alternate_email_rounded,
               ),
               const SizedBox(height: 18.637),
+              const Text(
+                'MODO DOS LINKS DA NEWSLETTER',
+                style: TextStyle(
+                  color: Color(0xFF6A7282),
+                  fontSize: 12.813,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 1.3563,
+                ),
+              ),
+              const SizedBox(height: 9.318),
+              _ConfigDropdownField(
+                value: newsletterEmailLinksMode,
+                icon: Icons.tune_rounded,
+                items: const <String>['local', 'test', 'custom'],
+                onChanged: loadingRemoteSettings || savingRemoteSettings
+                    ? null
+                    : onNewsletterEmailLinksModeChanged,
+              ),
+              const SizedBox(height: 18.637),
               _ConfigField(
-                label: 'URL BASE PARA LINKS DE EMAIL',
+                label: 'URL LOCALHOST DO FRONTEND',
+                controller: newsletterEmailLinksLocalController,
+                icon: Icons.computer_rounded,
+                readOnly: loadingRemoteSettings || savingRemoteSettings,
+              ),
+              const SizedBox(height: 18.637),
+              _ConfigField(
+                label: 'URL DO SERVIDOR DE TESTES',
+                controller: newsletterEmailLinksTestController,
+                icon: Icons.cloud_outlined,
+                readOnly: loadingRemoteSettings || savingRemoteSettings,
+              ),
+              const SizedBox(height: 18.637),
+              _ConfigField(
+                label: 'URL CUSTOM PARA LINKS DE EMAIL',
                 controller: emailLinksBaseUrlController,
                 icon: Icons.link_rounded,
                 readOnly: loadingRemoteSettings || savingRemoteSettings,
@@ -1012,6 +1075,69 @@ class _ConfigField extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _ConfigDropdownField extends StatelessWidget {
+  const _ConfigDropdownField({
+    required this.value,
+    required this.icon,
+    required this.items,
+    required this.onChanged,
+  });
+
+  final String value;
+  final IconData icon;
+  final List<String> items;
+  final ValueChanged<String>? onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 48.921,
+      decoration: BoxDecoration(
+        color: const Color(0xFFF9FAFB),
+        borderRadius: BorderRadius.circular(16.307),
+        border: Border.all(color: const Color(0xFFF3F4F6), width: 1.165),
+      ),
+      child: Row(
+        children: [
+          const SizedBox(width: 13.89),
+          Icon(icon, size: 18.637, color: const Color(0xFF9AA1AF)),
+          const SizedBox(width: 13.89),
+          Expanded(
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
+                value: items.contains(value) ? value : items.first,
+                onChanged: onChanged == null
+                    ? null
+                    : (item) {
+                        if (item != null) {
+                          onChanged!(item);
+                        }
+                      },
+                isExpanded: true,
+                dropdownColor: Colors.white,
+                items: [
+                  for (final item in items)
+                    DropdownMenuItem<String>(
+                      value: item,
+                      child: Text(
+                        item.toUpperCase(),
+                        style: const TextStyle(
+                          color: Color(0xFF4A5565),
+                          fontSize: 16.307,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(width: 18.637),
+        ],
+      ),
     );
   }
 }

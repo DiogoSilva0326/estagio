@@ -96,6 +96,7 @@ class BackofficeProfessionalsService {
 
     return ExplicadorItem(
       idProfessor: _stringValue(json['idProfessor'], fallback: ''),
+      category: _stringValue(json['category'], fallback: category.apiValue),
       photoUrl: _nullableString(json['photoUrl']),
       initials: _buildInitials(name),
       name: name,
@@ -132,21 +133,9 @@ class BackofficeProfessionalsService {
       documentLabel: _documentLabelFor(category),
       documentActionLabel: 'Ver Documento',
       videoDuration: '-',
-        reviewStatusLabel: isRejected
-          ? 'REJEITADO'
-          : isVerified && isActive
-          ? 'APROVADO'
-          : 'PENDENTE',
-        reviewStatusColor: isRejected
-          ? AppColors.danger
-          : isVerified && isActive
-          ? const Color(0xFF4CAF50)
-          : AppColors.warning,
-        reviewStatusBackgroundColor: isRejected
-          ? const Color(0x26F04438)
-          : isVerified && isActive
-          ? const Color(0x264CAF50)
-          : const Color(0x26FB7B02),
+        reviewStatusLabel: _computeReviewStatusLabel(category, isRejected, isVerified, isActive),
+        reviewStatusColor: _computeReviewStatusColor(category, isRejected, isVerified, isActive),
+        reviewStatusBackgroundColor: _computeReviewStatusBackgroundColor(category, isRejected, isVerified, isActive),
       verifications: _verificationsFor(category, approved: isVerified),
     );
   }
@@ -260,4 +249,56 @@ class BackofficeProfessionalsService {
         ];
     }
   }
+
+  String _computeReviewStatusLabel(
+    BackofficeProfessionalCategory category,
+    bool isRejected,
+    bool isVerified,
+    bool isActive,
+  ) {
+    if (isRejected) return 'REJEITADO';
+    if (isVerified && isActive) return 'APROVADO';
+    
+    // Mostrar "PENDENTE PSICÓLOGO" explicitamente para categoria de psicólogos
+    if (category == BackofficeProfessionalCategory.psicologos) {
+      return 'PENDENTE PSICÓLOGO';
+    }
+    
+    return 'PENDENTE';
+  }
+
+  Color _computeReviewStatusColor(
+    BackofficeProfessionalCategory category,
+    bool isRejected,
+    bool isVerified,
+    bool isActive,
+  ) {
+    if (isRejected) return AppColors.danger;
+    if (isVerified && isActive) return const Color(0xFF4CAF50);
+    
+    // Cor para "PENDENTE PSICÓLOGO" - laranja/warning
+    if (category == BackofficeProfessionalCategory.psicologos) {
+      return AppColors.warning;
+    }
+    
+    return AppColors.warning;
+  }
+
+  Color _computeReviewStatusBackgroundColor(
+    BackofficeProfessionalCategory category,
+    bool isRejected,
+    bool isVerified,
+    bool isActive,
+  ) {
+    if (isRejected) return const Color(0x26F04438);
+    if (isVerified && isActive) return const Color(0x264CAF50);
+    
+    // Background para "PENDENTE PSICÓLOGO" - laranja claro
+    if (category == BackofficeProfessionalCategory.psicologos) {
+      return const Color(0x26FB7B02);
+    }
+    
+    return const Color(0x26FB7B02);
+  }
 }
+

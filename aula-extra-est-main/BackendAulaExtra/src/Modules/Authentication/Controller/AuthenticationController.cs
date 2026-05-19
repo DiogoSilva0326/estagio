@@ -2,12 +2,14 @@ using System;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Collections.Generic;
+using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ConfidantPostgreSQL.Auth;
 using ConfidantPostgreSQL.Modules.Users.Service;
 using ConfidantPostgreSQL.Modules.UserProfile.Service;
 using ConfidantPostgreSQL.Integrations.Email;
+using Google.Apis.Auth;
 using Npgsql;
 using System.Security.Cryptography;
 
@@ -46,6 +48,83 @@ namespace ConfidantPostgreSQL.Modules.Authentication.Controller
         {
             if (roles == null) return false;
             return roles.Any(item => string.Equals(item?.Trim(), role, StringComparison.OrdinalIgnoreCase));
+        }
+
+        private static IReadOnlyList<string> GetGoogleClientIds()
+        {
+            var clientIds = new List<string>();
+
+            var singleClientId = Environment.GetEnvironmentVariable("GOOGLE_CLIENT_ID");
+            if (!string.IsNullOrWhiteSpace(singleClientId))
+            {
+                clientIds.Add(singleClientId.Trim());
+            }
+
+            var legacyClientId = Environment.GetEnvironmentVariable("ID_CLIENT_GOOGLE");
+            if (!string.IsNullOrWhiteSpace(legacyClientId))
+            {
+                clientIds.Add(legacyClientId.Trim());
+            }
+
+            var multiClientIds = Environment.GetEnvironmentVariable("GOOGLE_CLIENT_IDS");
+            if (!string.IsNullOrWhiteSpace(multiClientIds))
+            {
+                var split = multiClientIds
+                    .Split(new[] { ',', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries)
+                    .Select(item => item.Trim())
+                    .Where(item => !string.IsNullOrWhiteSpace(item));
+                clientIds.AddRange(split);
+            }
+
+            return clientIds
+                .Distinct(StringComparer.Ordinal)
+                .ToArray();
+        }
+
+        private static string? GetPrimaryGoogleClientId()
+        {
+            var clientIds = GetGoogleClientIds();
+            if (clientIds.Count == 0) return null;
+            return clientIds[0];
+        }
+
+        private async Task<string> BuildUniqueUsernameAsync(string? email, string? fallbackDisplayName)
+        {
+            var baseSource = email;
+            if (string.IsNullOrWhiteSpace(baseSource))
+            {
+                baseSource = fallbackDisplayName;
+            }
+
+            var baseName = (baseSource ?? "google_user").Trim();
+            var atIndex = baseName.IndexOf('@');
+            if (atIndex > 0)
+            {
+                baseName = baseName.Substring(0, atIndex);
+            }
+
+            baseName = Regex.Replace(baseName, "[^a-zA-Z0-9._-]", "_");
+            if (baseName.Length < 3)
+            {
+                baseName = $"google_{Guid.NewGuid().ToString("N").Substring(0, 8)}";
+            }
+
+            var candidate = baseName;
+            var suffix = 1;
+
+            while (await _users.GetByUsernameAsync(candidate) != null)
+            {
+                candidate = $"{baseName}_{suffix}";
+                suffix++;
+
+                if (suffix > 1000)
+                {
+                    candidate = $"google_{Guid.NewGuid():N}";
+                    break;
+                }
+            }
+
+            return candidate;
         }
 
         private bool TryGetAuthenticatedUserId(out Guid userId)
@@ -167,6 +246,139 @@ namespace ConfidantPostgreSQL.Modules.Authentication.Controller
                 roles = auth.Roles,
                 message = "Registered successfully."
             });
+        }
+
+        [AllowAnonymous]
+        [HttpPost("GoogleLogin")]
+        public async Task<IActionResult> GoogleLogin(
+            [FromBody] AuthenticationGoogleLoginRequest request,
+            [FromHeader(Name = "culture")] string? culture = null)
+        {
+            RequestContext.ApplyCulture(culture);
+
+            if (request == null || string.IsNullOrWhiteSpace(request.IdToken))
+            {
+                return BadRequest(new { message = "Google idToken is required." });
+            }
+
+            var googleClientIds = GetGoogleClientIds();
+            if (googleClientIds.Count == 0)
+            {
+                return StatusCode(500, new { message = "Google Sign-In is not configured on the server." });
+            }
+
+            GoogleJsonWebSignature.Payload payload;
+            try
+            {
+                payload = await GoogleJsonWebSignature.ValidateAsync(
+                    request.IdToken.Trim(),
+                    new GoogleJsonWebSignature.ValidationSettings
+                    {
+                        Audience = googleClientIds,
+                    });
+            }
+            catch
+            {
+                return Unauthorized(new { message = "Invalid Google token." });
+            }
+
+            if (string.IsNullOrWhiteSpace(payload.Subject) ||
+                string.IsNullOrWhiteSpace(payload.Email) ||
+                payload.EmailVerified != true)
+            {
+                return Unauthorized(new { message = "Google account is missing required verified data." });
+            }
+
+            var normalizedEmail = payload.Email.Trim().ToLowerInvariant();
+            var normalizedSubject = payload.Subject.Trim();
+
+            var user = await _users.GetByGoogleSubjectAsync(normalizedSubject);
+            if (user == null)
+            {
+                user = await _users.GetByEmailAsync(normalizedEmail);
+            }
+
+            if (user == null)
+            {
+                var generatedUsername = await BuildUniqueUsernameAsync(normalizedEmail, payload.Name);
+                user = new ConfidantPostgreSQL.Modules.Users.Models.User
+                {
+                    Email = normalizedEmail,
+                    FirstName = payload.GivenName ?? string.Empty,
+                    LastName = payload.FamilyName ?? string.Empty,
+                    Username = generatedUsername,
+                    DisplayName = string.IsNullOrWhiteSpace(payload.Name) ? generatedUsername : payload.Name,
+                    Inactive = false,
+                    GoogleSubject = normalizedSubject,
+                };
+
+                try
+                {
+                    var userId = await _users.InsertAsync(user);
+                    user.Id = userId;
+
+                    if (userId == Guid.Empty)
+                    {
+                        return StatusCode(500, new { message = "Google account registration failed." });
+                    }
+
+                    try
+                    {
+                        await _userProfileService.GetOrCreateAsync(userId);
+                    }
+                    catch
+                    {
+                        // ignored on purpose: authentication should still work
+                    }
+                }
+                catch (PostgresException ex) when (ex.SqlState == "23505" && ex.ConstraintName == "users_email_key")
+                {
+                    user = await _users.GetByEmailAsync(normalizedEmail);
+                    if (user == null)
+                    {
+                        return Conflict(new { message = "There is already an account with this email." });
+                    }
+                }
+            }
+
+            if (user?.Id == null || user.Id == Guid.Empty)
+            {
+                return StatusCode(500, new { message = "Unable to resolve account for Google login." });
+            }
+
+            var linkedGoogle = await _users.SetGoogleSubjectAsync(user.Id.Value, normalizedSubject);
+            if (!linkedGoogle)
+            {
+                var bySubject = await _users.GetByGoogleSubjectAsync(normalizedSubject);
+                if (bySubject?.Id != user.Id)
+                {
+                    return Conflict(new { message = "Google account is already linked to another user." });
+                }
+            }
+
+            var auth = await _users.IssueTokenAsync(user.Id.Value);
+            if (auth == null)
+            {
+                return Unauthorized(new { message = "Failed to issue authentication token." });
+            }
+
+            return Ok(BuildAuthResponse(auth, "Google login successful."));
+        }
+
+        [AllowAnonymous]
+        [HttpGet("GoogleClientConfig")]
+        public IActionResult GoogleClientConfig(
+            [FromHeader(Name = "culture")] string? culture = null)
+        {
+            RequestContext.ApplyCulture(culture);
+
+            var clientId = GetPrimaryGoogleClientId();
+            if (string.IsNullOrWhiteSpace(clientId))
+            {
+                return NotFound(new { message = "Google Client ID não configurado no servidor." });
+            }
+
+            return Ok(new { clientId });
         }
 
         // POST /api/Authentication/Refresh
@@ -369,6 +581,11 @@ namespace ConfidantPostgreSQL.Modules.Authentication.Controller
         public string? DisplayName { get; set; }
         public string? MobileNumber { get; set; }
         public string? Nif { get; set; }
+    }
+
+    public sealed class AuthenticationGoogleLoginRequest
+    {
+        public string? IdToken { get; set; }
     }
 
     public sealed class ResetPasswordRequest

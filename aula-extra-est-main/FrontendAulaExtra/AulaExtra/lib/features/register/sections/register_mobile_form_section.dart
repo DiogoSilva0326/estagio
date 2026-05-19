@@ -55,6 +55,21 @@ class _RegisterMobileFormSectionState extends State<RegisterMobileFormSection> {
     return true;
   }
 
+  String _resolveTargetRoute(Role role) {
+    if (role == Role.student) return Routes.areasAluno;
+    if (role == Role.teacher || role == Role.tutor || role == Role.psychologist) {
+      return Routes.professorMeusAlunos;
+    }
+    return Routes.home;
+  }
+
+  void _showProviderNotAvailable(String provider) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Registo com $provider ainda não está disponível.')),
+    );
+  }
+
   Future<void> _handleRegister() async {
     if (!_canSubmit) return;
 
@@ -75,14 +90,32 @@ class _RegisterMobileFormSectionState extends State<RegisterMobileFormSection> {
 
       AuthService.applySessionToProvider(user, session);
 
-      final targetRoute = session.appRole == Role.teacher
-          ? Routes.professorMeusAlunos
-          : session.appRole == Role.student
-          ? Routes.areasAluno
-          : Routes.home;
+        final targetRoute = _resolveTargetRoute(session.appRole);
 
       if (!mounted) return;
       navigator.pushNamedAndRemoveUntil(targetRoute, (route) => false);
+    } catch (error) {
+      if (!mounted) return;
+      messenger.showSnackBar(SnackBar(content: Text(error.toString())));
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
+    }
+  }
+
+  Future<void> _handleGoogleRegister() async {
+    if (_isSubmitting) return;
+
+    final user = context.read<UserProvider>();
+    final navigator = Navigator.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+
+    setState(() => _isSubmitting = true);
+    try {
+      final session = await AuthService().loginWithGoogle();
+      AuthService.applySessionToProvider(user, session);
+
+      if (!mounted) return;
+      navigator.pushNamedAndRemoveUntil(_resolveTargetRoute(session.appRole), (route) => false);
     } catch (error) {
       if (!mounted) return;
       messenger.showSnackBar(SnackBar(content: Text(error.toString())));
@@ -157,6 +190,9 @@ class _RegisterMobileFormSectionState extends State<RegisterMobileFormSection> {
                           RegisterSocial.backgroundColors[provider]!,
                       borderColor: RegisterSocial.borderColors[provider]!,
                       textColor: RegisterSocial.textColors[provider]!,
+                      onTap: provider == 'google'
+                          ? _handleGoogleRegister
+                          : () => _showProviderNotAvailable(RegisterSocial.labels[provider]!),
                     ),
                   );
                 }),

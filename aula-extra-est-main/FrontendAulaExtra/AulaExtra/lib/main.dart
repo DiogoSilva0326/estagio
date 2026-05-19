@@ -1,4 +1,6 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_web_plugins/url_strategy.dart';
 import 'package:provider/provider.dart';
 import 'routes/routes.dart';
 import 'design/theme/app_theme.dart';
@@ -38,19 +40,46 @@ class _AppPageRoute<T> extends PageRouteBuilder<T> {
 }
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+  if (kIsWeb) {
+    usePathUrlStrategy();
+  }
+
   runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
+  String _initialRoute() {
+    if (!kIsWeb) {
+      return Routes.home;
+    }
+
+    final uri = Uri.base;
+    final normalizedPath = Routes.normalizePath(uri.path);
+    if (normalizedPath.isEmpty || normalizedPath == Routes.home) {
+      return Routes.home;
+    }
+
+    return uri.hasQuery ? '$normalizedPath?${uri.query}' : normalizedPath;
+  }
+
   Route<dynamic>? _onGenerateRoute(RouteSettings settings) {
     final name = settings.name;
     if (name == null) return null;
 
-    final normalized = name.length > 1 && name.endsWith('/')
-        ? name.substring(0, name.length - 1)
-        : name;
+    final uri = Uri.parse(name);
+    final normalized = Routes.normalizePath(uri.path);
+
+    final dynamicPage = Routes.resolveDynamic(uri);
+    if (dynamicPage != null) {
+      return _AppPageRoute(
+        settings: RouteSettings(name: name, arguments: settings.arguments),
+        builder: (_) => dynamicPage,
+      );
+    }
+
     final builder = Routes.all[normalized];
     if (builder == null) return null;
 
@@ -75,7 +104,7 @@ class MyApp extends StatelessWidget {
             navigatorKey: appNavigatorKey,
             title: 'Aula Extra',
             theme: AppTheme.light(),
-            initialRoute: Routes.home,
+            initialRoute: _initialRoute(),
             onGenerateRoute: _onGenerateRoute,
             onUnknownRoute: (settings) => _AppPageRoute(
               settings: settings,

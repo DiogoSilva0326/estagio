@@ -27,6 +27,8 @@ class _ConfiguracoesPageState extends State<ConfiguracoesPage> {
   late final TextEditingController _stripePublishableKeyController;
   late final TextEditingController _siteUrlController;
   late final TextEditingController _emailLinksBaseUrlController;
+  late final TextEditingController _newsletterEmailLinksLocalController;
+  late final TextEditingController _newsletterEmailLinksTestController;
   late final TextEditingController _postmarkApiKeyController;
   late final TextEditingController _postmarkEmailFromController;
   late final TextEditingController _newsletterEmailFromController;
@@ -36,6 +38,7 @@ class _ConfiguracoesPageState extends State<ConfiguracoesPage> {
   late final TextEditingController _platformCommissionController;
   late final TextEditingController _vatRateController;
   late ConfiguracoesState _state;
+  String _newsletterEmailLinksMode = 'local';
   ConfiguracoesSection _selectedSection = ConfiguracoesSection.geral;
   bool _loadingRemoteSettings = true;
   bool _savingRemoteSettings = false;
@@ -57,6 +60,12 @@ class _ConfiguracoesPageState extends State<ConfiguracoesPage> {
     _siteUrlController = TextEditingController(text: 'https://aulaextra.pt');
     _emailLinksBaseUrlController = TextEditingController(
       text: 'https://aulaextra.pt',
+    );
+    _newsletterEmailLinksLocalController = TextEditingController(
+      text: 'http://localhost:3000',
+    );
+    _newsletterEmailLinksTestController = TextEditingController(
+      text: 'https://aulaextra.synget.ovh',
     );
     _postmarkApiKeyController = TextEditingController();
     _postmarkEmailFromController = TextEditingController();
@@ -83,6 +92,8 @@ class _ConfiguracoesPageState extends State<ConfiguracoesPage> {
     _stripePublishableKeyController.dispose();
     _siteUrlController.dispose();
     _emailLinksBaseUrlController.dispose();
+    _newsletterEmailLinksLocalController.dispose();
+    _newsletterEmailLinksTestController.dispose();
     _postmarkApiKeyController.dispose();
     _postmarkEmailFromController.dispose();
     _newsletterEmailFromController.dispose();
@@ -129,6 +140,11 @@ class _ConfiguracoesPageState extends State<ConfiguracoesPage> {
                       _stripePublishableKeyController,
                   siteUrlController: _siteUrlController,
                   emailLinksBaseUrlController: _emailLinksBaseUrlController,
+                    newsletterEmailLinksMode: _newsletterEmailLinksMode,
+                    newsletterEmailLinksLocalController:
+                      _newsletterEmailLinksLocalController,
+                    newsletterEmailLinksTestController:
+                      _newsletterEmailLinksTestController,
                   postmarkApiKeyController: _postmarkApiKeyController,
                   postmarkEmailFromController: _postmarkEmailFromController,
                   newsletterEmailFromController: _newsletterEmailFromController,
@@ -143,6 +159,11 @@ class _ConfiguracoesPageState extends State<ConfiguracoesPage> {
                   onSectionChanged: (section) {
                     setState(() {
                       _selectedSection = section;
+                    });
+                  },
+                  onNewsletterEmailLinksModeChanged: (value) {
+                    setState(() {
+                      _newsletterEmailLinksMode = value;
                     });
                   },
                   onMaintenanceModeChanged: (value) {
@@ -226,6 +247,14 @@ class _ConfiguracoesPageState extends State<ConfiguracoesPage> {
       _siteUrlController.text = valueOf('Seo:SiteUrl') ?? _siteUrlController.text;
       _emailLinksBaseUrlController.text =
           valueOf('Seo:EmailLinksBaseUrl') ?? _siteUrlController.text;
+        _newsletterEmailLinksMode =
+          valueOf('Newsletter:EmailLinksBaseUrlMode') ?? _newsletterEmailLinksMode;
+        _newsletterEmailLinksLocalController.text =
+          valueOf('Newsletter:EmailLinksBaseUrlLocal') ??
+          _newsletterEmailLinksLocalController.text;
+        _newsletterEmailLinksTestController.text =
+          valueOf('Newsletter:EmailLinksBaseUrlTest') ??
+          _newsletterEmailLinksTestController.text;
       _agoraAppIdController.text =
           valueOf('Agora:AppId') ?? _agoraAppIdController.text;
       _agoraAppCertificateController.text =
@@ -347,6 +376,24 @@ class _ConfiguracoesPageState extends State<ConfiguracoesPage> {
           value: _emailLinksBaseUrlController.text.trim(),
           dataType: 'seo',
           description: 'URL base usada nos links enviados por email.',
+        ),
+        BackofficeSystemSettingDraft(
+          key: 'Newsletter:EmailLinksBaseUrlMode',
+          value: _newsletterEmailLinksMode.trim(),
+          dataType: 'seo',
+          description: 'Modo ativo dos links da newsletter: local, test ou custom.',
+        ),
+        BackofficeSystemSettingDraft(
+          key: 'Newsletter:EmailLinksBaseUrlLocal',
+          value: _newsletterEmailLinksLocalController.text.trim(),
+          dataType: 'seo',
+          description: 'URL local do frontend para os links da newsletter.',
+        ),
+        BackofficeSystemSettingDraft(
+          key: 'Newsletter:EmailLinksBaseUrlTest',
+          value: _newsletterEmailLinksTestController.text.trim(),
+          dataType: 'seo',
+          description: 'URL de testes do frontend para os links da newsletter.',
         ),
         BackofficeSystemSettingDraft(
           key: 'Agora:AppId',

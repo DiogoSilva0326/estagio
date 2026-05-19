@@ -11,6 +11,8 @@ class ExplicadoresMobileContentHeaderSection extends StatelessWidget {
     required this.selectedDisciplinaId,
     required this.onDisciplinaChanged,
     required this.onFiltersTap,
+    required this.showDisciplina,
+    required this.searchHint,
   });
 
   final TextEditingController searchController;
@@ -19,6 +21,8 @@ class ExplicadoresMobileContentHeaderSection extends StatelessWidget {
   final String? selectedDisciplinaId;
   final ValueChanged<String?> onDisciplinaChanged;
   final VoidCallback onFiltersTap;
+  final bool showDisciplina;
+  final String searchHint;
 
   @override
   Widget build(BuildContext context) {
@@ -54,13 +58,16 @@ class ExplicadoresMobileContentHeaderSection extends StatelessWidget {
                 _SearchInput(
                   controller: searchController,
                   onSubmitted: onSearchSubmitted,
+                  hintText: searchHint,
                 ),
-                const SizedBox(height: 12),
-                _Dropdown(
-                  options: disciplinaOptions,
-                  selectedId: selectedDisciplinaId,
-                  onChanged: onDisciplinaChanged,
-                ),
+                if (showDisciplina) ...[
+                  const SizedBox(height: 12),
+                  _Dropdown(
+                    options: disciplinaOptions,
+                    selectedId: selectedDisciplinaId,
+                    onChanged: onDisciplinaChanged,
+                  ),
+                ]
               ],
             ),
           ),
@@ -109,10 +116,15 @@ class ExplicadoresMobileContentHeaderSection extends StatelessWidget {
 }
 
 class _SearchInput extends StatelessWidget {
-  const _SearchInput({required this.controller, required this.onSubmitted});
+  const _SearchInput({
+    required this.controller,
+    required this.onSubmitted,
+    required this.hintText,
+  });
 
   final TextEditingController controller;
   final ValueChanged<String> onSubmitted;
+  final String hintText;
 
   @override
   Widget build(BuildContext context) {
@@ -133,11 +145,11 @@ class _SearchInput extends StatelessWidget {
               controller: controller,
               textInputAction: TextInputAction.search,
               onSubmitted: onSubmitted,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 isCollapsed: true,
                 border: InputBorder.none,
-                hintText: 'Procura por nome ou disciplina...',
-                hintStyle: TextStyle(
+                hintText: hintText,
+                hintStyle: const TextStyle(
                   fontSize: 14,
                   height: 1.25,
                   color: Color(0xFF9AA4B2),

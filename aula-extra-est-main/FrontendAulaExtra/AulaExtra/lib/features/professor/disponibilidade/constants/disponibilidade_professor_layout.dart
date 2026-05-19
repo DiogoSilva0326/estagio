@@ -27,7 +27,7 @@ class DisponibilidadeProfessorLayout {
   static const double pageRightPadding = 23.148;
 
   /// Distância do topo até ao início do conteúdo.
-  static const double pageTopPadding = 90;
+  static const double pageTopPadding = 46;
 
   /// Espaço entre sidebar (menu) e conteúdo.
   static const double sidebarContentGap = 28.889;

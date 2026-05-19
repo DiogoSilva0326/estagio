@@ -21,6 +21,16 @@ public class MessageRepository : IMessageRepository
         {
             message.CreatedAt = DateTime.UtcNow;
         }
+        else if (message.CreatedAt.Kind != DateTimeKind.Utc)
+        {
+            message.CreatedAt = message.CreatedAt.ToUniversalTime();
+        }
+
+        if (message.ReadAt.HasValue && message.ReadAt.Value.Kind != DateTimeKind.Utc)
+        {
+            message.ReadAt = message.ReadAt.Value.ToUniversalTime();
+        }
+
         _db.Messages.Add(message);
         await _db.SaveChangesAsync();
         return message;
@@ -68,6 +78,7 @@ public class MessageRepository : IMessageRepository
                 .Take(limit)
                 .ToListAsync();
 
+            NormalizeTimestamps(messages);
             messages.Reverse();
             return messages;
         }
@@ -93,6 +104,7 @@ public class MessageRepository : IMessageRepository
             .Take(limit)
             .ToListAsync();
 
+        NormalizeTimestamps(messages);
         messages.Reverse();
         return messages;
     }
@@ -158,5 +170,21 @@ public class MessageRepository : IMessageRepository
         }
 
         return (parts[1].Trim().ToLowerInvariant(), parts[2].Trim().ToLowerInvariant());
+    }
+
+    private static void NormalizeTimestamps(IEnumerable<MessageEntity> messages)
+    {
+        foreach (var message in messages)
+        {
+            if (message.CreatedAt.Kind != DateTimeKind.Utc)
+            {
+                message.CreatedAt = DateTime.SpecifyKind(message.CreatedAt, DateTimeKind.Utc);
+            }
+
+            if (message.ReadAt.HasValue && message.ReadAt.Value.Kind != DateTimeKind.Utc)
+            {
+                message.ReadAt = DateTime.SpecifyKind(message.ReadAt.Value, DateTimeKind.Utc);
+            }
+        }
     }
 }

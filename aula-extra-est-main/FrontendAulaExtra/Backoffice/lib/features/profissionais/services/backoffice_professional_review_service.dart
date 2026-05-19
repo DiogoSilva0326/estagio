@@ -85,31 +85,42 @@ class BackofficeProfessionalReviewService {
           )
           .toList(growable: false),
       ibanDocumentUrl: _nullable(payload['ibanDocumentUrl']),
+      psychologistProofDocumentUrl: _nullable(
+        payload['psychologistProofDocumentUrl'],
+      ),
+      supportTypes: ((payload['supportTypes'] as List?) ?? const <dynamic>[])
+          .map((item) => item.toString().trim().toLowerCase())
+          .where((item) => item.isNotEmpty)
+          .toList(growable: false),
     );
   }
 
-  Future<void> approveProfessor(String professorId) async {
+  Future<void> approveProfessor(String professorId, {String? supportType}) async {
     final token = await _requireToken();
     await _apiClient.putJson(
       ApiConfig.uri('/api/Professors/professors/$professorId/approve'),
       token: token,
+      body: <String, dynamic>{
+        if (supportType != null && supportType.trim().isNotEmpty)
+          'supportType': supportType.trim(),
+      },
     );
   }
 
-  Future<void> rejectProfessor(String professorId) async {
+  Future<void> rejectProfessor(String professorId, {String? supportType}) async {
     final token = await _requireToken();
     await _apiClient.putJson(
       ApiConfig.uri('/api/Professors/professors/$professorId/reject'),
       token: token,
+      body: <String, dynamic>{
+        if (supportType != null && supportType.trim().isNotEmpty)
+          'supportType': supportType.trim(),
+      },
     );
   }
 
-  Future<void> banProfessor(String professorId) async {
-    final token = await _requireToken();
-    await _apiClient.putJson(
-      ApiConfig.uri('/api/Professors/professors/$professorId/reject'),
-      token: token,
-    );
+  Future<void> banProfessor(String professorId, {String? supportType}) async {
+    await rejectProfessor(professorId, supportType: supportType);
   }
 
   Future<void> reviewCertificate(

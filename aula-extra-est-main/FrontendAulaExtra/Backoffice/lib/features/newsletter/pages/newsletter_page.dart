@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../design/widgets/backoffice_scaffold.dart';
 import '../../../routes/app_routes.dart';
 import '../models/newsletter_campaign.dart';
+import '../models/newsletter_subscriber.dart';
 import '../sections/newsletter_overview_section.dart';
 import '../services/backoffice_newsletter_service.dart';
 import '../widgets/newsletter_campaign_dialog.dart';
@@ -20,6 +21,7 @@ class _NewsletterPageState extends State<NewsletterPage> {
   final BackofficeNewsletterService _service = BackofficeNewsletterService();
 
   List<NewsletterCampaign> _items = const <NewsletterCampaign>[];
+  List<NewsletterSubscriber> _subscribers = const <NewsletterSubscriber>[];
   int _subscriberCount = 0;
   String? _warningMessage;
   bool _loading = true;
@@ -59,6 +61,7 @@ class _NewsletterPageState extends State<NewsletterPage> {
                       ),
                       child: NewsletterOverviewSection(
                         items: _items,
+                        subscribers: _subscribers,
                         subscriberCount: _subscriberCount,
                         warningMessage: _warningMessage,
                         creating: _submitting,
@@ -85,6 +88,7 @@ class _NewsletterPageState extends State<NewsletterPage> {
 
     setState(() {
       _items = data.items;
+      _subscribers = data.subscribers;
       _subscriberCount = data.subscriberCount;
       _warningMessage = data.warningMessage;
       _loading = false;

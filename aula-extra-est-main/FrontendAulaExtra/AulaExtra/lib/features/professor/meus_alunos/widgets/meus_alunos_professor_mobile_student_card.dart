@@ -11,12 +11,14 @@ class MeusAlunosProfessorMobileStudentCard extends StatelessWidget {
   const MeusAlunosProfessorMobileStudentCard({
     super.key,
     required this.aluno,
+    required this.onProfileTap,
     required this.onChatTap,
     required this.onFilesTap,
     this.onComplaintTap,
   });
 
   final ProfessorAlunoDto aluno;
+  final VoidCallback onProfileTap;
   final VoidCallback onChatTap;
   final VoidCallback onFilesTap;
   final VoidCallback? onComplaintTap;
@@ -150,6 +152,15 @@ class MeusAlunosProfessorMobileStudentCard extends StatelessWidget {
           const SizedBox(height: 16),
           Row(
             children: [
+              Expanded(
+                child: _PrimaryActionButton(
+                  label: 'Ver perfil',
+                  icon: Icons.person_outline_rounded,
+                  color: primaryColor,
+                  onTap: onProfileTap,
+                ),
+              ),
+              const SizedBox(width: 10),
               Expanded(
                 child: _PrimaryActionButton(
                   label: 'Chat',

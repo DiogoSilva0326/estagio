@@ -2,43 +2,19 @@ import 'package:aula_extra/core/components/header/app_header.dart';
 import 'package:aula_extra/core/data/education/dtos/area_dto.dart';
 import 'package:aula_extra/core/data/education/dtos/disciplina_dto.dart';
 import 'package:aula_extra/core/data/education/education_service.dart';
+import 'package:aula_extra/core/data/professors/dtos/public_professor_profile_dto.dart';
+import 'package:aula_extra/core/data/professors/professors_service.dart';
 import 'package:aula_extra/core/data/professor_ads/dtos/professor_ad_dto.dart';
 import 'package:aula_extra/core/data/professor_ads/professor_ads_service.dart';
 import 'package:aula_extra/core/providers/user_provider.dart';
-import 'package:aula_extra/core/config/teaching_roles_config.dart';
+import 'package:aula_extra/features/aluno/chats/models/chat_bootstrap_args.dart';
 import 'package:aula_extra/features/aluno/marcar_aula_professor/constants/marcar_aula_professor_constants.dart';
 import 'package:aula_extra/features/aluno/marcar_aula_professor/models/marcar_aula_professor_args.dart';
 import 'package:aula_extra/features/tutor_profile_view/models/tutor_profile_args.dart';
+import 'package:aula_extra/features/tutor_profile_view/widgets/schedule_grid.dart';
 import 'package:aula_extra/routes/routes.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-
-const List<String> _dayLabels = [
-  'Seg',
-  'Ter',
-  'Qua',
-  'Qui',
-  'Sex',
-  'Sáb',
-  'Dom',
-];
-
-const List<String> _timeLabels = [
-  '17:00',
-  '17:30',
-  '18:00',
-  '18:30',
-  '19:00',
-  '19:30',
-  '20:00',
-  '20:30',
-  '21:00',
-  '21:30',
-  '22:00',
-  '22:30',
-  '23:00',
-  '23:30',
-];
 
 const List<String> _monthShortPt = [
   'jan.',
@@ -111,10 +87,15 @@ class _BookingOption {
 }
 
 class _SelectedSlot {
-  const _SelectedSlot({required this.date, required this.timeLabel});
+  const _SelectedSlot({
+    required this.date,
+    required this.startTimeLabel,
+    required this.endTimeLabel,
+  });
 
   final DateTime date;
-  final String timeLabel;
+  final String startTimeLabel;
+  final String endTimeLabel;
 }
 
 class _MarcarAulaProfessorContentSectionState
@@ -152,20 +133,50 @@ class _MarcarAulaProfessorContentSectionState
 
   final ProfessorAdsService _adsService = ProfessorAdsService();
   final EducationService _educationService = EducationService(); 
+  final ProfessorsService _professorsService = ProfessorsService();
 
   List<ProfessorAdDto> _ads = const <ProfessorAdDto>[];
   String? _selectedOptionId;
   _SelectedSlot? _selectedSlot;
   String? _adsError;
+  String? _profileError;
   bool _isLoadingAds = false;
-  late DateTime _weekStart;
+  bool _isLoadingProfile = false;
+  PublicProfessorProfileDto? _publicProfile;
 
   @override
   void initState() {
     super.initState();
-    _weekStart = _startOfWeek(DateTime.now());
     _selectedOptionId = _buildFallbackOptions().first.id;
     _loadProfessorAds();
+    _loadPublicProfessor();
+  }
+
+  Future<void> _loadPublicProfessor() async {
+    final professorId = widget.args.professorId.trim();
+    if (professorId.isEmpty) return;
+
+    setState(() {
+      _isLoadingProfile = true;
+      _profileError = null;
+    });
+
+    try {
+      final profile = await _professorsService.getPublicProfessorProfile(
+        idProfessor: professorId,
+      );
+      if (!mounted) return;
+      setState(() {
+        _publicProfile = profile;
+        _isLoadingProfile = false;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _profileError = error.toString();
+        _isLoadingProfile = false;
+      });
+    }
   }
 
   Future<void> _loadProfessorAds() async {
@@ -296,25 +307,6 @@ class _MarcarAulaProfessorContentSectionState
     return match.isNotEmpty ? match.first.id : options.first.id;
   }
 
-  static DateTime _dateOnly(DateTime dt) =>
-      DateTime(dt.year, dt.month, dt.day);
-
-  static DateTime _startOfWeek(DateTime dt) {
-    final day = _dateOnly(dt);
-    return day.subtract(Duration(days: day.weekday - DateTime.monday));
-  }
-
-  String _formatWeekRange(DateTime weekStart) {
-    final weekEnd = weekStart.add(const Duration(days: 6));
-    final startMonth = _monthShortPt[weekStart.month - 1];
-    final endMonth = _monthShortPt[weekEnd.month - 1];
-
-    if (weekStart.month == weekEnd.month) {
-      return '${weekStart.day} - ${weekEnd.day} $startMonth';
-    }
-    return '${weekStart.day} $startMonth - ${weekEnd.day} $endMonth';
-  }
-
   String _displayTitleForAd(ProfessorAdDto ad) {
     final disciplina = ad.disciplinaNome?.trim();
     if (disciplina != null && disciplina.isNotEmpty) return disciplina;
@@ -385,6 +377,130 @@ class _MarcarAulaProfessorContentSectionState
     );
   }
 
+  TimeOfDay _parseTimeLabel(String label, {TimeOfDay fallback = const TimeOfDay(hour: 18, minute: 0)}) {
+    final parts = label.split(':');
+    if (parts.isEmpty) return fallback;
+    final hour = int.tryParse(parts[0]);
+    final minute = parts.length > 1 ? int.tryParse(parts[1]) : 0;
+    if (hour == null || minute == null) return fallback;
+    return TimeOfDay(hour: hour, minute: minute);
+  }
+
+  String _formatTimeOfDay(TimeOfDay time) {
+    return '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
+  }
+
+  int _estimatedSessionMinutes() {
+    final match = RegExp(r'(\d+)').firstMatch(_selectedOption.durationText);
+    final parsed = match == null ? null : int.tryParse(match.group(1)!);
+    if (parsed == null || parsed <= 0) return 60;
+    return parsed;
+  }
+
+  TimeOfDay _addMinutes(TimeOfDay base, int minutesToAdd) {
+    final totalMinutes = base.hour * 60 + base.minute + minutesToAdd;
+    final normalized = totalMinutes.clamp(0, (23 * 60) + 59);
+    return TimeOfDay(hour: normalized ~/ 60, minute: normalized % 60);
+  }
+
+  bool _isEndAfterStart(TimeOfDay start, TimeOfDay end) {
+    final startMinutes = start.hour * 60 + start.minute;
+    final endMinutes = end.hour * 60 + end.minute;
+    return endMinutes > startMinutes;
+  }
+
+  Future<void> _pickPreferredSlot() async {
+    final now = DateTime.now();
+    final initialDate = _selectedSlot?.date ?? now;
+    final pickedDate = await showDatePicker(
+      context: context,
+      initialDate: initialDate,
+      firstDate: DateTime(now.year, now.month, now.day),
+      lastDate: DateTime(now.year + 1),
+    );
+    if (!mounted || pickedDate == null) return;
+
+    final initialStartTime = _selectedSlot != null
+        ? _parseTimeLabel(_selectedSlot!.startTimeLabel)
+        : TimeOfDay.fromDateTime(now);
+
+    final pickedStartTime = await showTimePicker(
+      context: context,
+      initialTime: initialStartTime,
+    );
+    if (!mounted || pickedStartTime == null) return;
+
+    final initialEndTime = _selectedSlot != null
+        ? _parseTimeLabel(
+            _selectedSlot!.endTimeLabel,
+            fallback: _addMinutes(pickedStartTime, _estimatedSessionMinutes()),
+          )
+        : _addMinutes(pickedStartTime, _estimatedSessionMinutes());
+
+    final pickedEndTime = await showTimePicker(
+      context: context,
+      initialTime: initialEndTime,
+    );
+    if (!mounted || pickedEndTime == null) return;
+
+    if (!_isEndAfterStart(pickedStartTime, pickedEndTime)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('A hora de fim tem de ser posterior à hora de início.'),
+        ),
+      );
+      return;
+    }
+
+    final startTimeLabel = _formatTimeOfDay(pickedStartTime);
+    final endTimeLabel = _formatTimeOfDay(pickedEndTime);
+
+    setState(() {
+      _selectedSlot = _SelectedSlot(
+        date: pickedDate,
+        startTimeLabel: startTimeLabel,
+        endTimeLabel: endTimeLabel,
+      );
+    });
+  }
+
+  String _formatSelectedDateTime(_SelectedSlot slot) {
+    final month = _monthShortPt[slot.date.month - 1];
+    return '${slot.date.day} $month, das ${slot.startTimeLabel} às ${slot.endTimeLabel}';
+  }
+
+  String _buildInitialContactMessage() {
+    final selectedSlot = _selectedSlot;
+    final preferredTime = selectedSlot == null
+        ? 'A combinar'
+        : _formatSelectedDateTime(selectedSlot);
+
+    return [
+      'Ola ${widget.args.tutorName}, tenho interesse em marcar uma aula consigo.',
+      'Tipo de aula: ${_selectedOption.title}',
+      'Modalidade: ${_selectedOption.kindLabel}',
+      'Duracao prevista: ${_selectedOption.durationText}',
+      'Horario pretendido: $preferredTime',
+      'Podemos combinar os detalhes por aqui?',
+    ].join('\n');
+  }
+
+  void _openContactChat() {
+    final profile = _publicProfile;
+    final selectedSlot = _selectedSlot;
+    if (profile == null || selectedSlot == null) return;
+
+    Navigator.of(context).pushNamed(
+      Routes.chats,
+      arguments: ChatBootstrapArgs(
+        contactUserId: profile.idUser,
+        contactName: profile.displayName,
+        contactUsername: profile.username,
+        initialMessage: _buildInitialContactMessage(),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final args = widget.args;
@@ -396,6 +512,12 @@ class _MarcarAulaProfessorContentSectionState
     final verticalPadding = isMobile
         ? MarcarAulaProfessorConstants.mobileVerticalPadding
         : MarcarAulaProfessorConstants.verticalPadding;
+    final canOpenContactChat =
+        _selectedSlot != null &&
+        !_isLoadingProfile &&
+        _publicProfile != null &&
+        (_publicProfile!.idUser.trim().isNotEmpty ||
+            _publicProfile!.username.trim().isNotEmpty);
 
     final mainColumn = _MainColumn(
       args: args,
@@ -403,17 +525,16 @@ class _MarcarAulaProfessorContentSectionState
       options: _options,
       selectedOptionId: _selectedOption.id,
       selectedSlot: _selectedSlot,
-      weekLabel: _formatWeekRange(_weekStart),
-      weekStart: _weekStart,
       adsError: _adsError,
+      profileError: _profileError,
       isLoadingAds: _isLoadingAds,
+      isLoadingProfile: _isLoadingProfile,
+      availability: _publicProfile?.availability ?? const [],
       onOptionSelected: (id) => setState(() => _selectedOptionId = id),
-      onPrevWeekTap: () =>
-          setState(() => _weekStart = _weekStart.subtract(const Duration(days: 7))),
-      onNextWeekTap: () =>
-          setState(() => _weekStart = _weekStart.add(const Duration(days: 7))),
       onRetryAds: _loadProfessorAds,
-      onSlotSelected: (slot) => setState(() => _selectedSlot = slot),
+      onRetryProfile: _loadPublicProfessor,
+      onPickPreferredSlot: _pickPreferredSlot,
+      onClearPreferredSlot: () => setState(() => _selectedSlot = null),
       onViewProfileTap: _openTutorProfile,
     );
 
@@ -422,7 +543,7 @@ class _MarcarAulaProfessorContentSectionState
       isMobile: isMobile,
       option: _selectedOption,
       selectedSlot: _selectedSlot,
-      onConfirmTap: _selectedSlot == null ? null : () {},
+      onConfirmTap: canOpenContactChat ? _openContactChat : null,
     );
 
     return Padding(
@@ -638,15 +759,16 @@ class _MainColumn extends StatelessWidget {
     required this.options,
     required this.selectedOptionId,
     required this.selectedSlot,
-    required this.weekLabel,
-    required this.weekStart,
     required this.adsError,
+    required this.profileError,
     required this.isLoadingAds,
+    required this.isLoadingProfile,
+    required this.availability,
     required this.onOptionSelected,
-    required this.onPrevWeekTap,
-    required this.onNextWeekTap,
     required this.onRetryAds,
-    required this.onSlotSelected,
+    required this.onRetryProfile,
+    required this.onPickPreferredSlot,
+    required this.onClearPreferredSlot,
     required this.onViewProfileTap,
   });
 
@@ -655,15 +777,16 @@ class _MainColumn extends StatelessWidget {
   final List<_BookingOption> options;
   final String selectedOptionId;
   final _SelectedSlot? selectedSlot;
-  final String weekLabel;
-  final DateTime weekStart;
   final String? adsError;
+  final String? profileError;
   final bool isLoadingAds;
+  final bool isLoadingProfile;
+  final List<PublicProfessorAvailabilityDto> availability;
   final ValueChanged<String> onOptionSelected;
-  final VoidCallback onPrevWeekTap;
-  final VoidCallback onNextWeekTap;
   final Future<void> Function() onRetryAds;
-  final ValueChanged<_SelectedSlot> onSlotSelected;
+  final Future<void> Function() onRetryProfile;
+  final Future<void> Function() onPickPreferredSlot;
+  final VoidCallback onClearPreferredSlot;
   final VoidCallback onViewProfileTap;
 
   @override
@@ -695,11 +818,12 @@ class _MainColumn extends StatelessWidget {
           child: _ScheduleSection(
             isMobile: isMobile,
             selectedSlot: selectedSlot,
-            weekLabel: weekLabel,
-            weekStart: weekStart,
-            onPrevWeekTap: onPrevWeekTap,
-            onNextWeekTap: onNextWeekTap,
-            onSlotSelected: onSlotSelected,
+            availability: availability,
+            isLoadingProfile: isLoadingProfile,
+            errorText: profileError,
+            onRetryProfile: onRetryProfile,
+            onPickPreferredSlot: onPickPreferredSlot,
+            onClearPreferredSlot: onClearPreferredSlot,
           ),
         ),
       ],
@@ -1338,358 +1462,156 @@ class _ScheduleSection extends StatelessWidget {
   const _ScheduleSection({
     required this.isMobile,
     required this.selectedSlot,
-    required this.weekLabel,
-    required this.weekStart,
-    required this.onPrevWeekTap,
-    required this.onNextWeekTap,
-    required this.onSlotSelected,
+    required this.availability,
+    required this.isLoadingProfile,
+    required this.errorText,
+    required this.onRetryProfile,
+    required this.onPickPreferredSlot,
+    required this.onClearPreferredSlot,
   });
 
   final bool isMobile;
   final _SelectedSlot? selectedSlot;
-  final String weekLabel;
-  final DateTime weekStart;
-  final VoidCallback onPrevWeekTap;
-  final VoidCallback onNextWeekTap;
-  final ValueChanged<_SelectedSlot> onSlotSelected;
+  final List<PublicProfessorAvailabilityDto> availability;
+  final bool isLoadingProfile;
+  final String? errorText;
+  final Future<void> Function() onRetryProfile;
+  final Future<void> Function() onPickPreferredSlot;
+  final VoidCallback onClearPreferredSlot;
 
   @override
   Widget build(BuildContext context) {
+    String formatSelectedDate(_SelectedSlot slot) {
+      final month = _monthShortPt[slot.date.month - 1];
+      return '${slot.date.day} $month, das ${slot.startTimeLabel} às ${slot.endTimeLabel}';
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (isMobile) ...[
-          Text(
-            'Escolha data e horário',
-            style: MarcarAulaProfessorConstants.sectionTitleStyle.copyWith(
-              fontSize: 18,
-            ),
+        Text(
+          'Disponibilidade do professor',
+          style: MarcarAulaProfessorConstants.sectionTitleStyle.copyWith(
+            fontSize: isMobile ? 18 : 20,
           ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              IconButton(
-                onPressed: onPrevWeekTap,
-                icon: const Icon(
-                  Icons.chevron_left_rounded,
-                  color: Color(0xFF4A5565),
-                ),
-                tooltip: 'Semana anterior',
-              ),
-              Expanded(
-                child: Text(
-                  weekLabel,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF4A5565),
+        ),
+        const SizedBox(height: 8),
+        const Text(
+          'Estes horários correspondem à disponibilidade real definida no perfil público do professor.',
+          style: TextStyle(
+            fontSize: 14,
+            color: MarcarAulaProfessorConstants.textMuted,
+            height: 1.5,
+          ),
+        ),
+        const SizedBox(height: 12),
+        if (isLoadingProfile)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 24),
+            child: Center(child: CircularProgressIndicator()),
+          )
+        else if (errorText != null)
+          DecoratedBox(
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFF7ED),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: const Color(0xFFFFD6A7)),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(
+                    Icons.info_outline,
+                    size: 18,
+                    color: MarcarAulaProfessorConstants.orange,
                   ),
-                ),
-              ),
-              IconButton(
-                onPressed: onNextWeekTap,
-                icon: const Icon(
-                  Icons.chevron_right_rounded,
-                  color: Color(0xFF4A5565),
-                ),
-                tooltip: 'Próxima semana',
-              ),
-            ],
-          ),
-        ] else
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  'Escolha data e horário',
-                  style: MarcarAulaProfessorConstants.sectionTitleStyle,
-                ),
-              ),
-              IconButton(
-                onPressed: onPrevWeekTap,
-                icon: const Icon(
-                  Icons.chevron_left_rounded,
-                  color: Color(0xFF4A5565),
-                ),
-                tooltip: 'Semana anterior',
-              ),
-              Text(
-                weekLabel,
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF4A5565),
-                ),
-              ),
-              IconButton(
-                onPressed: onNextWeekTap,
-                icon: const Icon(
-                  Icons.chevron_right_rounded,
-                  color: Color(0xFF4A5565),
-                ),
-                tooltip: 'Próxima semana',
-              ),
-            ],
-          ),
-        const SizedBox(height: 12),
-        _TimeSlotTable(
-          isMobile: isMobile,
-          selectedSlot: selectedSlot,
-          weekStart: weekStart,
-          onSlotSelected: onSlotSelected,
-        ),
-        const SizedBox(height: 12),
-        const Row(
-          children: [
-            Icon(
-              Icons.info_outline,
-              size: 18,
-              color: MarcarAulaProfessorConstants.textMuted,
-            ),
-            SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                '15 minutos de intervalo entre aulas para preparação',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: MarcarAulaProfessorConstants.textMuted,
-                ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Não foi possível carregar a disponibilidade real. $errorText',
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: MarcarAulaProfessorConstants.textMuted,
+                        height: 1.4,
+                      ),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () => onRetryProfile(),
+                    child: const Text('Tentar'),
+                  ),
+                ],
               ),
             ),
-          ],
-        ),
-      ],
-    );
-  }
-}
-
-class _TimeSlotTable extends StatelessWidget {
-  const _TimeSlotTable({
-    required this.isMobile,
-    required this.selectedSlot,
-    required this.weekStart,
-    required this.onSlotSelected,
-  });
-
-  final bool isMobile;
-  final _SelectedSlot? selectedSlot;
-  final DateTime weekStart;
-  final ValueChanged<_SelectedSlot> onSlotSelected;
-
-  bool _isAvailable(int dayIndex, int timeIndex) {
-    if (dayIndex >= 5) return timeIndex.isEven;
-    if (dayIndex == 0) return timeIndex % 3 != 2;
-    if (dayIndex == 1) return timeIndex % 2 == 0;
-    if (dayIndex == 2) return timeIndex % 4 != 0;
-    if (dayIndex == 3) return timeIndex % 3 == 0;
-    return timeIndex % 5 != 1;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final dayWidth = isMobile ? 68.0 : 92.0;
-    final hourWidth = isMobile ? 72.0 : 92.0;
-    final outerPadding = isMobile ? 12.0 : 16.0;
-
-    DateTime dateForIndex(int index) =>
-        DateTime(weekStart.year, weekStart.month, weekStart.day)
-            .add(Duration(days: index));
-
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(16),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          border: Border.all(color: MarcarAulaProfessorConstants.borderSoft),
-        ),
-        child: SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
+          )
+        else
+          ScheduleGrid(availability: availability),
+        const SizedBox(height: 12),
+        DecoratedBox(
+          decoration: BoxDecoration(
+            color: const Color(0xFFF9FAFB),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: MarcarAulaProfessorConstants.borderSoft),
+          ),
           child: Padding(
-            padding: EdgeInsets.all(outerPadding),
+            padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
+                Text(
+                  'Escolha o horário pretendido para enviar ao professor',
+                  style: TextStyle(
+                    fontSize: isMobile ? 15 : 16,
+                    fontWeight: FontWeight.w700,
+                    color: MarcarAulaProfessorConstants.textDark,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                if (selectedSlot != null)
+                  Text(
+                    formatSelectedDate(selectedSlot!),
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: MarcarAulaProfessorConstants.orange,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  )
+                else
+                  const Text(
+                    'Ainda não escolheu nenhum horário preferido.',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: MarcarAulaProfessorConstants.textMuted,
+                    ),
+                  ),
+                const SizedBox(height: 14),
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 12,
                   children: [
-                    SizedBox(width: hourWidth),
-                    for (var dayIndex = 0; dayIndex < _dayLabels.length; dayIndex++)
-                      SizedBox(
-                        width: dayWidth,
-                        child: Column(
-                          children: [
-                            Text(
-                              _dayLabels[dayIndex],
-                              style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: MarcarAulaProfessorConstants.textMuted,
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            _DayPill(
-                              day: dateForIndex(dayIndex),
-                              isSelected: selectedSlot != null &&
-                                  DateTime(
-                                        selectedSlot!.date.year,
-                                        selectedSlot!.date.month,
-                                        selectedSlot!.date.day,
-                                      ) ==
-                                      DateTime(
-                                        dateForIndex(dayIndex).year,
-                                        dateForIndex(dayIndex).month,
-                                        dateForIndex(dayIndex).day,
-                                      ),
-                            ),
-                          ],
-                        ),
+                    OutlinedButton.icon(
+                      onPressed: () => onPickPreferredSlot(),
+                      icon: const Icon(Icons.event_available_outlined),
+                      label: Text(
+                        selectedSlot == null
+                            ? 'Escolher início e fim'
+                            : 'Alterar horário',
+                      ),
+                    ),
+                    if (selectedSlot != null)
+                      TextButton(
+                        onPressed: onClearPreferredSlot,
+                        child: const Text('Limpar'),
                       ),
                   ],
                 ),
-                const SizedBox(height: 12),
-                for (var timeIndex = 0; timeIndex < _timeLabels.length; timeIndex++)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
-                    child: Row(
-                      children: [
-                        SizedBox(
-                          width: hourWidth,
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 8),
-                            child: Text(
-                              _timeLabels[timeIndex],
-                              style: const TextStyle(
-                                fontSize: 14,
-                                color: MarcarAulaProfessorConstants.textMuted,
-                              ),
-                            ),
-                          ),
-                        ),
-                        for (var dayIndex = 0; dayIndex < _dayLabels.length; dayIndex++)
-                          _TimeSlotCell(
-                            width: dayWidth,
-                            isMobile: isMobile,
-                            isAvailable: _isAvailable(dayIndex, timeIndex),
-                            isSelected: selectedSlot != null &&
-                                DateTime(
-                                      selectedSlot!.date.year,
-                                      selectedSlot!.date.month,
-                                      selectedSlot!.date.day,
-                                    ) ==
-                                    DateTime(
-                                      dateForIndex(dayIndex).year,
-                                      dateForIndex(dayIndex).month,
-                                      dateForIndex(dayIndex).day,
-                                    ) &&
-                                selectedSlot!.timeLabel == _timeLabels[timeIndex],
-                            onTap: () {
-                              if (!_isAvailable(dayIndex, timeIndex)) return;
-                              onSlotSelected(
-                                _SelectedSlot(
-                                  date: dateForIndex(dayIndex),
-                                  timeLabel: _timeLabels[timeIndex],
-                                ),
-                              );
-                            },
-                          ),
-                      ],
-                    ),
-                  ),
               ],
             ),
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _DayPill extends StatelessWidget {
-  const _DayPill({required this.day, required this.isSelected});
-
-  final DateTime day;
-  final bool isSelected;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 28,
-      height: 28,
-      decoration: BoxDecoration(
-        color: isSelected
-            ? MarcarAulaProfessorConstants.orange
-            : const Color(0xFFF3F4F6),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      alignment: Alignment.center,
-      child: Text(
-        '${day.day}',
-        style: TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w700,
-          color: isSelected ? Colors.white : const Color(0xFF4A5565),
-        ),
-      ),
-    );
-  }
-}
-
-class _TimeSlotCell extends StatelessWidget {
-  const _TimeSlotCell({
-    required this.width,
-    required this.isMobile,
-    required this.isAvailable,
-    required this.isSelected,
-    required this.onTap,
-  });
-
-  final double width;
-  final bool isMobile;
-  final bool isAvailable;
-  final bool isSelected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final background = isAvailable
-        ? MarcarAulaProfessorConstants.greenSoft
-        : const Color(0xFFF3F4F6);
-    final foreground = isAvailable
-        ? MarcarAulaProfessorConstants.green
-        : MarcarAulaProfessorConstants.textSubtle;
-
-    return SizedBox(
-      width: width,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 4),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(12),
-          child: Ink(
-            height: isMobile ? 40 : 44,
-            decoration: BoxDecoration(
-              color: background,
-              borderRadius: BorderRadius.circular(12),
-              border: isSelected
-                  ? Border.all(
-                      color: MarcarAulaProfessorConstants.orange,
-                      width: 2,
-                    )
-                  : null,
-            ),
-            child: Center(
-              child: Text(
-                isAvailable ? '✓' : '—',
-                style: TextStyle(
-                  fontWeight: FontWeight.w700,
-                  fontSize: 16,
-                  color: foreground,
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
+      ],
     );
   }
 }
@@ -1713,7 +1635,7 @@ class _SummaryCard extends StatelessWidget {
   Widget build(BuildContext context) {
     String formatSelectedDate(_SelectedSlot slot) {
       final month = _monthShortPt[slot.date.month - 1];
-      return '${slot.date.day} $month às ${slot.timeLabel}';
+      return '${slot.date.day} $month, das ${slot.startTimeLabel} às ${slot.endTimeLabel}';
     }
 
     return DecoratedBox(
@@ -1733,7 +1655,7 @@ class _SummaryCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Resumo da Reserva',
+              'Resumo do Pedido',
               style: MarcarAulaProfessorConstants.sectionTitleStyle.copyWith(
                 fontSize: isMobile ? 18 : 20,
               ),
@@ -1788,14 +1710,14 @@ class _SummaryCard extends StatelessWidget {
             const SizedBox(height: 16),
             _SummaryRow(
               icon: Icons.class_outlined,
-              label: 'ANÚNCIO',
+              label: 'TIPO DE AULA',
               value: option.kindLabel,
               isMuted: false,
             ),
             const SizedBox(height: 12),
             _SummaryRow(
               icon: Icons.event_available,
-              label: 'DATA E HORA',
+              label: 'HORÁRIO PRETENDIDO',
               value: selectedSlot == null
                   ? 'Selecione um horário'
                   : formatSelectedDate(selectedSlot!),
@@ -1827,7 +1749,7 @@ class _SummaryCard extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         const Text(
-                          'Subtotal',
+                          'Preço anunciado',
                           style: TextStyle(
                             fontSize: 14,
                             color: Color(0xFF4A5565),
@@ -1862,53 +1784,24 @@ class _SummaryCard extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         const Text(
-                          'Total',
+                          'Duração estimada',
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
                         Text(
-                          option.priceText,
+                          option.durationText,
                           style: const TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.w800,
-                            color: MarcarAulaProfessorConstants.orange,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                            color: MarcarAulaProfessorConstants.textDark,
                           ),
                         ),
                       ],
                     ),
                   ],
                 ),
-              ),
-            ),
-            const SizedBox(height: 12),
-            const Text.rich(
-              TextSpan(
-                children: [
-                  TextSpan(
-                    text: 'Aceito os ',
-                    style: TextStyle(color: Color(0xFF4A5565), fontSize: 14),
-                  ),
-                  TextSpan(
-                    text: 'Termos de Serviço',
-                    style: TextStyle(
-                      color: MarcarAulaProfessorConstants.orangeSoft,
-                      fontSize: 14,
-                    ),
-                  ),
-                  TextSpan(
-                    text: ' e a ',
-                    style: TextStyle(color: Color(0xFF4A5565), fontSize: 14),
-                  ),
-                  TextSpan(
-                    text: 'Política de Cancelamento',
-                    style: TextStyle(
-                      color: MarcarAulaProfessorConstants.orangeSoft,
-                      fontSize: 14,
-                    ),
-                  ),
-                ],
               ),
             ),
             const SizedBox(height: 16),
@@ -1927,7 +1820,7 @@ class _SummaryCard extends StatelessWidget {
                   elevation: 0,
                 ),
                 child: const Text(
-                  'Confirmar e Agendar',
+                  'Entrar em contacto',
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
@@ -1938,23 +1831,13 @@ class _SummaryCard extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             const Center(
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.lock_outline,
-                    size: 14,
-                    color: MarcarAulaProfessorConstants.textMuted,
-                  ),
-                  SizedBox(width: 6),
-                  Text(
-                    'Pagamento seguro via Stripe',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: MarcarAulaProfessorConstants.textMuted,
-                    ),
-                  ),
-                ],
+              child: Text(
+                'Será aberta uma conversa com o professor com a sua preferência de horário.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: MarcarAulaProfessorConstants.textMuted,
+                ),
               ),
             ),
           ],

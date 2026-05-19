@@ -52,6 +52,7 @@ class ProfessorsApi {
     required String username,
     required String mobileNumber,
     required String nif,
+    required List<String> supportTypes,
     String? currentSchool,
     int? yearsExperience,
     String? presentationVideoUrl,
@@ -66,6 +67,7 @@ class ProfessorsApi {
       'username': username,
       'mobileNumber': mobileNumber,
       'nif': nif,
+        'supportTypes': supportTypes,
       'currentSchool': currentSchool?.trim().isEmpty ?? true
           ? null
           : currentSchool?.trim(),

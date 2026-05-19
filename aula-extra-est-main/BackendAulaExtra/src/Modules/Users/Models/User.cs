@@ -26,6 +26,8 @@ namespace ConfidantPostgreSQL.Modules.Users.Models
         public string? MoloniCustomerId { get; set; }
         public string? NacexCustomerId { get; set; }
         public string? StripeCustomerId { get; set; }
+        [JsonIgnore]
+        public string? GoogleSubject { get; set; }
         public Guid? StoreId { get; set; }
         public bool? Inactive { get; set; }
         public DateTime? CreationDate { get; set; }

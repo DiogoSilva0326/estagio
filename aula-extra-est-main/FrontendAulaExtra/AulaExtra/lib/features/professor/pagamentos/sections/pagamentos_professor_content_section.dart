@@ -33,12 +33,16 @@ class PagamentosProfessorContentSection extends StatefulWidget {
       _PagamentosProfessorContentSectionState();
 }
 
+enum _PaymentRoleFilter { explicador, tutor, psicologo }
+
 class _PagamentosProfessorContentSectionState
     extends State<PagamentosProfessorContentSection> {
   final PaymentsService _paymentsService = PaymentsService();
   static const int _itemsPerPage = 5;
   late Future<ProfessorPaymentSummaryDto> _summaryFuture;
   int _currentPage = 1;
+  _PaymentRoleFilter _selectedRoleFilter = _PaymentRoleFilter.explicador;
+  bool _initializedRoleFilter = false;
 
   @override
   void initState() {
@@ -46,11 +50,110 @@ class _PagamentosProfessorContentSectionState
     _summaryFuture = _paymentsService.fetchMyTeacherSummary();
   }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_initializedRoleFilter) return;
+
+    final role = context.read<UserProvider>().role;
+    _selectedRoleFilter = switch (role) {
+      Role.tutor => _PaymentRoleFilter.tutor,
+      Role.psychologist => _PaymentRoleFilter.psicologo,
+      _ => _PaymentRoleFilter.explicador,
+    };
+    _initializedRoleFilter = true;
+  }
+
   Future<void> _refresh() async {
     setState(() {
       _currentPage = 1;
       _summaryFuture = _paymentsService.fetchMyTeacherSummary();
     });
+  }
+
+  String _normalizeRoleType(String value) {
+    final normalized = value.trim().toLowerCase();
+    if (normalized.contains('psico')) return 'psicologo';
+    if (normalized.contains('tutor')) return 'tutor';
+    if (normalized.contains('explic') ||
+        normalized.contains('teacher') ||
+        normalized.contains('professor')) {
+      return 'explicador';
+    }
+    return normalized;
+  }
+
+  bool _matchesFilter(ProfessorPaymentHistoryItemDto item) {
+    final normalized = _normalizeRoleType(item.roleType);
+    if (normalized.isEmpty) {
+      return _selectedRoleFilter == _PaymentRoleFilter.explicador;
+    }
+
+    return switch (_selectedRoleFilter) {
+      _PaymentRoleFilter.explicador => normalized == 'explicador',
+      _PaymentRoleFilter.tutor => normalized == 'tutor',
+      _PaymentRoleFilter.psicologo => normalized == 'psicologo',
+    };
+  }
+
+  List<ProfessorPaymentHistoryItemDto> _filteredHistory(
+    List<ProfessorPaymentHistoryItemDto> history,
+  ) {
+    return history.where(_matchesFilter).toList(growable: false);
+  }
+
+  double _sumNetAmount(
+    List<ProfessorPaymentHistoryItemDto> history,
+    bool Function(ProfessorPaymentHistoryItemDto item) predicate,
+  ) {
+    return history
+        .where(predicate)
+        .fold<double>(0, (sum, item) => sum + item.netAmount);
+  }
+
+  Widget _buildRoleFilterCards() {
+    return Row(
+      children: [
+        Expanded(
+          child: _PaymentRoleFilterCard(
+            label: 'Explicador',
+            selected: _selectedRoleFilter == _PaymentRoleFilter.explicador,
+            onTap: () {
+              setState(() {
+                _selectedRoleFilter = _PaymentRoleFilter.explicador;
+                _currentPage = 1;
+              });
+            },
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _PaymentRoleFilterCard(
+            label: 'Tutor',
+            selected: _selectedRoleFilter == _PaymentRoleFilter.tutor,
+            onTap: () {
+              setState(() {
+                _selectedRoleFilter = _PaymentRoleFilter.tutor;
+                _currentPage = 1;
+              });
+            },
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _PaymentRoleFilterCard(
+            label: 'Psicólogo',
+            selected: _selectedRoleFilter == _PaymentRoleFilter.psicologo,
+            onTap: () {
+              setState(() {
+                _selectedRoleFilter = _PaymentRoleFilter.psicologo;
+                _currentPage = 1;
+              });
+            },
+          ),
+        ),
+      ],
+    );
   }
 
   int _totalPages(List<ProfessorPaymentHistoryItemDto> history) {
@@ -246,8 +349,11 @@ class _PagamentosProfessorContentSectionState
   }
 
   Widget _buildMobileContent(ProfessorPaymentSummaryDto summary, TeachingRoleConfig config) {
-    final currentItems = _currentPageItems(summary.history);
-    final totalPages = _totalPages(summary.history);
+    final filteredHistory = _filteredHistory(summary.history);
+    final currentItems = _currentPageItems(filteredHistory);
+    final totalPages = _totalPages(filteredHistory);
+    final totalReceivedFiltered = _sumNetAmount(filteredHistory, (item) => item.isPaid);
+    final pendingFiltered = _sumNetAmount(filteredHistory, (item) => !item.isPaid);
 
     return Container(
       width: double.infinity,
@@ -266,12 +372,14 @@ class _PagamentosProfessorContentSectionState
             subtitle: config.pagamentos.historyIntro, 
           ),
           const SizedBox(height: PagamentosProfessorLayout.mobileSectionGap),
+          _buildRoleFilterCards(),
+          const SizedBox(height: 12),
           Row(
             children: [
               Expanded(
                 child: PagamentosProfessorMobileStatCard(
                   value: formatProfessorPaymentAmount(
-                    summary.totalReceived,
+                    totalReceivedFiltered,
                     currency: summary.currency,
                   ),
                   label: 'Recebido',
@@ -290,7 +398,7 @@ class _PagamentosProfessorContentSectionState
               Expanded(
                 child: PagamentosProfessorMobileStatCard(
                   value: formatProfessorPaymentAmount(
-                    summary.pendingAmount,
+                    pendingFiltered,
                     currency: summary.currency,
                   ),
                   label: 'Pendente',
@@ -308,7 +416,7 @@ class _PagamentosProfessorContentSectionState
               const SizedBox(width: 8),
               Expanded(
                 child: PagamentosProfessorMobileStatCard(
-                  value: summary.transactionsCount.toString(),
+                  value: filteredHistory.length.toString(),
                   label: 'Movimentos',
                   icon: Icons.receipt_long_rounded,
                   borderColor: const Color(0xFFBEDBFF),
@@ -549,8 +657,17 @@ class _PagamentosProfessorContentSectionState
                       }
 
                       final summary = snapshot.data!;
-                      final currentItems = _currentPageItems(summary.history);
-                      final totalPages = _totalPages(summary.history);
+                      final filteredHistory = _filteredHistory(summary.history);
+                      final currentItems = _currentPageItems(filteredHistory);
+                      final totalPages = _totalPages(filteredHistory);
+                      final now = DateTime.now();
+                      final totalReceivedFiltered = _sumNetAmount(filteredHistory, (item) => item.isPaid);
+                      final pendingFiltered = _sumNetAmount(filteredHistory, (item) => !item.isPaid);
+                      final totalThisMonthFiltered = _sumNetAmount(filteredHistory, (item) {
+                        final date = item.paymentDate ?? item.lessonEnd ?? item.lessonStart;
+                        if (date == null) return false;
+                        return date.year == now.year && date.month == now.month;
+                      });
 
                       return Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -567,7 +684,7 @@ class _PagamentosProfessorContentSectionState
                                 PagamentosSummaryCard(
                                   title: 'Total Recebido',
                                   value: formatProfessorPaymentAmount(
-                                    summary.totalReceived,
+                                    totalReceivedFiltered,
                                     currency: summary.currency,
                                   ),
                                   subtitle: 'Pagamentos concluídos',
@@ -589,7 +706,7 @@ class _PagamentosProfessorContentSectionState
                                 PagamentosSummaryCard(
                                   title: 'Ganhos Pendentes',
                                   value: formatProfessorPaymentAmount(
-                                    summary.pendingAmount,
+                                    pendingFiltered,
                                     currency: summary.currency,
                                   ),
                                   subtitle: 'A aguardar libertação',
@@ -612,11 +729,11 @@ class _PagamentosProfessorContentSectionState
                                 PagamentosSummaryCard(
                                   title: 'Total Este Mês',
                                   value: formatProfessorPaymentAmount(
-                                    summary.totalThisMonth,
+                                    totalThisMonthFiltered,
                                     currency: summary.currency,
                                   ),
                                   subtitle:
-                                      '${summary.transactionsCount} movimentos',
+                                      '${filteredHistory.length} movimentos',
                                   gradient: const LinearGradient(
                                     begin: Alignment.topLeft,
                                     end: Alignment.bottomRight,
@@ -632,6 +749,8 @@ class _PagamentosProfessorContentSectionState
                             ),
                           ),
                           const SizedBox(height: 28.889),
+                          _buildRoleFilterCards(),
+                          const SizedBox(height: 16),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.end,
                             children: [
@@ -682,6 +801,48 @@ class _PagamentosProfessorContentSectionState
                 ),
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PaymentRoleFilterCard extends StatelessWidget {
+  const _PaymentRoleFilterCard({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(14),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        decoration: BoxDecoration(
+          color: selected ? const Color(0xFFFFF3E8) : Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: selected ? const Color(0xFFFF6900) : const Color(0xFFE4E7EC),
+          ),
+        ),
+        child: Center(
+          child: Text(
+            label,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: selected ? const Color(0xFFB93815) : const Color(0xFF344054),
+            ),
           ),
         ),
       ),

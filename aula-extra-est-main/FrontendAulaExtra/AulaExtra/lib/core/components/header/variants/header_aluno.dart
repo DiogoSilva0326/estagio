@@ -166,7 +166,7 @@ class HeaderAluno extends StatelessWidget {
                 ),
                 const SizedBox(width: 40),
                 HeaderLink(
-                  text: 'Meus Apoios',
+                  text: 'Calendário',
                   color: _itemColor(HeaderAlunoItem.minhasAulas),
                   onTap: () => _handleMinhasAulasTap(context),
                 ),

@@ -78,6 +78,8 @@ builder.Services.AddCors(options =>
     });
 });
 
+builder.Services.AddHttpContextAccessor();
+
 builder.Services.AddScoped<JwtFilter>();
 
 builder.Services.AddControllers().AddJsonOptions(options =>

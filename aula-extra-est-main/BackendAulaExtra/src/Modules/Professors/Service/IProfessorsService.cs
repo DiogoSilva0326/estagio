@@ -13,6 +13,11 @@ namespace ConfidantPostgreSQL.Modules.Professors.Service
         Task<TutorBrowseResponse> BrowseTutorsAsync(TutorBrowseQuery query);
         Task<Professor?> GetProfessorByIdAsync(Guid idProfessor);
         Task<Professor?> GetProfessorByUserIdAsync(Guid idUser);
+        Task SyncSupportRequestsAsync(Guid idProfessor, IEnumerable<string> supportTypes);
+        Task<IReadOnlyList<string>> GetSupportRequestsAsync(Guid idProfessor);
+        Task ApproveSupportRequestAsync(Guid idProfessor, string supportType, Guid? approvedByUserId);
+        Task RemoveSupportRequestAsync(Guid idProfessor, string supportType);
+        Task ClearSupportRequestsAsync(Guid idProfessor);
         Task<Guid> InsertProfessorAsync(Professor professor);
         Task<int> UpdateProfessorAsync(Professor professor);
         Task<int> DeleteProfessorAsync(Guid idProfessor);

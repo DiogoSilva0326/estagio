@@ -29,7 +29,7 @@ class MeusExplicadoresScreen extends StatelessWidget {
     }
 
     final contentSection = const MeusProfissionaisContentSection(
-      title: 'Meus Explicadores',
+      title: 'Meus Apoios',
       subtitle: 'Veja os seus explicadores preferidos e faça a gestão das suas aulas.',
       emptyStateTitle: 'Ainda não tem explicadores',
       emptyStateMessage: 'Explore mais explicadores e comece a construir a sua rede de apoio ao estudo.',

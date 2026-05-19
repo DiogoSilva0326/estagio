@@ -426,11 +426,34 @@ namespace ConfidantPostgreSQL.Modules.Communication.Repository
                     c.contact_user_id,
                     c.status,
                     u.username,
-                    u.display_name
+                    u.display_name,
+                    COALESCE(
+                        NULLIF(m.message_content, ''),
+                        CASE
+                            WHEN COALESCE(m.metadata, '') LIKE '%""type"":""file""%' THEN 'Ficheiro enviado'
+                            ELSE NULL
+                        END
+                    ) AS last_message,
+                    m.sent_at AS last_message_at
                 FROM public.contacts c
                 JOIN public.users u ON u.id_user = c.contact_user_id
+                LEFT JOIN LATERAL (
+                    SELECT
+                        msg.message_content,
+                        msg.metadata,
+                        msg.sent_at
+                    FROM public.messages msg
+                    WHERE msg.group_room_id IS NULL
+                      AND (
+                        (msg.sender_user_id = c.owner_user_id AND msg.receiver_user_id = c.contact_user_id)
+                        OR
+                        (msg.sender_user_id = c.contact_user_id AND msg.receiver_user_id = c.owner_user_id)
+                      )
+                    ORDER BY msg.sent_at DESC
+                    LIMIT 1
+                ) m ON TRUE
                 WHERE c.owner_user_id = @p_owner_user_id
-                ORDER BY c.created_at DESC;";
+                ORDER BY COALESCE(m.sent_at, c.created_at) DESC, c.created_at DESC;";
             cmd.Parameters.AddWithValue("p_owner_user_id", ownerUserId);
 
             await using var reader = await cmd.ExecuteReaderAsync();
@@ -442,7 +465,9 @@ namespace ConfidantPostgreSQL.Modules.Communication.Repository
                     ContactUserId = reader.GetGuid(reader.GetOrdinal("contact_user_id")),
                     Status = reader.GetString(reader.GetOrdinal("status")),
                     Username = GetNullableString(reader, "username"),
-                    DisplayName = GetNullableString(reader, "display_name")
+                    DisplayName = GetNullableString(reader, "display_name"),
+                    LastMessage = GetNullableString(reader, "last_message"),
+                    LastMessageAt = GetNullableDateTime(reader, "last_message_at")
                 });
             }
 
@@ -731,7 +756,17 @@ namespace ConfidantPostgreSQL.Modules.Communication.Repository
         {
             var idx = reader.GetOrdinal(column);
             if (reader.IsDBNull(idx)) return null;
-            try { return reader.GetFieldValue<DateTime>(idx); } catch { return null; }
+            try
+            {
+                var value = reader.GetFieldValue<DateTime>(idx);
+                return value.Kind == DateTimeKind.Utc
+                    ? value
+                    : DateTime.SpecifyKind(value, DateTimeKind.Utc);
+            }
+            catch
+            {
+                return null;
+            }
         }
 
         private static DateTimeOffset? GetNullableDateTimeOffset(NpgsqlDataReader reader, string column)

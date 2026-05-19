@@ -355,6 +355,12 @@ class _PerfilProfessorContentSectionState
 
     try {
       setState(() => _saving = true);
+      final currentRole = context.read<UserProvider>().role;
+      final supportTypes = switch (currentRole) {
+        Role.tutor => const <String>['tutor'],
+        Role.psychologist => const <String>['psicologo'],
+        _ => const <String>['professor'],
+      };
 
       final updatedUser = await _users.updateMe(
         username: username,
@@ -370,6 +376,7 @@ class _PerfilProfessorContentSectionState
         username: username,
         mobileNumber: _phoneController.text,
         nif: _nifController.text,
+        supportTypes: supportTypes,
         currentSchool: _currentSchoolController.text,
         yearsExperience: yearsExperience,
         presentationVideoUrl: _presentationVideoUrlController.text,

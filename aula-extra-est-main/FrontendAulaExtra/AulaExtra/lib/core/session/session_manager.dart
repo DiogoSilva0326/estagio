@@ -23,6 +23,7 @@ class SessionManager {
 
   Future<void> clearSessionState() async {
     await _tokenStorage.clearToken();
+    await _tokenStorage.clearPreferredRole();
     _userProvider?.setAccount(null);
     _userProvider?.setRole(Role.none);
   }

@@ -19,7 +19,7 @@ class MinhasDisciplinasProfessorLayout {
   static const double desktopMainWidth = 1009.0;
   static const double pageLeftPadding = 54.0;
   static const double pageRightPadding = 41.0;
-  static const double pageTopPadding = 118.0;
+  static const double pageTopPadding = 46.0;
   static const double pageBottomPadding = 90.0;
   static const double sidebarContentGap = 28.235;
   static const double titleBottomGap = 44.0;

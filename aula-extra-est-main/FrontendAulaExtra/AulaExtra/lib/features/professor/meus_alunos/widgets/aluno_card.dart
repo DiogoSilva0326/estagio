@@ -10,10 +10,16 @@ import 'package:aula_extra/core/providers/user_provider.dart';
 import 'package:aula_extra/core/config/teaching_roles_config.dart';
 
 class AlunoCard extends StatefulWidget {
-  const AlunoCard({super.key, required this.data, this.onComplaintTap});
+  const AlunoCard({
+    super.key,
+    required this.data,
+    this.onComplaintTap,
+    this.onViewProfileTap,
+  });
 
   final ProfessorAlunoDto data;
   final VoidCallback? onComplaintTap;
+  final VoidCallback? onViewProfileTap;
 
   @override
   State<AlunoCard> createState() => _AlunoCardState();
@@ -369,7 +375,7 @@ class _AlunoCardState extends State<AlunoCard> {
                             child: SizedBox(
                               height: 39.39,
                               child: TextButton.icon(
-                                onPressed: () {},
+                                onPressed: widget.onViewProfileTap,
                                 style: TextButton.styleFrom(
                                   padding: EdgeInsets.zero,
                                   backgroundColor: primaryLight, 

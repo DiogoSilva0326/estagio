@@ -8,5 +8,5 @@ CREATE TABLE IF NOT EXISTS public.role (
 
 -- Seed minimal roles used by the app (idempotent)
 INSERT INTO public.role (description)
-VALUES ('Standard'), ('admin'), ('professor'), ('aluno')
+VALUES ('Standard'), ('admin'), ('professor'), ('tutor'), ('psicologo'), ('aluno')
 ON CONFLICT (description) DO NOTHING;

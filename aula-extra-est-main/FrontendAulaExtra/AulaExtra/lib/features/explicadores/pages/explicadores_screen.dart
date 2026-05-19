@@ -197,12 +197,36 @@ class _MainAreaContentState extends State<_MainAreaContent> {
   List<DisciplinaDto> _disciplinas = const [];
   List<CicloEstudoDto> _ciclos = const [];
 
-  String? _selectedCategoria; 
+  String? _selectedCategoria;
   String? _selectedDisciplinaId;
   String? _selectedCicloId;
   Set<AvailabilityOption> _availability = <AvailabilityOption>{};
   double? _maxPrice;
   double? _minRating;
+
+  // Lógica de Visibilidade dos Filtros Baseada na Tab (Categoria) Selecionada
+  bool get _showDisciplina =>
+      _selectedCategoria == null ||
+      _selectedCategoria == 'explicadores' ||
+      _selectedCategoria == 'psicologos';
+
+  bool get _showNivelEnsino =>
+      _selectedCategoria == null ||
+      _selectedCategoria == 'explicadores' ||
+      _selectedCategoria == 'tutores';
+
+  String get _disciplinaLabel {
+    if (_selectedCategoria == 'psicologos') return 'Especialidade';
+    if (_selectedCategoria == 'explicadores') return 'Disciplina';
+    return 'Disciplina / Especialidade';
+  }
+
+  String get _searchHint {
+    if (_selectedCategoria == 'psicologos') {
+      return 'Procura por nome ou especialidade...';
+    }
+    return 'Procura por nome ou disciplina...';
+  }
 
   @override
   void initState() {
@@ -227,8 +251,8 @@ class _MainAreaContentState extends State<_MainAreaContent> {
   Future<void> _loadLookups() async {
     try {
       final ciclos = await _educationService.getPublicCiclosEstudo();
-      final disciplinas = await _educationService
-          .getPublicDisciplinasWithProfessors();
+      final disciplinas =
+          await _educationService.getPublicDisciplinasWithProfessors();
       if (!mounted) return;
       final matchedDisciplinaId = _didApplyRouteArgs
           ? _findMatchingDisciplinaId(_searchController.text, disciplinas)
@@ -264,7 +288,7 @@ class _MainAreaContentState extends State<_MainAreaContent> {
   void _triggerInitialFetchIfNeeded() {
     if (_initialFetchTriggered) return;
     _initialFetchTriggered = true;
-    _fetchGeral(); 
+    _fetchGeral();
   }
 
   String _normalizeText(String value) {
@@ -319,7 +343,6 @@ class _MainAreaContentState extends State<_MainAreaContent> {
         .toList(growable: false);
   }
 
-
   Future<void> _fetchGeral() async {
     if (_loadingGeral) return;
     setState(() {
@@ -333,9 +356,12 @@ class _MainAreaContentState extends State<_MainAreaContent> {
       final searchTerm = q.isEmpty ? null : q;
 
       final futures = await Future.wait<TutorBrowseResponseDto>([
-        _browseService.browse(q: searchTerm, pageSize: 3, roleCategory: 'explicadores'),
-        _browseService.browse(q: searchTerm, pageSize: 3, roleCategory: 'tutores'),
-        _browseService.browse(q: searchTerm, pageSize: 3, roleCategory: 'psicologos'),
+        _browseService.browse(
+            q: searchTerm, pageSize: 3, roleCategory: 'explicadores'),
+        _browseService.browse(
+            q: searchTerm, pageSize: 3, roleCategory: 'tutores'),
+        _browseService.browse(
+            q: searchTerm, pageSize: 3, roleCategory: 'psicologos'),
       ]);
 
       if (mounted) {
@@ -368,7 +394,7 @@ class _MainAreaContentState extends State<_MainAreaContent> {
         maxPrice: _maxPrice,
         minRating: _minRating,
         availability: _availabilityQuery(),
-        roleCategory: _selectedCategoria, 
+        roleCategory: _selectedCategoria,
         page: page,
         pageSize: _pageSize,
       );
@@ -377,7 +403,8 @@ class _MainAreaContentState extends State<_MainAreaContent> {
         setState(() {
           _page = resp.page;
           _total = resp.total;
-          _itemsSpecific = append ? [..._itemsSpecific, ...resp.items] : resp.items;
+          _itemsSpecific =
+              append ? [..._itemsSpecific, ...resp.items] : resp.items;
         });
       }
     } catch (e) {
@@ -440,6 +467,7 @@ class _MainAreaContentState extends State<_MainAreaContent> {
   void _setCategoria(String? categoria) {
     setState(() {
       _selectedCategoria = categoria;
+      _selectedDisciplinaId = null;
     });
     _applyFilters();
   }
@@ -515,8 +543,8 @@ class _MainAreaContentState extends State<_MainAreaContent> {
     final subject = tutor.primarySubject.trim().isNotEmpty
         ? tutor.primarySubject.trim()
         : (_tagsForTutor(tutor).isNotEmpty
-              ? _tagsForTutor(tutor).first
-              : 'Sessão');
+            ? _tagsForTutor(tutor).first
+            : 'Sessão');
 
     Navigator.of(context).pushNamed(
       Routes.marcarAulaProfessor,
@@ -562,30 +590,31 @@ class _MainAreaContentState extends State<_MainAreaContent> {
           initialMinRating: _minRating,
           levelOptions: levelOptions,
           disciplinaOptions: disciplinaOptions,
-          onApply:
-              ({
-                String? selectedLevelId,
-                Set<AvailabilityOption>? availability,
-                String? selectedDisciplinaId,
-                double? maxPrice,
-                double? minRating,
-                String? priceText,
-              }) {
-                setState(() {
-                  _selectedCicloId = selectedLevelId;
-                  _availability = availability ?? <AvailabilityOption>{};
-                  _selectedDisciplinaId = selectedDisciplinaId;
-                  _maxPrice = maxPrice;
-                  _minRating = minRating;
-                  _priceController.text = priceText ?? '';
-                });
-                _applyFilters();
-              },
+          showNivelEnsino: _showNivelEnsino,
+          showDisciplina: _showDisciplina,
+          disciplinaLabel: _disciplinaLabel,
+          onApply: ({
+            String? selectedLevelId,
+            Set<AvailabilityOption>? availability,
+            String? selectedDisciplinaId,
+            double? maxPrice,
+            double? minRating,
+            String? priceText,
+          }) {
+            setState(() {
+              _selectedCicloId = selectedLevelId;
+              _availability = availability ?? <AvailabilityOption>{};
+              _selectedDisciplinaId = selectedDisciplinaId;
+              _maxPrice = maxPrice;
+              _minRating = minRating;
+              _priceController.text = priceText ?? '';
+            });
+            _applyFilters();
+          },
         );
       },
     );
   }
-
 
   Widget _buildDestaquesGerais(bool isMobile) {
     if (_loadingGeral) {
@@ -610,16 +639,20 @@ class _MainAreaContentState extends State<_MainAreaContent> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildDestaqueSection('Explicadores em Destaque', _destaquesExplicadores, 'explicadores', isMobile),
+        _buildDestaqueSection('Explicadores em Destaque',
+            _destaquesExplicadores, 'explicadores', isMobile),
         const SizedBox(height: 50),
-        _buildDestaqueSection('Tutores Recomendados', _destaquesTutores, 'tutores', isMobile),
+        _buildDestaqueSection(
+            'Tutores Recomendados', _destaquesTutores, 'tutores', isMobile),
         const SizedBox(height: 50),
-        _buildDestaqueSection('Psicólogos e Orientadores', _destaquesPsicologos, 'psicologos', isMobile),
+        _buildDestaqueSection('Psicólogos e Orientadores', _destaquesPsicologos,
+            'psicologos', isMobile),
       ],
     );
   }
 
-  Widget _buildDestaqueSection(String title, List<TutorBrowseItemDto> items, String roleValue, bool isMobile) {
+  Widget _buildDestaqueSection(String title, List<TutorBrowseItemDto> items,
+      String roleValue, bool isMobile) {
     if (items.isEmpty) return const SizedBox.shrink();
 
     return Column(
@@ -636,39 +669,48 @@ class _MainAreaContentState extends State<_MainAreaContent> {
         const SizedBox(height: 24),
         if (isMobile)
           Column(
-            children: items.map((tutor) => Padding(
-              padding: const EdgeInsets.only(bottom: 16),
-              child: ExplicadoresMobileTutorCard(
-                photoUrl: _resolvedPhotoUrl(tutor.photo),
-                name: tutor.name,
-                country: tutor.subtitle.trim().isEmpty ? 'Online' : tutor.subtitle.trim(),
-                rating: tutor.rating,
-                reviewCount: tutor.reviewCount,
-                description: tutor.description,
-                lessonsText: '${tutor.lessonsCount}+ aulas',
-                pricePerHour: tutor.minPrice.round(),
-                tags: _tagsForTutor(tutor),
-                accentChipLabel: _accentChipLabel(tutor.subtitle),
-                onViewProfileTap: () => _openTutorProfile(tutor),
-                onBookLessonTap: () => _openBookLesson(tutor),
-              ),
-            )).toList(),
+            children: items
+                .map((tutor) => Padding(
+                      padding: const EdgeInsets.only(bottom: 16),
+                      child: ExplicadoresMobileTutorCard(
+                        photoUrl: _resolvedPhotoUrl(tutor.photo),
+                        name: tutor.name,
+                        country: tutor.subtitle.trim().isEmpty
+                            ? 'Online'
+                            : tutor.subtitle.trim(),
+                        rating: tutor.rating,
+                        reviewCount: tutor.reviewCount,
+                        description: tutor.description,
+                        lessonsText: '${tutor.lessonsCount}+ aulas',
+                        pricePerHour: tutor.minPrice.round(),
+                        tags: _tagsForTutor(tutor),
+                        accentChipLabel: _accentChipLabel(tutor.subtitle),
+                        onViewProfileTap: () => _openTutorProfile(tutor),
+                        onBookLessonTap: () => _openBookLesson(tutor),
+                      ),
+                    ))
+                .toList(),
           )
         else
           Wrap(
             spacing: 30,
             runSpacing: 30,
-            children: items.map((tutor) => TutorCard(
-              name: tutor.name,
-              country: tutor.subtitle.isNotEmpty ? tutor.subtitle : 'Online',
-              rating: tutor.rating,
-              reviewCount: tutor.reviewCount,
-              description: tutor.description,
-              lessonsText: '${tutor.lessonsCount} aulas',
-              pricePerHour: tutor.minPrice.round(),
-              tags: tutor.tags,
-              onViewProfileTap: () => _openTutorProfile(tutor),
-            )).toList(),
+            children: items
+                .map((tutor) => TutorCard(
+                      name: tutor.name,
+                      country: tutor.subtitle.isNotEmpty
+                          ? tutor.subtitle
+                          : 'Online',
+                      rating: tutor.rating,
+                      reviewCount: tutor.reviewCount,
+                      description: tutor.description,
+                      lessonsText: '${tutor.lessonsCount} aulas',
+                      pricePerHour: tutor.minPrice.round(),
+                      tags: _tagsForTutor(tutor),
+                      onViewProfileTap: () => _openTutorProfile(tutor),
+                      onBookLessonTap: () => _openBookLesson(tutor),
+                    ))
+                .toList(),
           ),
         const SizedBox(height: 16),
         InkWell(
@@ -687,7 +729,8 @@ class _MainAreaContentState extends State<_MainAreaContent> {
                   ),
                 ),
                 const SizedBox(width: 4),
-                const Icon(Icons.arrow_forward_rounded, size: 20, color: Color(0xFFFC9039)),
+                const Icon(Icons.arrow_forward_rounded,
+                    size: 20, color: Color(0xFFFC9039)),
               ],
             ),
           ),
@@ -700,11 +743,28 @@ class _MainAreaContentState extends State<_MainAreaContent> {
   Widget build(BuildContext context) {
     final isMobile =
         MediaQuery.sizeOf(context).width <= AppHeader.mobileBreakpoint;
+
+    final disciplinasFiltradas = _disciplinas.where((d) {
+      if (d.idDisciplina.trim().isEmpty) return false;
+      if (_selectedCategoria == null) return true;
+
+      final areaLower = d.areaNome?.toLowerCase() ?? '';
+      final nomeLower = d.nome.toLowerCase();
+      
+      final isPsicologia = areaLower.contains('psicologia') || 
+                           nomeLower.contains('psicologia') ||
+                           nomeLower.contains('psicólogo') ||
+                           nomeLower.contains('psicóloga');
+
+      if (_selectedCategoria == 'psicologos') return isPsicologia;
+      if (_selectedCategoria == 'explicadores' || _selectedCategoria == 'tutores') return !isPsicologia;
+      
+      return true;
+    }).toList();
+
     final disciplinaOptions = <DisciplinaOption>[
-      const DisciplinaOption(id: null, label: 'Todos'),
-      ..._disciplinas
-          .where((d) => d.idDisciplina.trim().isNotEmpty)
-          .map((d) => DisciplinaOption(id: d.idDisciplina, label: d.nome)),
+      DisciplinaOption(id: null, label: 'Todas as ${_disciplinaLabel.toLowerCase()}'),
+      ...disciplinasFiltradas.map((d) => DisciplinaOption(id: d.idDisciplina, label: d.nome)),
     ];
 
     final levelOptions = _ciclos
@@ -712,12 +772,12 @@ class _MainAreaContentState extends State<_MainAreaContent> {
         .map((c) => FilterOption(id: c.idCicloEstudo, label: c.nome))
         .toList(growable: false);
 
-    final disciplinaFilterOptions = _disciplinas
-        .where((d) => d.idDisciplina.trim().isNotEmpty)
+    final disciplinaFilterOptions = disciplinasFiltradas
         .map((d) => FilterOption(id: d.idDisciplina, label: d.nome))
         .toList(growable: false);
 
     final hasMoreSpecific = _itemsSpecific.length < _total;
+
 
     Widget buildCategoriaChips() {
       return SingleChildScrollView(
@@ -729,7 +789,10 @@ class _MainAreaContentState extends State<_MainAreaContent> {
               selected: _selectedCategoria == null,
               onSelected: (_) => _setCategoria(null),
               selectedColor: const Color(0xFFFFF7ED),
-              side: BorderSide(color: _selectedCategoria == null ? const Color(0xFFFC9039) : const Color(0xFFD1D5DC)),
+              side: BorderSide(
+                  color: _selectedCategoria == null
+                      ? const Color(0xFFFC9039)
+                      : const Color(0xFFD1D5DC)),
             ),
             const SizedBox(width: 8),
             ChoiceChip(
@@ -737,7 +800,10 @@ class _MainAreaContentState extends State<_MainAreaContent> {
               selected: _selectedCategoria == 'explicadores',
               onSelected: (_) => _setCategoria('explicadores'),
               selectedColor: const Color(0xFFFFF7ED),
-              side: BorderSide(color: _selectedCategoria == 'explicadores' ? const Color(0xFFFC9039) : const Color(0xFFD1D5DC)),
+              side: BorderSide(
+                  color: _selectedCategoria == 'explicadores'
+                      ? const Color(0xFFFC9039)
+                      : const Color(0xFFD1D5DC)),
             ),
             const SizedBox(width: 8),
             ChoiceChip(
@@ -745,7 +811,10 @@ class _MainAreaContentState extends State<_MainAreaContent> {
               selected: _selectedCategoria == 'tutores',
               onSelected: (_) => _setCategoria('tutores'),
               selectedColor: const Color(0xFFFFF7ED),
-              side: BorderSide(color: _selectedCategoria == 'tutores' ? const Color(0xFFFC9039) : const Color(0xFFD1D5DC)),
+              side: BorderSide(
+                  color: _selectedCategoria == 'tutores'
+                      ? const Color(0xFFFC9039)
+                      : const Color(0xFFD1D5DC)),
             ),
             const SizedBox(width: 8),
             ChoiceChip(
@@ -753,7 +822,10 @@ class _MainAreaContentState extends State<_MainAreaContent> {
               selected: _selectedCategoria == 'psicologos',
               onSelected: (_) => _setCategoria('psicologos'),
               selectedColor: const Color(0xFFFFF7ED),
-              side: BorderSide(color: _selectedCategoria == 'psicologos' ? const Color(0xFFFC9039) : const Color(0xFFD1D5DC)),
+              side: BorderSide(
+                  color: _selectedCategoria == 'psicologos'
+                      ? const Color(0xFFFC9039)
+                      : const Color(0xFFD1D5DC)),
             ),
           ],
         ),
@@ -777,6 +849,8 @@ class _MainAreaContentState extends State<_MainAreaContent> {
               levelOptions: levelOptions,
               disciplinaOptions: disciplinaFilterOptions,
             ),
+            showDisciplina: _showDisciplina,
+            searchHint: _searchHint,
           ),
           const SizedBox(height: 16),
           Padding(
@@ -832,6 +906,9 @@ class _MainAreaContentState extends State<_MainAreaContent> {
           onMinRatingChanged: (v) => setState(() => _minRating = v),
           onClear: _clearFilters,
           onApply: _applyFilters,
+          showNivelEnsino: _showNivelEnsino,
+          showDisciplina: _showDisciplina,
+          disciplinaLabel: _disciplinaLabel,
         ),
         const SizedBox(width: 40),
         Expanded(
@@ -847,6 +924,8 @@ class _MainAreaContentState extends State<_MainAreaContent> {
                   setState(() => _selectedDisciplinaId = id);
                   _applyFilters();
                 },
+                showDisciplina: _showDisciplina,
+                searchHint: _searchHint,
               ),
               const SizedBox(height: 20),
               buildCategoriaChips(),
@@ -928,16 +1007,14 @@ class _TutorsSection extends StatelessWidget {
               ),
             ),
           ),
-        if (isMobile)
+       if (isMobile)
           Column(
             children: [
               for (final tutor in items) ...[
                 ExplicadoresMobileTutorCard(
                   photoUrl: resolvePhotoUrl(tutor.photo),
                   name: tutor.name,
-                  country: tutor.subtitle.trim().isEmpty
-                      ? 'Online'
-                      : tutor.subtitle.trim(),
+                  country: tutor.subtitle.trim().isEmpty ? 'Online' : tutor.subtitle.trim(),
                   rating: tutor.rating,
                   reviewCount: tutor.reviewCount,
                   description: tutor.description,
@@ -945,9 +1022,7 @@ class _TutorsSection extends StatelessWidget {
                   pricePerHour: tutor.minPrice.round(),
                   tags: tagsForTutor(tutor),
                   accentChipLabel: accentChipLabelForCountry(
-                    tutor.subtitle.trim().isEmpty
-                        ? 'Online'
-                        : tutor.subtitle.trim(),
+                    tutor.subtitle.trim().isEmpty ? 'Online' : tutor.subtitle.trim(),
                   ),
                   onViewProfileTap: () => onViewProfileTap(tutor),
                   onBookLessonTap: () => onBookLessonTap(tutor),
@@ -960,36 +1035,24 @@ class _TutorsSection extends StatelessWidget {
           Wrap(
             spacing: 30,
             runSpacing: 30,
-            children: [
-              for (final tutor in items)
-                TutorCard(
-                  name: tutor.name,
-                  country: tutor.subtitle.isNotEmpty
-                      ? tutor.subtitle
-                      : 'Online',
-                  rating: tutor.rating,
-                  reviewCount: tutor.reviewCount,
-                  description: tutor.description,
-                  lessonsText: '${tutor.lessonsCount} aulas',
-                  pricePerHour: tutor.minPrice.round(),
-                  tags: tutor.tags,
-                  onViewProfileTap: () => onViewProfileTap(tutor),
-                ),
-            ],
+            children: items
+                .map(
+                  (tutor) => TutorCard(
+                    name: tutor.name,
+                    country:
+                        tutor.subtitle.isNotEmpty ? tutor.subtitle : 'Online',
+                    rating: tutor.rating,
+                    reviewCount: tutor.reviewCount,
+                    description: tutor.description,
+                    lessonsText: '${tutor.lessonsCount} aulas',
+                    pricePerHour: tutor.minPrice.round(),
+                    tags: tagsForTutor(tutor),
+                    onViewProfileTap: () => onViewProfileTap(tutor),
+                    onBookLessonTap: () => onBookLessonTap(tutor),
+                  ),
+                )
+                .toList(growable: false),
           ),
-        if (!loading && items.isEmpty) ...[
-          const SizedBox(height: 30),
-          const Center(
-            child: Text(
-              'Sem resultados',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF6A7282),
-              ),
-            ),
-          ),
-        ],
         if (hasMore) ...[
           const SizedBox(height: 30),
           Align(

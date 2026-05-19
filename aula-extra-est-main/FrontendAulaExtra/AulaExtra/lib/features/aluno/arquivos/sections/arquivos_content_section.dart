@@ -203,11 +203,11 @@ class _ArquivosContentSectionState extends State<ArquivosContentSection> {
         .toList(growable: false);
   }
 
-  List<_MobileFolderDisplayData> get _mobileFolders {
+  List<MobileFolderDisplayData> get _mobileFolders {
     if (_files.isEmpty) {
       return ArquivosMockData.folders
           .map(
-            (folder) => _MobileFolderDisplayData(
+            (folder) => MobileFolderDisplayData(
               title: folder.title,
               subtitle: folder.subtitle,
               icon: folder.icon,
@@ -252,7 +252,8 @@ class _ArquivosContentSectionState extends State<ArquivosContentSection> {
         .map((entry) {
           final paletteEntry = palette[entry.key % palette.length];
           final folder = entry.value;
-          return _MobileFolderDisplayData(
+          // Retirar o _ aqui também
+          return MobileFolderDisplayData(
             title: folder.key,
             subtitle: '${folder.value} arquivos',
             icon: paletteEntry.icon,
@@ -491,7 +492,7 @@ class _ArquivosContentSectionState extends State<ArquivosContentSection> {
           const SizedBox(width: 40),
           Expanded(
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const Text('Arquivos', style: ArquivosConstants.titleStyle),
                 const SizedBox(height: ArquivosConstants.gapSmall),
@@ -517,7 +518,7 @@ class _ArquivosContentSectionState extends State<ArquivosContentSection> {
                   style: ArquivosConstants.sectionTitleStyle,
                 ),
                 const SizedBox(height: ArquivosConstants.gapSection),
-                const FoldersRow(),
+                FoldersRow(folders: _mobileFolders),
                 const SizedBox(height: ArquivosConstants.gapLarge),
                 const Text(
                   'Arquivos Recentes',
@@ -541,8 +542,8 @@ class _ArquivosContentSectionState extends State<ArquivosContentSection> {
   }
 }
 
-class _MobileFolderDisplayData {
-  const _MobileFolderDisplayData({
+class MobileFolderDisplayData {
+  const MobileFolderDisplayData({
     required this.title,
     required this.subtitle,
     required this.icon,

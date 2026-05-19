@@ -13,6 +13,7 @@
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="6.*" />
     <PackageReference Include="BCrypt.Net-Next" Version="4.*" />
     <PackageReference Include="Stripe.net" Version="45.*" />
+    <PackageReference Include="Google.Apis.Auth" Version="1.*" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Program.cs" />

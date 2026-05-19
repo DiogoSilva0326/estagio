@@ -6,6 +6,7 @@ class PaymentHistoryItemDto {
     required this.paymentSource,
     required this.tutorName,
     required this.subject,
+    required this.roleType,
     required this.amount,
     required this.status,
     this.date,
@@ -17,6 +18,7 @@ class PaymentHistoryItemDto {
   final String paymentSource;
   final String tutorName;
   final String subject;
+  final String roleType;
   final DateTime? date;
   final double amount;
   final String status;
@@ -47,6 +49,14 @@ class PaymentHistoryItemDto {
           : asString(json['paymentSource']).trim(),
       tutorName: asString(json['tutorName']).trim(),
       subject: asString(json['subject']).trim(),
+        roleType: (json['roleType'] ??
+              json['supportType'] ??
+              json['targetRole'] ??
+              json['professionalRole'] ??
+              json['role'])
+            ?.toString()
+            .trim() ??
+          '',
       date: asDate(json['date']),
       amount: asDouble(json['amount']),
       status: asString(json['status']).trim(),

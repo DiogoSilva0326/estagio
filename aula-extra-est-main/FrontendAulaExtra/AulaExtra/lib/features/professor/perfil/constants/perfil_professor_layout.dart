@@ -26,7 +26,7 @@ class PerfilProfessorLayout {
 
   static const double pageLeftPadding = 54;
   static const double pageRightPadding = 23.148;
-  static const double pageTopPadding = 90;
+  static const double pageTopPadding = 46;
   static const double pageBottomPadding = 90;
 
   static const double contentPadding = 29.229;

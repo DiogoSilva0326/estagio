@@ -12,6 +12,7 @@ class ProfessorPaymentHistoryItemDto {
     required this.netAmount,
     required this.status,
     required this.currency,
+    required this.roleType,
     this.transactionId,
     this.lessonStart,
     this.lessonEnd,
@@ -34,6 +35,7 @@ class ProfessorPaymentHistoryItemDto {
   final String status;
   final String? reference;
   final String currency;
+  final String roleType;
 
   bool get isPaid {
     return isPaidPaymentStatus(status);
@@ -72,6 +74,14 @@ class ProfessorPaymentHistoryItemDto {
       currency: (json['currency']?.toString().trim().isEmpty ?? true)
           ? 'EUR'
           : json['currency'].toString().trim(),
+        roleType: (json['roleType'] ??
+              json['supportType'] ??
+              json['targetRole'] ??
+              json['professionalRole'] ??
+              json['role'])
+            ?.toString()
+            .trim() ??
+          '',
     );
   }
 }

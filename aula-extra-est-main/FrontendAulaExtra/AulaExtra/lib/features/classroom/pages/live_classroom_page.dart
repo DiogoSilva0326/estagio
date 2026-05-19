@@ -1,9 +1,20 @@
+import 'dart:async';
+import 'dart:math' as math;
+
+import 'package:aula_extra/core/data/communication/chat_files_service.dart';
+import 'package:aula_extra/core/data/communication/realtime_chat_service.dart';
 import 'package:aula_extra/core/data/lesson_classroom/dtos/lesson_classroom_entry_dto.dart';
+import 'package:aula_extra/core/data/users/users_service.dart';
+import 'package:aula_extra/core/providers/user_provider.dart';
 import 'package:aula_extra/features/classroom/widgets/whiteboard_panel.dart';
+import 'package:aula_extra/features/professor/chats/widgets/chat_bubble.dart';
 import 'package:agora_rtc_engine/agora_rtc_engine.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 enum ClassroomFocusMode { grid, screen, whiteboard }
 
@@ -17,7 +28,17 @@ class LiveClassroomPage extends StatefulWidget {
 }
 
 class _LiveClassroomPageState extends State<LiveClassroomPage> {
+  static const int _maxChatFileSizeBytes = 5 * 1024 * 1024;
+
   final Set<int> _remoteUids = <int>{};
+  final UsersService _usersService = UsersService();
+  final ChatFilesService _chatFilesService = ChatFilesService();
+  final RealtimeChatService _realtimeChatService = RealtimeChatService();
+  final TextEditingController _chatComposerController = TextEditingController();
+  final ScrollController _chatScrollController = ScrollController();
+
+  StreamSubscription<RealtimeChatEvent>? _chatSubscription;
+  Timer? _callTimer;
 
   RtcEngineEx? _engine;
   int? _remoteScreenShareUid;
@@ -30,8 +51,16 @@ class _LiveClassroomPageState extends State<LiveClassroomPage> {
   bool _stoppingScreenShare = false;
   bool _screenShareConnectionJoined = false;
   String? _error;
+  String? _chatError;
+  String? _chatChannelName;
+  String? _chatUsername;
+  DateTime? _callStartedAt;
+  bool _chatInitializing = false;
+  bool _chatSending = false;
+  bool _isChatPanelOpen = false;
   ClassroomFocusMode _focusMode = ClassroomFocusMode.grid;
   ClassroomFocusMode? _focusModeBeforeScreenShare;
+  List<RealtimeChatMessage> _chatMessages = const <RealtimeChatMessage>[];
 
   int? get _localScreenShareUid => widget.entry.screenShare?.uid;
 
@@ -45,16 +74,355 @@ class _LiveClassroomPageState extends State<LiveClassroomPage> {
 
   bool get _captureSystemAudio => !kIsWeb;
 
+  String get _fallbackLessonChatChannelName {
+    final normalizedReservationId = widget.entry.reservationId
+        .replaceAll('-', '')
+        .trim()
+        .toLowerCase();
+    if (normalizedReservationId.isEmpty) {
+      return '';
+    }
+
+    return 'group_lesson_$normalizedReservationId';
+  }
+
+  String get _resolvedLessonChatChannelName {
+    final explicitChannelName = widget.entry.chatChannelName.trim();
+    if (explicitChannelName.isNotEmpty) {
+      return explicitChannelName;
+    }
+
+    return _fallbackLessonChatChannelName;
+  }
+
+  String get _callDurationLabel {
+    final startedAt = _callStartedAt;
+    if (startedAt == null) {
+      return '00:00';
+    }
+
+    final elapsed = DateTime.now().difference(startedAt);
+    final hours = elapsed.inHours;
+    final minutes = elapsed.inMinutes.remainder(60).toString().padLeft(2, '0');
+    final seconds = elapsed.inSeconds.remainder(60).toString().padLeft(2, '0');
+    if (hours > 0) {
+      return '$hours:$minutes:$seconds';
+    }
+
+    return '${elapsed.inMinutes.toString().padLeft(2, '0')}:$seconds';
+  }
+
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _joinClassroom());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _joinClassroom();
+      _initializeLessonChat();
+    });
   }
 
   @override
   void dispose() {
+    _chatSubscription?.cancel();
+    _callTimer?.cancel();
+    _chatComposerController.dispose();
+    _chatScrollController.dispose();
     _engine?.release();
     super.dispose();
+  }
+
+  bool get _hasLessonChat => _resolvedLessonChatChannelName.isNotEmpty;
+
+  bool get _canToggleLessonChat =>
+      _hasLessonChat ||
+      (_chatChannelName?.trim().isNotEmpty ?? false) ||
+      _chatInitializing;
+
+  Future<void> _toggleChatPanel() async {
+    if (_isChatPanelOpen) {
+      setState(() => _isChatPanelOpen = false);
+      return;
+    }
+
+    if ((_chatChannelName?.trim().isEmpty ?? true) && _hasLessonChat) {
+      await _initializeLessonChat();
+    }
+
+    if (!mounted) return;
+
+    if ((_chatChannelName?.trim().isNotEmpty ?? false) || _hasLessonChat) {
+      setState(() {
+        _isChatPanelOpen = true;
+      });
+      return;
+    }
+
+    setState(() {
+      _chatError = 'Não foi possível abrir o chat desta aula.';
+      _isChatPanelOpen = true;
+    });
+  }
+
+  Future<void> _initializeLessonChat() async {
+    if (!_hasLessonChat || _chatInitializing) return;
+
+    setState(() {
+      _chatInitializing = true;
+      _chatError = null;
+    });
+
+    try {
+      var username = context.read<UserProvider>().account?.username?.trim();
+      var displayName = context.read<UserProvider>().account?.fullName?.trim();
+
+      if (username == null || username.isEmpty) {
+        final me = await _usersService.getMe();
+        username = me.username?.trim();
+        displayName = me.displayName?.trim();
+      }
+
+      if (username == null || username.isEmpty) {
+        throw Exception('Não foi possível identificar o utilizador no chat.');
+      }
+
+      displayName = (displayName == null || displayName.isEmpty)
+          ? username
+          : displayName;
+
+      _chatUsername = username;
+
+      await _realtimeChatService.connect(
+        username: username,
+        displayName: displayName,
+      );
+      await _chatSubscription?.cancel();
+      _chatSubscription = _realtimeChatService.events.listen(_onChatEvent);
+
+      _chatChannelName = await _realtimeChatService.joinChannel(
+        channelName: _resolvedLessonChatChannelName,
+      );
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _chatError = error.toString();
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _chatInitializing = false;
+        });
+      }
+    }
+  }
+
+  void _onChatEvent(RealtimeChatEvent event) {
+    if (!mounted) return;
+
+    final expectedChannel = _chatChannelName?.trim().toLowerCase();
+    if (expectedChannel == null || expectedChannel.isEmpty) {
+      return;
+    }
+
+    if (event is RealtimeChatRoomJoined) {
+      if (event.channelName.trim().toLowerCase() != expectedChannel) return;
+      setState(() {
+        _chatMessages = List<RealtimeChatMessage>.from(event.messages);
+        _chatError = null;
+      });
+      _scrollChatToBottom();
+      return;
+    }
+
+    if (event is RealtimeChatRoomHistoryLoaded) {
+      if (event.channelName.trim().toLowerCase() != expectedChannel) return;
+      setState(() {
+        _chatMessages = List<RealtimeChatMessage>.from(event.messages);
+      });
+      _scrollChatToBottom();
+      return;
+    }
+
+    if (event is RealtimeChatMessageReceived) {
+      if (event.channelName.trim().toLowerCase() != expectedChannel) return;
+      if (event.message.isSystemFileNotification) return;
+      setState(() {
+        _chatMessages = <RealtimeChatMessage>[
+          ..._chatMessages,
+          event.message,
+        ];
+        _chatError = null;
+      });
+      _scrollChatToBottom();
+      return;
+    }
+
+    if (event is RealtimeChatError) {
+      setState(() {
+        _chatError = event.message;
+      });
+    }
+  }
+
+  void _scrollChatToBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_chatScrollController.hasClients) return;
+      _chatScrollController.animateTo(
+        _chatScrollController.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOut,
+      );
+    });
+  }
+
+  Future<void> _sendLessonChatMessage() async {
+    final channelName = _chatChannelName;
+    final content = _chatComposerController.text.trim();
+    if (channelName == null || channelName.isEmpty || content.isEmpty) {
+      return;
+    }
+
+    setState(() {
+      _chatSending = true;
+      _chatError = null;
+    });
+
+    try {
+      await _realtimeChatService.sendMessage(
+        channelName: channelName,
+        content: content,
+      );
+      _chatComposerController.clear();
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _chatError = error.toString();
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _chatSending = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _pickAndSendLessonFile() async {
+    final channelName = _chatChannelName;
+    final username = _chatUsername;
+    if (channelName == null ||
+        channelName.isEmpty ||
+        username == null ||
+        username.isEmpty) {
+      return;
+    }
+
+    setState(() {
+      _chatSending = true;
+      _chatError = null;
+    });
+
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        allowMultiple: false,
+        withData: true,
+        type: FileType.any,
+      );
+      if (result == null || result.files.isEmpty) {
+        return;
+      }
+
+      final pickedFile = result.files.single;
+      final bytes = pickedFile.bytes;
+      if (bytes == null || bytes.isEmpty) {
+        throw Exception('Não foi possível ler o ficheiro selecionado.');
+      }
+
+      if (bytes.length > _maxChatFileSizeBytes) {
+        throw Exception('O ficheiro excede o limite de 5 MB.');
+      }
+
+      final uploaded = await _chatFilesService.uploadFile(
+        bytes: bytes,
+        fileName: pickedFile.name,
+        contentType: _guessContentType(pickedFile.name),
+        userId: username,
+        roomId: channelName,
+      );
+
+      final caption = _chatComposerController.text.trim();
+      await _realtimeChatService.sendFileMessage(
+        channelName: channelName,
+        fileId: uploaded.fileId,
+        caption: caption.isEmpty ? null : caption,
+      );
+
+      _chatComposerController.clear();
+      _scrollChatToBottom();
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _chatError = error.toString();
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _chatSending = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _openExternalUrl(String url) async {
+    final uri = Uri.tryParse(url);
+    if (uri == null) {
+      setState(() {
+        _chatError = 'Link do ficheiro inválido.';
+      });
+      return;
+    }
+
+    final opened = await launchUrl(
+      uri,
+      mode: LaunchMode.externalApplication,
+    );
+    if (!opened && mounted) {
+      setState(() {
+        _chatError = 'Não foi possível abrir o ficheiro.';
+      });
+    }
+  }
+
+  String _guessContentType(String fileName) {
+    final extension = fileName.split('.').last.toLowerCase();
+    switch (extension) {
+      case 'jpg':
+      case 'jpeg':
+        return 'image/jpeg';
+      case 'png':
+        return 'image/png';
+      case 'gif':
+        return 'image/gif';
+      case 'webp':
+        return 'image/webp';
+      case 'pdf':
+        return 'application/pdf';
+      case 'doc':
+        return 'application/msword';
+      case 'docx':
+        return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+      case 'xls':
+        return 'application/vnd.ms-excel';
+      case 'xlsx':
+        return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+      case 'ppt':
+        return 'application/vnd.ms-powerpoint';
+      case 'pptx':
+        return 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
+      case 'txt':
+        return 'text/plain';
+      default:
+        return 'application/octet-stream';
+    }
   }
 
   Future<void> _ensurePermissions() async {
@@ -63,6 +431,20 @@ class _LiveClassroomPageState extends State<LiveClassroomPage> {
   }
 
   bool _isScreenShareUid(int uid) => uid % 100 == 99;
+
+  void _startCallTimer() {
+    _callStartedAt ??= DateTime.now();
+    _callTimer?.cancel();
+    _callTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted || _callStartedAt == null) return;
+      setState(() {});
+    });
+  }
+
+  void _stopCallTimer() {
+    _callTimer?.cancel();
+    _callTimer = null;
+  }
 
   void _reconcileFocusMode() {
     if (_hasScreenShare) {
@@ -105,6 +487,7 @@ class _LiveClassroomPageState extends State<LiveClassroomPage> {
             _joined = true;
             _error = null;
           });
+          _startCallTimer();
         },
         onUserJoined: (connection, remoteUid, elapsed) {
           if (!mounted) return;
@@ -291,6 +674,8 @@ class _LiveClassroomPageState extends State<LiveClassroomPage> {
         options: const LeaveChannelOptions(),
       );
 
+      _stopCallTimer();
+
       if (mounted) {
         Navigator.of(context).pop();
       }
@@ -321,6 +706,16 @@ class _LiveClassroomPageState extends State<LiveClassroomPage> {
         _engine == null ||
         widget.entry.screenShare == null) {
       return;
+    }
+
+    if (kIsWeb && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'O navegador vai abrir o seletor nativo para escolher o ecrã ou janela a partilhar.',
+          ),
+        ),
+      );
     }
 
     setState(() {
@@ -510,6 +905,11 @@ class _LiveClassroomPageState extends State<LiveClassroomPage> {
   }
 
   Widget _buildContent() {
+    final mediaQuery = MediaQuery.of(context);
+    final width = mediaQuery.size.width;
+    final isWideLayout = width >= 1100;
+    final chatPanelWidth = math.min(360.0, math.max(300.0, width * 0.32));
+    final chatInset = isWideLayout && _isChatPanelOpen ? chatPanelWidth + 16 : 0.0;
     final engine = _engine;
     final connection = RtcConnection(
       channelId: widget.entry.channelName,
@@ -611,24 +1011,114 @@ class _LiveClassroomPageState extends State<LiveClassroomPage> {
       );
     }
 
+    final stage = DecoratedBox(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: const Color(0xFFE8E8EE)),
+        boxShadow: const <BoxShadow>[
+          BoxShadow(
+            color: Color(0x12000000),
+            blurRadius: 32,
+            offset: Offset(0, 16),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(10),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(22),
+          child: centerStage,
+        ),
+      ),
+    );
+
+    final participantsStrip = DecoratedBox(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: const Color(0xFFE8E8EE)),
+        boxShadow: const <BoxShadow>[
+          BoxShadow(
+            color: Color(0x10000000),
+            blurRadius: 18,
+            offset: Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: ListView.separated(
+          scrollDirection: Axis.horizontal,
+          itemCount: tiles.length,
+          separatorBuilder: (context, index) => const SizedBox(width: 12),
+          itemBuilder: (context, index) => SizedBox(
+            width: isWideLayout ? 220 : 180,
+            child: AspectRatio(aspectRatio: 16 / 9, child: tiles[index]),
+          ),
+        ),
+      ),
+    );
+
+    final chatPanel = _LessonChatPanel(
+      title: widget.entry.chatDisplayName.trim().isEmpty
+          ? 'Chat da aula'
+          : widget.entry.chatDisplayName,
+      isOpen: _isChatPanelOpen,
+      isLoading: _chatInitializing,
+      isSending: _chatSending,
+      errorMessage: _chatError,
+      hasChat: _hasLessonChat,
+      composerController: _chatComposerController,
+      scrollController: _chatScrollController,
+      messages: _chatMessages,
+      currentUsername: _chatUsername,
+      onAttach: _pickAndSendLessonFile,
+      onClose: () => setState(() => _isChatPanelOpen = false),
+      onAttachmentTap: _openExternalUrl,
+      onSend: _sendLessonChatMessage,
+    );
+
     return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Row(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
+      child: Stack(
         children: <Widget>[
-          Expanded(
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(16),
-              child: centerStage,
+          AnimatedPadding(
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeOutCubic,
+            padding: EdgeInsets.only(right: chatInset),
+            child: Column(
+              children: <Widget>[
+                Expanded(child: stage),
+                const SizedBox(height: 16),
+                SizedBox(height: isWideLayout ? 146 : 126, child: participantsStrip),
+              ],
             ),
           ),
-          const SizedBox(width: 16),
-          SizedBox(
-            width: 300,
-            child: ListView.separated(
-              itemCount: tiles.length,
-              separatorBuilder: (context, index) => const SizedBox(height: 12),
-              itemBuilder: (context, index) =>
-                  AspectRatio(aspectRatio: 16 / 9, child: tiles[index]),
+          if (!isWideLayout && _isChatPanelOpen)
+            Positioned.fill(
+              child: GestureDetector(
+                onTap: () => setState(() => _isChatPanelOpen = false),
+                child: Container(color: const Color(0x33000000)),
+              ),
+            ),
+          Align(
+            alignment: Alignment.centerRight,
+            child: IgnorePointer(
+              ignoring: !_isChatPanelOpen,
+              child: AnimatedSlide(
+                duration: const Duration(milliseconds: 220),
+                curve: Curves.easeOutCubic,
+                offset: _isChatPanelOpen ? Offset.zero : const Offset(1.08, 0),
+                child: AnimatedOpacity(
+                  duration: const Duration(milliseconds: 180),
+                  opacity: _isChatPanelOpen ? 1 : 0,
+                  child: SizedBox(
+                    width: isWideLayout ? chatPanelWidth : math.min(380, width - 18),
+                    child: chatPanel,
+                  ),
+                ),
+              ),
             ),
           ),
         ],
@@ -639,50 +1129,300 @@ class _LiveClassroomPageState extends State<LiveClassroomPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0B1020),
+      backgroundColor: const Color(0xFFF4F5F8),
       body: SafeArea(
-        child: Column(
+        child: Stack(
           children: <Widget>[
-            _ClassroomHeader(
-              title: widget.entry.lessonTitle.trim().isEmpty
-                  ? 'Aula ao vivo'
-                  : widget.entry.lessonTitle,
-              subtitle:
-                  '${widget.entry.localDisplayName} · sala ${widget.entry.channelName}',
-              isLoading: _loading,
-              isMuted: _isMuted,
-              isVideoOff: _isVideoOff,
-              isWhiteboardOpen: _focusMode == ClassroomFocusMode.whiteboard,
-              isScreenSharing: _isLocalScreenShareActive,
-              canShareScreen:
-                  widget.entry.isHost &&
-                  widget.entry.screenShare != null &&
-                  !_hasScreenShare,
-              canStopScreenShare:
-                  widget.entry.isHost && _isLocalScreenShareActive,
-              canOpenWhiteboard: _whiteboardEnabled && _joined,
-              onLeave: _joined && !_loading ? _leaveClassroom : null,
-              onToggleMute: _joined ? _toggleMute : null,
-              onToggleVideo: _joined ? _toggleVideo : null,
-              onOpenWhiteboard: _joined ? _openWhiteboard : null,
-              onCloseWhiteboard: _joined ? _closeWhiteboard : null,
-              onStartScreenShare: _joined ? _startScreenShare : null,
-              onStopScreenShare: _joined ? _stopScreenShare : null,
-            ),
-            if (_error != null)
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 10,
+            Column(
+              children: <Widget>[
+                _ClassroomHeader(
+                  title: widget.entry.lessonTitle.trim().isEmpty
+                      ? 'Aula ao vivo'
+                      : widget.entry.lessonTitle,
+                  subtitle:
+                      '${widget.entry.localDisplayName} · sala ${widget.entry.channelName}',
+                  remoteDisplayName: widget.entry.remoteDisplayName,
+                  participantCount: _remoteUids.length + 1,
+                  callDurationLabel: _callDurationLabel,
+                  hasChat: _hasLessonChat,
+                  isChatOpen: _isChatPanelOpen,
+                  isLoading: _loading,
+                    onToggleChat: _canToggleLessonChat ? _toggleChatPanel : null,
                 ),
-                color: Colors.red.withValues(alpha: 0.2),
-                child: Text(
-                  _error!,
-                  style: const TextStyle(color: Colors.white),
+                if (_error != null)
+                  Container(
+                    width: double.infinity,
+                    margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFE7E3),
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(color: const Color(0xFFFFC8BC)),
+                    ),
+                    child: Text(
+                      _error!,
+                      style: const TextStyle(color: Color(0xFF8A2F1B)),
+                    ),
+                  ),
+                Expanded(child: _buildContent()),
+              ],
+            ),
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 18,
+              child: _ClassroomControlsDock(
+                isMuted: _isMuted,
+                isVideoOff: _isVideoOff,
+                isWhiteboardOpen: _focusMode == ClassroomFocusMode.whiteboard,
+                isScreenSharing: _isLocalScreenShareActive,
+                isChatOpen: _isChatPanelOpen,
+                canShareScreen:
+                    widget.entry.isHost &&
+                    widget.entry.screenShare != null &&
+                    !_hasScreenShare,
+                canStopScreenShare:
+                    widget.entry.isHost && _isLocalScreenShareActive,
+                canOpenWhiteboard: _whiteboardEnabled && _joined,
+                canToggleChat: _canToggleLessonChat,
+                onLeave: _joined && !_loading ? _leaveClassroom : null,
+                onToggleMute: _joined ? _toggleMute : null,
+                onToggleVideo: _joined ? _toggleVideo : null,
+                onOpenWhiteboard: _joined ? _openWhiteboard : null,
+                onCloseWhiteboard: _joined ? _closeWhiteboard : null,
+                onStartScreenShare: _joined ? _startScreenShare : null,
+                onStopScreenShare: _joined ? _stopScreenShare : null,
+                onToggleChat: _toggleChatPanel,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _LessonChatPanel extends StatelessWidget {
+  const _LessonChatPanel({
+    required this.title,
+    required this.isOpen,
+    required this.isLoading,
+    required this.isSending,
+    required this.errorMessage,
+    required this.hasChat,
+    required this.composerController,
+    required this.scrollController,
+    required this.messages,
+    required this.currentUsername,
+    required this.onAttach,
+    required this.onClose,
+    required this.onAttachmentTap,
+    required this.onSend,
+  });
+
+  final String title;
+  final bool isOpen;
+  final bool isLoading;
+  final bool isSending;
+  final String? errorMessage;
+  final bool hasChat;
+  final TextEditingController composerController;
+  final ScrollController scrollController;
+  final List<RealtimeChatMessage> messages;
+  final String? currentUsername;
+  final Future<void> Function() onAttach;
+  final VoidCallback onClose;
+  final Future<void> Function(String url) onAttachmentTap;
+  final Future<void> Function() onSend;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: const Color(0xFFE8E8EE)),
+        boxShadow: const <BoxShadow>[
+          BoxShadow(
+            color: Color(0x14000000),
+            blurRadius: 32,
+            offset: Offset(0, 18),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 18, 16, 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Row(
+              children: <Widget>[
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Text(
+                        title,
+                        style: const TextStyle(
+                          color: Color(0xFF16161B),
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      const Text(
+                        'As mensagens e ficheiros ficam disponíveis nos chats dos utilizadores.',
+                        style: TextStyle(
+                          color: Color(0xFF7B7E87),
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Fechar chat',
+                  onPressed: isOpen ? onClose : null,
+                  style: IconButton.styleFrom(
+                    backgroundColor: const Color(0xFFF3F4F8),
+                    foregroundColor: const Color(0xFF4A4D57),
+                  ),
+                  icon: const Icon(Icons.close_rounded),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Expanded(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8F8FB),
+                  borderRadius: BorderRadius.circular(22),
+                  border: Border.all(color: const Color(0xFFEBEDF2)),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(14),
+                  child: !hasChat
+                      ? const Center(
+                          child: Text(
+                            'O chat desta aula não está disponível.',
+                            style: TextStyle(color: Color(0xFF7B7E87)),
+                          ),
+                        )
+                      : isLoading
+                      ? const Center(child: CircularProgressIndicator())
+                      : messages.isEmpty
+                      ? const Center(
+                          child: Text(
+                            'Ainda não existem mensagens nesta aula.',
+                            style: TextStyle(color: Color(0xFF7B7E87)),
+                          ),
+                        )
+                      : ListView.separated(
+                          controller: scrollController,
+                          itemCount: messages.length,
+                          separatorBuilder: (context, index) =>
+                              const SizedBox(height: 10),
+                          itemBuilder: (context, index) {
+                            final message = messages[index];
+                            final isMine = currentUsername != null &&
+                                message.senderId.trim().toLowerCase() ==
+                                    currentUsername!.trim().toLowerCase();
+                            return ChatBubble(
+                              text: message.content,
+                              timeLabel: _formatChatTime(message.timestamp),
+                              isMine: isMine,
+                              maxWidth: 280,
+                              attachment: message.attachment,
+                              onAttachmentTap: message.attachment == null
+                                  ? null
+                                  : () => onAttachmentTap(
+                                        message.attachment!.downloadUrl,
+                                      ),
+                            );
+                          },
+                        ),
                 ),
               ),
-            Expanded(child: _buildContent()),
+            ),
+            if (errorMessage != null) ...<Widget>[
+              const SizedBox(height: 10),
+              Text(
+                errorMessage!,
+                style: const TextStyle(color: Color(0xFFD14343), fontSize: 12),
+              ),
+            ],
+            const SizedBox(height: 12),
+            DecoratedBox(
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8F8FB),
+                borderRadius: BorderRadius.circular(22),
+                border: Border.all(color: const Color(0xFFEBEDF2)),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(10),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: <Widget>[
+                    IconButton(
+                      tooltip: 'Enviar ficheiro',
+                      onPressed: hasChat && !isLoading && !isSending
+                          ? onAttach
+                          : null,
+                      style: IconButton.styleFrom(
+                        backgroundColor: const Color(0xFFFFFFFF),
+                        foregroundColor: const Color(0xFFFF6A3D),
+                      ),
+                      icon: const Icon(Icons.attach_file_rounded),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: TextField(
+                        controller: composerController,
+                        minLines: 1,
+                        maxLines: 4,
+                        enabled: hasChat && !isLoading && !isSending,
+                        decoration: InputDecoration(
+                          hintText: 'Escreva uma mensagem',
+                          hintStyle: const TextStyle(color: Color(0xFF9EA2AD)),
+                          border: InputBorder.none,
+                          filled: false,
+                        ),
+                        onSubmitted: (_) => onSend(),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    FilledButton(
+                      onPressed:
+                          hasChat && !isLoading && !isSending ? onSend : null,
+                      style: FilledButton.styleFrom(
+                        backgroundColor: const Color(0xFFFF6A3D),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(18),
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 18,
+                          vertical: 16,
+                        ),
+                      ),
+                      child: isSending
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Icon(Icons.send_rounded),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ],
         ),
       ),
@@ -694,48 +1434,41 @@ class _ClassroomHeader extends StatelessWidget {
   const _ClassroomHeader({
     required this.title,
     required this.subtitle,
+    required this.remoteDisplayName,
+    required this.participantCount,
+    required this.callDurationLabel,
+    required this.hasChat,
+    required this.isChatOpen,
     required this.isLoading,
-    required this.isMuted,
-    required this.isVideoOff,
-    required this.isWhiteboardOpen,
-    required this.isScreenSharing,
-    required this.canShareScreen,
-    required this.canStopScreenShare,
-    required this.canOpenWhiteboard,
-    required this.onLeave,
-    required this.onToggleMute,
-    required this.onToggleVideo,
-    required this.onOpenWhiteboard,
-    required this.onCloseWhiteboard,
-    required this.onStartScreenShare,
-    required this.onStopScreenShare,
+    required this.onToggleChat,
   });
 
   final String title;
   final String subtitle;
+  final String remoteDisplayName;
+  final int participantCount;
+  final String callDurationLabel;
+  final bool hasChat;
+  final bool isChatOpen;
   final bool isLoading;
-  final bool isMuted;
-  final bool isVideoOff;
-  final bool isWhiteboardOpen;
-  final bool isScreenSharing;
-  final bool canShareScreen;
-  final bool canStopScreenShare;
-  final bool canOpenWhiteboard;
-  final VoidCallback? onLeave;
-  final VoidCallback? onToggleMute;
-  final VoidCallback? onToggleVideo;
-  final VoidCallback? onOpenWhiteboard;
-  final VoidCallback? onCloseWhiteboard;
-  final VoidCallback? onStartScreenShare;
-  final VoidCallback? onStopScreenShare;
+  final VoidCallback? onToggleChat;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-      decoration: const BoxDecoration(
-        color: Color(0xFF121A2B),
-        border: Border(bottom: BorderSide(color: Color(0xFF273046))),
+      margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: const Color(0xFFE8E8EE)),
+        boxShadow: const <BoxShadow>[
+          BoxShadow(
+            color: Color(0x10000000),
+            blurRadius: 24,
+            offset: Offset(0, 12),
+          ),
+        ],
       ),
       child: Row(
         children: <Widget>[
@@ -746,67 +1479,268 @@ class _ClassroomHeader extends StatelessWidget {
                 Text(
                   title,
                   style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 22,
+                    color: Color(0xFF18181C),
+                    fontSize: 20,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
                 const SizedBox(height: 4),
-                Text(subtitle, style: const TextStyle(color: Colors.white70)),
+                Text(
+                  subtitle,
+                  style: const TextStyle(color: Color(0xFF6E717B)),
+                ),
               ],
             ),
           ),
-          IconButton(
-            tooltip: isMuted ? 'Ativar microfone' : 'Desativar microfone',
-            onPressed: onToggleMute,
-            icon: Icon(isMuted ? Icons.mic_off : Icons.mic),
-            color: isMuted ? Colors.redAccent : Colors.white,
+          _HeaderPill(
+            icon: Icons.groups_rounded,
+            label: '$participantCount participantes',
           ),
-          IconButton(
-            tooltip: isVideoOff ? 'Ativar câmara' : 'Desativar câmara',
-            onPressed: onToggleVideo,
-            icon: Icon(isVideoOff ? Icons.videocam_off : Icons.videocam),
-            color: isVideoOff ? Colors.redAccent : Colors.white,
+          const SizedBox(width: 10),
+          _HeaderPill(
+            icon: Icons.timer_outlined,
+            label: callDurationLabel,
           ),
-          const SizedBox(width: 8),
-          FilledButton.tonalIcon(
-            onPressed: isScreenSharing
-                ? (canStopScreenShare ? onStopScreenShare : null)
-                : (canShareScreen ? onStartScreenShare : null),
-            icon: Icon(
-              isScreenSharing ? Icons.stop_screen_share : Icons.screen_share,
-            ),
-            label: Text(isScreenSharing ? 'Parar partilha' : 'Partilhar ecrã'),
+          const SizedBox(width: 10),
+          _HeaderPill(
+            icon: Icons.person_rounded,
+            label: remoteDisplayName,
           ),
           const SizedBox(width: 8),
-          FilledButton.tonalIcon(
-            onPressed: isWhiteboardOpen
-                ? onCloseWhiteboard
-                : (canOpenWhiteboard ? onOpenWhiteboard : null),
-            icon: Icon(isWhiteboardOpen ? Icons.close_fullscreen : Icons.draw),
-            label: Text(
-              isWhiteboardOpen ? 'Fechar whiteboard' : 'Abrir whiteboard',
-            ),
-          ),
-          const SizedBox(width: 12),
-          if (isLoading)
-            const Padding(
-              padding: EdgeInsets.only(right: 12),
-              child: SizedBox(
-                width: 18,
-                height: 18,
-                child: CircularProgressIndicator(strokeWidth: 2),
+          if (hasChat)
+            IconButton(
+              tooltip: isChatOpen ? 'Fechar chat' : 'Abrir chat',
+              onPressed: onToggleChat,
+              style: IconButton.styleFrom(
+                backgroundColor: isChatOpen
+                    ? const Color(0xFFFFEEE8)
+                    : const Color(0xFFF4F5F8),
+                foregroundColor: isChatOpen
+                    ? const Color(0xFFFF6A3D)
+                    : const Color(0xFF4E515B),
+              ),
+              icon: Icon(
+                isChatOpen ? Icons.chat_rounded : Icons.chat_bubble_outline_rounded,
               ),
             ),
-          FilledButton.icon(
-            style: FilledButton.styleFrom(
-              backgroundColor: const Color(0xFFB3261E),
+          if (isLoading) ...<Widget>[
+            const SizedBox(width: 10),
+            const SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2),
             ),
-            onPressed: onLeave,
-            icon: const Icon(Icons.call_end),
-            label: const Text('Sair da aula'),
-          ),
+          ],
         ],
+      ),
+    );
+  }
+}
+
+class _HeaderPill extends StatelessWidget {
+  const _HeaderPill({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: const Color(0xFFF4F5F8),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        child: Row(
+          children: <Widget>[
+            Icon(icon, size: 18, color: const Color(0xFF5E616B)),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: const TextStyle(
+                color: Color(0xFF4A4D57),
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ClassroomControlsDock extends StatelessWidget {
+  const _ClassroomControlsDock({
+    required this.isMuted,
+    required this.isVideoOff,
+    required this.isWhiteboardOpen,
+    required this.isScreenSharing,
+    required this.isChatOpen,
+    required this.canShareScreen,
+    required this.canStopScreenShare,
+    required this.canOpenWhiteboard,
+    required this.canToggleChat,
+    required this.onLeave,
+    required this.onToggleMute,
+    required this.onToggleVideo,
+    required this.onOpenWhiteboard,
+    required this.onCloseWhiteboard,
+    required this.onStartScreenShare,
+    required this.onStopScreenShare,
+    required this.onToggleChat,
+  });
+
+  final bool isMuted;
+  final bool isVideoOff;
+  final bool isWhiteboardOpen;
+  final bool isScreenSharing;
+  final bool isChatOpen;
+  final bool canShareScreen;
+  final bool canStopScreenShare;
+  final bool canOpenWhiteboard;
+  final bool canToggleChat;
+  final VoidCallback? onLeave;
+  final VoidCallback? onToggleMute;
+  final VoidCallback? onToggleVideo;
+  final VoidCallback? onOpenWhiteboard;
+  final VoidCallback? onCloseWhiteboard;
+  final VoidCallback? onStartScreenShare;
+  final VoidCallback? onStopScreenShare;
+  final VoidCallback? onToggleChat;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.98),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: const Color(0xFFE8E8EE)),
+          boxShadow: const <BoxShadow>[
+            BoxShadow(
+              color: Color(0x16000000),
+              blurRadius: 28,
+              offset: Offset(0, 14),
+            ),
+          ],
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+          child: Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            alignment: WrapAlignment.center,
+            children: <Widget>[
+              _CallControlButton(
+                tooltip: isMuted ? 'Ativar microfone' : 'Desativar microfone',
+                icon: isMuted ? Icons.mic_off_rounded : Icons.mic_rounded,
+                isActive: !isMuted,
+                isAlert: isMuted,
+                onPressed: onToggleMute,
+              ),
+              _CallControlButton(
+                tooltip: isVideoOff ? 'Ativar câmara' : 'Desativar câmara',
+                icon: isVideoOff
+                    ? Icons.videocam_off_rounded
+                    : Icons.videocam_rounded,
+                isActive: !isVideoOff,
+                isAlert: isVideoOff,
+                onPressed: onToggleVideo,
+              ),
+              _CallControlButton(
+                tooltip: isScreenSharing ? 'Parar partilha' : 'Partilhar ecrã',
+                icon: isScreenSharing
+                    ? Icons.stop_screen_share_rounded
+                    : Icons.screen_share_rounded,
+                isActive: isScreenSharing,
+                onPressed: isScreenSharing
+                    ? (canStopScreenShare ? onStopScreenShare : null)
+                    : (canShareScreen ? onStartScreenShare : null),
+              ),
+              _CallControlButton(
+                tooltip: isWhiteboardOpen
+                    ? 'Fechar whiteboard'
+                    : 'Abrir whiteboard',
+                icon: isWhiteboardOpen
+                    ? Icons.close_fullscreen_rounded
+                    : Icons.draw_rounded,
+                isActive: isWhiteboardOpen,
+                onPressed: isWhiteboardOpen
+                    ? onCloseWhiteboard
+                    : (canOpenWhiteboard ? onOpenWhiteboard : null),
+              ),
+              _CallControlButton(
+                tooltip: isChatOpen ? 'Fechar chat' : 'Abrir chat',
+                icon: isChatOpen
+                    ? Icons.chat_rounded
+                    : Icons.chat_bubble_outline_rounded,
+                isActive: isChatOpen,
+                onPressed: onToggleChat,
+              ),
+              FilledButton.icon(
+                onPressed: onLeave,
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFFFF6A3D),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 22,
+                    vertical: 18,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                ),
+                icon: const Icon(Icons.call_end_rounded),
+                label: const Text('Terminar chamada'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CallControlButton extends StatelessWidget {
+  const _CallControlButton({
+    required this.tooltip,
+    required this.icon,
+    required this.onPressed,
+    this.isActive = false,
+    this.isAlert = false,
+  });
+
+  final String tooltip;
+  final IconData icon;
+  final VoidCallback? onPressed;
+  final bool isActive;
+  final bool isAlert;
+
+  @override
+  Widget build(BuildContext context) {
+    final backgroundColor = isAlert
+        ? const Color(0xFFFFEEE8)
+        : isActive
+        ? const Color(0xFFFFF2EC)
+        : const Color(0xFFF4F5F8);
+    final foregroundColor = isAlert
+        ? const Color(0xFFD14343)
+        : isActive
+        ? const Color(0xFFFF6A3D)
+        : const Color(0xFF4E515B);
+
+    return Tooltip(
+      message: tooltip,
+      child: IconButton(
+        onPressed: onPressed,
+        style: IconButton.styleFrom(
+          backgroundColor: backgroundColor,
+          foregroundColor: foregroundColor,
+          padding: const EdgeInsets.all(16),
+        ),
+        icon: Icon(icon),
       ),
     );
   }
@@ -821,7 +1755,7 @@ class _VideoTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ClipRRect(
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(22),
       child: DecoratedBox(
         decoration: const BoxDecoration(color: Color(0xFF111827)),
         child: Stack(
@@ -833,7 +1767,7 @@ class _VideoTile extends StatelessWidget {
               child: DecoratedBox(
                 decoration: BoxDecoration(
                   color: Colors.black.withValues(alpha: 0.6),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(999),
                 ),
                 child: Padding(
                   padding: const EdgeInsets.symmetric(
@@ -882,4 +1816,11 @@ class _CenterStagePlaceholder extends StatelessWidget {
       ),
     );
   }
+}
+
+String _formatChatTime(DateTime value) {
+  final local = value.toLocal();
+  final hour = local.hour.toString().padLeft(2, '0');
+  final minute = local.minute.toString().padLeft(2, '0');
+  return '$hour:$minute';
 }

@@ -28,6 +28,8 @@ class BackofficeProfessionalReviewDetails {
     required this.certificates,
     required this.reviews,
     required this.ibanDocumentUrl,
+    required this.psychologistProofDocumentUrl,
+    required this.supportTypes,
   });
 
   final String idProfessor;
@@ -58,6 +60,8 @@ class BackofficeProfessionalReviewDetails {
   final List<BackofficeProfessionalCertificate> certificates;
   final List<BackofficeProfessionalReviewEntry> reviews;
   final String? ibanDocumentUrl;
+  final String? psychologistProofDocumentUrl;
+  final List<String> supportTypes;
 
   String get moderationLabel => isRejected ? 'REJEITADO' : isApproved ? 'APROVADO' : 'PENDENTE';
 }

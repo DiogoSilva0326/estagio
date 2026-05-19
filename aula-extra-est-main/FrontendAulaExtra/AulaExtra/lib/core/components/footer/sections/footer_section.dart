@@ -90,16 +90,16 @@ class FooterSection extends StatelessWidget {
     const quickLinkItems = [
       'Como Funciona',
       'Preços',
-      'Encontrar Explicador',
-      'Tornar-se Explicador',
+      'Encontrar Apoio',
+      'Tornar-se Apoio',
       'FAQ',
     ];
 
     final onTapByItem = <String, VoidCallback>{
       'Preços': onPricingTap,
-      'Encontrar Explicador': onFindTutorTap,
+      'Encontrar Apoio': onFindTutorTap,
       'Como Funciona': onComoFuncionaTap,
-      'Tornar-se Explicador': onBecomeTeacherTap,
+      'Tornar-se Apoio': onBecomeTeacherTap,
       'FAQ': onFaqTap,
     };
 

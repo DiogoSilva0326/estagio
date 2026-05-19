@@ -43,6 +43,21 @@ class _LoginCardState extends State<LoginCard> {
     return true;
   }
 
+  String _resolveTargetRoute(Role role) {
+    if (role == Role.student) return Routes.areasAluno;
+    if (role == Role.teacher || role == Role.tutor || role == Role.psychologist) {
+      return Routes.professorMeusAlunos;
+    }
+    return Routes.home;
+  }
+
+  void _showProviderNotAvailable(String provider) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Login com $provider ainda não está disponível.')),
+    );
+  }
+
   Future<void> _handleLogin() async {
     if (!_canSubmit) return;
 
@@ -59,11 +74,7 @@ class _LoginCardState extends State<LoginCard> {
 
       AuthService.applySessionToProvider(user, session);
 
-      final targetRoute = session.appRole == Role.teacher
-          ? Routes.professorMeusAlunos
-          : session.appRole == Role.student
-              ? Routes.areasAluno
-              : Routes.home;
+        final targetRoute = _resolveTargetRoute(session.appRole);
 
       if (!mounted) return;
       navigator.pushNamedAndRemoveUntil(targetRoute, (r) => false);
@@ -75,18 +86,43 @@ class _LoginCardState extends State<LoginCard> {
     }
   }
 
+  Future<void> _handleGoogleLogin() async {
+    if (_isSubmitting) return;
+
+    final user = context.read<UserProvider>();
+    final navigator = Navigator.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+
+    setState(() => _isSubmitting = true);
+    try {
+      final session = await AuthService().loginWithGoogle();
+      AuthService.applySessionToProvider(user, session);
+
+      if (!mounted) return;
+      navigator.pushNamedAndRemoveUntil(_resolveTargetRoute(session.appRole), (r) => false);
+    } catch (e) {
+      if (!mounted) return;
+      messenger.showSnackBar(SnackBar(content: Text(e.toString())));
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
+    }
+  }
+
   List<Widget> _buildSocialButtons() {
     final providers = LoginSocial.order;
     return [
-      for (var i = 0; i < providers.length; i++) ...[
+      for (final provider in providers) ...[
         SocialButton(
-          text: 'Continuar com ${LoginSocial.labels[providers[i]]!}',
-          iconAsset: LoginSocial.assets[providers[i]]!,
-          backgroundColor: LoginSocial.backgroundColors[providers[i]]!,
-          borderColor: LoginSocial.borderColors[providers[i]]!,
-          textColor: LoginSocial.textColors[providers[i]]!,
+          text: 'Continuar com ${LoginSocial.labels[provider]!}',
+          iconAsset: LoginSocial.assets[provider]!,
+          backgroundColor: LoginSocial.backgroundColors[provider]!,
+          borderColor: LoginSocial.borderColors[provider]!,
+          textColor: LoginSocial.textColors[provider]!,
+          onTap: provider == 'google'
+              ? _handleGoogleLogin
+              : () => _showProviderNotAvailable(LoginSocial.labels[provider]!),
         ),
-        if (i != providers.length - 1) const SizedBox(height: 10.029),
+        if (provider != providers.last) const SizedBox(height: 10.029),
       ],
     ];
   }

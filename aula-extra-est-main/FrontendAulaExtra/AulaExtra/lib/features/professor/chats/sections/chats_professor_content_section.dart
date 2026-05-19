@@ -56,6 +56,8 @@ class _ChatsProfessorContentSectionState
   final RealtimeChatService _realtimeChatService = RealtimeChatService();
 
   static const int _maxChatFileSizeBytes = 5 * 1024 * 1024;
+  static const int _initialVisibleMessages = 20;
+  static const int _historyPageSize = 20;
 
   StreamSubscription<RealtimeChatEvent>? _chatSubscription;
 
@@ -71,6 +73,7 @@ class _ChatsProfessorContentSectionState
   final Map<int, List<_MessageData>> _fullMessagesByConversationId =
       <int, List<_MessageData>>{};
   final Map<int, int> _visibleMessageCountByConversationId = <int, int>{};
+  final Map<int, bool> _hasMoreHistoryByConversationId = <int, bool>{};
   final Map<int, bool> _otherOnlineByConversationId = <int, bool>{};
   bool _isLoadingMoreMessages = false;
 
@@ -100,32 +103,75 @@ class _ChatsProfessorContentSectionState
     final full =
         _fullMessagesByConversationId[conversationId] ?? const <_MessageData>[];
     final currentVisible =
-        _visibleMessageCountByConversationId[conversationId] ?? 20;
-    if (full.length <= currentVisible) return;
+        _visibleMessageCountByConversationId[conversationId] ??
+        _initialVisibleMessages;
+
+    if (full.length > currentVisible) {
+      setState(() {
+        final next = currentVisible + _historyPageSize;
+        _visibleMessageCountByConversationId[conversationId] =
+            _safeVisibleCount(next, full.length);
+        _applyVisibleMessagesForConversation(conversationId);
+      });
+      return;
+    }
+
+    final selected = _selectedConversation;
+    final activeChannelName = _activeChannelName;
+    final oldestMessage = full.isNotEmpty ? full.first : null;
+    final hasMoreHistory = _hasMoreHistoryByConversationId[conversationId] ?? false;
+    if (!hasMoreHistory ||
+        selected == null ||
+        selected.id != conversationId ||
+        activeChannelName == null ||
+        activeChannelName.isEmpty ||
+        oldestMessage == null) {
+      return;
+    }
 
     setState(() {
       _isLoadingMoreMessages = true;
     });
 
-    await Future<void>.delayed(const Duration(milliseconds: 250));
-
-    if (!mounted) return;
-
-    setState(() {
-      final next = currentVisible + 20;
-      _visibleMessageCountByConversationId[conversationId] = _safeVisibleCount(
-        next,
-        full.length,
+    try {
+      await _realtimeChatService.loadOlderMessages(
+        channelName: activeChannelName,
+        before: oldestMessage.timestamp.subtract(
+          const Duration(milliseconds: 1),
+        ),
+        limit: _historyPageSize,
       );
-      _applyVisibleMessagesForConversation(conversationId);
-      _isLoadingMoreMessages = false;
-    });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isLoadingMoreMessages = false;
+        _errorMessage = e.toString();
+      });
+    }
   }
 
   int _safeVisibleCount(int desired, int total) {
     if (total <= 0) return 0;
-    if (total < 20) return total;
-    return desired.clamp(20, total);
+    if (total < _initialVisibleMessages) return total;
+    return desired.clamp(_initialVisibleMessages, total);
+  }
+
+  String _contactPreview(ContactUserSummaryDto? contact) {
+    final lastMessage = contact?.lastMessage?.trim();
+    if (lastMessage != null && lastMessage.isNotEmpty) {
+      return lastMessage;
+    }
+
+    return 'Inicia a conversa...';
+  }
+
+  String _contactTimeLabel(ContactUserSummaryDto? contact) {
+    final when = contact?.lastMessageAt?.toLocal();
+    if (when == null) {
+      return '';
+    }
+
+    return _formatTime(when);
   }
 
   void _scrollToBottom({bool animated = true}) {
@@ -157,29 +203,97 @@ class _ChatsProfessorContentSectionState
     try {
       final userProvider = Provider.of<UserProvider>(context, listen: false);
       final config = TeachingRoleConfig.fromRole(userProvider.role);
-      
+
       final students = await _professorsService.fetchMeusAlunos(role: config.roleName);
-      
-      final conversations = <_ConversationData>[];
 
-      for (var index = 0; index < students.length; index++) {
-        final student = students[index];
-        final username = student.username.trim();
-        if (username.isEmpty) continue;
+      List<ContactUserSummaryDto> contacts = const <ContactUserSummaryDto>[];
+      try {
+        contacts = await _contactsService.getMyContacts();
+      } catch (_) {}
 
-        conversations.add(
-          _ConversationData(
-            id: index + 1,
-            username: username,
-            initials: _initialsFromName(student.fullName),
-            name: student.fullName,
-            status: 'Offline',
-            timeLabel: '',
-            preview: 'Inicia a conversa...',
-            messages: const <_MessageData>[],
-          ),
+      final contactsByUsername = <String, ContactUserSummaryDto>{
+        for (final contact in contacts)
+          if ((contact.username?.trim().isNotEmpty ?? false))
+            contact.username!.trim().toLowerCase(): contact,
+      };
+
+        final conversationsByUsername = <String, _ConversationData>{};
+        final conversationsByChannel = <String, _ConversationData>{};
+
+      void upsertConversation({
+        required String username,
+        required String name,
+      }) {
+        final normalizedUsername = username.trim();
+        if (normalizedUsername.isEmpty) return;
+
+        final key = normalizedUsername.toLowerCase();
+        if (conversationsByUsername.containsKey(key)) return;
+
+        final resolvedName = name.trim().isEmpty ? normalizedUsername : name.trim();
+        final contact = contactsByUsername[key];
+        conversationsByUsername[key] = _ConversationData(
+          id: conversationsByUsername.length + 1,
+          username: normalizedUsername,
+          channelName: '',
+          initials: _initialsFromName(resolvedName),
+          name: resolvedName,
+          status: 'Offline',
+          timeLabel: _contactTimeLabel(contact),
+          preview: _contactPreview(contact),
+          messages: const <_MessageData>[],
         );
       }
+
+      void upsertGroupConversation(ContactUserSummaryDto contact) {
+        final channelName = contact.channelName?.trim() ?? '';
+        if (channelName.isEmpty) return;
+
+        final key = channelName.toLowerCase();
+        if (conversationsByChannel.containsKey(key)) return;
+
+        final resolvedName = (contact.displayName?.trim().isNotEmpty ?? false)
+            ? contact.displayName!.trim()
+            : 'Chat da aula';
+
+        conversationsByChannel[key] = _ConversationData(
+          id: conversationsByUsername.length + conversationsByChannel.length + 1,
+          username: '',
+          channelName: channelName,
+          initials: _initialsFromName(resolvedName),
+          name: resolvedName,
+          status: 'accepted',
+          timeLabel: _contactTimeLabel(contact),
+          preview: _contactPreview(contact),
+          messages: const <_MessageData>[],
+        );
+      }
+
+      final conversations = <_ConversationData>[];
+
+      for (final student in students) {
+        upsertConversation(
+          username: student.username,
+          name: student.fullName,
+        );
+      }
+
+      for (final contact in contacts) {
+        if ((contact.conversationType?.trim().toLowerCase() ?? '') == 'group') {
+          upsertGroupConversation(contact);
+          continue;
+        }
+
+        upsertConversation(
+          username: contact.username?.trim() ?? '',
+          name: (contact.displayName?.trim().isNotEmpty ?? false)
+              ? contact.displayName!.trim()
+              : contact.username?.trim() ?? '',
+        );
+      }
+
+      conversations.addAll(conversationsByUsername.values);
+        conversations.addAll(conversationsByChannel.values);
 
       final initialUsername = widget.initialStudentUsername?.trim();
       final initialName = widget.initialStudentName?.trim();
@@ -198,11 +312,16 @@ class _ChatsProfessorContentSectionState
             _ConversationData(
               id: 1,
               username: initialUsername,
+              channelName: '',
               initials: _initialsFromName(fallbackName),
               name: fallbackName,
               status: 'Offline',
-              timeLabel: '',
-              preview: 'Inicia a conversa...',
+              timeLabel: _contactTimeLabel(
+                contactsByUsername[initialUsername.toLowerCase()],
+              ),
+              preview: _contactPreview(
+                contactsByUsername[initialUsername.toLowerCase()],
+              ),
               messages: const <_MessageData>[],
             ),
           );
@@ -236,6 +355,7 @@ class _ChatsProfessorContentSectionState
         _selectedConversationId = selectedId;
         _fullMessagesByConversationId.clear();
         _visibleMessageCountByConversationId.clear();
+        _hasMoreHistoryByConversationId.clear();
         _otherOnlineByConversationId.clear();
         _activeChannelName = null;
         _isLoading = false;
@@ -308,6 +428,40 @@ class _ChatsProfessorContentSectionState
 
   Future<void> _joinConversation(_ConversationData conversation) async {
     final username = conversation.username.trim();
+    if (conversation.isGroupConversation) {
+      final myUsername = _myUsername;
+      final myDisplayName = _myDisplayName;
+      if (myUsername == null || myDisplayName == null) {
+        await _initRealtime();
+      }
+
+      final targetChannel = conversation.channelName.trim();
+      if (targetChannel.isEmpty || _myUsername == null || _myDisplayName == null) {
+        return;
+      }
+
+      if (_activeChannelName?.trim().toLowerCase() == targetChannel.toLowerCase() &&
+          _realtimeChatService.isConnected) {
+        return;
+      }
+
+      try {
+        await _realtimeChatService.connect(
+          username: _myUsername!,
+          displayName: _myDisplayName!,
+        );
+        _activeChannelName = await _realtimeChatService.joinChannel(
+          channelName: targetChannel,
+        );
+      } catch (e) {
+        if (!mounted) return;
+        setState(() {
+          _errorMessage = e.toString();
+        });
+      }
+      return;
+    }
+
     if (username.isEmpty) {
       setState(() {
         _errorMessage = 'Este aluno não tem username disponível.';
@@ -598,9 +752,22 @@ class _ChatsProfessorContentSectionState
     if (!mounted) return;
 
     if (event is RealtimeChatRoomJoined) {
-      _applyRoomHistory(event.channelName, event.messages);
+      _applyRoomHistory(
+        event.channelName,
+        event.messages,
+        hasMoreHistory: event.hasMoreHistory,
+      );
       _applyPresenceFromParticipants(event.channelName, event.participants);
       _markConversationRead(event.channelName);
+      return;
+    }
+
+    if (event is RealtimeChatRoomHistoryLoaded) {
+      _prependRoomHistory(
+        event.channelName,
+        event.messages,
+        hasMoreHistory: event.hasMoreHistory,
+      );
       return;
     }
 
@@ -648,6 +815,7 @@ class _ChatsProfessorContentSectionState
   void _applyRoomHistory(
     String channelName,
     List<RealtimeChatMessage> messages,
+    {required bool hasMoreHistory,}
   ) {
     final myUsername = _myUsername;
     if (myUsername == null) return;
@@ -655,10 +823,7 @@ class _ChatsProfessorContentSectionState
     final selected = _selectedConversation;
     if (selected == null) return;
 
-    final expectedChannel = RealtimeChatConfig.dmChannelName(
-      myUsername,
-      selected.username,
-    );
+    final expectedChannel = _channelForConversation(selected);
     if (expectedChannel != channelName) return;
 
     final mapped =
@@ -706,8 +871,10 @@ class _ChatsProfessorContentSectionState
         ..sort((left, right) => left.timestamp.compareTo(right.timestamp));
 
       _fullMessagesByConversationId[selected.id] = merged;
+      _hasMoreHistoryByConversationId[selected.id] = hasMoreHistory;
       _visibleMessageCountByConversationId[selected.id] = _safeVisibleCount(
-        _visibleMessageCountByConversationId[selected.id] ?? 20,
+        _visibleMessageCountByConversationId[selected.id] ??
+            _initialVisibleMessages,
         merged.length,
       );
       _applyVisibleMessagesForConversation(selected.id);
@@ -719,6 +886,7 @@ class _ChatsProfessorContentSectionState
         preview: last?.text ?? '',
         timeLabel: last != null ? _formatTime(last.timestamp) : '',
       );
+      _isLoadingMoreMessages = false;
     });
 
     WidgetsBinding.instance.addPostFrameCallback(
@@ -733,7 +901,8 @@ class _ChatsProfessorContentSectionState
     final full =
         _fullMessagesByConversationId[conversationId] ?? const <_MessageData>[];
     final visibleCount = _safeVisibleCount(
-      _visibleMessageCountByConversationId[conversationId] ?? 20,
+      _visibleMessageCountByConversationId[conversationId] ??
+          _initialVisibleMessages,
       full.length,
     );
     final start = (full.length - visibleCount).clamp(0, full.length);
@@ -744,6 +913,75 @@ class _ChatsProfessorContentSectionState
     );
     if (idx == -1) return;
     _conversations[idx] = _conversations[idx].copyWith(messages: visible);
+  }
+
+  void _prependRoomHistory(
+    String channelName,
+    List<RealtimeChatMessage> messages, {
+    required bool hasMoreHistory,
+  }) {
+    final myUsername = _myUsername;
+    if (myUsername == null) return;
+
+    final selected = _selectedConversation;
+    if (selected == null) return;
+
+    final expectedChannel = RealtimeChatConfig.dmChannelName(
+      myUsername,
+      selected.username,
+    );
+    if (expectedChannel != channelName) return;
+
+    final mapped = messages
+        .map(
+          (message) => _MessageData(
+            id: message.messageId,
+            senderId: message.senderId,
+            text: message.content,
+            timestamp: message.timestamp.toLocal(),
+            isOutgoing:
+                message.senderId.trim().toLowerCase() ==
+                myUsername.trim().toLowerCase(),
+            isRead: message.isRead,
+            attachment: message.attachment,
+          ),
+        )
+        .toList(growable: true)
+      ..sort((left, right) => left.timestamp.compareTo(right.timestamp));
+
+    setState(() {
+      final currentFull = List<_MessageData>.from(
+        _fullMessagesByConversationId[selected.id] ?? const <_MessageData>[],
+      );
+      final mergedById = <String, _MessageData>{};
+      for (final item in mapped) {
+        final key = item.id.trim();
+        if (key.isNotEmpty) {
+          mergedById[key] = item;
+        }
+      }
+      for (final item in currentFull) {
+        final key = item.id.trim();
+        if (key.isNotEmpty) {
+          mergedById[key] = item;
+        }
+      }
+
+      final merged = mergedById.values.toList(growable: true)
+        ..sort((left, right) => left.timestamp.compareTo(right.timestamp));
+
+      _fullMessagesByConversationId[selected.id] = merged;
+      _hasMoreHistoryByConversationId[selected.id] = hasMoreHistory;
+      final currentVisible =
+          _visibleMessageCountByConversationId[selected.id] ??
+          _initialVisibleMessages;
+      _visibleMessageCountByConversationId[selected.id] = _safeVisibleCount(
+        currentVisible + mapped.length,
+        merged.length,
+      );
+      _applyVisibleMessagesForConversation(selected.id);
+      _isLoadingMoreMessages = false;
+    });
   }
 
   void _appendMessageToActive(String channelName, RealtimeChatMessage message) {
@@ -776,7 +1014,8 @@ class _ChatsProfessorContentSectionState
       _fullMessagesByConversationId[selected.id] = full;
 
       final currentVisible = _safeVisibleCount(
-        _visibleMessageCountByConversationId[selected.id] ?? 20,
+        _visibleMessageCountByConversationId[selected.id] ??
+            _initialVisibleMessages,
         full.length,
       );
       _visibleMessageCountByConversationId[selected.id] = currentVisible;
@@ -804,7 +1043,7 @@ class _ChatsProfessorContentSectionState
     final msg = _toMessageData(message, myUsername);
 
     setState(() {
-      final idx = _conversations.indexWhere(
+      var idx = _conversations.indexWhere(
         (conversation) =>
             RealtimeChatConfig.dmChannelName(
               myUsername,
@@ -812,7 +1051,40 @@ class _ChatsProfessorContentSectionState
             ) ==
             channelName,
       );
-      if (idx == -1) return;
+
+      if (idx == -1) {
+        final senderUsername = message.senderId.trim();
+        final isIncoming =
+            senderUsername.isNotEmpty &&
+            senderUsername.toLowerCase() != myUsername.trim().toLowerCase();
+        if (!isIncoming) return;
+
+        final senderName = message.senderName.trim().isEmpty
+            ? senderUsername
+            : message.senderName.trim();
+        final conversationId =
+            _conversations.isEmpty
+                ? 1
+                : (_conversations.map((conversation) => conversation.id).reduce((a, b) => a > b ? a : b) + 1);
+
+        _fullMessagesByConversationId[conversationId] = <_MessageData>[msg];
+        _visibleMessageCountByConversationId[conversationId] = 1;
+        _conversations.add(
+          _ConversationData(
+            id: conversationId,
+            username: senderUsername,
+            channelName: '',
+            initials: _initialsFromName(senderName),
+            name: senderName,
+            status: 'Offline',
+            timeLabel: _formatTime(msg.timestamp),
+            preview: msg.previewText,
+            messages: const <_MessageData>[],
+            unreadCount: 1,
+          ),
+        );
+        idx = _conversations.length - 1;
+      }
 
       final isSelected = _conversations[idx].id == _selectedConversationId;
       final unread = isSelected
@@ -835,7 +1107,8 @@ class _ChatsProfessorContentSectionState
         _fullMessagesByConversationId[_conversations[idx].id] = full;
 
         final currentVisible = _safeVisibleCount(
-          _visibleMessageCountByConversationId[_conversations[idx].id] ?? 20,
+          _visibleMessageCountByConversationId[_conversations[idx].id] ??
+              _initialVisibleMessages,
           full.length,
         );
         final visible = full.sublist(
@@ -955,8 +1228,7 @@ class _ChatsProfessorContentSectionState
       myUsername,
       selected.username,
     );
-    if (expectedChannel.trim().toLowerCase() !=
-        channelName.trim().toLowerCase()) {
+    if (expectedChannel.trim().toLowerCase() != channelName.trim().toLowerCase()) {
       return;
     }
 
@@ -969,12 +1241,22 @@ class _ChatsProfessorContentSectionState
 
     return _conversations.indexWhere(
       (conversation) =>
-          RealtimeChatConfig.dmChannelName(
-            myUsername,
-            conversation.username,
-          ).trim().toLowerCase() ==
+          (_channelForConversation(conversation) ?? '').trim().toLowerCase() ==
           channelName.trim().toLowerCase(),
     );
+  }
+
+  String? _channelForConversation(_ConversationData conversation) {
+    if (conversation.isGroupConversation) {
+      final channelName = conversation.channelName.trim();
+      return channelName.isEmpty ? null : channelName;
+    }
+
+    final myUsername = _myUsername;
+    final username = conversation.username.trim();
+    if (myUsername == null || username.isEmpty) return null;
+
+    return RealtimeChatConfig.dmChannelName(myUsername, username);
   }
 
   String _initialsFromName(String name) {
@@ -1238,6 +1520,7 @@ class _ConversationData {
   const _ConversationData({
     required this.id,
     required this.username,
+    required this.channelName,
     required this.initials,
     required this.name,
     required this.status,
@@ -1249,6 +1532,7 @@ class _ConversationData {
 
   final int id;
   final String username;
+  final String channelName;
   final String initials;
   final String name;
   final String status;
@@ -1256,6 +1540,8 @@ class _ConversationData {
   final String preview;
   final int? unreadCount;
   final List<_MessageData> messages;
+
+  bool get isGroupConversation => channelName.trim().isNotEmpty;
 
   _ConversationData copyWith({
     int? id,
@@ -1268,6 +1554,7 @@ class _ConversationData {
     return _ConversationData(
       id: id ?? this.id,
       username: username,
+      channelName: channelName,
       initials: initials,
       name: name,
       status: status ?? this.status,

@@ -61,6 +61,29 @@ namespace ConfidantPostgreSQL.Modules.Users.Repository
             return MapUser(reader);
         }
 
+        public async Task<User?> GetByGoogleSubjectAsync(string googleSubject)
+        {
+            if (string.IsNullOrWhiteSpace(googleSubject)) return null;
+
+            await using var conn = new NpgsqlConnection(_connectionString);
+            await conn.OpenAsync();
+            await using var cmd = conn.CreateCommand();
+            cmd.CommandText = @"
+                SELECT
+                    id_user, email, password, first_name, last_name, education_level, birth_date,
+                    biography, auth_message, username, display_name, mobile_number, phone_number, nif, website, inactive,
+                    creation_date, last_update, last_user_id
+                FROM public.users
+                WHERE google_subject = @p_google_subject
+                ORDER BY id_user
+                LIMIT 1;";
+            cmd.Parameters.AddWithValue("p_google_subject", googleSubject.Trim());
+
+            await using var reader = await cmd.ExecuteReaderAsync();
+            if (!await reader.ReadAsync()) return null;
+            return MapUser(reader);
+        }
+
         public async Task<User?> GetByUsernameAsync(string username)
         {
             if (string.IsNullOrWhiteSpace(username)) return null;
@@ -189,10 +212,10 @@ namespace ConfidantPostgreSQL.Modules.Users.Repository
             cmd.CommandText = @"
                 INSERT INTO public.users (
                     email, password, first_name, last_name, education_level, biography, username, display_name, birth_date,
-                    auth_message, mobile_number, nif, inactive, creation_date, last_update, last_user_id
+                    auth_message, mobile_number, nif, inactive, creation_date, last_update, last_user_id, google_subject
                 ) VALUES (
                     @p_email, @p_password, @p_first_name, @p_last_name, @p_education_level, @p_biography, COALESCE(@p_username, @p_email), @p_display_name, @p_birth_date,
-                    @p_auth_message, @p_mobile_number, @p_nif, COALESCE(@p_inactive, false), now(), now(), @p_last_user_id
+                    @p_auth_message, @p_mobile_number, @p_nif, COALESCE(@p_inactive, false), now(), now(), @p_last_user_id, @p_google_subject
                 ) RETURNING id_user;";
 
             cmd.Parameters.AddWithValue("p_email", (object?)user.Email ?? DBNull.Value);
@@ -209,6 +232,7 @@ namespace ConfidantPostgreSQL.Modules.Users.Repository
             cmd.Parameters.AddWithValue("p_nif", (object?)user.Nif ?? DBNull.Value);
             cmd.Parameters.AddWithValue("p_inactive", (object?)(user.Inactive) ?? DBNull.Value);
             cmd.Parameters.AddWithValue("p_last_user_id", (object?)user.LastUserId ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("p_google_subject", (object?)user.GoogleSubject ?? DBNull.Value);
 
             var res = await cmd.ExecuteScalarAsync();
             var userId = res == null || res == DBNull.Value ? Guid.Empty : (Guid)res;
@@ -230,17 +254,6 @@ namespace ConfidantPostgreSQL.Modules.Users.Repository
                 FROM public.user_role ur
                 JOIN public.role r ON r.id = ur.role_id
                 WHERE ur.user_id = @p_user_id
-                                    AND (
-                                        lower(r.description) <> 'professor'
-                                        OR EXISTS (
-                                                SELECT 1
-                                                FROM public.professors p
-                                                WHERE p.id_user = @p_user_id
-                                                    AND COALESCE(p.is_verified_iban, false) = true
-                                                    AND COALESCE(p.is_active, false) = true
-                                                    AND COALESCE(p.is_verified, false) = true
-                                        )
-                                    )
                 ORDER BY r.id;";
             cmd.Parameters.AddWithValue("p_user_id", userId);
 
@@ -273,6 +286,22 @@ namespace ConfidantPostgreSQL.Modules.Users.Repository
                 if (res != null && res != DBNull.Value) roleId = Convert.ToInt32(res);
             }
 
+            if (roleId == null)
+            {
+                await using var createRoleCmd = conn.CreateCommand();
+                createRoleCmd.CommandText = @"
+                    INSERT INTO public.role (description)
+                    VALUES (@p_desc)
+                    ON CONFLICT (description) DO UPDATE SET description = EXCLUDED.description
+                    RETURNING id;";
+                createRoleCmd.Parameters.AddWithValue("p_desc", roleDescription.Trim());
+                var createdRole = await createRoleCmd.ExecuteScalarAsync();
+                if (createdRole != null && createdRole != DBNull.Value)
+                {
+                    roleId = Convert.ToInt32(createdRole);
+                }
+            }
+
             if (roleId == null) return false;
 
             await using var insCmd = conn.CreateCommand();
@@ -284,6 +313,50 @@ namespace ConfidantPostgreSQL.Modules.Users.Repository
             insCmd.Parameters.AddWithValue("p_role_id", roleId.Value);
 
             await insCmd.ExecuteNonQueryAsync();
+            return true;
+        }
+
+        public async Task<bool> SetGoogleSubjectAsync(Guid userId, string googleSubject)
+        {
+            if (userId == Guid.Empty) return false;
+            if (string.IsNullOrWhiteSpace(googleSubject)) return false;
+
+            await using var conn = new NpgsqlConnection(_connectionString);
+            await conn.OpenAsync();
+
+            await using var cmd = conn.CreateCommand();
+            cmd.CommandText = @"
+                UPDATE public.users
+                SET google_subject = @p_google_subject,
+                    last_update = now()
+                WHERE id_user = @p_user_id
+                  AND (google_subject IS NULL OR google_subject = @p_google_subject);";
+            cmd.Parameters.AddWithValue("p_user_id", userId);
+            cmd.Parameters.AddWithValue("p_google_subject", googleSubject.Trim());
+
+            var rows = await cmd.ExecuteNonQueryAsync();
+            return rows > 0;
+        }
+
+        public async Task<bool> RemoveRoleAsync(Guid userId, string roleDescription)
+        {
+            if (userId == Guid.Empty) return false;
+            if (string.IsNullOrWhiteSpace(roleDescription)) return false;
+
+            await using var conn = new NpgsqlConnection(_connectionString);
+            await conn.OpenAsync();
+
+            await using var cmd = conn.CreateCommand();
+            cmd.CommandText = @"
+                DELETE FROM public.user_role ur
+                USING public.role r
+                WHERE ur.role_id = r.id
+                  AND ur.user_id = @p_user_id
+                  AND lower(r.description) = lower(@p_desc);";
+            cmd.Parameters.AddWithValue("p_user_id", userId);
+            cmd.Parameters.AddWithValue("p_desc", roleDescription.Trim());
+
+            await cmd.ExecuteNonQueryAsync();
             return true;
         }
 
@@ -494,6 +567,7 @@ namespace ConfidantPostgreSQL.Modules.Users.Repository
                 PhoneNumber = GetNullableString(reader, "phone_number"),
                 Website = GetNullableString(reader, "website"),
                 Nif = GetNullableString(reader, "nif"),
+                GoogleSubject = GetNullableString(reader, "google_subject"),
                 Inactive = GetBoolDefaultFalse(reader, "inactive")
             };
 

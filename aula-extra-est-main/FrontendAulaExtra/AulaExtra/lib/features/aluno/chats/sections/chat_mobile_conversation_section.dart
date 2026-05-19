@@ -15,9 +15,14 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class ChatMobileConversationSection extends StatefulWidget {
-  const ChatMobileConversationSection({super.key, required this.contact});
+  const ChatMobileConversationSection({
+    super.key,
+    required this.contact,
+    this.initialMessage,
+  });
 
   final ContactUserSummaryDto contact;
+  final String? initialMessage;
 
   @override
   State<ChatMobileConversationSection> createState() =>
@@ -27,6 +32,7 @@ class ChatMobileConversationSection extends StatefulWidget {
 class _ChatMobileConversationSectionState
     extends State<ChatMobileConversationSection> {
   static const int _maxChatFileSizeBytes = 5 * 1024 * 1024;
+  static const int _historyPageSize = 20;
 
   final TextEditingController _composerController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
@@ -40,7 +46,10 @@ class _ChatMobileConversationSectionState
   String? _activeChannelName;
   bool _isLoading = true;
   bool _isSendingFile = false;
+  bool _isLoadingMoreMessages = false;
   bool _isOtherOnline = false;
+  bool _hasMoreHistory = false;
+  bool _hasSentInitialMessage = false;
   String? _errorMessage;
   List<_MobileChatMessage> _messages = const <_MobileChatMessage>[];
 
@@ -53,7 +62,51 @@ class _ChatMobileConversationSectionState
   @override
   void initState() {
     super.initState();
+    _scrollController.addListener(_handleScroll);
     WidgetsBinding.instance.addPostFrameCallback((_) => _initializeChat());
+  }
+
+  void _handleScroll() {
+    if (_isLoading || _isLoadingMoreMessages || !_hasMoreHistory) {
+      return;
+    }
+
+    if (!_scrollController.hasClients) {
+      return;
+    }
+
+    if (_scrollController.position.pixels <=
+        _scrollController.position.minScrollExtent + 12) {
+      _loadOlderMessages();
+    }
+  }
+
+  Future<void> _loadOlderMessages() async {
+    final channelName = _activeChannelName;
+    final oldestMessage = _messages.isNotEmpty ? _messages.first : null;
+    if (channelName == null || channelName.isEmpty || oldestMessage == null) {
+      return;
+    }
+
+    setState(() {
+      _isLoadingMoreMessages = true;
+    });
+
+    try {
+      await _realtimeChatService.loadOlderMessages(
+        channelName: channelName,
+        before: oldestMessage.timestamp.subtract(
+          const Duration(milliseconds: 1),
+        ),
+        limit: _historyPageSize,
+      );
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _isLoadingMoreMessages = false;
+        _errorMessage = error.toString();
+      });
+    }
   }
 
   Future<void> _initializeChat() async {
@@ -100,6 +153,7 @@ class _ChatMobileConversationSectionState
       _activeChannelName = await _realtimeChatService.joinDirectMessage(
         otherUsername: otherUsername,
       );
+      await _trySendInitialMessage();
     } catch (error) {
       if (!mounted) return;
       setState(() {
@@ -113,9 +167,22 @@ class _ChatMobileConversationSectionState
     if (!mounted) return;
 
     if (event is RealtimeChatRoomJoined) {
-      _applyRoomHistory(event.channelName, event.messages);
+      _applyRoomHistory(
+        event.channelName,
+        event.messages,
+        hasMoreHistory: event.hasMoreHistory,
+      );
       _applyPresenceFromParticipants(event.channelName, event.participants);
       _markConversationRead(event.channelName);
+      return;
+    }
+
+    if (event is RealtimeChatRoomHistoryLoaded) {
+      _prependRoomHistory(
+        event.channelName,
+        event.messages,
+        hasMoreHistory: event.hasMoreHistory,
+      );
       return;
     }
 
@@ -167,6 +234,7 @@ class _ChatMobileConversationSectionState
   void _applyRoomHistory(
     String channelName,
     List<RealtimeChatMessage> messages,
+    {required bool hasMoreHistory,}
   ) {
     if (_expectedChannel != channelName) return;
 
@@ -195,10 +263,32 @@ class _ChatMobileConversationSectionState
 
     setState(() {
       _messages = mapped;
+      _hasMoreHistory = hasMoreHistory;
       _isLoading = false;
+      _isLoadingMoreMessages = false;
     });
 
     WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
+    _trySendInitialMessage();
+  }
+
+  Future<void> _trySendInitialMessage() async {
+    final text = widget.initialMessage?.trim();
+    final channelName = _activeChannelName;
+    if (_hasSentInitialMessage) return;
+    if (!_canInteract) return;
+    if (text == null || text.isEmpty) return;
+    if (channelName == null || channelName.isEmpty) return;
+
+    try {
+      await _realtimeChatService.sendMessage(
+        channelName: channelName,
+        content: text,
+      );
+      _hasSentInitialMessage = true;
+    } catch (_) {
+      // Keep the screen usable even if the bootstrap message cannot be sent.
+    }
   }
 
   void _appendMessage(String channelName, RealtimeChatMessage message) {
@@ -233,6 +323,45 @@ class _ChatMobileConversationSectionState
     });
 
     WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
+  }
+
+  void _prependRoomHistory(
+    String channelName,
+    List<RealtimeChatMessage> messages, {
+    required bool hasMoreHistory,
+  }) {
+    if (_expectedChannel != channelName) return;
+
+    final myUsername = _myUsername;
+    if (myUsername == null) return;
+
+    final mapped = messages
+        .map(
+          (message) => _MobileChatMessage(
+            id: message.messageId,
+            senderId: message.senderId,
+            text: message.content,
+            timestamp: message.timestamp.toLocal(),
+            isOutgoing:
+                message.senderId.trim().toLowerCase() ==
+                myUsername.trim().toLowerCase(),
+            isRead: message.isRead,
+            attachment: message.attachment,
+          ),
+        )
+        .toList(growable: true)
+      ..sort((first, second) => first.timestamp.compareTo(second.timestamp));
+
+    setState(() {
+      final mergedById = <String, _MobileChatMessage>{
+        for (final message in mapped) message.id: message,
+        for (final message in _messages) message.id: message,
+      };
+      _messages = mergedById.values.toList(growable: true)
+        ..sort((first, second) => first.timestamp.compareTo(second.timestamp));
+      _hasMoreHistory = hasMoreHistory;
+      _isLoadingMoreMessages = false;
+    });
   }
 
   void _applyMessagesRead(String channelName, List<String> messageIds) {
@@ -555,6 +684,7 @@ class _ChatMobileConversationSectionState
   @override
   void dispose() {
     _composerController.dispose();
+    _scrollController.removeListener(_handleScroll);
     _scrollController.dispose();
     _chatSubscription?.cancel();
     _realtimeChatService.disconnect();

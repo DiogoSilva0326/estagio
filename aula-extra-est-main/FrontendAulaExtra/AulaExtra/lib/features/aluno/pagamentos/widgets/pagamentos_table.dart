@@ -17,8 +17,18 @@ class PagamentosTableCard extends StatelessWidget {
   String _formatDate(DateTime? date) {
     if (date == null) return '—';
     const months = [
-      'Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun',
-      'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez',
+      'Jan',
+      'Fev',
+      'Mar',
+      'Abr',
+      'Mai',
+      'Jun',
+      'Jul',
+      'Ago',
+      'Set',
+      'Out',
+      'Nov',
+      'Dez',
     ];
     return '${date.day.toString().padLeft(2, '0')} ${months[date.month - 1]} ${date.year}';
   }
@@ -33,7 +43,10 @@ class PagamentosTableCard extends StatelessWidget {
 
   String _getGroupKey(String subject) {
     final s = subject.trim().toLowerCase();
-    if (s.contains('psicolog') || s.contains('terapia') || s.contains('ansiedade') || s.contains('orientação')) {
+    if (s.contains('psicolog') ||
+        s.contains('terapia') ||
+        s.contains('ansiedade') ||
+        s.contains('orientação')) {
       return 'psicologia';
     }
     if (s.contains('tutor') || s.contains('mentoria')) {
@@ -79,7 +92,7 @@ class PagamentosTableCard extends StatelessWidget {
     }
 
     final groupWidgets = <Widget>[];
-    final keysOrder = ['ensino', 'tutoria', 'psicologia']; 
+    final keysOrder = ['ensino', 'tutoria', 'psicologia'];
 
     for (final key in keysOrder) {
       if (grouped.containsKey(key)) {
@@ -126,17 +139,18 @@ class PagamentosTableCard extends StatelessWidget {
         child: Center(
           child: Text(
             'Ainda não existem pagamentos para mostrar.',
-            style: TextStyle(
-              fontSize: 18,
-              color: Color(0xFF4A5565),
-            ),
+            style: TextStyle(fontSize: 18, color: Color(0xFF4A5565)),
           ),
         ),
       ),
     );
   }
 
-  Widget _buildTableGroup(BuildContext context, String key, List<PaymentHistoryItemDto> groupRows) {
+  Widget _buildTableGroup(
+    BuildContext context,
+    String key,
+    List<PaymentHistoryItemDto> groupRows,
+  ) {
     final meta = _getGroupMetadata(key);
 
     return Column(
@@ -194,7 +208,9 @@ class PagamentosTableCard extends StatelessWidget {
                         valor: _formatAmount(groupRows[i].amount),
                         status: paymentStatusLabel(groupRows[i].status),
                         statusKind: normalizePaymentStatus(groupRows[i].status),
-                        hasReceipt: (groupRows[i].receiptUrl?.trim().isNotEmpty ?? false),
+                        hasReceipt:
+                            (groupRows[i].receiptUrl?.trim().isNotEmpty ??
+                            false),
                         hasBottomBorder: i != groupRows.length - 1,
                         onReceiptTap: () => onReceiptTap(groupRows[i]),
                       ),
@@ -210,10 +226,7 @@ class PagamentosTableCard extends StatelessWidget {
 }
 
 class _TableHeaderRow extends StatelessWidget {
-  const _TableHeaderRow({
-    required this.col1Label,
-    required this.col2Label,
-  });
+  const _TableHeaderRow({required this.col1Label, required this.col2Label});
 
   final String col1Label;
   final String col2Label;

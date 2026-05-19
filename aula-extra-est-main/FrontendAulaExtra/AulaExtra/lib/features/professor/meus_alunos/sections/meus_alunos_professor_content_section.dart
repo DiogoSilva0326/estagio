@@ -84,6 +84,14 @@ class _MeusAlunosProfessorContentSectionState
     Navigator.pushNamed(context, Routes.professorArquivos);
   }
 
+  void _openProfile(ProfessorAlunoDto aluno) {
+    Navigator.pushNamed(
+      context,
+      Routes.professorPerfilAlunoView,
+      arguments: aluno,
+    );
+  }
+
   int _averageProgress(List<ProfessorAlunoDto> alunos) {
     if (alunos.isEmpty) return 0;
     final total = alunos.fold<double>(0, (sum, aluno) => sum + aluno.progress);
@@ -196,6 +204,7 @@ class _MeusAlunosProfessorContentSectionState
               for (var index = 0; index < alunos.length; index++) ...[
                 MeusAlunosProfessorMobileStudentCard(
                   aluno: alunos[index],
+                  onProfileTap: () => _openProfile(alunos[index]),
                   onChatTap: () => _openChat(alunos[index]),
                   onFilesTap: _openArquivos,
                   onComplaintTap: () => _showComplaintDialog(alunos[index], config),
@@ -289,6 +298,7 @@ class _MeusAlunosProfessorContentSectionState
                         return AlunosGrid(
                           alunos: alunos,
                           onComplaintTap: (aluno) => _showComplaintDialog(aluno, config),
+                          onViewProfileTap: _openProfile,
                         );
                       },
                     ),

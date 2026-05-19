@@ -22,6 +22,11 @@ namespace ConfidantPostgreSQL.Modules.Professors.Service
         public Task<TutorBrowseResponse> BrowseTutorsAsync(TutorBrowseQuery query) => _repo.BrowseTutorsAsync(query);
         public Task<Professor?> GetProfessorByIdAsync(Guid idProfessor) => _repo.GetProfessorByIdAsync(idProfessor);
         public Task<Professor?> GetProfessorByUserIdAsync(Guid idUser) => _repo.GetProfessorByUserIdAsync(idUser);
+        public Task SyncSupportRequestsAsync(Guid idProfessor, IEnumerable<string> supportTypes) => _repo.SyncSupportRequestsAsync(idProfessor, supportTypes);
+        public Task<IReadOnlyList<string>> GetSupportRequestsAsync(Guid idProfessor) => _repo.GetSupportRequestsAsync(idProfessor);
+        public Task ApproveSupportRequestAsync(Guid idProfessor, string supportType, Guid? approvedByUserId) => _repo.ApproveSupportRequestAsync(idProfessor, supportType, approvedByUserId);
+        public Task RemoveSupportRequestAsync(Guid idProfessor, string supportType) => _repo.RemoveSupportRequestAsync(idProfessor, supportType);
+        public Task ClearSupportRequestsAsync(Guid idProfessor) => _repo.ClearSupportRequestsAsync(idProfessor);
         public Task<Guid> InsertProfessorAsync(Professor professor) => _repo.InsertProfessorAsync(professor);
         public Task<int> UpdateProfessorAsync(Professor professor) => _repo.UpdateProfessorAsync(professor);
         public Task<int> DeleteProfessorAsync(Guid idProfessor) => _repo.DeleteProfessorAsync(idProfessor);

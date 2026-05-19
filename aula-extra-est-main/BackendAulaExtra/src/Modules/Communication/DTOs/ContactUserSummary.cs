@@ -9,5 +9,7 @@ namespace ConfidantPostgreSQL.Modules.Communication.DTOs
         public string? Username { get; set; }
         public string? DisplayName { get; set; }
         public string Status { get; set; } = "pending";
+        public string? LastMessage { get; set; }
+        public DateTime? LastMessageAt { get; set; }
     }
 }

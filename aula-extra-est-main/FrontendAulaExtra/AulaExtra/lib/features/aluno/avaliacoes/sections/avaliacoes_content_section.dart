@@ -106,7 +106,7 @@ class _AvaliacoesContentSectionState extends State<AvaliacoesContentSection> {
 
     return AvaliacaoReview(
       tutorName: tutorName,
-      subject: 'Avaliação de Profisional',
+      subject: 'Avaliação de Profissional',
       rating: rating,
       comment: comment,
       dateLabel: dateLabel,
@@ -195,14 +195,14 @@ class _AvaliacoesContentSectionState extends State<AvaliacoesContentSection> {
           children: [
             tab(
               width: 180,
-              text: 'Sessões',
+              text: 'Aulas',
               selected: _mode == _AvaliacoesMode.aulas,
               onTap: () => setState(() => _mode = _AvaliacoesMode.aulas),
             ),
             const SizedBox(width: 22.404),
             tab(
               width: 220,
-              text: 'Profissional',
+              text: 'Professor',
               selected: _mode == _AvaliacoesMode.professores,
               onTap: () => setState(() => _mode = _AvaliacoesMode.professores),
             ),
@@ -281,17 +281,17 @@ class _AvaliacoesContentSectionState extends State<AvaliacoesContentSection> {
   Widget _buildMobileCallToAction() {
     if (_mode == _AvaliacoesMode.aulas) {
       return AvaliacoesMobileCtaCard(
-        title: 'Tem uma sessão recente para avaliar?',
-        subtitle: 'Ajude outros membros compartilhando a sua experiência.',
-        buttonLabel: 'Avaliar Última Sessão',
+        title: 'Tem uma aula recente para avaliar?',
+        subtitle: 'Ajude outros estudantes compartilhando a sua experiência.',
+        buttonLabel: 'Avaliar Última Aula',
         onTap: _showLessonEvaluationDialog,
       );
     }
 
     return AvaliacoesMobileCtaCard(
-      title: 'Quer avaliar um profissional?',
-      subtitle: 'Só é possível avaliar uma vez por profissional.',
-      buttonLabel: 'Avaliar Profissional',
+      title: 'Quer avaliar um professor?',
+      subtitle: 'Só é possível avaliar uma vez por professor.',
+      buttonLabel: 'Avaliar Professor',
       onTap: _showProfessorEvaluationDialog,
     );
   }
@@ -531,7 +531,7 @@ class _AvaliacoesContentSectionState extends State<AvaliacoesContentSection> {
                 const Text('Avaliações', style: AvaliacoesConstants.titleStyle),
                 const SizedBox(height: AvaliacoesConstants.gapSmall),
                 const Text(
-                  'Avalie os seus apoios e ajude outros estudantes',
+                  'Avalie seus explicadores e ajude outros estudantes',
                   style: AvaliacoesConstants.subtitleStyle,
                 ),
                 const SizedBox(height: AvaliacoesConstants.gapLarge),

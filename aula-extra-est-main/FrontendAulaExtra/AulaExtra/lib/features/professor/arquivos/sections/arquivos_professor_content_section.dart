@@ -445,7 +445,7 @@ class _ArquivosProfessorContentSectionState
           padding: const EdgeInsets.only(
             left: 54,
             right: 23.148,
-            top: 90,
+            top: 46,
             bottom: 90,
           ),
           child: Row(

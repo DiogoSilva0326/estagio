@@ -38,14 +38,20 @@ namespace ConfidantPostgreSQL.Modules.Professors.Repository
             var list = new List<AdminProfessionalDirectoryItem>();
             await using var conn = new NpgsqlConnection(_connectionString);
             await conn.OpenAsync();
+            await EnsureProfessorSupportRequestsTableAsync(conn);
             await using var cmd = conn.CreateCommand();
 
             cmd.CommandText = @"
 SELECT
     p.id_professor,
     CASE
-        WHEN COALESCE(roles_map.is_psychologist, FALSE) THEN 'psicologos'
-        WHEN COALESCE(roles_map.is_tutor, FALSE) THEN 'tutores'
+        WHEN @category = 'explicadores' THEN 'explicadores'
+        WHEN @category = 'tutores' THEN 'tutores'
+        WHEN @category = 'psicologos' THEN 'psicologos'
+        WHEN COALESCE(roles_map.is_psychologist, FALSE)
+            OR COALESCE(support_requests_map.has_psychologist_request, FALSE) THEN 'psicologos'
+        WHEN COALESCE(roles_map.is_tutor, FALSE)
+            OR COALESCE(support_requests_map.has_tutor_request, FALSE) THEN 'tutores'
         ELSE 'explicadores'
     END AS category,
     COALESCE(
@@ -69,8 +75,35 @@ SELECT
     END AS status_label,
     COALESCE(p.is_active, TRUE) AS is_active,
     CASE
+        WHEN @category = 'psicologos' THEN COALESCE(support_requests_map.is_psychologist_approved, FALSE)
+            AND COALESCE(p.is_active, TRUE) = TRUE
+            AND COALESCE(p.is_rejected, FALSE) = FALSE
+        WHEN @category = 'tutores' THEN COALESCE(support_requests_map.is_tutor_approved, FALSE)
+            AND COALESCE(p.is_active, TRUE) = TRUE
+            AND COALESCE(p.is_rejected, FALSE) = FALSE
+        WHEN @category = 'explicadores' THEN
+            CASE
+                WHEN COALESCE(p.is_verified, FALSE) = TRUE
+                 AND COALESCE(p.is_verified_iban, FALSE) = TRUE
+                 AND COALESCE(p.is_active, TRUE) = TRUE
+                 AND COALESCE(p.is_rejected, FALSE) = FALSE
+                    THEN TRUE
+                ELSE FALSE
+            END
+        WHEN COALESCE(roles_map.is_psychologist, FALSE)
+            OR COALESCE(support_requests_map.has_psychologist_request, FALSE)
+            THEN COALESCE(support_requests_map.is_psychologist_approved, FALSE)
+                AND COALESCE(p.is_active, TRUE) = TRUE
+                AND COALESCE(p.is_rejected, FALSE) = FALSE
+        WHEN COALESCE(roles_map.is_tutor, FALSE)
+            OR COALESCE(support_requests_map.has_tutor_request, FALSE)
+            THEN COALESCE(support_requests_map.is_tutor_approved, FALSE)
+                AND COALESCE(p.is_active, TRUE) = TRUE
+                AND COALESCE(p.is_rejected, FALSE) = FALSE
         WHEN COALESCE(p.is_verified, FALSE) = TRUE
          AND COALESCE(p.is_verified_iban, FALSE) = TRUE
+         AND COALESCE(p.is_active, TRUE) = TRUE
+         AND COALESCE(p.is_rejected, FALSE) = FALSE
             THEN TRUE
         ELSE FALSE
     END AS is_verified,
@@ -90,6 +123,17 @@ LEFT JOIN LATERAL (
     JOIN public.role r ON r.id = ur.role_id
     WHERE ur.user_id = u.id_user
 ) roles_map ON TRUE
+LEFT JOIN LATERAL (
+    SELECT
+        BOOL_OR(LOWER(TRIM(psr.support_type)) = 'professor') AS has_professor_request,
+        BOOL_OR(LOWER(TRIM(psr.support_type)) = 'tutor') AS has_tutor_request,
+        BOOL_OR(LOWER(TRIM(psr.support_type)) = 'psicologo') AS has_psychologist_request,
+        BOOL_OR(LOWER(TRIM(psr.support_type)) = 'professor' AND COALESCE(psr.is_approved, FALSE)) AS is_professor_approved,
+        BOOL_OR(LOWER(TRIM(psr.support_type)) = 'tutor' AND COALESCE(psr.is_approved, FALSE)) AS is_tutor_approved,
+        BOOL_OR(LOWER(TRIM(psr.support_type)) = 'psicologo' AND COALESCE(psr.is_approved, FALSE)) AS is_psychologist_approved
+    FROM public.professor_support_requests psr
+    WHERE psr.id_professor = p.id_professor
+) support_requests_map ON TRUE
 LEFT JOIN LATERAL (
     SELECT
         COALESCE(
@@ -198,17 +242,24 @@ WHERE (
     OR @category = ''
     OR (
         @category = 'psicologos'
-        AND COALESCE(roles_map.is_psychologist, FALSE) = TRUE
+        AND (
+            COALESCE(roles_map.is_psychologist, FALSE) = TRUE
+            OR COALESCE(support_requests_map.has_psychologist_request, FALSE) = TRUE
+        )
     )
     OR (
         @category = 'tutores'
-        AND COALESCE(roles_map.is_tutor, FALSE) = TRUE
+        AND (
+            COALESCE(roles_map.is_tutor, FALSE) = TRUE
+            OR COALESCE(support_requests_map.has_tutor_request, FALSE) = TRUE
+        )
     )
     OR (
         @category = 'explicadores'
-        AND COALESCE(roles_map.is_professor, FALSE) = TRUE
-        AND COALESCE(roles_map.is_tutor, FALSE) = FALSE
-        AND COALESCE(roles_map.is_psychologist, FALSE) = FALSE
+        AND (
+            COALESCE(roles_map.is_professor, FALSE) = TRUE
+            OR COALESCE(support_requests_map.has_professor_request, FALSE) = TRUE
+        )
     )
 )
 ORDER BY
@@ -664,6 +715,187 @@ LIMIT @limit;
             await using var reader = await cmd.ExecuteReaderAsync();
             if (!await reader.ReadAsync()) return null;
             return MapProfessor(reader);
+        }
+
+        public async Task SyncSupportRequestsAsync(Guid idProfessor, IEnumerable<string> supportTypes)
+        {
+            if (idProfessor == Guid.Empty) return;
+
+            var requested = new HashSet<string>(
+                (supportTypes ?? Enumerable.Empty<string>())
+                    .Select(item => item?.Trim().ToLowerInvariant())
+                    .Where(item => !string.IsNullOrWhiteSpace(item))
+                    .Select(item => item!),
+                StringComparer.OrdinalIgnoreCase);
+
+            await using var conn = new NpgsqlConnection(_connectionString);
+            await conn.OpenAsync();
+            await EnsureProfessorSupportRequestsTableAsync(conn);
+
+            await using var tx = await conn.BeginTransactionAsync();
+
+            await using (var deleteCmd = conn.CreateCommand())
+            {
+                deleteCmd.Transaction = tx;
+                deleteCmd.CommandText = requested.Count == 0
+                    ? @"
+                    DELETE FROM public.professor_support_requests
+                    WHERE id_professor = @id_professor;"
+                    : @"
+                    DELETE FROM public.professor_support_requests
+                    WHERE id_professor = @id_professor
+                      AND support_type <> ALL(@support_types);";
+                deleteCmd.Parameters.AddWithValue("id_professor", idProfessor);
+                if (requested.Count > 0)
+                {
+                    deleteCmd.Parameters.AddWithValue("support_types", requested.ToArray());
+                }
+                await deleteCmd.ExecuteNonQueryAsync();
+            }
+
+            foreach (var supportType in requested)
+            {
+                var shouldAutoApprove = supportType != "psicologo";
+
+                await using var upsertCmd = conn.CreateCommand();
+                upsertCmd.Transaction = tx;
+                upsertCmd.CommandText = @"
+                    INSERT INTO public.professor_support_requests (
+                        id_professor,
+                        support_type,
+                        is_approved,
+                        approved_by_user_id,
+                        created_at,
+                        updated_at
+                    )
+                    VALUES (
+                        @id_professor,
+                        @support_type,
+                        @is_approved,
+                        NULL,
+                        NOW(),
+                        NOW()
+                    )
+                    ON CONFLICT (id_professor, support_type)
+                    DO UPDATE SET
+                        is_approved = public.professor_support_requests.is_approved OR EXCLUDED.is_approved,
+                        updated_at = NOW();";
+                upsertCmd.Parameters.AddWithValue("id_professor", idProfessor);
+                upsertCmd.Parameters.AddWithValue("support_type", supportType);
+                upsertCmd.Parameters.AddWithValue("is_approved", shouldAutoApprove);
+                await upsertCmd.ExecuteNonQueryAsync();
+            }
+
+            await tx.CommitAsync();
+        }
+
+        public async Task<IReadOnlyList<string>> GetSupportRequestsAsync(Guid idProfessor)
+        {
+            var list = new List<string>();
+            if (idProfessor == Guid.Empty) return list;
+
+            await using var conn = new NpgsqlConnection(_connectionString);
+            await conn.OpenAsync();
+            await EnsureProfessorSupportRequestsTableAsync(conn);
+
+            await using var cmd = conn.CreateCommand();
+            cmd.CommandText = @"
+                SELECT support_type
+                FROM public.professor_support_requests
+                WHERE id_professor = @id_professor
+                ORDER BY support_type;";
+            cmd.Parameters.AddWithValue("id_professor", idProfessor);
+
+            await using var reader = await cmd.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+            {
+                var value = reader.IsDBNull(0) ? null : reader.GetString(0);
+                if (!string.IsNullOrWhiteSpace(value))
+                {
+                    list.Add(value.Trim().ToLowerInvariant());
+                }
+            }
+
+            return list;
+        }
+
+        public async Task ApproveSupportRequestAsync(Guid idProfessor, string supportType, Guid? approvedByUserId)
+        {
+            if (idProfessor == Guid.Empty) return;
+
+            var normalized = supportType?.Trim().ToLowerInvariant();
+            if (string.IsNullOrWhiteSpace(normalized)) return;
+            if (normalized != "professor" && normalized != "tutor" && normalized != "psicologo") return;
+
+            await using var conn = new NpgsqlConnection(_connectionString);
+            await conn.OpenAsync();
+            await EnsureProfessorSupportRequestsTableAsync(conn);
+
+            await using var cmd = conn.CreateCommand();
+            cmd.CommandText = @"
+                INSERT INTO public.professor_support_requests (
+                    id_professor,
+                    support_type,
+                    is_approved,
+                    approved_by_user_id,
+                    created_at,
+                    updated_at
+                )
+                VALUES (
+                    @id_professor,
+                    @support_type,
+                    TRUE,
+                    @approved_by_user_id,
+                    NOW(),
+                    NOW()
+                )
+                ON CONFLICT (id_professor, support_type)
+                DO UPDATE SET
+                    is_approved = TRUE,
+                    approved_by_user_id = COALESCE(EXCLUDED.approved_by_user_id, public.professor_support_requests.approved_by_user_id),
+                    updated_at = NOW();";
+            cmd.Parameters.AddWithValue("id_professor", idProfessor);
+            cmd.Parameters.AddWithValue("support_type", normalized);
+            cmd.Parameters.AddWithValue("approved_by_user_id", (object?)approvedByUserId ?? DBNull.Value);
+            await cmd.ExecuteNonQueryAsync();
+        }
+
+        public async Task RemoveSupportRequestAsync(Guid idProfessor, string supportType)
+        {
+            if (idProfessor == Guid.Empty) return;
+
+            var normalized = supportType?.Trim().ToLowerInvariant();
+            if (string.IsNullOrWhiteSpace(normalized)) return;
+            if (normalized != "professor" && normalized != "tutor" && normalized != "psicologo") return;
+
+            await using var conn = new NpgsqlConnection(_connectionString);
+            await conn.OpenAsync();
+            await EnsureProfessorSupportRequestsTableAsync(conn);
+
+            await using var cmd = conn.CreateCommand();
+            cmd.CommandText = @"
+                DELETE FROM public.professor_support_requests
+                WHERE id_professor = @id_professor
+                  AND support_type = @support_type;";
+            cmd.Parameters.AddWithValue("id_professor", idProfessor);
+            cmd.Parameters.AddWithValue("support_type", normalized);
+            await cmd.ExecuteNonQueryAsync();
+        }
+
+        public async Task ClearSupportRequestsAsync(Guid idProfessor)
+        {
+            if (idProfessor == Guid.Empty) return;
+
+            await using var conn = new NpgsqlConnection(_connectionString);
+            await conn.OpenAsync();
+            await EnsureProfessorSupportRequestsTableAsync(conn);
+
+            await using var cmd = conn.CreateCommand();
+            cmd.CommandText = @"
+                DELETE FROM public.professor_support_requests
+                WHERE id_professor = @id_professor;";
+            cmd.Parameters.AddWithValue("id_professor", idProfessor);
+            await cmd.ExecuteNonQueryAsync();
         }
 
         public async Task<Guid> InsertProfessorAsync(Professor professor)
@@ -1568,6 +1800,32 @@ WHERE id_professor = @id_professor
             var idx = reader.GetOrdinal(column);
             if (reader.IsDBNull(idx)) return null;
             try { return reader.GetFieldValue<DateTime>(idx); } catch { return null; }
+        }
+
+        private static async Task EnsureProfessorSupportRequestsTableAsync(NpgsqlConnection conn)
+        {
+            await using var cmd = conn.CreateCommand();
+            cmd.CommandText = @"
+                CREATE TABLE IF NOT EXISTS public.professor_support_requests (
+                    id_professor_support_request UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                    id_professor UUID NOT NULL REFERENCES public.professors(id_professor) ON DELETE CASCADE,
+                    support_type VARCHAR(32) NOT NULL,
+                    is_approved BOOLEAN NOT NULL DEFAULT FALSE,
+                    approved_by_user_id UUID REFERENCES public.users(id_user),
+                    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+                    updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
+                    CONSTRAINT ck_professor_support_requests_type
+                        CHECK (support_type IN ('professor', 'tutor', 'psicologo')),
+                    CONSTRAINT ux_professor_support_requests_unique
+                        UNIQUE (id_professor, support_type)
+                );
+
+                CREATE INDEX IF NOT EXISTS ix_professor_support_requests_professor
+                    ON public.professor_support_requests (id_professor);
+
+                CREATE INDEX IF NOT EXISTS ix_professor_support_requests_type_status
+                    ON public.professor_support_requests (support_type, is_approved);";
+            await cmd.ExecuteNonQueryAsync();
         }
     }
 }

@@ -1,0 +1,92 @@
+Analyzing AulaExtra...                                          
+
+   info • Don't use 'BuildContext's across async gaps • lib/core/components/header/widgets/role_switcher_button.dart:78:24 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps • lib/core/components/header/widgets/role_switcher_button.dart:80:24 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps • lib/core/components/header/widgets/role_switcher_button.dart:82:24 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps • lib/core/components/header/widgets/role_switcher_button.dart:84:24 • use_build_context_synchronously
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/components/header/widgets/student_mobile_menu_drawer.dart:327:38 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/components/header/widgets/teacher_mobile_menu_drawer.dart:484:24 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/components/menu_aluno/sections/menu_aluno_section.dart:150:40 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/components/menu_professor/sections/menu_professor_section.dart:440:24 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/core/components/menu_professor/widgets/menu_professor_nav_item.dart:34:24 • deprecated_member_use
+   info • Don't invoke 'print' in production code • lib/core/providers/user_provider.dart:75:5 • avoid_print
+   info • Statements in an if should be enclosed in a block • lib/features/aluno/areas_aluno/sections/areas_aluno_content_section.dart:310:11 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block • lib/features/aluno/areas_aluno/sections/areas_aluno_content_section.dart:342:11 • curly_braces_in_flow_control_structures
+   info • Unnecessary use of multiple underscores • lib/features/aluno/areas_aluno/widgets/dialogs/area_details_dialog.dart:27:24 • unnecessary_underscores
+   info • Unnecessary use of multiple underscores • lib/features/aluno/areas_aluno/widgets/dialogs/area_details_dialog.dart:27:28 • unnecessary_underscores
+   info • Unnecessary use of multiple underscores • lib/features/aluno/areas_aluno/widgets/dialogs/area_discipline_selection_dialog.dart:24:24 • unnecessary_underscores
+   info • Unnecessary use of multiple underscores • lib/features/aluno/areas_aluno/widgets/dialogs/area_discipline_selection_dialog.dart:24:28 • unnecessary_underscores
+warning • The declaration '_slotFloor' isn't referenced • lib/features/aluno/calendario/sections/calendario_semanal_content_section.dart:519:14 • unused_element
+warning • The declaration '_slotCeil' isn't referenced • lib/features/aluno/calendario/sections/calendario_semanal_content_section.dart:522:14 • unused_element
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/aluno/chats/widgets/chats_mobile_message_bubble.dart:43:24 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/aluno/chats/widgets/chats_mobile_message_bubble.dart:129:24 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/aluno/chats/widgets/chats_mobile_message_bubble.dart:140:30 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/aluno/chats/widgets/chats_mobile_message_bubble.dart:145:32 • deprecated_member_use
+warning • Unused import: 'package:aula_extra/core/config/teaching_roles_config.dart' • lib/features/aluno/marcar_aula_professor/sections/marcar_aula_professor_content_section.dart:8:8 • unused_import
+   info • Unnecessary use of multiple underscores • lib/features/aluno/marcar_aula_professor/sections/marcar_aula_professor_content_section.dart:1111:37 • unnecessary_underscores
+   info • Unnecessary use of multiple underscores • lib/features/aluno/meus_explicadores/widgets/meus_explicadores_mobile_tutor_card.dart:353:35 • unnecessary_underscores
+   info • Unnecessary use of multiple underscores • lib/features/aluno/meus_explicadores/widgets/meus_explicadores_mobile_tutor_card.dart:353:39 • unnecessary_underscores
+   info • The 'if' statement could be replaced by a null-aware assignment • lib/features/aluno/meus_profissionais/sections/meus_profissionais_content_section.dart:51:5 • prefer_conditional_assignment
+   info • Unnecessary use of multiple underscores • lib/features/aluno/meus_profissionais/widgets/meus_explicadores_mobile_tutor_card.dart:353:35 • unnecessary_underscores
+   info • Unnecessary use of multiple underscores • lib/features/aluno/meus_profissionais/widgets/meus_explicadores_mobile_tutor_card.dart:353:39 • unnecessary_underscores
+   info • Unnecessary braces in a string interpolation • lib/features/comprar_creditos/widgets/comprar_creditos_mobile_package_card.dart:331:40 • unnecessary_brace_in_string_interps
+warning • Unused import: 'package:aula_extra/core/providers/user_provider.dart' • lib/features/professor/arquivos/pages/arquivos_professor_screen.dart:3:8 • unused_import
+warning • Unused import: 'package:aula_extra/routes/routes.dart' • lib/features/professor/arquivos/pages/arquivos_professor_screen.dart:7:8 • unused_import
+warning • Unused import: 'package:provider/provider.dart' • lib/features/professor/arquivos/pages/arquivos_professor_screen.dart:9:8 • unused_import
+warning • Unused import: 'package:aula_extra/routes/routes.dart' • lib/features/professor/avaliacoes/pages/avaliacoes_professor_screen.dart:7:8 • unused_import
+warning • The value of the local variable 'role' isn't used • lib/features/professor/avaliacoes/pages/avaliacoes_professor_screen.dart:16:11 • unused_local_variable
+   info • Unnecessary use of multiple underscores • lib/features/professor/avaliacoes/widgets/avaliacoes_professor_mobile_review_card.dart:82:43 • unnecessary_underscores
+   info • Unnecessary use of multiple underscores • lib/features/professor/avaliacoes/widgets/avaliacoes_professor_mobile_review_card.dart:82:47 • unnecessary_underscores
+warning • Unused import: 'package:aula_extra/core/providers/user_provider.dart' • lib/features/professor/calendario/pages/calendario_professor_screen.dart:3:8 • unused_import
+warning • Unused import: 'package:aula_extra/routes/routes.dart' • lib/features/professor/calendario/pages/calendario_professor_screen.dart:7:8 • unused_import
+warning • Unused import: 'package:provider/provider.dart' • lib/features/professor/calendario/pages/calendario_professor_screen.dart:9:8 • unused_import
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/professor/calendario/sections/calendario_professor_content_section.dart:524:106 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/professor/calendario/sections/calendario_professor_content_section.dart:1112:46 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/professor/calendario/sections/calendario_professor_content_section.dart:1114:41 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/professor/calendario/sections/calendario_professor_content_section.dart:1115:44 • deprecated_member_use
+   info • Don't use 'BuildContext's across async gaps • lib/features/professor/calendario/widgets/marcar_aula_dialog.dart:145:54 • use_build_context_synchronously
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/professor/calendario/widgets/marcar_aula_dialog.dart:902:45 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/professor/calendario/widgets/marcar_aula_dialog.dart:904:64 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/professor/calendario/widgets/marcar_aula_dialog.dart:1012:30 • deprecated_member_use
+warning • Unused import: 'package:aula_extra/routes/routes.dart' • lib/features/professor/chats/pages/chats_professor_screen.dart:7:8 • unused_import
+warning • The value of the local variable 'role' isn't used • lib/features/professor/chats/pages/chats_professor_screen.dart:23:11 • unused_local_variable
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/professor/chats/widgets/chat_bubble.dart:87:34 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/professor/chats/widgets/chat_bubble.dart:123:24 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/professor/chats/widgets/chat_bubble.dart:133:40 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/professor/chats/widgets/chat_bubble.dart:137:32 • deprecated_member_use
+warning • Unnecessary type check; the result is always 'true' • lib/features/professor/core/widgets/professor_menu_nav.dart:72:29 • unnecessary_type_check
+warning • Dead code • lib/features/professor/core/widgets/professor_menu_nav.dart:74:13 • dead_code
+warning • Unused import: 'package:aula_extra/core/providers/user_provider.dart' • lib/features/professor/disponibilidade/pages/disponibilidade_professor_screen.dart:3:8 • unused_import
+warning • Unused import: 'package:aula_extra/routes/routes.dart' • lib/features/professor/disponibilidade/pages/disponibilidade_professor_screen.dart:7:8 • unused_import
+warning • Unused import: 'package:provider/provider.dart' • lib/features/professor/disponibilidade/pages/disponibilidade_professor_screen.dart:9:8 • unused_import
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/professor/disponibilidade/widgets/horario_padrao_professor.dart:615:37 • deprecated_member_use
+warning • Unused import: 'package:aula_extra/core/providers/user_provider.dart' • lib/features/professor/meus_alunos/pages/meus_alunos_professor_screen.dart:3:8 • unused_import
+warning • Unused import: 'package:aula_extra/routes/routes.dart' • lib/features/professor/meus_alunos/pages/meus_alunos_professor_screen.dart:7:8 • unused_import
+warning • Unused import: 'package:provider/provider.dart' • lib/features/professor/meus_alunos/pages/meus_alunos_professor_screen.dart:9:8 • unused_import
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/professor/meus_alunos/widgets/meus_alunos_professor_mobile_stat_card.dart:26:28 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/professor/meus_alunos/widgets/meus_alunos_professor_mobile_stat_card.dart:30:47 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/professor/meus_alunos/widgets/meus_alunos_professor_mobile_student_card.dart:218:22 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/professor/meus_anuncios/sections/meus_anuncios_professor_content_section.dart:874:35 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/professor/meus_anuncios/sections/meus_anuncios_professor_content_section.dart:899:29 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/professor/meus_anuncios/widgets/meus_anuncios_stat_card.dart:36:34 • deprecated_member_use
+warning • Unused import: 'package:aula_extra/core/providers/user_provider.dart' • lib/features/professor/minhas_disciplinas/pages/minhas_disciplinas_professor_screen.dart:3:8 • unused_import
+warning • Unused import: 'package:aula_extra/routes/routes.dart' • lib/features/professor/minhas_disciplinas/pages/minhas_disciplinas_professor_screen.dart:7:8 • unused_import
+warning • Unused import: 'package:provider/provider.dart' • lib/features/professor/minhas_disciplinas/pages/minhas_disciplinas_professor_screen.dart:9:8 • unused_import
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/professor/minhas_disciplinas/widgets/disciplina_card.dart:106:46 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/professor/minhas_disciplinas/widgets/disciplina_card.dart:218:56 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/professor/minhas_disciplinas/widgets/disciplina_card.dart:247:66 • deprecated_member_use
+warning • Unused import: 'package:aula_extra/core/providers/user_provider.dart' • lib/features/professor/notificacoes/pages/notificacoes_professor_screen.dart:3:8 • unused_import
+warning • Unused import: 'package:aula_extra/routes/routes.dart' • lib/features/professor/notificacoes/pages/notificacoes_professor_screen.dart:7:8 • unused_import
+warning • Unused import: 'package:provider/provider.dart' • lib/features/professor/notificacoes/pages/notificacoes_professor_screen.dart:9:8 • unused_import
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/professor/notificacoes/widgets/notificacoes_professor_unread_summary_card.dart:49:75 • deprecated_member_use
+warning • Unused import: 'package:aula_extra/core/providers/user_provider.dart' • lib/features/professor/pagamentos/pages/pagamentos_professor_screen.dart:3:8 • unused_import
+warning • Unused import: 'package:aula_extra/routes/routes.dart' • lib/features/professor/pagamentos/pages/pagamentos_professor_screen.dart:7:8 • unused_import
+warning • Unused import: 'package:provider/provider.dart' • lib/features/professor/pagamentos/pages/pagamentos_professor_screen.dart:9:8 • unused_import
+warning • Unused import: 'package:aula_extra/core/providers/user_provider.dart' • lib/features/professor/perfil/pages/perfil_professor_screen.dart:3:8 • unused_import
+warning • Unused import: 'package:aula_extra/routes/routes.dart' • lib/features/professor/perfil/pages/perfil_professor_screen.dart:7:8 • unused_import
+warning • Unused import: 'package:provider/provider.dart' • lib/features/professor/perfil/pages/perfil_professor_screen.dart:9:8 • unused_import
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/features/professor/publicar_anuncio/widgets/publicar_anuncio_preview_card.dart:113:58 • deprecated_member_use
+warning • Unused import: 'package:aula_extra/core/data/session/token_storage.dart' • lib/routes/routes.dart:38:8 • unused_import
+warning • Unused import: 'package:aula_extra/core/data/auth/auth_service.dart' • lib/routes/routes.dart:39:8 • unused_import
+warning • Unused import: 'package:aula_extra/core/session/session_manager.dart' • lib/routes/routes.dart:40:8 • unused_import
+

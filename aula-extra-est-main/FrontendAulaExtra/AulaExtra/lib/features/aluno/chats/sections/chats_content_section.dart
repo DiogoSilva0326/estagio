@@ -22,7 +22,7 @@ class ChatsContentSection extends StatelessWidget {
         MediaQuery.sizeOf(context).width <= AppHeader.mobileBreakpoint;
 
     if (isMobile) {
-      return const _MobileChatsListSection();
+      return _MobileChatsListSection(initialChat: initialChat);
     }
 
     return Padding(
@@ -62,7 +62,9 @@ class ChatsContentSection extends StatelessWidget {
 }
 
 class _MobileChatsListSection extends StatefulWidget {
-  const _MobileChatsListSection();
+  const _MobileChatsListSection({this.initialChat});
+
+  final ChatBootstrapArgs? initialChat;
 
   @override
   State<_MobileChatsListSection> createState() =>
@@ -74,6 +76,8 @@ class _MobileChatsListSectionState extends State<_MobileChatsListSection> {
 
   String _query = '';
   bool _isLoading = true;
+  bool _hasAppliedInitialChat = false;
+  bool _isBootstrappingInitialChat = false;
   String? _errorMessage;
   List<ContactUserSummaryDto> _contacts = const <ContactUserSummaryDto>[];
 
@@ -98,6 +102,7 @@ class _MobileChatsListSectionState extends State<_MobileChatsListSection> {
         _contacts = contacts;
         _isLoading = false;
       });
+      await _bootstrapInitialChatIfNeeded(contacts);
     } catch (error) {
       if (!mounted) {
         return;
@@ -106,6 +111,110 @@ class _MobileChatsListSectionState extends State<_MobileChatsListSection> {
         _errorMessage = error.toString();
         _isLoading = false;
       });
+    }
+  }
+
+  ContactUserSummaryDto? _findInitialContact(List<ContactUserSummaryDto> contacts) {
+    final contactUserId = widget.initialChat?.contactUserId.trim();
+    final contactUsername = widget.initialChat?.contactUsername?.trim().toLowerCase();
+
+    for (final contact in contacts) {
+      if (contactUserId != null &&
+          contactUserId.isNotEmpty &&
+          contact.contactUserId.trim().toLowerCase() == contactUserId.toLowerCase()) {
+        return contact;
+      }
+      if (contactUsername != null &&
+          contactUsername.isNotEmpty &&
+          (contact.username?.trim().toLowerCase() == contactUsername)) {
+        return contact;
+      }
+    }
+
+    return null;
+  }
+
+  Future<List<ContactUserSummaryDto>> _createInitialContact() async {
+    final contactUserId = widget.initialChat?.contactUserId.trim();
+    final contactUsername = widget.initialChat?.contactUsername?.trim();
+
+    if (contactUserId != null && contactUserId.isNotEmpty) {
+      try {
+        return await _contactsService.addContactByUserId(contactUserId);
+      } catch (_) {
+        if (contactUsername == null || contactUsername.isEmpty) rethrow;
+      }
+    }
+
+    if (contactUsername != null && contactUsername.isNotEmpty) {
+      await _contactsService.addContactByUsername(contactUsername);
+      return _contactsService.acceptInviteByUsername(contactUsername);
+    }
+
+    throw Exception('Não foi possível criar o contacto.');
+  }
+
+  Future<void> _bootstrapInitialChatIfNeeded(
+    List<ContactUserSummaryDto> contacts,
+  ) async {
+    if (_hasAppliedInitialChat || _isBootstrappingInitialChat) return;
+    final initialChat = widget.initialChat;
+    if (initialChat == null) {
+      _hasAppliedInitialChat = true;
+      return;
+    }
+
+    _isBootstrappingInitialChat = true;
+
+    try {
+      var selected = _findInitialContact(contacts);
+
+      if (selected == null) {
+        final updatedContacts = await _createInitialContact();
+        if (!mounted) return;
+        setState(() {
+          _contacts = updatedContacts;
+        });
+        selected = _findInitialContact(updatedContacts);
+      }
+
+      _hasAppliedInitialChat = true;
+      if (!mounted || selected == null) return;
+
+      final initialMessage = initialChat.initialMessage?.trim();
+      final selectedForConversation =
+          ((selected.username?.trim().isNotEmpty ?? false) ||
+                  (initialChat.contactUsername?.trim().isEmpty ?? true))
+              ? selected
+              : ContactUserSummaryDto(
+                  contactId: selected.contactId,
+                  contactUserId: selected.contactUserId,
+                  status: selected.status,
+                  username: initialChat.contactUsername?.trim(),
+                  displayName: selected.displayName,
+                  profileImageUrl: selected.profileImageUrl,
+                  lastMessage: selected.lastMessage,
+                  lastMessageAt: selected.lastMessageAt,
+                );
+
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => ChatMobileConversationScreen(
+              contact: selectedForConversation,
+              initialMessage: initialMessage,
+            ),
+          ),
+        );
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = error.toString();
+      });
+    } finally {
+      _isBootstrappingInitialChat = false;
     }
   }
 
@@ -157,6 +266,11 @@ class _MobileChatsListSectionState extends State<_MobileChatsListSection> {
   }
 
   String _subtitleFor(ContactUserSummaryDto contact) {
+    final lastMessage = contact.lastMessage?.trim();
+    if (lastMessage != null && lastMessage.isNotEmpty) {
+      return lastMessage;
+    }
+
     final username = contact.username?.trim();
     if (username != null && username.isNotEmpty) {
       return '@$username';

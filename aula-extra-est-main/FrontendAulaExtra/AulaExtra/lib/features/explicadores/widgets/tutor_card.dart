@@ -11,7 +11,8 @@ class TutorCard extends StatelessWidget {
     required this.lessonsText,
     required this.pricePerHour,
     required this.tags,
-    required this.onViewProfileTap,
+     this.onViewProfileTap,
+     this.onBookLessonTap,
   });
 
   final String name;
@@ -22,189 +23,76 @@ class TutorCard extends StatelessWidget {
   final String lessonsText;
   final int pricePerHour;
   final List<String> tags;
-  final VoidCallback onViewProfileTap;
+  final VoidCallback? onViewProfileTap;
+  final VoidCallback? onBookLessonTap;
 
   static const _orange = Color(0xFFFC9039);
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: 470,
-      height: 475.371,
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          border: Border.all(color: const Color(0xFFF3F4F6), width: 1.277),
-          borderRadius: BorderRadius.circular(20.426),
-          boxShadow: const [
-            BoxShadow(
-              color: Color.fromRGBO(0, 0, 0, 0.1),
-              offset: Offset(0, 5.106),
-              blurRadius: 7.66,
-            ),
-            BoxShadow(
-              color: Color.fromRGBO(0, 0, 0, 0.1),
-              offset: Offset(0, 2.553),
-              blurRadius: 5.106,
-            ),
-          ],
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(30.64),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+    return Container(
+      width: 285, 
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: const Color(0xFFE5E7EB), width: 1.2),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: const [
+          BoxShadow(
+            color: Color.fromRGBO(16, 24, 40, 0.05),
+            offset: Offset(0, 4),
+            blurRadius: 10,
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min, 
+          children: [
             Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Stack(
-                  children: [
-                    Container(
-                      width: 102.128,
-                      height: 102.128,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(color: _orange, width: 2.553),
-                        color: const Color(0xFFF3F4F6),
-                      ),
-                      child: Center(
-                        child: Text(
-                          name.isNotEmpty ? name.trim().characters.first : 'E',
-                          style: const TextStyle(fontSize: 40, fontWeight: FontWeight.w700),
-                        ),
-                      ),
+                Container(
+                  width: 60,
+                  height: 60,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(color: _orange, width: 2),
+                    color: const Color(0xFFF9FAFB),
+                  ),
+                  child: Center(
+                    child: Text(
+                      name.isNotEmpty ? name.trim().characters.first : 'E',
+                      style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xFF101828)),
                     ),
-                    Positioned(
-                      right: 0,
-                      bottom: 0,
-                      child: Container(
-                        width: 30.638,
-                        height: 30.638,
-                        padding: const EdgeInsets.all(5.106),
-                        decoration: const BoxDecoration(
-                          shape: BoxShape.circle,
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [Color(0xFFFC9039), Color(0xFFF15C64)],
-                          ),
-                        ),
-                        child: const Icon(Icons.verified, size: 20.426, color: Colors.white),
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
-                const SizedBox(width: 20.426),
+                const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              name,
-                              style: const TextStyle(
-                                fontSize: 25.532,
-                                height: 35.745 / 25.532,
-                                fontWeight: FontWeight.w700,
-                                color: Color(0xFF0A0A0A),
-                              ),
-                            ),
-                          ),
-                          Container(
-                            height: 51.064,
-                            padding: const EdgeInsets.symmetric(horizontal: 14),
-                            decoration: const BoxDecoration(
-                              borderRadius: BorderRadius.all(Radius.circular(21417702)),
-                              gradient: LinearGradient(
-                                begin: Alignment.topCenter,
-                                end: Alignment.bottomCenter,
-                                colors: [Color(0xFFFC9039), Color(0xFFF15C64)],
-                              ),
-                            ),
-                            child: const Center(
-                              child: Text(
-                                'Super Explicador',
-                                style: TextStyle(
-                                  fontSize: 15.319,
-                                  height: 20.426 / 15.319,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
+                      Text(
+                        name,
+                        style: const TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF101828),
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      const SizedBox(height: 5.106),
+                      const SizedBox(height: 4),
                       Row(
                         children: [
-                          const Icon(Icons.location_on_outlined, size: 17.872, color: Color(0xFF4A5565)),
-                          const SizedBox(width: 10.213),
+                          const Icon(Icons.location_on_outlined, size: 14, color: Color(0xFF667085)),
+                          const SizedBox(width: 4),
                           Expanded(
                             child: Text(
                               country,
-                              maxLines: 2,
+                              style: const TextStyle(fontSize: 13, color: Color(0xFF667085)),
+                              maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              softWrap: true,
-                              style: const TextStyle(
-                                fontSize: 17.872,
-                                height: 25.532 / 17.872,
-                                color: Color(0xFF4A5565),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 10.213),
-                          Container(
-                            height: 25.532,
-                            padding: const EdgeInsets.symmetric(horizontal: 10.21),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFDBEAFE),
-                              borderRadius: BorderRadius.circular(5.106),
-                            ),
-                            child: const Center(
-                              child: Text(
-                                'Nativo',
-                                style: TextStyle(
-                                  fontSize: 15.319,
-                                  height: 20.426 / 15.319,
-                                  color: Color(0xFF1447E6),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 5.106),
-                      Row(
-                        children: [
-                          Row(
-                            children: List.generate(
-                              5,
-                              (i) => Icon(
-                                i < 4 ? Icons.star : Icons.star_border,
-                                size: 17.872,
-                                color: const Color(0xFFFC9039),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 10.213),
-                          Text(
-                            rating.toStringAsFixed(1),
-                            style: const TextStyle(
-                              fontSize: 17.872,
-                              height: 25.532 / 17.872,
-                              fontWeight: FontWeight.w500,
-                              color: Color(0xFF0A0A0A),
-                            ),
-                          ),
-                          const SizedBox(width: 10.213),
-                          Text(
-                            '($reviewCount avaliações)',
-                            style: const TextStyle(
-                              fontSize: 17.872,
-                              height: 25.532 / 17.872,
-                              color: Color(0xFF6A7282),
                             ),
                           ),
                         ],
@@ -214,153 +102,114 @@ class TutorCard extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 20.846),
-            Expanded(
-              child: Align(
-                alignment: Alignment.topLeft,
-                child: Text(
-                  description,
-                  maxLines: 4,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 17.872,
-                    height: 25.532 / 17.872,
-                    color: Color(0xFF364153),
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 14),
+            
             Row(
               children: [
-                const Icon(Icons.menu_book_outlined, size: 17.872, color: Color(0xFF4A5565)),
-                const SizedBox(width: 5.106),
+                const Icon(Icons.star_rounded, size: 18, color: _orange),
+                const SizedBox(width: 4),
                 Text(
-                  lessonsText,
-                  style: const TextStyle(
-                    fontSize: 15.319,
-                    height: 20.426 / 15.319,
-                    color: Color(0xFF4A5565),
-                  ),
+                  rating.toStringAsFixed(1),
+                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF101828)),
                 ),
+                Text(' ($reviewCount)', style: const TextStyle(fontSize: 13, color: Color(0xFF667085))),
+                const Spacer(),
+                const Icon(Icons.history_edu_rounded, size: 16, color: Color(0xFF667085)),
+                const SizedBox(width: 4),
+                Text(lessonsText, style: const TextStyle(fontSize: 13, color: Color(0xFF667085))),
               ],
             ),
-            const SizedBox(height: 20.846),
-            Container(height: 1, width: double.infinity, color: const Color(0xFFE5E7EB)),
-            const SizedBox(height: 20.846),
+            
+            const SizedBox(height: 16),
+            const Divider(height: 1, color: Color(0xFFEAECF0)),
+            const SizedBox(height: 16),
+
+            Text(
+              description,
+              maxLines: 4,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 13,
+                height: 1.45,
+                color: Color(0xFF475467),
+              ),
+            ),
+
+            const SizedBox(height: 16),
+
             Wrap(
-              spacing: 12,
-              runSpacing: 12,
+              spacing: 6,
+              runSpacing: 6,
               children: tags
                   .take(3)
                   .map(
                     (t) => Container(
-                      height: 30.638,
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF3F4F6),
-                        borderRadius: BorderRadius.circular(12.766),
+                        color: const Color(0xFFF2F4F7),
+                        borderRadius: BorderRadius.circular(6),
                       ),
-                      child: Padding(
-                        padding: const EdgeInsets.only(top: 6.38),
-                        child: Text(
-                          t,
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            fontSize: 15.319,
-                            height: 20.426 / 15.319,
-                            color: Color(0xFF364153),
-                          ),
+                      child: Text(
+                        t,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: Color(0xFF344054),
                         ),
                       ),
                     ),
                   )
                   .toList(growable: false),
             ),
-            const SizedBox(height: 25.532),
+
+            const SizedBox(height: 24),
+
+            // --- PREÇO ---
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Row(
-                  children: [
-                    Text(
-                      '$pricePerHour€',
-                      style: const TextStyle(
-                        fontSize: 30.638,
-                        height: 40.851 / 30.638,
-                        fontWeight: FontWeight.w700,
-                        color: _orange,
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                    const Text(
-                      '/hora',
-                      style: TextStyle(
-                        fontSize: 17.872,
-                        height: 25.532 / 17.872,
-                        color: Color(0xFF6A7282),
-                      ),
-                    ),
-                  ],
+                const Text('Desde ', style: TextStyle(fontSize: 12, color: Color(0xFF667085), height: 1.8)),
+                Text(
+                  '$pricePerHour€',
+                  style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: _orange, height: 1),
                 ),
-                Row(
-                  children: [
-                    Container(
-                      width: 130.023,
-                      height: 53.617,
-                      decoration: BoxDecoration(
-                        border: Border.all(color: _orange, width: 1.277),
-                        borderRadius: BorderRadius.circular(12.766),
-                      ),
-                      child: Material(
-                        color: Colors.transparent,
-                        child: InkWell(
-                          onTap: onViewProfileTap,
-                          borderRadius: BorderRadius.circular(12.766),
-                          child: const Center(
-                            child: Text(
-                              'Ver Perfil',
-                              style: TextStyle(
-                                fontSize: 20.426,
-                                height: 30.638 / 20.426,
-                                fontWeight: FontWeight.w500,
-                                color: _orange,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
+                const Text('/h', style: TextStyle(fontSize: 13, color: Color(0xFF667085), height: 1.6)),
+              ],
+            ),
+
+            const SizedBox(height: 16),
+
+            // --- BOTÕES ---
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: onViewProfileTap,
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: _orange, width: 1.5),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                     ),
-                    const SizedBox(width: 10.213),
-                    Container(
-                      width: 153.65,
-                      height: 53.617,
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [Color(0xFFFC9039), Color(0xFFF15C64)],
-                        ),
-                        borderRadius: BorderRadius.circular(12.766),
-                      ),
-                      child: const Center(
-                        child: Text(
-                          'Marcar Aula',
-                          style: TextStyle(
-                            fontSize: 20.426,
-                            height: 30.638 / 20.426,
-                            fontWeight: FontWeight.w500,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
+                    child: const Text('Perfil', style: TextStyle(color: _orange, fontSize: 14, fontWeight: FontWeight.w700)),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: onBookLessonTap,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _orange,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                     ),
-                  ],
+                    child: const Text('Marcar', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+                  ),
                 ),
               ],
             ),
-            ],
-          ),
+          ],
         ),
       ),
     );

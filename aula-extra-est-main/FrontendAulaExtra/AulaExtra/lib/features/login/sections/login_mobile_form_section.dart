@@ -41,6 +41,21 @@ class _LoginMobileFormSectionState extends State<LoginMobileFormSection> {
     return true;
   }
 
+  String _resolveTargetRoute(Role role) {
+    if (role == Role.student) return Routes.areasAluno;
+    if (role == Role.teacher || role == Role.tutor || role == Role.psychologist) {
+      return Routes.professorMeusAlunos;
+    }
+    return Routes.home;
+  }
+
+  void _showProviderNotAvailable(String provider) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Login com $provider ainda não está disponível.')),
+    );
+  }
+
   Future<void> _handleLogin() async {
     if (!_canSubmit) return;
 
@@ -57,14 +72,32 @@ class _LoginMobileFormSectionState extends State<LoginMobileFormSection> {
 
       AuthService.applySessionToProvider(user, session);
 
-      final targetRoute = session.appRole == Role.teacher
-          ? Routes.professorMeusAlunos
-          : session.appRole == Role.student
-          ? Routes.areasAluno
-          : Routes.home;
+        final targetRoute = _resolveTargetRoute(session.appRole);
 
       if (!mounted) return;
       navigator.pushNamedAndRemoveUntil(targetRoute, (route) => false);
+    } catch (error) {
+      if (!mounted) return;
+      messenger.showSnackBar(SnackBar(content: Text(error.toString())));
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
+    }
+  }
+
+  Future<void> _handleGoogleLogin() async {
+    if (_isSubmitting) return;
+
+    final user = context.read<UserProvider>();
+    final navigator = Navigator.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+
+    setState(() => _isSubmitting = true);
+    try {
+      final session = await AuthService().loginWithGoogle();
+      AuthService.applySessionToProvider(user, session);
+
+      if (!mounted) return;
+      navigator.pushNamedAndRemoveUntil(_resolveTargetRoute(session.appRole), (route) => false);
     } catch (error) {
       if (!mounted) return;
       messenger.showSnackBar(SnackBar(content: Text(error.toString())));
@@ -138,6 +171,9 @@ class _LoginMobileFormSectionState extends State<LoginMobileFormSection> {
                       backgroundColor: LoginSocial.backgroundColors[provider]!,
                       borderColor: LoginSocial.borderColors[provider]!,
                       textColor: LoginSocial.textColors[provider]!,
+                      onTap: provider == 'google'
+                          ? _handleGoogleLogin
+                          : () => _showProviderNotAvailable(LoginSocial.labels[provider]!),
                     ),
                   );
                 }),

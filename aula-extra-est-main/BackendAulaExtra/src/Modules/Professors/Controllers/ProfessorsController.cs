@@ -95,8 +95,14 @@ namespace ConfidantPostgreSQL.Modules.Professors.Controllers
             public string? Vat { get; set; }
             public string? Iban { get; set; }
             public string? IbanDocumentUrl { get; set; }
+            public List<string>? SupportTypes { get; set; }
 
             public List<CertificateInput>? Certificates { get; set; }
+        }
+
+        public class ApproveProfessorRequest
+        {
+            public string? SupportType { get; set; }
         }
 
         public class CertificateInput
@@ -151,6 +157,78 @@ namespace ConfidantPostgreSQL.Modules.Professors.Controllers
             RequestContext.ApplyCultureFromHeader(Request);
             unauthorized = null;
             return true;
+        }
+
+        private static HashSet<string> NormalizeSupportTypes(IEnumerable<string>? values)
+        {
+            var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            if (values == null) return set;
+
+            foreach (var value in values)
+            {
+                var normalized = value?.Trim().ToLowerInvariant();
+                if (string.IsNullOrWhiteSpace(normalized)) continue;
+
+                switch (normalized)
+                {
+                    case "professor":
+                    case "teacher":
+                    case "explicador":
+                    case "explicadores":
+                        set.Add("professor");
+                        break;
+                    case "tutor":
+                    case "tutoria":
+                    case "tutores":
+                        set.Add("tutor");
+                        break;
+                    case "psicologo":
+                    case "psicólogos":
+                    case "psicologo(a)":
+                    case "psychologist":
+                    case "psicologos":
+                        set.Add("psicologo");
+                        break;
+                }
+            }
+
+            return set;
+        }
+
+        private static bool IsPsychologistProofCertificate(Certificate certificate)
+        {
+            if (certificate == null) return false;
+
+            var name = certificate.Name?.Trim().ToLowerInvariant() ?? string.Empty;
+            var description = certificate.Description?.Trim().ToLowerInvariant() ?? string.Empty;
+            var fileUrl = certificate.FileUrl?.Trim() ?? string.Empty;
+
+            var isIbanDocument = name.Contains("iban")
+                || description.Contains("iban")
+                || description.Contains("pagamento")
+                || description.Contains("payments");
+
+            if (isIbanDocument) return false;
+
+            return name.Contains("psicolog")
+                || name.Contains("cedula")
+                || name.Contains("cédula")
+                || description.Contains("psicolog")
+                || description.Contains("ordem dos psicologos")
+                || description.Contains("ordem dos psicólogos")
+                || (!string.IsNullOrWhiteSpace(fileUrl) && (!string.IsNullOrWhiteSpace(name) || !string.IsNullOrWhiteSpace(description)));
+        }
+
+        private static string? NormalizeSupportType(string? supportType)
+        {
+            var normalized = supportType?.Trim().ToLowerInvariant();
+            return normalized switch
+            {
+                "professor" or "explicador" or "explicadores" => "professor",
+                "tutor" or "tutores" => "tutor",
+                "psicologo" or "psicologos" or "psychologist" => "psicologo",
+                _ => null,
+            };
         }
 
         private static string BuildDisplayName(dynamic? user, string fallback)
@@ -248,6 +326,26 @@ namespace ConfidantPostgreSQL.Modules.Professors.Controllers
                     updatedAt = item.UpdatedAt,
                 })
                 .ToArray();
+            var hasPsychologistProof = certificates.Any(item =>
+                (item.name ?? string.Empty).Contains("psicolog", StringComparison.OrdinalIgnoreCase)
+                || (item.name ?? string.Empty).Contains("cedula", StringComparison.OrdinalIgnoreCase)
+                || (item.description ?? string.Empty).Contains("psicolog", StringComparison.OrdinalIgnoreCase)
+                || (item.description ?? string.Empty).Contains("ordem dos psicólogos", StringComparison.OrdinalIgnoreCase));
+            var psychologistProofDocumentUrl = certificates
+                .Select(item => item.fileUrl)
+                .FirstOrDefault(item => !string.IsNullOrWhiteSpace(item));
+            var auth = await _users.IssueTokenAsync(professor.IdUser);
+            var roleSet = new HashSet<string>(
+                (auth?.Roles ?? Array.Empty<string>()).Where(value => !string.IsNullOrWhiteSpace(value)),
+                StringComparer.OrdinalIgnoreCase);
+            var requestedSupportTypes = new HashSet<string>(
+                await _service.GetSupportRequestsAsync(professor.IdProfessor),
+                StringComparer.OrdinalIgnoreCase);
+
+            var supportTypes = new List<string>();
+            if (roleSet.Contains("professor") || requestedSupportTypes.Contains("professor")) supportTypes.Add("professor");
+            if (roleSet.Contains("tutor") || requestedSupportTypes.Contains("tutor")) supportTypes.Add("tutor");
+            if (roleSet.Contains("psicologo") || requestedSupportTypes.Contains("psicologo") || hasPsychologistProof) supportTypes.Add("psicologo");
             var reviews = (await _service.GetProfessorFeedbackAllAsync())
                 .Where(item => item.IdProfessor == professor.IdProfessor)
                 .Where(item => item.IsValid != false)
@@ -323,6 +421,8 @@ namespace ConfidantPostgreSQL.Modules.Professors.Controllers
                 isVerified = professor.IsVerified ?? false,
                 isVerifiedIban = professor.IsVerifiedIban ?? false,
                 isRejected = professor.IsRejected ?? false,
+                supportTypes,
+                psychologistProofDocumentUrl,
                 statusLabel,
                 stats = new
                 {
@@ -395,11 +495,24 @@ namespace ConfidantPostgreSQL.Modules.Professors.Controllers
             [FromQuery] Guid? anoId,
             [FromQuery] decimal? maxPrice,
             [FromQuery] decimal? minRating,
+            [FromQuery] string? category,
             [FromQuery] string[]? availability,
             [FromQuery] int page = 1,
             [FromQuery] int pageSize = 4)
         {
             RequestContext.ApplyCultureFromHeader(Request);
+
+            var normalizedCategory = string.IsNullOrWhiteSpace(category)
+                ? null
+                : category.Trim().ToLowerInvariant();
+
+            if (normalizedCategory != null
+                && normalizedCategory != "explicadores"
+                && normalizedCategory != "tutores"
+                && normalizedCategory != "psicologos")
+            {
+                return BadRequest(new { error = "A categoria deve ser explicadores, tutores ou psicologos." });
+            }
 
             var flags = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             if (availability != null)
@@ -425,6 +538,7 @@ namespace ConfidantPostgreSQL.Modules.Professors.Controllers
                 AnoEscolaridadeId = anoId,
                 MaxPrice = maxPrice,
                 MinRating = minRating,
+                Category = normalizedCategory,
                 Morning = flags.Contains("morning") || flags.Contains("manha") || flags.Contains("manhã"),
                 Afternoon = flags.Contains("afternoon") || flags.Contains("tarde") || flags.Contains("tardes"),
                 Evening = flags.Contains("evening") || flags.Contains("noite") || flags.Contains("noites"),
@@ -900,6 +1014,15 @@ namespace ConfidantPostgreSQL.Modules.Professors.Controllers
             if (!TryGetAuthenticatedUserId(out var userId)) return Unauthorized();
             request ??= new UpsertMyProfessorRequest();
 
+            var requestedSupportTypes = NormalizeSupportTypes(request.SupportTypes);
+            if (requestedSupportTypes.Count == 0)
+            {
+                return BadRequest(new
+                {
+                    message = "Seleciona pelo menos um tipo de apoio: professor, tutor ou psicólogo."
+                });
+            }
+
             // Update basic user fields (best-effort, only non-empty values)
             var user = await _users.GetByIdAsync(userId);
             if (user == null) return Unauthorized();
@@ -911,6 +1034,43 @@ namespace ConfidantPostgreSQL.Modules.Professors.Controllers
 
             // Upsert professor record
             var existing = await _service.GetProfessorByUserIdAsync(userId);
+            var existingSupportTypes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var authSnapshot = await _users.IssueTokenAsync(userId);
+            foreach (var role in authSnapshot?.Roles ?? Array.Empty<string>())
+            {
+                if (string.Equals(role, "professor", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(role, "tutor", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(role, "psicologo", StringComparison.OrdinalIgnoreCase))
+                {
+                    existingSupportTypes.Add(role.Trim().ToLowerInvariant());
+                }
+            }
+            if (existing != null)
+            {
+                foreach (var supportType in await _service.GetSupportRequestsAsync(existing.IdProfessor))
+                {
+                    if (!string.IsNullOrWhiteSpace(supportType))
+                    {
+                        existingSupportTypes.Add(supportType.Trim().ToLowerInvariant());
+                    }
+                }
+            }
+            if (requestedSupportTypes.All(existingSupportTypes.Contains))
+            {
+                return BadRequest(new
+                {
+                    message = "Já tens ou já submeteste candidatura para os tipos de apoio selecionados."
+                });
+            }
+
+            var supportTypesToPersist = new HashSet<string>(existingSupportTypes, StringComparer.OrdinalIgnoreCase);
+            foreach (var requestedSupportType in requestedSupportTypes)
+            {
+                supportTypesToPersist.Add(requestedSupportType);
+            }
+
+            var supportsProfessor = supportTypesToPersist.Contains("professor") || supportTypesToPersist.Contains("tutor");
+            var supportsTutor = supportTypesToPersist.Contains("tutor");
             var professor = new Professor
             {
                 IdProfessor = existing?.IdProfessor ?? Guid.Empty,
@@ -963,6 +1123,18 @@ namespace ConfidantPostgreSQL.Modules.Professors.Controllers
                         UpdatedAt = DateTime.UtcNow,
                     });
                 }
+            }
+
+            await _service.SyncSupportRequestsAsync(professor.IdProfessor, supportTypesToPersist);
+
+            if (supportsProfessor)
+            {
+                await _users.EnsureRoleAsync(userId, "professor");
+            }
+
+            if (supportsTutor)
+            {
+                await _users.EnsureRoleAsync(userId, "tutor");
             }
 
             var auth = await _users.IssueTokenAsync(userId);
@@ -1146,7 +1318,7 @@ namespace ConfidantPostgreSQL.Modules.Professors.Controllers
         // Admin-only: approves a professor application by setting the 3 approval flags true
         // and granting the "professor" role to the underlying user.
         [HttpPut("professors/{idProfessor:guid}/approve")]
-        public async Task<IActionResult> ApproveProfessor(Guid idProfessor)
+        public async Task<IActionResult> ApproveProfessor(Guid idProfessor, [FromBody] ApproveProfessorRequest? request)
         {
            //if (!TryAuthorize(out var unauthorized)) return unauthorized!;
             if (!TryGetAuthenticatedUserId(out var actorUserId)) return Unauthorized();
@@ -1155,25 +1327,69 @@ namespace ConfidantPostgreSQL.Modules.Professors.Controllers
             var professor = await _service.GetProfessorByIdAsync(idProfessor);
             if (professor == null) return NotFound();
 
+            var supportType = NormalizeSupportType(request?.SupportType);
+            if (request?.SupportType != null && supportType == null)
+            {
+                return BadRequest(new { message = "supportType deve ser professor, tutor ou psicologo." });
+            }
+
+            var certificates = (await _service.GetCertificatesByProfessorIdAsync(professor.IdProfessor)).ToArray();
+
+            if (supportType == "psicologo" && !certificates.Any(IsPsychologistProofCertificate))
+            {
+                return BadRequest(new
+                {
+                    message = "Para aprovar psicólogo é obrigatório documento comprovativo em certificados."
+                });
+            }
+
             professor.IsVerifiedIban = true;
             professor.IsActive = true;
             professor.IsVerified = true;
             professor.IsRejected = false;
             await _service.UpdateProfessorAsync(professor);
 
+            await _users.SetInactiveAsync(professor.IdUser, false, actorUserId);
+
+            var approvedSupportTypes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
             // Grant role after approval.
-            await _users.EnsureRoleAsync(professor.IdUser, "professor");
+            if (string.IsNullOrWhiteSpace(supportType) || supportType == "professor")
+            {
+                await _users.EnsureRoleAsync(professor.IdUser, "professor");
+                approvedSupportTypes.Add("professor");
+            }
+
+            if (string.IsNullOrWhiteSpace(supportType) || supportType == "tutor")
+            {
+                await _users.EnsureRoleAsync(professor.IdUser, "tutor");
+                approvedSupportTypes.Add("tutor");
+            }
+
+            if (string.IsNullOrWhiteSpace(supportType) || supportType == "psicologo")
+            {
+                if (certificates.Any(IsPsychologistProofCertificate))
+                {
+                    await _users.EnsureRoleAsync(professor.IdUser, "psicologo");
+                    approvedSupportTypes.Add("psicologo");
+                }
+            }
+
+            foreach (var approvedSupportType in approvedSupportTypes)
+            {
+                await _service.ApproveSupportRequestAsync(professor.IdProfessor, approvedSupportType, actorUserId);
+            }
 
             return Ok(new
             {
                 idProfessor = professor.IdProfessor,
                 idUser = professor.IdUser,
-                message = "Professor aprovado e role atribuída. O utilizador deve renovar o token para refletir a nova role."
+                message = "Apoio aprovado e role(s) atualizada(s). O utilizador deve renovar o token para refletir as roles."
             });
         }
 
         [HttpPut("professors/{idProfessor:guid}/reject")]
-        public async Task<IActionResult> RejectProfessor(Guid idProfessor)
+        public async Task<IActionResult> RejectProfessor(Guid idProfessor, [FromBody] ApproveProfessorRequest? request)
         {
             if (!TryGetAuthenticatedUserId(out var actorUserId)) return Unauthorized();
             if (!await CurrentUserIsAdminAsync(actorUserId)) return Forbid();
@@ -1181,17 +1397,64 @@ namespace ConfidantPostgreSQL.Modules.Professors.Controllers
             var professor = await _service.GetProfessorByIdAsync(idProfessor);
             if (professor == null) return NotFound();
 
+            var supportType = NormalizeSupportType(request?.SupportType);
+            if (request?.SupportType != null && supportType == null)
+            {
+                return BadRequest(new { message = "supportType deve ser professor, tutor ou psicologo." });
+            }
+
+            if (!string.IsNullOrWhiteSpace(supportType))
+            {
+                await _users.RemoveRoleAsync(professor.IdUser, supportType);
+                await _service.RemoveSupportRequestAsync(professor.IdProfessor, supportType);
+
+                var refreshedAuth = await _users.IssueTokenAsync(professor.IdUser);
+                var remainingRoles = new HashSet<string>(
+                    (refreshedAuth?.Roles ?? Array.Empty<string>())
+                        .Where(value => !string.IsNullOrWhiteSpace(value))
+                        .Select(value => value.Trim().ToLowerInvariant()),
+                    StringComparer.OrdinalIgnoreCase);
+
+                var hasProfessorRole = remainingRoles.Contains("professor");
+                var hasAnyProfessionalRole = hasProfessorRole
+                    || remainingRoles.Contains("tutor")
+                    || remainingRoles.Contains("psicologo");
+
+                professor.IsVerified = hasProfessorRole;
+                professor.IsActive = hasAnyProfessionalRole;
+                professor.IsRejected = !hasAnyProfessionalRole;
+
+                if (!hasAnyProfessionalRole)
+                {
+                    professor.IsVerifiedIban = false;
+                }
+
+                await _service.UpdateProfessorAsync(professor);
+                await _users.SetInactiveAsync(professor.IdUser, !hasAnyProfessionalRole, actorUserId);
+
+                return Ok(new
+                {
+                    idProfessor = professor.IdProfessor,
+                    idUser = professor.IdUser,
+                    message = "Apoio removido com sucesso. O utilizador deve renovar o token para refletir as roles.",
+                });
+            }
+
             professor.IsVerifiedIban = false;
             professor.IsActive = false;
             professor.IsVerified = false;
             professor.IsRejected = true;
             await _service.UpdateProfessorAsync(professor);
 
+            await _users.RemoveRoleAsync(professor.IdUser, "professor");
+            await _service.RemoveSupportRequestAsync(professor.IdProfessor, "professor");
+            await _users.SetInactiveAsync(professor.IdUser, true, actorUserId);
+
             return Ok(new
             {
                 idProfessor = professor.IdProfessor,
                 idUser = professor.IdUser,
-                message = "Professor rejeitado com sucesso."
+                message = "Professor rejeitado com sucesso. O utilizador deve renovar o token para refletir as roles."
             });
         }
 

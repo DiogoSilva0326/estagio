@@ -1,10 +1,9 @@
-import 'package:aula_extra/core/data/session/token_storage.dart';
-import 'package:aula_extra/core/data/auth/auth_service.dart';
+import 'package:aula_extra/core/data/auth/available_roles.dart';
 import 'package:aula_extra/core/providers/user_provider.dart';
-import 'package:aula_extra/core/session/session_manager.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:aula_extra/core/data/session/preferences_service.dart';
+import 'package:aula_extra/routes/routes.dart';
 
 class RoleSwitcherButton extends StatefulWidget {
   const RoleSwitcherButton({super.key, this.size = 32});
@@ -16,8 +15,6 @@ class RoleSwitcherButton extends StatefulWidget {
 }
 
 class _RoleSwitcherButtonState extends State<RoleSwitcherButton> {
-  final TokenStorage _tokenStorage = TokenStorage();
-
   Set<Role>? _availableRoles;
 
   @override
@@ -28,39 +25,10 @@ class _RoleSwitcherButtonState extends State<RoleSwitcherButton> {
 
   Future<void> _loadAvailableRoles() async {
     try {
-      final token = await _tokenStorage.loadToken();
-      if (token == null || token.trim().isEmpty) {
-        setState(() => _availableRoles = {Role.none});
-        return;
-      }
-
-      // 1. Pedimos ao backend as roles REAIS do Pedro
-      final session = await AuthService(tokenStorage: _tokenStorage).refresh();
-      final roles = session.backendRoles;
-
-      final normalized = roles.map((r) => r.trim().toLowerCase()).toSet();
-      final hasTeacher = normalized.contains('professor') || normalized.contains('teacher') || normalized.contains('admin');
-      final hasTutor = normalized.contains('tutor');
-      final hasPsychologist = normalized.contains('psicologo') || normalized.contains('psychologist');
-
-      // 2. Definimos o que aparece no menu. 
-      // Se for professor, libertamos tudo para podermos testar as interfaces.
-      final available = <Role>{Role.student};
-      if (hasTeacher) {
-        available.add(Role.teacher);
-        available.add(Role.tutor);
-        available.add(Role.psychologist);
-      } else {
-        if (hasTutor) available.add(Role.tutor);
-        if (hasPsychologist) available.add(Role.psychologist);
-      }
+      final available = await AvailableRoles.fetch();
 
       if (!mounted) return;
       setState(() => _availableRoles = available);
-
-      // --- REMOVI AQUI O AuthService.applySessionToProvider ---
-      // Deixamos o UserProvider sossegado com a escolha que fizemos manualmente.
-
     } catch (_) {
       if (!mounted) return;
       setState(() => _availableRoles = {Role.none});
@@ -87,7 +55,7 @@ class _RoleSwitcherButtonState extends State<RoleSwitcherButton> {
     final currentRole = context.watch<UserProvider>().role;
 
     final available = _availableRoles;
-    final allowedRoles = (available == null) ? <Role>{currentRole} : available;
+    final allowedRoles = (available == null) ? <Role>{currentRole} : {...available, currentRole};
 
     // Never allow switching to Role.none through UI (logout should clear token).
     final menuRoles = allowedRoles.where((r) => r != Role.none).toList();
@@ -107,13 +75,13 @@ class _RoleSwitcherButtonState extends State<RoleSwitcherButton> {
         await PreferencesService.savePreferredRole(role.name);
 
         if (role == Role.student) {
-          Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
+          Navigator.of(context).pushNamedAndRemoveUntil(Routes.home, (route) => false);
         } else if (role == Role.teacher) {
-          Navigator.of(context).pushNamedAndRemoveUntil('/professor/calendario', (route) => false);
+          Navigator.of(context).pushNamedAndRemoveUntil(Routes.professorCalendario, (route) => false);
         } else if (role == Role.tutor) {
-          Navigator.of(context).pushNamedAndRemoveUntil('/professor/calendario', (route) => false); 
+          Navigator.of(context).pushNamedAndRemoveUntil(Routes.professorCalendario, (route) => false); 
         } else if (role == Role.psychologist) {
-          Navigator.of(context).pushNamedAndRemoveUntil('/professor/calendario', (route) => false);
+          Navigator.of(context).pushNamedAndRemoveUntil(Routes.professorCalendario, (route) => false);
         }
       },
       itemBuilder: (context) {

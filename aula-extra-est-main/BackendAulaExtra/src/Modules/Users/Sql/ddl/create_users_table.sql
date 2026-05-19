@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS public.users (
     phone_number VARCHAR(64),
     company_name TEXT NULL,
     website TEXT NULL,
+    google_subject VARCHAR(255) NULL,
     nif VARCHAR(64),
     inactive BOOLEAN NOT NULL DEFAULT false,
     creation_date TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -77,8 +78,20 @@ BEGIN
             REFERENCES public.users (id_user)
             ON DELETE SET NULL;
     END IF;
+
+    -- Optional Google OAuth subject for federated login
+    IF NOT EXISTS (
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_schema = 'public'
+          AND table_name = 'users'
+          AND column_name = 'google_subject'
+    ) THEN
+        ALTER TABLE public.users ADD COLUMN google_subject VARCHAR(255) NULL;
+    END IF;
 END
 $$;
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_users_username ON public.users (username);
 CREATE INDEX IF NOT EXISTS idx_users_email ON public.users (lower(email));
+CREATE UNIQUE INDEX IF NOT EXISTS idx_users_google_subject_uq ON public.users (google_subject) WHERE google_subject IS NOT NULL;

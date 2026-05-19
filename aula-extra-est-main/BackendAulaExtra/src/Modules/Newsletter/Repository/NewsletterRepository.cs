@@ -211,6 +211,44 @@ CREATE INDEX IF NOT EXISTS idx_newsletter_sends_subscriber
         return list;
     }
 
+    public async Task<List<NewsletterSubscriber>> GetSubscribersAsync(int pageNumber = 1, int pageSize = 100, bool activeOnly = true, CancellationToken cancellationToken = default)
+    {
+        await using var conn = new NpgsqlConnection(_connectionString);
+        await conn.OpenAsync(cancellationToken);
+        await EnsureSchemaAsync(conn, cancellationToken);
+
+        var safePageNumber = pageNumber < 1 ? 1 : pageNumber;
+        var safePageSize = pageSize < 1 ? 100 : Math.Min(pageSize, 500);
+        var offset = (safePageNumber - 1) * safePageSize;
+
+        var sql = @"
+            SELECT *
+            FROM public.newsletter_subscribers
+            WHERE inactive = FALSE";
+
+        if (activeOnly)
+        {
+            sql += " AND status = 'subscribed'";
+        }
+
+        sql += @"
+            ORDER BY confirmed_at DESC NULLS LAST, created_at DESC
+            LIMIT @limit OFFSET @offset";
+
+        await using var cmd = new NpgsqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("limit", safePageSize);
+        cmd.Parameters.AddWithValue("offset", offset);
+
+        await using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
+        var list = new List<NewsletterSubscriber>();
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            list.Add(MapSubscriber(reader));
+        }
+
+        return list;
+    }
+
     public async Task<int> GetActiveSubscriberCountAsync(CancellationToken cancellationToken = default)
     {
         await using var conn = new NpgsqlConnection(_connectionString);

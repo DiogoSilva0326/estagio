@@ -9,6 +9,7 @@ class PagamentosMobilePaymentCard extends StatelessWidget {
     required this.item,
     required this.title,
     required this.typeLabel,
+    required this.professionalLabel,
     required this.formattedDate,
     required this.formattedAmount,
     required this.onDetailsTap,
@@ -18,6 +19,7 @@ class PagamentosMobilePaymentCard extends StatelessWidget {
   final PaymentHistoryItemDto item;
   final String title;
   final String typeLabel;
+  final String professionalLabel;
   final String formattedDate;
   final String formattedAmount;
   final VoidCallback onDetailsTap;
@@ -85,7 +87,7 @@ class PagamentosMobilePaymentCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
-                child: _MetaItem(label: 'Tutor:', value: item.tutorName),
+                child: _MetaItem(label: professionalLabel, value: item.tutorName),
               ),
               const SizedBox(width: 16),
               Expanded(

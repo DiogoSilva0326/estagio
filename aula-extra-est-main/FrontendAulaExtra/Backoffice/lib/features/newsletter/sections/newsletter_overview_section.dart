@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/newsletter_campaign.dart';
+import '../models/newsletter_subscriber.dart';
 import 'newsletter_campaigns_section.dart';
 import 'newsletter_header_section.dart';
 import 'newsletter_metrics_section.dart';
@@ -8,6 +9,7 @@ import 'newsletter_metrics_section.dart';
 class NewsletterOverviewSection extends StatelessWidget {
   const NewsletterOverviewSection({
     required this.items,
+    required this.subscribers,
     required this.subscriberCount,
     required this.onCreate,
     required this.onOpenCampaign,
@@ -17,6 +19,7 @@ class NewsletterOverviewSection extends StatelessWidget {
   });
 
   final List<NewsletterCampaign> items;
+  final List<NewsletterSubscriber> subscribers;
   final int subscriberCount;
   final VoidCallback? onCreate;
   final ValueChanged<NewsletterCampaign> onOpenCampaign;
@@ -38,6 +41,8 @@ class NewsletterOverviewSection extends StatelessWidget {
           items: items,
           subscriberCount: subscriberCount,
         ),
+        const SizedBox(height: 24),
+        NewsletterSubscribersSection(subscribers: subscribers),
         const SizedBox(height: 24),
         NewsletterAudienceSection(items: items),
         const SizedBox(height: 37.273),

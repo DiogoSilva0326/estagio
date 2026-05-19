@@ -101,7 +101,7 @@ class ExplicadoresMobileTutorCard extends StatelessWidget {
                               borderRadius: BorderRadius.circular(999),
                             ),
                             child: const Text(
-                              'Super Explicador',
+                              'Super Apoio',
                               style: TextStyle(
                                 fontSize: 12,
                                 height: 1.4,
@@ -346,7 +346,7 @@ class ExplicadoresMobileTutorCard extends StatelessWidget {
                               padding: EdgeInsets.zero,
                             ),
                             child: const Text(
-                              'Marcar Aula',
+                              'Marcar',
                               style: TextStyle(
                                 fontSize: 14,
                                 height: 1.35,

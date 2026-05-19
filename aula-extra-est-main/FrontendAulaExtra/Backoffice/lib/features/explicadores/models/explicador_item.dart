@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 class ExplicadorItem {
   const ExplicadorItem({
     this.idProfessor = '',
+    this.category = 'explicadores',
     this.photoUrl,
     required this.initials,
     required this.name,
@@ -32,6 +33,7 @@ class ExplicadorItem {
   });
 
   final String idProfessor;
+  final String category;
   final String? photoUrl;
   final String initials;
   final String name;

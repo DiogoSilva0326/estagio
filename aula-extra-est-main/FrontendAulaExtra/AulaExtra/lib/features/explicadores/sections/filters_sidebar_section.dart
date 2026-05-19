@@ -19,6 +19,9 @@ class FiltersSidebarSection extends StatelessWidget {
     required this.onMinRatingChanged,
     required this.onClear,
     required this.onApply,
+    required this.showNivelEnsino,
+    required this.showDisciplina,
+    required this.disciplinaLabel,
   });
 
   final double? maxPrice;
@@ -37,6 +40,9 @@ class FiltersSidebarSection extends StatelessWidget {
   final ValueChanged<double?> onMinRatingChanged;
   final VoidCallback onClear;
   final VoidCallback onApply;
+  final bool showNivelEnsino;
+  final bool showDisciplina;
+  final String disciplinaLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -140,16 +146,20 @@ class FiltersSidebarSection extends StatelessWidget {
           const SizedBox(height: 13.334),
           _PriceSlider(value: maxPrice ?? 80, onChanged: onMaxPriceChanged),
           const SizedBox(height: 26.668),
-          const _Divider(),
-          const SizedBox(height: 13.334),
-          const _Title('Nível de Ensino'),
-          const SizedBox(height: 13.334),
-          _SingleSelectOptionList(
-            options: levelOptions,
-            selectedId: selectedLevelId,
-            onChanged: onLevelChanged,
-          ),
-          const SizedBox(height: 26.668),
+
+          if (showNivelEnsino) ...[
+            const _Divider(),
+            const SizedBox(height: 13.334),
+            const _Title('Nível de Ensino'),
+            const SizedBox(height: 13.334),
+            _SingleSelectOptionList(
+              options: levelOptions,
+              selectedId: selectedLevelId,
+              onChanged: onLevelChanged,
+            ),
+            const SizedBox(height: 26.668),
+          ],
+
           const _Divider(),
           const SizedBox(height: 13.334),
           const _Title('Disponibilidade'),
@@ -159,17 +169,23 @@ class FiltersSidebarSection extends StatelessWidget {
             onChanged: onAvailabilityChanged,
           ),
           const SizedBox(height: 26.668),
+
+          if (showDisciplina) ...[
+            const _Divider(),
+            const SizedBox(height: 13.334),
+            _Title(disciplinaLabel),
+            const SizedBox(height: 13.334),
+            _SingleSelectOptionList(
+              options: disciplinaOptions,
+              selectedId: selectedDisciplinaId,
+              onChanged: onDisciplinaChanged,
+              maxHeight: 220,
+            ),
+            const SizedBox(height: 26.668),
+          ],
+
           const _Divider(),
           const SizedBox(height: 13.334),
-          const _Title('Disciplina'),
-          const SizedBox(height: 13.334),
-          _SingleSelectOptionList(
-            options: disciplinaOptions,
-            selectedId: selectedDisciplinaId,
-            onChanged: onDisciplinaChanged,
-            maxHeight: 220,
-          ),
-          const SizedBox(height: 26.668),
           const _Title('Avaliação Mínima'),
           const SizedBox(height: 13.334),
           _RatingList(value: minRating, onChanged: onMinRatingChanged),
@@ -334,16 +350,23 @@ class _SelectableRow extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start, 
           children: [
-            _Dot(selected: selected),
+            Padding(
+              padding: const EdgeInsets.only(top: 2.0), 
+              child: _Dot(selected: selected),
+            ),
             const SizedBox(width: 8.889),
-            Text(
-              label,
-              style: const TextStyle(
-                fontSize: 15.556,
-                height: 22.223 / 15.556,
-                fontWeight: FontWeight.w500,
-                color: Color(0xFF0A0A0A),
+            Expanded( 
+              child: Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 15.556,
+                  height: 22.223 / 15.556,
+                  fontWeight: FontWeight.w500,
+                  color: Color(0xFF0A0A0A),
+                ),
+                softWrap: true,
               ),
             ),
           ],
@@ -428,14 +451,9 @@ class _RatingList extends StatelessWidget {
     return Column(
       children: [
         _SelectableRow(
-          label: '4.5+ estrelas',
-          selected: value == 4.5,
-          onTap: () => onChanged(value == 4.5 ? null : 4.5),
-        ),
-        _SelectableRow(
-          label: '4+ estrelas',
-          selected: value == 4.0,
-          onTap: () => onChanged(value == 4.0 ? null : 4.0),
+          label: 'Qualquer avaliação',
+          selected: value == null,
+          onTap: () => onChanged(null),
         ),
         _SelectableRow(
           label: '3.5+ estrelas',
@@ -443,9 +461,14 @@ class _RatingList extends StatelessWidget {
           onTap: () => onChanged(value == 3.5 ? null : 3.5),
         ),
         _SelectableRow(
-          label: 'Qualquer avaliação',
-          selected: value == null,
-          onTap: () => onChanged(null),
+          label: '4+ estrelas',
+          selected: value == 4.0,
+          onTap: () => onChanged(value == 4.0 ? null : 4.0),
+        ),
+        _SelectableRow(
+          label: '4.5+ estrelas',
+          selected: value == 4.5,
+          onTap: () => onChanged(value == 4.5 ? null : 4.5),
         ),
       ],
     );

@@ -17,8 +17,9 @@ class FolderCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
+      width: double.infinity,
       height: 136.538,
-      padding: const EdgeInsets.fromLTRB(34.831, 34.831, 34.831, 1.393),
+      padding: const EdgeInsets.all(34.831),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(22.292),

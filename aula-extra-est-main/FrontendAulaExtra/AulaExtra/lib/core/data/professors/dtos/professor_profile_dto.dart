@@ -13,6 +13,7 @@ class ProfessorProfileDto {
     this.isVerifiedIban,
     this.isActive,
     this.isVerified,
+    this.supportTypes = const <String>[],
   });
 
   final String? idProfessor;
@@ -28,6 +29,7 @@ class ProfessorProfileDto {
   final bool? isVerifiedIban;
   final bool? isActive;
   final bool? isVerified;
+  final List<String> supportTypes;
 
   factory ProfessorProfileDto.fromJson(Map<String, dynamic> json) {
     String? asString(dynamic value) => value is String ? value : null;
@@ -45,6 +47,17 @@ class ProfessorProfileDto {
         if (normalized == 'false') return false;
       }
       return null;
+    }
+
+    List<String> asStringList(dynamic value) {
+      if (value is! List) return const <String>[];
+
+      return value
+          .whereType<Object>()
+          .map((item) => item.toString().trim().toLowerCase())
+          .where((item) => item.isNotEmpty)
+          .toSet()
+          .toList(growable: false);
     }
 
     return ProfessorProfileDto(
@@ -71,6 +84,7 @@ class ProfessorProfileDto {
       ),
       isActive: asBool(json['isActive'] ?? json['is_active']),
       isVerified: asBool(json['isVerified'] ?? json['is_verified']),
+      supportTypes: asStringList(json['supportTypes'] ?? json['support_types']),
     );
   }
 }

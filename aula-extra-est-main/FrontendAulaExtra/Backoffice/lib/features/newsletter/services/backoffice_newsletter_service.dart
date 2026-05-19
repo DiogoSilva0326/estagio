@@ -2,15 +2,18 @@ import '../../../core/auth/backoffice_session_controller.dart';
 import '../../../core/config/api_config.dart';
 import '../../../core/network/backoffice_api_client.dart';
 import '../models/newsletter_campaign.dart';
+import '../models/newsletter_subscriber.dart';
 
 class BackofficeNewsletterViewData {
   const BackofficeNewsletterViewData({
     required this.subscriberCount,
+    required this.subscribers,
     required this.items,
     this.warningMessage,
   });
 
   final int subscriberCount;
+  final List<NewsletterSubscriber> subscribers;
   final List<NewsletterCampaign> items;
   final String? warningMessage;
 }
@@ -47,6 +50,7 @@ class BackofficeNewsletterService {
     if (!_sessionController.isAuthenticated || token == null || token.isEmpty) {
       return const BackofficeNewsletterViewData(
         subscriberCount: 0,
+        subscribers: <NewsletterSubscriber>[],
         items: <NewsletterCampaign>[],
         warningMessage:
             'Sem sessão de administrador ativa. Inicie sessão para carregar a newsletter.',
@@ -58,6 +62,10 @@ class BackofficeNewsletterService {
         ApiConfig.uri('/api/Newsletter/subscribers/count'),
         token: token,
       );
+      final subscribersPayload = await _apiClient.getJsonList(
+        ApiConfig.uri('/api/Newsletter/subscribers?pageNumber=1&pageSize=100'),
+        token: token,
+      );
       final campaignsPayload = await _apiClient.getJsonList(
         ApiConfig.uri('/api/Newsletter/campaigns?pageNumber=1&pageSize=50'),
         token: token,
@@ -65,6 +73,10 @@ class BackofficeNewsletterService {
 
       return BackofficeNewsletterViewData(
         subscriberCount: (countPayload['count'] as num?)?.toInt() ?? 0,
+        subscribers: subscribersPayload
+            .whereType<Map>()
+            .map((item) => NewsletterSubscriber.fromJson(item.cast<String, dynamic>()))
+            .toList(growable: false),
         items: campaignsPayload
             .whereType<Map>()
             .map((item) => NewsletterCampaign.fromJson(item.cast<String, dynamic>()))
@@ -73,6 +85,7 @@ class BackofficeNewsletterService {
     } catch (_) {
       return const BackofficeNewsletterViewData(
         subscriberCount: 0,
+        subscribers: <NewsletterSubscriber>[],
         items: <NewsletterCampaign>[],
         warningMessage:
             'Não foi possível sincronizar a newsletter com a API. Verifique se os endpoints de newsletter já estão disponíveis neste projeto.',

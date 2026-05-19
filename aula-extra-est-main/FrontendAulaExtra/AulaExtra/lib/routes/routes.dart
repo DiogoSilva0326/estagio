@@ -19,9 +19,11 @@ import 'package:aula_extra/features/become_teacher/pages/become_teacher_screen.d
 import 'package:aula_extra/features/comprar_creditos/pages/comprar_creditos_screen.dart';
 import 'package:aula_extra/features/home/pages/home_screen.dart';
 import 'package:aula_extra/features/login/pages/login_screen.dart';
+import 'package:aula_extra/features/newsletter/pages/newsletter_status_screen.dart';
 import 'package:aula_extra/features/profile/pages/profile_screen.dart';
 import 'package:aula_extra/features/register/pages/register_student_screen.dart';
 import 'package:aula_extra/features/professor/meus_alunos/pages/meus_alunos_professor_screen.dart';
+import 'package:aula_extra/features/professor/meus_alunos/pages/aluno_profile_view_screen.dart';
 import 'package:aula_extra/features/professor/minhas_disciplinas/pages/minhas_disciplinas_professor_screen.dart';
 import 'package:aula_extra/features/professor/calendario/pages/calendario_professor_screen.dart';
 import 'package:aula_extra/features/professor/arquivos/pages/arquivos_professor_screen.dart';
@@ -35,9 +37,6 @@ import 'package:aula_extra/features/professor/notificacoes/pages/notificacoes_pr
 import 'package:aula_extra/features/professor/publicar_anuncio/pages/publicar_anuncio_professor_screen.dart';
 import 'package:aula_extra/core/providers/user_provider.dart';
 import 'package:provider/provider.dart';
-import 'package:aula_extra/core/data/session/token_storage.dart';
-import 'package:aula_extra/core/data/auth/auth_service.dart';
-import 'package:aula_extra/core/session/session_manager.dart';
 import 'package:aula_extra/features/aluno/meus_profissionais/pages/meus_tutores_screen.dart';
 import 'package:aula_extra/features/aluno/meus_profissionais/pages/meus_psicologos_screen.dart';
 
@@ -71,6 +70,8 @@ class Routes {
   static const String comprarCreditos = '/precos';
   static const String becomeTeacher = '/tornar-se-explicador';
   static const String login = '/login';
+    static const String newsletterConfirm = '/newsletter/confirmar';
+    static const String newsletterCancel = '/newsletter/cancelar';
   static const String profile = '/profile';
   static const String registerStudent = '/register/student';
   static const String explicadores = '/explicadores';
@@ -93,6 +94,7 @@ class Routes {
   static const String areasAluno = '/aluno/areas';
 
   static const String professorMeusAlunos = '/professor/meus-alunos';
+    static const String professorPerfilAlunoView = '/professor/meus-alunos/perfil';
   static const String professorMinhasDisciplinas =
       '/professor/minhas-disciplinas';
   static const String professorCalendario = '/professor/calendario';
@@ -133,6 +135,8 @@ class Routes {
     areasAluno: (context) => const AreasAlunoScreen(),
     professorMeusAlunos: (context) =>
         const _TeacherOnly(child: MeusAlunosProfessorScreen()),
+    professorPerfilAlunoView: (context) =>
+        const _TeacherOnly(child: AlunoProfileViewScreen()),
     professorMinhasDisciplinas: (context) =>
         const _TeacherOnly(child: MinhasDisciplinasProfessorScreen()),
     professorCalendario: (context) =>
@@ -156,4 +160,29 @@ class Routes {
     professorNotificacoes: (context) =>
         const _TeacherOnly(child: NotificacoesProfessorScreen()),
   };
+
+    static String normalizePath(String path) {
+        if (path.length > 1 && path.endsWith('/')) {
+            return path.substring(0, path.length - 1);
+        }
+
+        return path;
+    }
+
+    static Widget? resolveDynamic(Uri uri) {
+        final path = normalizePath(uri.path);
+
+        switch (path) {
+            case newsletterConfirm:
+                return NewsletterStatusScreen.confirm(
+                    token: uri.queryParameters['token'] ?? '',
+                );
+            case newsletterCancel:
+                return NewsletterStatusScreen.unsubscribe(
+                    token: uri.queryParameters['token'] ?? '',
+                );
+            default:
+                return null;
+        }
+    }
 }
