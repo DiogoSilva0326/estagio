@@ -732,6 +732,7 @@ class _PagamentosContentSectionState extends State<PagamentosContentSection> {
                       rows: filteredHistory,
                       currency: summary.currency,
                       onReceiptTap: _openReceipt,
+                      onDetailsTap: (item) => _showPaymentDetails(item, summary.currency), // ADICIONA ESTA LINHA
                     ),
                   ],
                 ),

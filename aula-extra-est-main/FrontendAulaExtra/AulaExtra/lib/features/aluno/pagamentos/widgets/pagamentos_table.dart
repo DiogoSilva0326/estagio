@@ -8,11 +8,13 @@ class PagamentosTableCard extends StatelessWidget {
     required this.rows,
     required this.currency,
     required this.onReceiptTap,
+    required this.onDetailsTap,
   });
 
   final List<PaymentHistoryItemDto> rows;
   final String currency;
   final Future<void> Function(PaymentHistoryItemDto row) onReceiptTap;
+  final void Function(PaymentHistoryItemDto row) onDetailsTap;
 
   String _formatDate(DateTime? date) {
     if (date == null) return '—';
@@ -193,7 +195,7 @@ class PagamentosTableCard extends StatelessWidget {
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: SizedBox(
-                width: 972.261,
+                width: 1006.0,
                 child: Column(
                   children: [
                     _TableHeaderRow(
@@ -213,6 +215,7 @@ class PagamentosTableCard extends StatelessWidget {
                             false),
                         hasBottomBorder: i != groupRows.length - 1,
                         onReceiptTap: () => onReceiptTap(groupRows[i]),
+                        onDetailsTap: () => onDetailsTap(groupRows[i]),
                       ),
                   ],
                 ),
@@ -242,8 +245,9 @@ class _TableHeaderRow extends StatelessWidget {
           _HeaderCell(width: 167.974, text: col2Label),
           const _HeaderCell(width: 138.832, text: 'DATA'),
           const _HeaderCell(width: 121.008, text: 'VALOR'),
-          const _HeaderCell(width: 168.423, text: 'STATUS'),
-          const _HeaderCell(width: 189.852, text: 'AÇÕES'),
+          const _HeaderCell(width: 130.0, text: 'STATUS'),
+          const _HeaderCell(width: 120.0, text: 'DETALHES'), // <-- Largura aumentada para não quebrar a palavra
+          const _HeaderCell(width: 142.014, text: 'RECIBO'),
         ],
       ),
     );
@@ -290,6 +294,7 @@ class _PagamentoRow extends StatelessWidget {
     required this.hasReceipt,
     required this.hasBottomBorder,
     required this.onReceiptTap,
+    required this.onDetailsTap,
   });
 
   final String tutor;
@@ -301,6 +306,7 @@ class _PagamentoRow extends StatelessWidget {
   final bool hasReceipt;
   final bool hasBottomBorder;
   final VoidCallback onReceiptTap;
+  final VoidCallback onDetailsTap;
 
   @override
   Widget build(BuildContext context) {
@@ -321,7 +327,8 @@ class _PagamentoRow extends StatelessWidget {
           _BodyCell(width: 138.832, text: data, topPadding: 26),
           _ValueCell(text: valor),
           _StatusCell(text: status, statusKind: statusKind),
-          _ActionsCell(hasReceipt: hasReceipt, onTap: onReceiptTap),
+          _DetailsCell(onTap: onDetailsTap),
+          _ReceiptCell(hasReceipt: hasReceipt, onTap: onReceiptTap),
         ],
       ),
     );
@@ -439,7 +446,7 @@ class _StatusCell extends StatelessWidget {
         : const Color(0xFFCA3500);
 
     return SizedBox(
-      width: 168.423,
+      width: 130.0,
       child: Padding(
         padding: const EdgeInsets.only(left: 32.87),
         child: Align(
@@ -469,8 +476,44 @@ class _StatusCell extends StatelessWidget {
   }
 }
 
-class _ActionsCell extends StatelessWidget {
-  const _ActionsCell({required this.hasReceipt, required this.onTap});
+class _DetailsCell extends StatelessWidget {
+  const _DetailsCell({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 120.0,
+      child: Padding(
+        padding: const EdgeInsets.only(left: 22.87),
+        child: Align(
+          alignment: Alignment.centerLeft,
+          child: Tooltip(
+            message: 'Ver detalhes',
+            child: InkWell(
+              onTap: onTap,
+              borderRadius: BorderRadius.circular(10),
+              child: Container(
+                height: 38.343,
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                alignment: Alignment.center,
+                child: const Icon(
+                  Icons.visibility_outlined,
+                  size: 21.91,
+                  color: Color(0xFF364153),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ReceiptCell extends StatelessWidget {
+  const _ReceiptCell({required this.hasReceipt, required this.onTap});
 
   final bool hasReceipt;
   final VoidCallback onTap;
@@ -478,9 +521,9 @@ class _ActionsCell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: 189.852,
+      width: 142.014,
       child: Padding(
-        padding: const EdgeInsets.only(left: 32.87),
+        padding: const EdgeInsets.only(left: 16.0),
         child: Align(
           alignment: Alignment.centerLeft,
           child: _ReceiptButton(

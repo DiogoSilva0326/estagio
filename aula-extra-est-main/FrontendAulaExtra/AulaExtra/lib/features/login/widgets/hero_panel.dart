@@ -109,7 +109,7 @@ class _StatCard extends StatelessWidget {
     return Container(
       width: 186.495,
       height: 96.168,
-      padding: const EdgeInsets.fromLTRB(19.234, 19.234, 19.234, 0),
+      padding: const EdgeInsets.all(19.234),
       decoration: BoxDecoration(
         color: background,
         borderRadius: BorderRadius.circular(19.234),
@@ -127,6 +127,7 @@ class _StatCard extends StatelessWidget {
         ],
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Container(
             width: 57.701,

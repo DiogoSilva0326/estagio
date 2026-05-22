@@ -55,17 +55,9 @@ class AppHeader extends StatelessWidget {
       case Routes.professorCalendario:
         return HeaderExplicadorItem.minhasAulas;
       case Routes.professorMeusAlunos:
-        return HeaderExplicadorItem.meusAlunos;
-      case Routes.professorArquivos:
-      case Routes.professorChats:
-      case Routes.professorDisponibilidade:
-      case Routes.professorPagamentos:
-      case Routes.professorAvaliacoes:
-      case Routes.professorPerfil:
-      case Routes.professorNotificacoes:
         return HeaderExplicadorItem.recursos;
     }
-    return null;
+    return null; 
   }
 
   @override
@@ -74,6 +66,8 @@ class AppHeader extends StatelessWidget {
     final userRole = user.role;
     final currentRouteName = ModalRoute.of(context)?.settings.name;
     final isMobile = MediaQuery.sizeOf(context).width <= mobileBreakpoint;
+    print('A rota detetada pelo Header é: $currentRouteName');
+    
 
     String? nonEmpty(String? value) {
       final v = value?.trim();
