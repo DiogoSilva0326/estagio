@@ -4,6 +4,7 @@ config:
 ---
 classDiagram
 direction TB
+
 class role {
   PK id SERIAL
   TEXT description UNIQUE NOT NULL
@@ -79,8 +80,8 @@ class user_consents {
   FK last_user_id UUID
 }
 
-class professors {
-  PK id_professor UUID
+class professionals {
+  PK id_professional UUID
   FK id_user UUID UNIQUE
   VARCHAR current_school
   INTEGER years_experience
@@ -97,9 +98,45 @@ class professors {
   TIMESTAMP updated_at DEFAULT now()
 }
 
-class professor_feedback {
-  PK id_professor_feedback UUID
-  FK id_professor UUID
+class professional_languages {
+  PK id_professional_language UUID DEFAULT gen_random_uuid()
+  FK id_professional UUID NOT NULL
+  VARCHAR language_code NOT NULL
+  VARCHAR proficiency_level
+  TIMESTAMP created_at DEFAULT now()
+}
+
+class professional_stats {
+  PK id_professional_stat UUID DEFAULT gen_random_uuid()
+  FK id_professional UUID UNIQUE NOT NULL
+  NUMERIC average_rating
+  INTEGER total_lessons_taught
+  INTEGER total_students
+  NUMERIC response_time_mins
+  TIMESTAMP last_calculated_at
+}
+
+class professional_disciplinas {
+  PK id_professional UUID
+  PK id_disciplina UUID
+  TIMESTAMP created_at DEFAULT now()
+}
+
+class professional_ads {
+  PK id_professional_ad UUID DEFAULT gen_random_uuid()
+  FK id_professional UUID NOT NULL
+  FK id_disciplina UUID NULL
+  VARCHAR title NOT NULL
+  TEXT description
+  BOOLEAN is_active DEFAULT true
+  NUMERIC price_per_hour
+  TIMESTAMP created_at DEFAULT now()
+  TIMESTAMP updated_at DEFAULT now()
+}
+
+class professional_feedback {
+  PK id_professional_feedback UUID
+  FK id_professional UUID
   FK id_user UUID
   BOOLEAN is_valid DEFAULT true
   INTEGER rating
@@ -109,7 +146,7 @@ class professor_feedback {
 
 class certificates {
   PK id_certificate UUID
-  FK id_professor UUID
+  FK id_professional UUID
   VARCHAR name
   TEXT file_url
   BOOLEAN verified DEFAULT false
@@ -118,10 +155,10 @@ class certificates {
   TIMESTAMP updated_at DEFAULT now()
 }
 
-class professor_rooms {
+class professional_rooms {
   PK id UUID
-  FK professor_id UUID UNIQUE
-  VARCHAR professor_name
+  FK professional_id UUID UNIQUE
+  VARCHAR professional_name
   VARCHAR room_name UNIQUE
   TEXT description
   BOOLEAN is_active DEFAULT true
@@ -194,7 +231,7 @@ class pricing_models {
 
 class courses {
   PK id_course UUID
-  FK id_professor UUID
+  FK id_professional UUID
   FK id_pricing_model UUID
   FK id_tutoring_type UUID
   FK id_disciplina UUID
@@ -259,7 +296,7 @@ class days {
 
 class schedule_blocks {
   PK id_schedule_block UUID
-  FK id_professor UUID
+  FK id_professional UUID
   FK id_day UUID
   TIMESTAMPTZ start_time
   TIMESTAMPTZ end_time
@@ -281,7 +318,7 @@ class block_parts {
 class lessons {
   PK id_lesson UUID
   FK id_course UUID NULL
-  FK id_professor UUID NULL
+  FK id_professional UUID NULL
   VARCHAR title
   VARCHAR status
   INTEGER students
@@ -356,7 +393,7 @@ class reservations {
 
 class exception_rules {
   PK id_exception_rule UUID
-  FK id_professor UUID
+  FK id_professional UUID
   FK id_schedule_block UUID NULL
   VARCHAR rule_type
   INTEGER custom_duration_minutes
@@ -372,7 +409,7 @@ class exception_requests {
   PK id_exception_request UUID
   FK id_user UUID NULL
   FK id_reservation UUID NULL
-  FK id_professor UUID NULL
+  FK id_professional UUID NULL
   VARCHAR request_type
   FK id_exception_rule UUID NULL
   INTEGER requested_duration_minutes
@@ -406,9 +443,9 @@ class favorites {
 class favorite_items {
   PK id_favorite_item UUID
   FK id_favorite UUID
-  FK id_professor UUID
+  FK id_professional UUID
   TIMESTAMP added_at DEFAULT now()
-  UNIQUE (id_favorite, id_professor)
+  UNIQUE (id_favorite, id_professional)
 }
 
 class notifications {
@@ -430,6 +467,16 @@ class messages {
   TIMESTAMP sent_at DEFAULT now()
   TIMESTAMP read_at
   FK group_room_id UUID NULL
+}
+
+class chat_files {
+  PK id_chat_file UUID DEFAULT gen_random_uuid()
+  FK id_message UUID NOT NULL
+  VARCHAR file_name NOT NULL
+  VARCHAR file_type
+  VARCHAR file_url NOT NULL
+  INTEGER file_size
+  TIMESTAMP created_at DEFAULT now()
 }
 
 class contacts {
@@ -531,6 +578,47 @@ class complaint_resolutions {
   TIMESTAMP updated_at DEFAULT now()
 }
 
+class faq_categories {
+  PK id_faq_category UUID DEFAULT gen_random_uuid()
+  VARCHAR name NOT NULL
+  TEXT description
+  TIMESTAMP created_at DEFAULT now()
+  TIMESTAMP updated_at DEFAULT now()
+}
+
+class faq_entries {
+  PK id_faq_entry UUID DEFAULT gen_random_uuid()
+  FK id_faq_category UUID NOT NULL
+  TEXT question NOT NULL
+  TEXT answer NOT NULL
+  INTEGER display_order DEFAULT 0
+  BOOLEAN is_active DEFAULT true
+  TIMESTAMP created_at DEFAULT now()
+  TIMESTAMP updated_at DEFAULT now()
+}
+
+class contact_form_categories {
+  PK id_contact_form_category UUID DEFAULT gen_random_uuid()
+  VARCHAR name NOT NULL
+  TEXT description
+  BOOLEAN is_active DEFAULT true
+  TIMESTAMP created_at DEFAULT now()
+  TIMESTAMP updated_at DEFAULT now()
+}
+
+class contact_form_submissions {
+  PK id_contact_form_submission UUID DEFAULT gen_random_uuid()
+  FK id_contact_form_category UUID NOT NULL
+  FK id_user UUID NULL
+  VARCHAR sender_name NOT NULL
+  VARCHAR sender_email NOT NULL
+  VARCHAR subject NOT NULL
+  TEXT message NOT NULL
+  VARCHAR status DEFAULT 'pending'
+  TIMESTAMP created_at DEFAULT now()
+  TIMESTAMP updated_at DEFAULT now()
+}
+
 class calls_api_data {
   PK id_calls_api_data UUID
   VARCHAR channel_name
@@ -575,7 +663,7 @@ class management_statuses {
 class api_data {
   PK id_api_data UUID
   FK managed_by_user_id UUID NULL
-  FK id_professor UUID
+  FK id_professional UUID
   FK id_calls_api_data UUID NULL
   FK id_whiteboard_api_data UUID NULL
   FK id_chat_api_data UUID NULL
@@ -684,7 +772,7 @@ class disputes {
 
 class commission_rules {
   PK id_commission_rule UUID
-  FK id_professor UUID NULL
+  FK id_professional UUID NULL
   NUMERIC percent
   NUMERIC fixed_fee
   VARCHAR applies_to
@@ -740,11 +828,18 @@ users "1" --> "0..1" user_profile : has
 users "1" --> "0..*" user_notification : receives
 users "1" --> "0..*" user_consents : consents
 
-users "1" --> "0..1" professors : is
-professors "1" --> "0..*" professor_feedback : receives
-users "1" --> "0..*" professor_feedback : writes
-professors "1" --> "0..*" certificates : owns
-users "1" --> "0..1" professor_rooms : ownsRoom
+users "1" --> "0..1" professionals : is
+professionals "1" --> "0..*" professional_feedback : receives
+users "1" --> "0..*" professional_feedback : writes
+professionals "1" --> "0..*" certificates : owns
+users "1" --> "0..1" professional_rooms : ownsRoom
+
+professionals "1" --> "0..*" professional_languages : speaks
+professionals "1" --> "0..1" professional_stats : has_stats
+professionals "1" --> "0..*" professional_disciplinas : provides
+disciplinas "1" --> "0..*" professional_disciplinas : provided_by
+professionals "1" --> "0..*" professional_ads : creates
+disciplinas "1" --> "0..*" professional_ads : relates_to
 
 areas "1" --> "0..*" disciplinas : contains
 users "1" --> "0..*" user_disciplina : selects
@@ -752,7 +847,7 @@ disciplinas "1" --> "0..*" user_disciplina : selectedIn
 ciclos_estudo "1" --> "0..*" ciclos_estudo_anos : includes
 anos_escolaridade "1" --> "0..*" ciclos_estudo_anos : includes
 
-professors "1" --> "0..*" courses : offers
+professionals "1" --> "0..*" courses : offers
 disciplinas "1" --> "0..*" courses : classifies
 tutoring_types "1" --> "0..*" courses : type
 pricing_models "1" --> "0..*" courses : pricing
@@ -765,12 +860,12 @@ user_lesson_packs "1" --> "0..*" reservations : pays_for
 user_lesson_packs "1" --> "0..*" pack_transactions : history
 reservations "1" --> "0..*" pack_transactions : related_to
 
-professors "1" --> "0..*" schedule_blocks : schedules
+professionals "1" --> "0..*" schedule_blocks : schedules
 days "1" --> "0..*" schedule_blocks : day
 schedule_blocks "1" --> "0..*" block_parts : parts
 
 courses "1" --> "0..*" lessons : has
-professors "1" --> "0..*" lessons : teaches
+professionals "1" --> "0..*" lessons : conducts
 lessons "1" --> "0..*" enrollments : enrolls
 users "1" --> "0..*" enrollments : enrolled
 lessons "1" --> "0..*" lesson_feedback : rated
@@ -782,18 +877,19 @@ schedule_blocks "1" --> "0..*" lesson_schedule_blocks : used
 users "1" --> "0..*" reservations : books
 lessons "1" --> "0..*" reservations : booked
 reservations "1" --> "0..*" exception_requests : exceptions
-professors "1" --> "0..*" exception_rules : defines
+professionals "1" --> "0..*" exception_rules : defines
 
 users "1" --> "0..1" wishlists : wishlist
 wishlists "1" --> "0..*" wishlist_items : items
 courses "1" --> "0..*" wishlist_items : wished
 users "1" --> "0..1" favorites : favorites
 favorites "1" --> "0..*" favorite_items : items
-professors "1" --> "0..*" favorite_items : favorited
+professionals "1" --> "0..*" favorite_items : favorited
 
 users "1" --> "0..*" notifications : notifications
 users "1" --> "0..*" messages : sends
 users "1" --> "0..*" messages : receives
+messages "1" --> "0..*" chat_files : has_attachments
 users "1" --> "0..*" contacts : owner
 users "1" --> "0..*" contacts : contact
 group_rooms "1" --> "0..*" group_room_members : members
@@ -809,7 +905,11 @@ users "1" --> "0..*" complaints : receives
 complaints "1" --> "0..*" complaint_resolutions : resolves
 users "1" --> "0..*" complaint_resolutions : admin
 
-professors "1" --> "0..*" api_data : api
+faq_categories "1" --> "0..*" faq_entries : contains
+contact_form_categories "1" --> "0..*" contact_form_submissions : categorizes
+users "1" --> "0..*" contact_form_submissions : submits
+
+professionals "1" --> "0..*" api_data : api
 users "1" --> "0..*" api_data : manages
 management_statuses "1" --> "0..*" api_data : status
 
@@ -821,10 +921,11 @@ transactions "1" --> "0..*" refunds : refund
 transactions "1" --> "0..*" invoices : generates
 transactions "1" --> "0..*" disputes : dispute
 reservations "1" --> "0..*" disputes : relates_to
-professors "1" --> "0..*" commission_rules : commission
+professionals "1" --> "0..*" commission_rules : commission
 reservations "1" --> "0..*" reservation_payments : payments
 wallets "1" --> "0..*" reservation_payments : payer
 withdrawal_requests "1" --> "0..*" payouts : payout
+
 ciclos_estudo "1" --o "0..*" courses : categoriza
 anos_escolaridade "1" --o "0..*" courses : define_ano
 disciplinas "1" --o "0..*" courses : materia
