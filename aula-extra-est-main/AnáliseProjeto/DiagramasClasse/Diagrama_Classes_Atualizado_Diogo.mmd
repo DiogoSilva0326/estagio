@@ -170,6 +170,7 @@ class areas {
   PK id_area UUID
   VARCHAR nome UNIQUE
   TEXT descricao
+  VARCHAR target_role
   TIMESTAMP created_at DEFAULT now()
   TIMESTAMP updated_at DEFAULT now()
 }
@@ -234,9 +235,9 @@ class courses {
   FK id_professional UUID
   FK id_pricing_model UUID
   FK id_tutoring_type UUID
-  FK id_disciplina UUID
-  FK id_ano_escolaridade UUID
-  FK id_ciclo_estudo UUID
+  FK id_disciplina UUID NULL
+  FK id_ano_escolaridade UUID NULL
+  FK id_ciclo_estudo UUID NULL
   VARCHAR name
   TEXT description
   VARCHAR level_of_education
